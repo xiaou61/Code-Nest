@@ -60,6 +60,14 @@
                   <el-icon><Postcard /></el-icon>
                   闪卡记忆
                 </el-dropdown-item>
+                <el-dropdown-item divided command="/oj">
+                  <el-icon><Monitor /></el-icon>
+                  在线判题
+                </el-dropdown-item>
+                <el-dropdown-item command="/oj/playground">
+                  <el-icon><Cpu /></el-icon>
+                  练习场
+                </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -171,7 +179,8 @@ import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   HomeFilled, Document, DataAnalysis, ChatDotRound, Picture, Bell, 
-  User, UserFilled, SwitchButton, Calendar, Tools, Coffee, Message, Trophy, Reading, Promotion, ArrowDown, EditPen, Mic, Postcard
+  User, UserFilled, SwitchButton, Calendar, Tools, Coffee, Message, Trophy, Reading, Promotion, ArrowDown, EditPen, Mic, Postcard,
+  Monitor, Cpu
 } from '@element-plus/icons-vue'
 
 const route = useRoute()

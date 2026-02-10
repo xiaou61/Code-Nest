@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.oj.mapper.OjProblemMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.oj.domain.OjProblem">
+        <id column="id" property="id"/>
+        <result column="title" property="title"/>
+        <result column="description" property="description"/>
+        <result column="difficulty" property="difficulty"/>
+        <result column="time_limit" property="timeLimit"/>
+        <result column="memory_limit" property="memoryLimit"/>
+        <result column="input_description" property="inputDescription"/>
+        <result column="output_description" property="outputDescription"/>
+        <result column="sample_input" property="sampleInput"/>
+        <result column="sample_output" property="sampleOutput"/>
+        <result column="accepted_count" property="acceptedCount"/>
+        <result column="submit_count" property="submitCount"/>
+        <result column="status" property="status"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO oj_problem (title, description, difficulty, time_limit, memory_limit,
+                                input_description, output_description, sample_input, sample_output,
+                                status, create_user_id, create_time, update_time)
+        VALUES (#{title}, #{description}, #{difficulty}, #{timeLimit}, #{memoryLimit},
+                #{inputDescription}, #{outputDescription}, #{sampleInput}, #{sampleOutput},
+                #{status}, #{createUserId}, NOW(), NOW())
+    </insert>
+
+    <update id="updateById">
+        UPDATE oj_problem
+        <set>
+            <if test="title != null">title = #{title},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="difficulty != null">difficulty = #{difficulty},</if>
+            <if test="timeLimit != null">time_limit = #{timeLimit},</if>
+            <if test="memoryLimit != null">memory_limit = #{memoryLimit},</if>
+            <if test="inputDescription != null">input_description = #{inputDescription},</if>
+            <if test="outputDescription != null">output_description = #{outputDescription},</if>
+            <if test="sampleInput != null">sample_input = #{sampleInput},</if>
+            <if test="sampleOutput != null">sample_output = #{sampleOutput},</if>
+            <if test="status != null">status = #{status},</if>
+            update_time = NOW(),
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM oj_problem WHERE id = #{id}
+    </delete>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM oj_problem WHERE id = #{id}
+    </select>
+
+    <select id="selectPage" resultMap="BaseResultMap">
+        SELECT p.* FROM oj_problem p
+        <if test="request.tagId != null">
+            INNER JOIN oj_problem_tag_relation ptr ON p.id = ptr.problem_id AND ptr.tag_id = #{request.tagId}
+        </if>
+        <where>
+            <if test="request.keyword != null and request.keyword != ''">
+                AND p.title LIKE CONCAT('%', #{request.keyword}, '%')
+            </if>
+            <if test="request.difficulty != null and request.difficulty != ''">
+                AND p.difficulty = #{request.difficulty}
+            </if>
+            <if test="request.status != null">
+                AND p.status = #{request.status}
+            </if>
+        </where>
+        ORDER BY p.id DESC
+    </select>
+
+    <select id="countPage" resultType="long">
+        SELECT COUNT(*) FROM oj_problem p
+        <if test="request.tagId != null">
+            INNER JOIN oj_problem_tag_relation ptr ON p.id = ptr.problem_id AND ptr.tag_id = #{request.tagId}
+        </if>
+        <where>
+            <if test="request.keyword != null and request.keyword != ''">
+                AND p.title LIKE CONCAT('%', #{request.keyword}, '%')
+            </if>
+            <if test="request.difficulty != null and request.difficulty != ''">
+                AND p.difficulty = #{request.difficulty}
+            </if>
+            <if test="request.status != null">
+                AND p.status = #{request.status}
+            </if>
+        </where>
+    </select>
+
+    <update id="increaseSubmitCount">
+        UPDATE oj_problem SET submit_count = submit_count + 1 WHERE id = #{id}
+    </update>
+
+    <update id="increaseAcceptedCount">
+        UPDATE oj_problem SET accepted_count = accepted_count + 1 WHERE id = #{id}
+    </update>
+
+    <insert id="insertProblemTag">
+        INSERT INTO oj_problem_tag_relation (problem_id, tag_id) VALUES (#{problemId}, #{tagId})
+    </insert>
+
+    <delete id="deleteProblemTags">
+        DELETE FROM oj_problem_tag_relation WHERE problem_id = #{problemId}
+    </delete>
+
+    <select id="selectTagIdsByProblemId" resultType="java.lang.Long">
+        SELECT tag_id FROM oj_problem_tag_relation WHERE problem_id = #{problemId}
+    </select>
+</mapper>

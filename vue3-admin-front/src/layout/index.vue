@@ -107,6 +107,21 @@
             </el-menu-item>
           </el-sub-menu>
           
+          <el-sub-menu index="/oj">
+            <template #title>
+              <el-icon><Monitor /></el-icon>
+              <span>OJ 判题管理</span>
+            </template>
+            <el-menu-item index="/oj/problems">
+              <el-icon><Edit /></el-icon>
+              <span>题目管理</span>
+            </el-menu-item>
+            <el-menu-item index="/oj/tags">
+              <el-icon><PriceTag /></el-icon>
+              <span>标签管理</span>
+            </el-menu-item>
+          </el-sub-menu>
+          
           <el-sub-menu index="/resume">
             <template #title>
               <el-icon><EditPen /></el-icon>

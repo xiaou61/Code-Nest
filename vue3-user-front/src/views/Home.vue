@@ -195,6 +195,13 @@ const features = ref([
     icon: 'ChatDotRound',
     path: '/community',
     gradient: 'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)'
+  },
+  {
+    title: '在线判题',
+    desc: '支持多语言在线编程，实时判题反馈，提升算法与编码能力',
+    icon: 'Cpu',
+    path: '/oj',
+    gradient: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)'
   }
 ])
 

@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.xiaou</groupId>
   <artifactId>Code-Nest</artifactId>
-  <version>1.7.1</version>
+  <version>1.7.2</version>
   <packaging>pom</packaging>
   <modules>
     <module>xiaou-common</module>
@@ -33,6 +33,7 @@
     <module>xiaou-flashcard</module>
     <module>xiaou-ai</module>
     <module>xiaou-sql-optimizer</module>
+    <module>xiaou-oj</module>
   </modules>
   <properties>
     <maven-jar-plugin.version>3.2.2</maven-jar-plugin.version>
@@ -43,7 +44,7 @@
     <hutool.version>5.8.35</hutool.version>
     <spring-boot.version>3.4.4</spring-boot.version>
     <flatten-maven-plugin.version>1.3.0</flatten-maven-plugin.version>
-    <revision>1.7.1</revision>
+    <revision>1.7.2</revision>
     <lombok.version>1.18.36</lombok.version>
     <maven.compiler.target>17</maven.compiler.target>
     <jjwt.version>0.11.5</jjwt.version>

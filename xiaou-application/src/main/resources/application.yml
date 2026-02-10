@@ -264,3 +264,15 @@ community:
     # 摘要缓存时间（秒），默认30天
     summary-cache-ttl: 2592000
 
+# ==================== OJ 判题模块配置 ====================
+oj:
+  judge:
+    # go-judge 沙箱服务地址
+    go-judge-url: http://154.222.18.220:5050
+    # 最大编译时间 (ms)
+    max-compile-time: 10000
+    # 默认运行时间限制 (ms)
+    default-time-limit: 2000
+    # 默认内存限制 (MB)
+    default-memory-limit: 256
+

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.oj.mapper.OjSolutionMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.oj.domain.OjSolution">
+        <id column="id" property="id"/>
+        <result column="problem_id" property="problemId"/>
+        <result column="language" property="language"/>
+        <result column="title" property="title"/>
+        <result column="code" property="code"/>
+        <result column="description" property="description"/>
+        <result column="sort_order" property="sortOrder"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO oj_solution (problem_id, language, title, code, description, sort_order)
+        VALUES (#{problemId}, #{language}, #{title}, #{code}, #{description}, #{sortOrder})
+    </insert>
+
+    <update id="updateById">
+        UPDATE oj_solution
+        <set>
+            <if test="language != null">language = #{language},</if>
+            <if test="title != null">title = #{title},</if>
+            <if test="code != null">code = #{code},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="sortOrder != null">sort_order = #{sortOrder},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM oj_solution WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteByProblemId">
+        DELETE FROM oj_solution WHERE problem_id = #{problemId}
+    </delete>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM oj_solution WHERE id = #{id}
+    </select>
+
+    <select id="selectByProblemId" resultMap="BaseResultMap">
+        SELECT * FROM oj_solution WHERE problem_id = #{problemId} ORDER BY sort_order
+    </select>
+
+    <select id="countByProblemId" resultType="int">
+        SELECT COUNT(*) FROM oj_solution WHERE problem_id = #{problemId}
+    </select>
+</mapper>

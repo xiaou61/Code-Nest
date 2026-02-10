@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.oj.mapper.OjProblemTagMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO oj_problem_tag (name) VALUES (#{name})
+    </insert>
+
+    <delete id="deleteById">
+        DELETE FROM oj_problem_tag WHERE id = #{id}
+    </delete>
+
+    <select id="selectById" resultType="com.xiaou.oj.domain.OjProblemTag">
+        SELECT * FROM oj_problem_tag WHERE id = #{id}
+    </select>
+
+    <select id="selectAll" resultType="com.xiaou.oj.domain.OjProblemTag">
+        SELECT * FROM oj_problem_tag ORDER BY id
+    </select>
+
+    <select id="selectByIds" resultType="com.xiaou.oj.domain.OjProblemTag">
+        SELECT * FROM oj_problem_tag WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+</mapper>
