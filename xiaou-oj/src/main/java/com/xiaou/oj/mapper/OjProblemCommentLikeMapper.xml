@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.oj.mapper.OjProblemCommentLikeMapper">
+
+    <insert id="insert" parameterType="com.xiaou.oj.domain.OjProblemCommentLike" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO oj_problem_comment_like (comment_id, user_id, create_time)
+        VALUES (#{commentId}, #{userId}, NOW())
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM oj_problem_comment_like
+        WHERE comment_id = #{commentId} AND user_id = #{userId}
+    </delete>
+
+    <select id="selectByCommentIdAndUserId" resultType="com.xiaou.oj.domain.OjProblemCommentLike">
+        SELECT id, comment_id AS commentId, user_id AS userId, create_time AS createTime
+        FROM oj_problem_comment_like
+        WHERE comment_id = #{commentId} AND user_id = #{userId}
+        LIMIT 1
+    </select>
+
+</mapper>

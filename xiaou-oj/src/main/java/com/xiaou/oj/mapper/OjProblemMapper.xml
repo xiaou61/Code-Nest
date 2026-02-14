@@ -112,4 +112,11 @@
     <select id="selectTagIdsByProblemId" resultType="java.lang.Long">
         SELECT tag_id FROM oj_problem_tag_relation WHERE problem_id = #{problemId}
     </select>
+    <select id="countPublic" resultType="long">
+        SELECT COUNT(*) FROM oj_problem WHERE status = 1
+    </select>
+
+    <select id="selectPublicByOffset" resultMap="BaseResultMap">
+        SELECT * FROM oj_problem WHERE status = 1 ORDER BY id LIMIT 1 OFFSET #{offset}
+    </select>
 </mapper>

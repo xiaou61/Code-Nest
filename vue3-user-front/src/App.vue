@@ -28,7 +28,7 @@
           </router-link>
           
           <!-- 学习工具下拉菜单 -->
-          <el-dropdown trigger="hover" @command="handleNavCommand">
+          <el-dropdown trigger="hover" @command="handleNavCommand" popper-class="global-nav-popper">
             <div class="nav-item nav-dropdown">
               <el-icon><Document /></el-icon>
               <span>学习</span>
@@ -73,7 +73,7 @@
           </el-dropdown>
           
           <!-- 创作工具下拉菜单 -->
-          <el-dropdown trigger="hover" @command="handleNavCommand">
+          <el-dropdown trigger="hover" @command="handleNavCommand" popper-class="global-nav-popper">
             <div class="nav-item nav-dropdown">
               <el-icon><Tools /></el-icon>
               <span>创作</span>
@@ -102,7 +102,7 @@
           </el-dropdown>
           
           <!-- 娱乐工具下拉菜单 -->
-          <el-dropdown trigger="hover" @command="handleNavCommand">
+          <el-dropdown trigger="hover" @command="handleNavCommand" popper-class="global-nav-popper">
             <div class="nav-item nav-dropdown">
               <el-icon><Coffee /></el-icon>
               <span>娱乐</span>
@@ -131,7 +131,7 @@
             </el-badge>
           </div>
           
-          <el-dropdown @command="handleUserAction" placement="bottom-end">
+          <el-dropdown @command="handleUserAction" placement="bottom-end" popper-class="global-nav-popper">
             <div class="user-avatar">
               <el-avatar :size="32" :src="userStore.userInfo?.avatar" :icon="UserFilled" />
               <span v-if="userStore.userInfo" class="username">{{ userStore.userInfo.username }}</span>
@@ -246,210 +246,258 @@ const handleUserAction = async (command) => {
 
 <style>
 #app {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  height: 100vh;
+  min-height: 100vh;
   overflow-x: hidden;
+  font-family: var(--cn-font-sans);
+  color: var(--cn-text-primary);
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-/* 全局导航栏样式 */
 .global-header {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid var(--cn-border-soft);
+  box-shadow: 0 10px 30px rgba(18, 38, 63, 0.06);
 }
 
 .header-content {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
-  height: 64px;
-  max-width: 1200px;
+  gap: 16px;
+  padding: 0 22px;
+  height: 68px;
+  max-width: 1360px;
   margin: 0 auto;
 }
 
-/* Logo样式 */
 .logo {
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: var(--cn-transition);
 }
 
 .logo h2 {
   margin: 0;
-  color: #1890ff;
+  font-family: var(--cn-font-heading);
   font-size: 24px;
-  font-weight: bold;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--cn-primary);
 }
 
-.logo:hover h2 {
-  color: #40a9ff;
+.logo:hover {
+  transform: translateY(-1px);
+  opacity: 0.92;
 }
 
-/* 主导航样式 */
 .main-nav {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  padding: 5px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--cn-border-soft);
+  border-radius: 14px;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
-  border-radius: 8px;
-  color: #666;
+  padding: 8px 14px;
+  border-radius: 10px;
+  color: var(--cn-text-secondary);
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
-  transition: all 0.3s ease;
+  transition: var(--cn-transition);
   white-space: nowrap;
 }
 
 .nav-item:hover {
-  color: #1890ff;
-  background-color: rgba(24, 144, 255, 0.06);
+  color: var(--cn-primary);
+  background: #edf3ff;
 }
 
 .nav-item.active {
-  color: #1890ff;
-  background-color: rgba(24, 144, 255, 0.1);
+  color: var(--cn-primary);
   font-weight: 600;
+  background: linear-gradient(180deg, #f3f8ff 0%, #eaf2ff 100%);
+  box-shadow: inset 0 0 0 1px #d7e5ff;
 }
 
 .nav-item .el-icon {
   font-size: 16px;
 }
 
-/* 导航下拉菜单样式 */
 .nav-dropdown {
   cursor: pointer;
   position: relative;
 }
 
 .dropdown-arrow {
-  font-size: 12px;
   margin-left: 2px;
-  transition: transform 0.3s ease;
+  font-size: 12px;
+  transition: transform 0.25s ease;
 }
 
 .nav-dropdown:hover .dropdown-arrow {
   transform: rotate(180deg);
 }
 
-/* 下拉菜单项样式 */
-:deep(.el-dropdown-menu__item) {
-  padding: 8px 16px;
+.global-nav-popper .el-dropdown-menu {
+  border: 1px solid var(--cn-border-soft);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(18, 38, 63, 0.1);
 }
 
-:deep(.el-dropdown-menu__item .el-icon) {
+.global-nav-popper .el-dropdown-menu__item {
+  padding: 8px 16px;
+  color: var(--cn-text-secondary);
+}
+
+.global-nav-popper .el-dropdown-menu__item .el-icon {
   margin-right: 8px;
   font-size: 14px;
+  color: #6c84b5;
 }
 
-/* 用户操作区域样式 */
+.global-nav-popper .el-dropdown-menu__item:not(.is-disabled):hover {
+  background: #eef4ff;
+  color: var(--cn-primary);
+}
+
 .user-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .action-item {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: var(--cn-transition);
 }
 
 .action-item:hover {
-  background-color: rgba(24, 144, 255, 0.06);
+  border-color: #d6e3f8;
+  background: #eef4ff;
 }
 
 .action-item .el-icon {
   font-size: 18px;
-  color: #666;
+  color: var(--cn-text-secondary);
 }
 
 .action-item:hover .el-icon {
-  color: #1890ff;
+  color: var(--cn-primary);
 }
 
 .user-avatar {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
-  border-radius: 8px;
+  padding: 5px 10px 5px 6px;
+  border: 1px solid transparent;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: var(--cn-transition);
 }
 
 .user-avatar:hover {
-  background-color: rgba(24, 144, 255, 0.06);
+  border-color: #d6e3f8;
+  background: #eef4ff;
 }
 
 .username {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-  max-width: 100px;
+  max-width: 104px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--cn-text-secondary);
 }
 
-/* 主要内容区域样式 */
 .app-main {
   min-height: 100vh;
+  background:
+    radial-gradient(circle at 2% -18%, rgba(31, 111, 235, 0.2) 0%, rgba(31, 111, 235, 0) 32%),
+    radial-gradient(circle at 86% -20%, rgba(107, 165, 255, 0.22) 0%, rgba(107, 165, 255, 0) 38%),
+    linear-gradient(170deg, #f7faff 0%, #f1f5fc 65%, #edf2fa 100%);
 }
 
 .app-main.with-header {
-  padding-top: 64px;
+  padding-top: 68px;
 }
 
-/* 响应式设计 */
+.v-enter-active,
+.v-leave-active {
+  transition: all 0.25s ease;
+}
+
+.v-enter-from,
+.v-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+@media (max-width: 1024px) {
+  .header-content {
+    padding: 0 14px;
+  }
+
+  .main-nav {
+    gap: 2px;
+    padding: 4px;
+  }
+
+  .nav-item {
+    padding: 7px 10px;
+  }
+}
+
 @media (max-width: 768px) {
   .header-content {
-    padding: 0 16px;
+    height: 62px;
+    gap: 8px;
   }
-  
+
+  .app-main.with-header {
+    padding-top: 62px;
+  }
+
   .main-nav {
-    gap: 4px;
+    flex: 1;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
-  
+
+  .main-nav::-webkit-scrollbar {
+    display: none;
+  }
+
   .nav-item {
-    padding: 6px 12px;
+    padding: 7px 10px;
     font-size: 13px;
   }
-  
+
   .nav-item span {
     display: none;
   }
-  
+
   .username {
     display: none;
-  }
-  
-  .user-actions {
-    gap: 12px;
   }
 }
 
@@ -457,25 +505,10 @@ const handleUserAction = async (command) => {
   .logo h2 {
     font-size: 20px;
   }
-  
-  .nav-item {
-    padding: 6px 8px;
-  }
-  
-  .main-nav {
-    gap: 2px;
-  }
-}
 
-/* 全局过渡动画 */
-.v-enter-active,
-.v-leave-active {
-  transition: all 0.3s ease;
-}
-
-.v-enter-from,
-.v-leave-to {
-  opacity: 0;
-  transform: translateY(10px);
+  .action-item {
+    width: 34px;
+    height: 34px;
+  }
 }
 </style> 

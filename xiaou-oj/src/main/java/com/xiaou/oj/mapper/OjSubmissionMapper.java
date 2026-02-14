@@ -49,4 +49,19 @@ public interface OjSubmissionMapper {
      * 检查用户是否已经AC过某题
      */
     boolean existsAccepted(@Param("userId") Long userId, @Param("problemId") Long problemId);
+
+    /**
+     * 排行榜：总榜
+     */
+    List<com.xiaou.oj.dto.RankingItem> selectRankingAll(@Param("limit") int limit);
+
+    /**
+     * 排行榜：周榜
+     */
+    List<com.xiaou.oj.dto.RankingItem> selectRankingWeekly(@Param("weekStart") String weekStart, @Param("limit") int limit);
+
+    /**
+     * 检查是否为用户对某题的首次AC（无更早的accepted提交）
+     */
+    boolean isFirstAccepted(@Param("userId") Long userId, @Param("problemId") Long problemId, @Param("submissionId") Long submissionId);
 }

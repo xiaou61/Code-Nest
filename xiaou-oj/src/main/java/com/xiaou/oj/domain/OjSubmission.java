@@ -74,4 +74,9 @@ public class OjSubmission {
      * 题目标题 (查询时使用)
      */
     private transient String problemTitle;
+
+    /**
+     * 首次AC获得的积分 (仅查询时回填)
+     */
+    private transient Integer pointsEarned;
 }

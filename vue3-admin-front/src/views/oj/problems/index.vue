@@ -18,7 +18,7 @@
 
     <!-- 搜索区 -->
     <el-card class="search-card" shadow="never">
-      <el-row :gutter="20">
+      <el-row :gutter="16" class="search-row">
         <el-col :span="6">
           <el-input
             v-model="searchForm.keyword"
@@ -45,7 +45,7 @@
             <el-option label="隐藏" :value="0" />
           </el-select>
         </el-col>
-        <el-col :span="10">
+        <el-col :span="10" class="search-actions">
           <el-button type="primary" @click="handleSearch">
             <el-icon><Search /></el-icon>
             搜索
@@ -195,33 +195,86 @@ onMounted(() => loadData())
 </script>
 
 <style scoped>
+.problem-management {
+  display: grid;
+  gap: 14px;
+}
+
 .header-card,
 .search-card,
 .table-card {
-  margin-bottom: 16px;
-  border-radius: 8px;
+  margin-bottom: 0;
+  border-radius: 14px;
 }
 
 .header-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
 }
 
 .title-section h2 {
-  margin: 0 0 4px;
-  font-size: 18px;
+  margin: 0 0 6px;
+  font-size: 23px;
+  font-weight: 600;
+  color: var(--cn-text-primary);
 }
 
 .title-section p {
   margin: 0;
-  color: #909399;
-  font-size: 13px;
+  color: var(--cn-text-secondary);
+  font-size: 14px;
+}
+
+.action-section :deep(.el-button) {
+  min-width: 120px;
+}
+
+.search-row :deep(.el-select),
+.search-row :deep(.el-input) {
+  width: 100%;
+}
+
+.search-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.table-card :deep(.el-card__body) {
+  padding-top: 8px;
+}
+
+.table-card :deep(.el-switch) {
+  --el-switch-on-color: #1f6feb;
+}
+
+.table-card :deep(.el-button--small) {
+  min-width: 64px;
 }
 
 .pagination-wrapper {
   display: flex;
   justify-content: flex-end;
-  margin-top: 16px;
+  margin-top: 14px;
+}
+
+@media (max-width: 1100px) {
+  .search-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .title-section h2 {
+    font-size: 20px;
+  }
 }
 </style>

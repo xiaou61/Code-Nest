@@ -64,7 +64,24 @@ public class OjSubmissionServiceImpl implements OjSubmissionService {
 
     @Override
     public OjSubmission getSubmissionById(Long id) {
-        return submissionMapper.selectById(id);
+        OjSubmission submission = submissionMapper.selectById(id);
+        if (submission != null && "accepted".equals(submission.getStatus())) {
+            // 检查是否为首次AC（当前提交是该题最早的accepted）
+            boolean isFirstAc = submissionMapper.isFirstAccepted(submission.getUserId(), submission.getProblemId(), id);
+            if (isFirstAc) {
+                OjProblem problem = problemMapper.selectById(submission.getProblemId());
+                if (problem != null) {
+                    submission.setPointsEarned(getAcPoints(problem.getDifficulty()));
+                }
+            }
+        }
+        return submission;
+    }
+
+    private int getAcPoints(String difficulty) {
+        if ("hard".equals(difficulty)) return 500;
+        if ("medium".equals(difficulty)) return 200;
+        return 100;
     }
 
     @Override

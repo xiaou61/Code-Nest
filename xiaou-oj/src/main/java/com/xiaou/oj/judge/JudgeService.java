@@ -12,6 +12,8 @@ import com.xiaou.oj.judge.strategy.JudgeStrategy;
 import com.xiaou.oj.mapper.OjProblemMapper;
 import com.xiaou.oj.mapper.OjSubmissionMapper;
 import com.xiaou.oj.mapper.OjTestCaseMapper;
+import com.xiaou.points.enums.PointsType;
+import com.xiaou.points.service.PointsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -36,6 +38,7 @@ public class JudgeService {
     private final OjProblemMapper problemMapper;
     private final OjTestCaseMapper testCaseMapper;
     private final List<JudgeStrategy> strategies;
+    private final PointsService pointsService;
 
     /**
      * 异步执行判题
@@ -156,6 +159,17 @@ public class JudgeService {
                 updateSubmission(submission, SubmissionStatus.ACCEPTED, maxTime, maxMemory, passCount, testCases.size(), null);
                 if (firstAc) {
                     problemMapper.increaseAcceptedCount(submission.getProblemId());
+                    // 发放积分奖励
+                    try {
+                        int points = getAcPoints(problem.getDifficulty());
+                        pointsService.grantSystemPoints(submission.getUserId(), points,
+                                PointsType.OJ_AC.getCode(),
+                                "首次通过题目「" + problem.getTitle() + "」");
+                        log.info("[Judge] 发放积分: userId={}, points={}, problem={}",
+                                submission.getUserId(), points, problem.getTitle());
+                    } catch (Exception e) {
+                        log.error("[Judge] 发放积分失败: submissionId={}", submissionId, e);
+                    }
                 }
             } finally {
                 // 清理 go-judge 缓存文件
@@ -181,6 +195,15 @@ public class JudgeService {
                 .filter(s -> s.getLanguage() == language)
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("不支持的语言: " + language.getValue()));
+    }
+
+    /**
+     * 根据难度获取AC积分奖励
+     */
+    private int getAcPoints(String difficulty) {
+        if ("hard".equals(difficulty)) return 500;
+        if ("medium".equals(difficulty)) return 200;
+        return 100; // easy 或其他
     }
 
     /**

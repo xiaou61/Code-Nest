@@ -87,6 +87,10 @@
             <el-icon class="action-icon"><DataLine /></el-icon>
             <span>做题统计</span>
           </div>
+          <div class="action-btn" @click="$router.push('/oj/ranking')">
+            <el-icon class="action-icon"><Trophy /></el-icon>
+            <span>排行榜</span>
+          </div>
         </div>
       </div>
     </aside>
@@ -101,6 +105,24 @@
             {{ ojStore.problemsTotal }} 道题目
           </span>
         </div>
+      </div>
+
+      <!-- 每日一题 -->
+      <div class="daily-card" v-if="dailyProblem" @click="goToProblem(dailyProblem)">
+        <div class="daily-label">每日一题</div>
+        <div class="daily-body">
+          <div class="daily-title">
+            <span>{{ dailyProblem.id }}. {{ dailyProblem.title }}</span>
+            <el-tag :type="getDifficultyTag(dailyProblem.difficulty)" size="small" effect="dark">
+              {{ getDifficultyLabel(dailyProblem.difficulty) }}
+            </el-tag>
+          </div>
+          <div class="daily-desc" v-if="dailyProblem.inputDescription">
+            {{ dailyProblem.inputDescription.substring(0, 80) }}
+            <span v-if="dailyProblem.inputDescription.length > 80">...</span>
+          </div>
+        </div>
+        <el-icon class="daily-arrow"><ArrowRight /></el-icon>
       </div>
 
       <!-- 题目表格 -->
@@ -187,13 +209,15 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  Search, Filter, CollectionTag, Lightning, List, DataLine
+  Search, Filter, CollectionTag, Lightning, List, DataLine, Trophy, ArrowRight
 } from '@element-plus/icons-vue'
 import { useOjStore } from '@/stores/oj'
+import { ojApi } from '@/api/oj'
 
 const router = useRouter()
 const ojStore = useOjStore()
 
+const dailyProblem = ref(null)
 const searchKeyword = ref('')
 const queryParams = reactive({
   pageNum: 1,
@@ -265,30 +289,32 @@ const getDifficultyLabel = (difficulty) => {
 onMounted(() => {
   loadProblems()
   ojStore.fetchTags()
+  ojApi.getDailyProblem().then(p => { dailyProblem.value = p }).catch(() => {})
 })
 </script>
 
 <style scoped>
 .oj-index {
   display: flex;
-  gap: 20px;
-  max-width: 1400px;
+  gap: 16px;
+  max-width: 1420px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 8px 10px 18px;
   min-height: calc(100vh - 60px);
 }
 
 .sidebar {
-  width: 260px;
+  width: 276px;
   flex-shrink: 0;
 }
 
 .sidebar-section {
   background: #fff;
-  border-radius: 12px;
+  border: 1px solid #dbe7f8;
+  border-radius: 14px;
   padding: 16px;
-  margin-bottom: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 14px;
+  box-shadow: 0 10px 26px rgba(18, 38, 63, 0.05);
 }
 
 .section-title {
@@ -297,7 +323,7 @@ onMounted(() => {
   gap: 6px;
   font-size: 14px;
   font-weight: 600;
-  color: #374151;
+  color: var(--cn-text-primary);
   margin-bottom: 12px;
 }
 
@@ -314,7 +340,7 @@ onMounted(() => {
   border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--cn-text-secondary);
   transition: all 0.2s;
   display: flex;
   align-items: center;
@@ -322,14 +348,14 @@ onMounted(() => {
 
 .difficulty-item:hover,
 .tag-item:hover {
-  background: #f3f4f6;
-  color: #374151;
+  background: #eef4ff;
+  color: #2458b1;
 }
 
 .difficulty-item.active,
 .tag-item.active {
-  background: #dbeafe;
-  color: #2563eb;
+  background: #e6f0ff;
+  color: #1f6feb;
   font-weight: 500;
 }
 
@@ -352,13 +378,13 @@ onMounted(() => {
   border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--cn-text-secondary);
   transition: all 0.2s;
 }
 
 .action-btn:hover {
-  background: #f3f4f6;
-  color: #374151;
+  background: #edf4ff;
+  color: var(--cn-primary);
 }
 
 .action-icon {
@@ -374,7 +400,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .header-left {
@@ -384,23 +410,24 @@ onMounted(() => {
 }
 
 .page-title {
-  font-size: 22px;
-  font-weight: 700;
-  color: #1f2937;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--cn-text-primary);
   margin: 0;
 }
 
 .total-badge {
-  background: #dbeafe;
-  color: #2563eb;
-  padding: 2px 10px;
+  background: #edf4ff;
+  color: #1f6feb;
+  padding: 3px 11px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
 }
 
 .table-card {
-  border-radius: 12px;
+  border-radius: 14px;
+  border: 1px solid #dbe7f8;
 }
 
 .table-card :deep(.el-card__body) {
@@ -412,12 +439,12 @@ onMounted(() => {
 }
 
 .clickable-row:hover {
-  background: #f9fafb;
+  background: #f4f9ff;
 }
 
 .problem-title {
   font-weight: 500;
-  color: #1f2937;
+  color: var(--cn-text-primary);
 }
 
 .tag-chip {
@@ -432,17 +459,80 @@ onMounted(() => {
 .pagination-wrapper {
   display: flex;
   justify-content: center;
-  margin-top: 20px;
-  padding-bottom: 20px;
+  margin-top: 16px;
+  padding-bottom: 8px;
+}
+
+/* 每日一题 */
+.daily-card {
+  background: linear-gradient(135deg, #4f8eff 0%, #1f6feb 100%);
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  transition: transform 0.22s, box-shadow 0.22s;
+  color: #fff;
+  box-shadow: 0 12px 30px rgba(31, 111, 235, 0.28);
+}
+
+.daily-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 34px rgba(31, 111, 235, 0.34);
+}
+
+.daily-label {
+  background: rgba(255, 255, 255, 0.24);
+  padding: 4px 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.daily-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.daily-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.daily-desc {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.82);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.daily-arrow {
+  font-size: 20px;
+  opacity: 0.7;
 }
 
 /* 响应式 */
 @media (max-width: 900px) {
   .oj-index {
     flex-direction: column;
+    padding: 6px 2px 14px;
   }
+
   .sidebar {
     width: 100%;
+    order: 2;
+  }
+
+  .main-content {
+    order: 1;
   }
 }
 </style>

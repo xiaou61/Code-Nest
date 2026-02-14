@@ -22,4 +22,9 @@ public interface OjProblemService {
     OjProblem getProblemById(Long id);
 
     PageResult<OjProblem> getProblems(ProblemQueryRequest request);
+
+    /**
+     * 每日一题
+     */
+    OjProblem getDailyProblem();
 }

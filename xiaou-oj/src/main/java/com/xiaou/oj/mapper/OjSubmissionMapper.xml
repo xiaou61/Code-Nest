@@ -107,4 +107,32 @@
             WHERE user_id = #{userId} AND problem_id = #{problemId} AND status = 'accepted'
         )
     </select>
+    <select id="selectRankingAll" resultType="com.xiaou.oj.dto.RankingItem">
+        SELECT user_id AS userId,
+               COUNT(DISTINCT problem_id) AS acceptedCount,
+               COUNT(*) AS submissionCount
+        FROM oj_submission
+        WHERE status = 'accepted'
+        GROUP BY user_id
+        ORDER BY acceptedCount DESC, submissionCount ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectRankingWeekly" resultType="com.xiaou.oj.dto.RankingItem">
+        SELECT user_id AS userId,
+               COUNT(DISTINCT problem_id) AS acceptedCount,
+               COUNT(*) AS submissionCount
+        FROM oj_submission
+        WHERE status = 'accepted' AND create_time >= #{weekStart}
+        GROUP BY user_id
+        ORDER BY acceptedCount DESC, submissionCount ASC
+        LIMIT #{limit}
+    </select>
+    <select id="isFirstAccepted" resultType="boolean">
+        SELECT NOT EXISTS(
+            SELECT 1 FROM oj_submission
+            WHERE user_id = #{userId} AND problem_id = #{problemId}
+              AND status = 'accepted' AND id &lt; #{submissionId}
+        )
+    </select>
 </mapper>

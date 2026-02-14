@@ -38,6 +38,12 @@
         <el-tabs v-model="activeTab" class="left-tabs">
           <el-tab-pane label="题目描述" name="description" />
           <el-tab-pane label="题解" name="solution" />
+          <el-tab-pane name="discussion">
+            <template #label>
+              <span>讨论</span>
+              <span class="comment-count-badge" v-if="commentTotal > 0">{{ commentTotal }}</span>
+            </template>
+          </el-tab-pane>
         </el-tabs>
         <el-scrollbar height="100%">
           <!-- 题目描述 -->
@@ -72,6 +78,142 @@
             <div class="section constraints">
               <h4>限制</h4>
               <p>时间限制: {{ problem.timeLimit || 1000 }}ms &nbsp;|&nbsp; 内存限制: {{ problem.memoryLimit || 256 }}MB</p>
+            </div>
+          </div>
+
+          <!-- 讨论区 -->
+          <div class="problem-content discussion-section" v-show="activeTab === 'discussion'">
+            <!-- 发表评论 -->
+            <div class="comment-input-box">
+              <textarea
+                class="comment-textarea"
+                v-model="newCommentContent"
+                placeholder="写下你的想法或解题思路..."
+                maxlength="1000"
+                rows="3"
+              ></textarea>
+              <div class="comment-input-footer">
+                <span class="char-count">{{ newCommentContent.length }}/1000</span>
+                <el-button type="primary" size="small" :loading="commentSubmitting" @click="handleCreateComment" :disabled="!newCommentContent.trim()">
+                  发表评论
+                </el-button>
+              </div>
+            </div>
+
+            <!-- 排序栏 -->
+            <div class="comment-sort-bar" v-if="comments.length > 0 || commentTotal > 0">
+              <span class="comment-total">{{ commentTotal }} 条评论</span>
+              <div class="sort-tabs">
+                <span class="sort-tab" :class="{ active: commentSort === 'time' }" @click="changeCommentSort('time')">最新</span>
+                <span class="sort-tab" :class="{ active: commentSort === 'hot' }" @click="changeCommentSort('hot')">最热</span>
+              </div>
+            </div>
+
+            <!-- 加载中 -->
+            <div v-if="commentsLoading" style="text-align: center; padding: 40px 0;">
+              <el-icon class="is-loading" :size="24"><Loading /></el-icon>
+              <p style="color: #9ca3af; margin-top: 8px;">加载中...</p>
+            </div>
+
+            <!-- 空状态 -->
+            <div v-else-if="comments.length === 0" class="comment-empty">
+              <p>暂无评论，来发表第一条评论吧 🎉</p>
+            </div>
+
+            <!-- 评论列表 -->
+            <div v-else class="comment-list">
+              <div v-for="comment in comments" :key="comment.id" class="comment-item">
+                <!-- 一级评论 -->
+                <div class="comment-main">
+                  <div class="comment-avatar">{{ comment.authorName?.charAt(0) || '?' }}</div>
+                  <div class="comment-body">
+                    <div class="comment-meta">
+                      <span class="comment-author">{{ comment.authorName }}</span>
+                      <span class="comment-time">{{ formatTime(comment.createTime) }}</span>
+                    </div>
+                    <div class="comment-text">{{ comment.content }}</div>
+                    <div class="comment-actions">
+                      <span class="action-btn" :class="{ liked: comment.isLiked }" @click="handleToggleLike(comment)">
+                        {{ comment.isLiked ? '👍' : '👍' }} {{ comment.likeCount || 0 }}
+                      </span>
+                      <span class="action-btn" @click="openReply(comment)">
+                        💬 回复
+                      </span>
+                    </div>
+
+                    <!-- 回复输入框 -->
+                    <div class="reply-input-box" v-if="replyTarget && replyTarget.id === comment.id && !replyTarget._isChild">
+                      <textarea
+                        class="reply-textarea"
+                        v-model="replyContent"
+                        :placeholder="'回复 ' + comment.authorName"
+                        maxlength="500"
+                        rows="2"
+                      ></textarea>
+                      <div class="reply-input-footer">
+                        <el-button size="small" text @click="closeReply">取消</el-button>
+                        <el-button type="primary" size="small" :loading="replySubmitting" @click="handleReplyComment(comment)" :disabled="!replyContent.trim()">
+                          回复
+                        </el-button>
+                      </div>
+                    </div>
+
+                    <!-- 二级回复 -->
+                    <div class="reply-list" v-if="comment.replies && comment.replies.length > 0">
+                      <div v-for="reply in comment.replies" :key="reply.id" class="reply-item">
+                        <div class="comment-avatar reply-avatar">{{ reply.authorName?.charAt(0) || '?' }}</div>
+                        <div class="comment-body">
+                          <div class="comment-meta">
+                            <span class="comment-author">{{ reply.authorName }}</span>
+                            <span class="reply-to" v-if="reply.replyToUserName">
+                              回复 <span class="reply-to-name">{{ reply.replyToUserName }}</span>
+                            </span>
+                            <span class="comment-time">{{ formatTime(reply.createTime) }}</span>
+                          </div>
+                          <div class="comment-text">{{ reply.content }}</div>
+                          <div class="comment-actions">
+                            <span class="action-btn" :class="{ liked: reply.isLiked }" @click="handleToggleLike(reply)">
+                              👍 {{ reply.likeCount || 0 }}
+                            </span>
+                            <span class="action-btn" @click="openChildReply(comment, reply)">
+                              💬 回复
+                            </span>
+                          </div>
+
+                          <!-- 子回复输入框 -->
+                          <div class="reply-input-box" v-if="replyTarget && replyTarget.id === reply.id && replyTarget._isChild">
+                            <textarea
+                              class="reply-textarea"
+                              v-model="replyContent"
+                              :placeholder="'回复 ' + reply.authorName"
+                              maxlength="500"
+                              rows="2"
+                            ></textarea>
+                            <div class="reply-input-footer">
+                              <el-button size="small" text @click="closeReply">取消</el-button>
+                              <el-button type="primary" size="small" :loading="replySubmitting" @click="handleReplyChild(comment, reply)" :disabled="!replyContent.trim()">
+                                回复
+                              </el-button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- 查看更多回复 -->
+                      <div v-if="comment.hasMoreReplies" class="load-more-replies" @click="loadMoreReplies(comment)">
+                        查看全部 {{ comment.replyCount }} 条回复 ▸
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 加载更多 -->
+              <div class="load-more-comments" v-if="hasMoreComments">
+                <el-button text :loading="commentsLoadingMore" @click="loadMoreComments">
+                  加载更多评论
+                </el-button>
+              </div>
             </div>
           </div>
 
@@ -241,6 +383,9 @@
             <span class="metric" v-if="submissionResult.timeUsed != null">⏱ {{ submissionResult.timeUsed }}ms</span>
             <span class="metric" v-if="submissionResult.memoryUsed != null">💾 {{ formatMemory(submissionResult.memoryUsed) }}</span>
           </div>
+          <div class="points-reward" v-if="submissionResult.status === 'accepted' && submissionResult.pointsEarned > 0">
+            +{{ submissionResult.pointsEarned }} 积分
+          </div>
           <div class="pass-rate" v-if="submissionResult.passCount != null && submissionResult.totalCount">
             <div class="pass-rate-text">
               通过 {{ submissionResult.passCount }}/{{ submissionResult.totalCount }} 个测试用例
@@ -311,6 +456,24 @@ const activeTab = ref('description')
 const solutions = ref([])
 const solutionsLoading = ref(false)
 const solutionsLoaded = ref(false)
+
+// 评论
+const comments = ref([])
+const commentTotal = ref(0)
+const commentSort = ref('time')
+const commentPage = ref(1)
+const commentsLoading = ref(false)
+const commentsLoadingMore = ref(false)
+const commentsLoaded = ref(false)
+const newCommentContent = ref('')
+const commentSubmitting = ref(false)
+const replyTarget = ref(null)
+const replyContent = ref('')
+const replySubmitting = ref(false)
+
+const hasMoreComments = computed(() => {
+  return comments.value.length < commentTotal.value
+})
 
 const languages = [
   { value: 'java', label: 'Java', monacoLang: 'java' },
@@ -529,7 +692,155 @@ watch(activeTab, async (tab) => {
       solutionsLoaded.value = true
     }
   }
+  if (tab === 'discussion' && !commentsLoaded.value) {
+    await fetchComments()
+  }
 })
+
+// ============ 评论 ============
+
+const fetchComments = async (append = false) => {
+  if (!append) {
+    commentsLoading.value = true
+    commentPage.value = 1
+  } else {
+    commentsLoadingMore.value = true
+  }
+  try {
+    const res = await ojApi.getComments(problem.value.id, {
+      pageNum: commentPage.value,
+      pageSize: 10,
+      sort: commentSort.value
+    })
+    if (append) {
+      comments.value.push(...(res.records || []))
+    } else {
+      comments.value = res.records || []
+    }
+    commentTotal.value = res.total || 0
+    commentsLoaded.value = true
+  } catch {
+    if (!append) comments.value = []
+  } finally {
+    commentsLoading.value = false
+    commentsLoadingMore.value = false
+  }
+}
+
+const changeCommentSort = (sort) => {
+  if (commentSort.value === sort) return
+  commentSort.value = sort
+  fetchComments()
+}
+
+const loadMoreComments = () => {
+  commentPage.value++
+  fetchComments(true)
+}
+
+const handleCreateComment = async () => {
+  if (!newCommentContent.value.trim()) return
+  commentSubmitting.value = true
+  try {
+    await ojApi.createComment(problem.value.id, { content: newCommentContent.value })
+    newCommentContent.value = ''
+    ElMessage.success('评论发表成功')
+    await fetchComments()
+  } catch {
+    // handled by interceptor
+  } finally {
+    commentSubmitting.value = false
+  }
+}
+
+const openReply = (comment) => {
+  replyTarget.value = { ...comment, _isChild: false }
+  replyContent.value = ''
+}
+
+const openChildReply = (parentComment, reply) => {
+  replyTarget.value = { ...reply, _isChild: true, _parentId: parentComment.id }
+  replyContent.value = ''
+}
+
+const closeReply = () => {
+  replyTarget.value = null
+  replyContent.value = ''
+}
+
+const handleReplyComment = async (comment) => {
+  if (!replyContent.value.trim()) return
+  replySubmitting.value = true
+  try {
+    await ojApi.replyComment(comment.id, {
+      content: replyContent.value,
+      replyToUserId: comment.authorId
+    })
+    closeReply()
+    ElMessage.success('回复成功')
+    await fetchComments()
+  } catch {
+    // handled by interceptor
+  } finally {
+    replySubmitting.value = false
+  }
+}
+
+const handleReplyChild = async (parentComment, reply) => {
+  if (!replyContent.value.trim()) return
+  replySubmitting.value = true
+  try {
+    await ojApi.replyComment(reply.id, {
+      content: replyContent.value,
+      replyToUserId: reply.authorId
+    })
+    closeReply()
+    ElMessage.success('回复成功')
+    await fetchComments()
+  } catch {
+    // handled by interceptor
+  } finally {
+    replySubmitting.value = false
+  }
+}
+
+const handleToggleLike = async (comment) => {
+  try {
+    if (comment.isLiked) {
+      await ojApi.unlikeComment(comment.id)
+      comment.isLiked = false
+      comment.likeCount = Math.max(0, (comment.likeCount || 1) - 1)
+    } else {
+      await ojApi.likeComment(comment.id)
+      comment.isLiked = true
+      comment.likeCount = (comment.likeCount || 0) + 1
+    }
+  } catch {
+    // handled by interceptor
+  }
+}
+
+const loadMoreReplies = async (comment) => {
+  try {
+    const res = await ojApi.getCommentReplies(comment.id, { pageNum: 1, pageSize: 50 })
+    comment.replies = res.records || []
+    comment.hasMoreReplies = false
+  } catch {
+    // handled by interceptor
+  }
+}
+
+const formatTime = (timeStr) => {
+  if (!timeStr) return ''
+  const date = new Date(timeStr)
+  const now = new Date()
+  const diff = now - date
+  if (diff < 60000) return '刚刚'
+  if (diff < 3600000) return Math.floor(diff / 60000) + ' 分钟前'
+  if (diff < 86400000) return Math.floor(diff / 3600000) + ' 小时前'
+  if (diff < 2592000000) return Math.floor(diff / 86400000) + ' 天前'
+  return timeStr.slice(0, 10)
+}
 
 // ============ 工具方法 ============
 
@@ -948,6 +1259,25 @@ onBeforeUnmount(() => {
   gap: 4px;
 }
 
+/* 积分奖励 */
+.points-reward {
+  display: inline-block;
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  animation: pointsBounce 0.5s ease;
+}
+
+@keyframes pointsBounce {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 /* 通过率 */
 .pass-rate {
   margin-bottom: 8px;
@@ -1114,6 +1444,284 @@ onBeforeUnmount(() => {
 .field-value.field-error {
   background: #fef2f2;
   color: #991b1b;
+}
+
+/* ============ 评论区样式 ============ */
+
+.comment-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  background: #409eff;
+  color: #fff;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0 5px;
+  margin-left: 6px;
+}
+
+.discussion-section {
+  padding-bottom: 40px;
+}
+
+.comment-input-box {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  transition: border-color 0.2s;
+}
+
+.comment-input-box:focus-within {
+  border-color: #409eff;
+}
+
+.comment-textarea {
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #374151;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.comment-textarea::placeholder {
+  color: #9ca3af;
+}
+
+.comment-input-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #f9fafb;
+  border-top: 1px solid #f3f4f6;
+}
+
+.char-count {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.comment-sort-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.comment-total {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.sort-tabs {
+  display: flex;
+  gap: 12px;
+}
+
+.sort-tab {
+  font-size: 13px;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 2px 0;
+  transition: color 0.2s;
+}
+
+.sort-tab.active {
+  color: #409eff;
+  font-weight: 600;
+}
+
+.sort-tab:hover {
+  color: #409eff;
+}
+
+.comment-empty {
+  text-align: center;
+  padding: 40px 0;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.comment-item {
+  padding: 16px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.comment-item:last-child {
+  border-bottom: none;
+}
+
+.comment-main {
+  display: flex;
+  gap: 12px;
+}
+
+.comment-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.reply-avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+}
+
+.comment-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.comment-author {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.comment-time {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.reply-to {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.reply-to-name {
+  color: #409eff;
+  font-weight: 500;
+}
+
+.comment-text {
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 6px;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 16px;
+}
+
+.action-btn {
+  font-size: 12px;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: color 0.2s;
+  user-select: none;
+}
+
+.action-btn:hover {
+  color: #6b7280;
+}
+
+.action-btn.liked {
+  color: #409eff;
+}
+
+.reply-list {
+  margin-top: 12px;
+  padding-left: 4px;
+  border-left: 2px solid #f3f4f6;
+}
+
+.reply-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0 10px 12px;
+}
+
+.reply-input-box {
+  margin-top: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.reply-input-box:focus-within {
+  border-color: #409eff;
+}
+
+.reply-textarea {
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #374151;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.reply-textarea::placeholder {
+  color: #9ca3af;
+}
+
+.reply-input-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 6px 8px;
+  background: #f9fafb;
+}
+
+.load-more-replies {
+  font-size: 13px;
+  color: #409eff;
+  cursor: pointer;
+  padding: 8px 0 8px 12px;
+  transition: color 0.2s;
+}
+
+.load-more-replies:hover {
+  color: #337ecc;
+}
+
+.load-more-comments {
+  text-align: center;
+  padding: 12px 0;
 }
 
 @media (max-width: 900px) {

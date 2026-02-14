@@ -6,8 +6,10 @@ import com.xiaou.oj.domain.OjProblem;
 import com.xiaou.oj.domain.OjProblemTag;
 import com.xiaou.oj.domain.OjSolution;
 import com.xiaou.oj.dto.ProblemQueryRequest;
+import com.xiaou.oj.dto.RankingItem;
 import com.xiaou.oj.mapper.OjProblemTagMapper;
 import com.xiaou.oj.service.OjProblemService;
+import com.xiaou.oj.service.OjRankingService;
 import com.xiaou.oj.service.OjSolutionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,6 +32,7 @@ public class OjProblemPublicController {
     private final OjProblemService problemService;
     private final OjProblemTagMapper tagMapper;
     private final OjSolutionService solutionService;
+    private final OjRankingService rankingService;
 
     @Operation(summary = "分页查询公开题目")
     @PostMapping("/problems/list")
@@ -58,5 +61,17 @@ public class OjProblemPublicController {
     @GetMapping("/problems/{id}/solutions")
     public Result<List<OjSolution>> getSolutions(@PathVariable Long id) {
         return Result.success(solutionService.getSolutionsByProblemId(id));
+    }
+
+    @Operation(summary = "排行榜")
+    @GetMapping("/ranking")
+    public Result<List<RankingItem>> getRanking(@RequestParam(defaultValue = "all") String type) {
+        return Result.success(rankingService.getRanking(type));
+    }
+
+    @Operation(summary = "每日一题")
+    @GetMapping("/daily-problem")
+    public Result<OjProblem> getDailyProblem() {
+        return Result.success(problemService.getDailyProblem());
     }
 }

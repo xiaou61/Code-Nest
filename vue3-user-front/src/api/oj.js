@@ -64,5 +64,51 @@ export const ojApi = {
   // 自测模式：编译+跑示例用例
   selfTest(data) {
     return request.post('/oj/test', data)
+  },
+
+  // ============ 排行榜 ============
+
+  // 获取排行榜
+  getRanking(type = 'all') {
+    return request.get('/oj/ranking', { params: { type } })
+  },
+
+  // ============ 每日一题 ============
+
+  // 获取每日一题
+  getDailyProblem() {
+    return request.get('/oj/daily-problem')
+  },
+
+  // ============ 题目评论 ============
+
+  // 获取题目评论列表
+  getComments(problemId, data) {
+    return request.post(`/oj/problems/${problemId}/comments`, data)
+  },
+
+  // 发表评论
+  createComment(problemId, data) {
+    return request.post(`/oj/problems/${problemId}/comments/create`, data)
+  },
+
+  // 回复评论
+  replyComment(commentId, data) {
+    return request.post(`/oj/comments/${commentId}/reply`, data)
+  },
+
+  // 点赞评论
+  likeComment(commentId) {
+    return request.post(`/oj/comments/${commentId}/like`)
+  },
+
+  // 取消点赞评论
+  unlikeComment(commentId) {
+    return request.delete(`/oj/comments/${commentId}/like`)
+  },
+
+  // 获取评论的回复列表
+  getCommentReplies(commentId, data) {
+    return request.post(`/oj/comments/${commentId}/replies`, data)
   }
 }

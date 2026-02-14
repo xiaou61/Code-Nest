@@ -69,4 +69,9 @@ public interface PointsService {
      * 根据用户ID获取用户积分信息
      */
     UserPointsInfoResponse getUserPointsInfo(Long userId);
+
+    /**
+     * 系统发放积分（供OJ等模块调用）
+     */
+    void grantSystemPoints(Long userId, int points, int type, String description);
 }

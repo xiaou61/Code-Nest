@@ -21,6 +21,20 @@
             <version>${revision}</version>
         </dependency>
 
+        <!-- 用户API模块 (排行榜查用户信息) -->
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-user-api</artifactId>
+            <version>${revision}</version>
+        </dependency>
+
+        <!-- 积分模块 (OJ通过发积分) -->
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-points</artifactId>
+            <version>${revision}</version>
+        </dependency>
+
         <!-- Spring Boot Starter Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

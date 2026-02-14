@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -90,5 +91,20 @@ public class OjProblemServiceImpl implements OjProblemService {
         List<OjProblem> list = problemMapper.selectPage(request);
         long total = problemMapper.countPage(request);
         return PageResult.of(request.getPageNum(), request.getPageSize(), total, list);
+    }
+
+    @Override
+    public OjProblem getDailyProblem() {
+        long count = problemMapper.countPublic();
+        if (count == 0) return null;
+        int offset = (int) (Math.abs((long) LocalDate.now().hashCode()) % count);
+        OjProblem problem = problemMapper.selectPublicByOffset(offset);
+        if (problem != null) {
+            List<Long> tagIds = problemMapper.selectTagIdsByProblemId(problem.getId());
+            if (!tagIds.isEmpty()) {
+                problem.setTags(tagMapper.selectByIds(tagIds));
+            }
+        }
+        return problem;
     }
 }

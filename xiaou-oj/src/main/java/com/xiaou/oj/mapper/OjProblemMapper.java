@@ -45,4 +45,14 @@ public interface OjProblemMapper {
      * 查询题目的标签ID列表
      */
     List<Long> selectTagIdsByProblemId(Long problemId);
+
+    /**
+     * 统计公开题目数
+     */
+    long countPublic();
+
+    /**
+     * 按偏移量取一道公开题目
+     */
+    OjProblem selectPublicByOffset(@Param("offset") int offset);
 }

@@ -152,6 +152,16 @@ const routes = [
       keepAlive: false
     }
   },
+  {
+    path: '/oj/ranking',
+    name: 'OjRanking',
+    component: () => import('@/views/oj/Ranking.vue'),
+    meta: {
+      title: '排行榜',
+      requiresAuth: true,
+      keepAlive: true
+    }
+  },
   // ============ 模拟面试 ============
   {
     path: '/mock-interview',
