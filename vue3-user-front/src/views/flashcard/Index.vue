@@ -1,98 +1,116 @@
 <template>
-  <div class="flashcard-index">
-    <!-- 左侧边栏 -->
-    <aside class="sidebar">
-      <!-- 搜索框 -->
-      <div class="sidebar-section search-section">
-        <el-input 
-          v-model="searchKeyword" 
-          placeholder="搜索卡组..." 
-          clearable
-          @clear="handleSearch"
-          @keyup.enter="handleSearch"
-        >
-          <template #prefix>
-            <el-icon><Search /></el-icon>
-          </template>
-          <template #append>
-            <el-button :icon="Search" @click="handleSearch" />
-          </template>
-        </el-input>
-      </div>
-
-      <!-- 快捷功能 -->
-      <div class="sidebar-section quick-actions">
-        <div class="section-title">
-          <el-icon><Lightning /></el-icon>
-          <span>快捷功能</span>
+  <div class="flashcard-index cn-learn-shell">
+    <div class="cn-learn-shell__inner">
+      <section class="cn-learn-hero cn-wave-reveal">
+        <div class="cn-learn-hero__content">
+          <span class="cn-learn-hero__eyebrow">Flashcard Lab</span>
+          <h1 class="cn-learn-hero__title">闪卡记忆工作区</h1>
+          <p class="cn-learn-hero__desc">把卡组检索、间隔复习和学习热力图整合在同一视图，持续巩固知识点。</p>
         </div>
-        <div class="action-buttons">
-          <div class="action-btn" @click="goToStudy">
-            <el-icon class="action-icon study-icon"><Reading /></el-icon>
-            <span>今日学习</span>
-            <el-badge v-if="stats?.todayDueCount" :value="stats.todayDueCount" class="due-badge" />
-          </div>
-          <div class="action-btn" @click="goToMyDecks">
-            <el-icon class="action-icon deck-icon"><Collection /></el-icon>
-            <span>我的卡组</span>
-          </div>
-          <div class="action-btn" @click="goToCreate">
-            <el-icon class="action-icon create-icon"><Plus /></el-icon>
-            <span>创建卡组</span>
-          </div>
+        <div class="cn-learn-hero__meta">
+          <span class="cn-learn-chip">公开卡组 {{ deckList.length }}</span>
+          <span class="cn-learn-chip">今日待复习 {{ stats?.todayDueCount || 0 }}</span>
+          <span class="cn-learn-chip">登录状态 {{ isLoggedIn ? '已登录' : '未登录' }}</span>
         </div>
-      </div>
+      </section>
 
-      <!-- 学习统计 -->
-      <StudyStats :stats="stats" v-if="isLoggedIn" />
-    </aside>
+      <div class="cn-learn-layout">
+        <!-- 左侧边栏 -->
+        <aside class="sidebar cn-learn-sidebar">
+          <!-- 搜索框 -->
+          <div class="sidebar-section search-section cn-learn-panel cn-learn-float cn-learn-reveal">
+            <el-input
+              v-model="searchKeyword"
+              placeholder="搜索卡组..."
+              clearable
+              @clear="handleSearch"
+              @keyup.enter="handleSearch"
+            >
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+              <template #append>
+                <el-button :icon="Search" @click="handleSearch" />
+              </template>
+            </el-input>
+          </div>
 
-    <!-- 主内容区 -->
-    <main class="main-content">
-      <!-- 学习热力图 -->
-      <Heatmap :data="heatmapData" class="heatmap-section" v-if="isLoggedIn" />
+          <!-- 快捷功能 -->
+          <div class="sidebar-section quick-actions cn-learn-panel cn-learn-float cn-learn-reveal">
+            <div class="section-title">
+              <el-icon><Lightning /></el-icon>
+              <span>快捷功能</span>
+            </div>
+            <div class="action-buttons">
+              <div class="action-btn" @click="goToStudy">
+                <el-icon class="action-icon study-icon"><Reading /></el-icon>
+                <span>今日学习</span>
+                <el-badge v-if="stats?.todayDueCount" :value="stats.todayDueCount" class="due-badge" />
+              </div>
+              <div class="action-btn" @click="goToMyDecks">
+                <el-icon class="action-icon deck-icon"><Collection /></el-icon>
+                <span>我的卡组</span>
+              </div>
+              <div class="action-btn" @click="goToCreate">
+                <el-icon class="action-icon create-icon"><Plus /></el-icon>
+                <span>创建卡组</span>
+              </div>
+            </div>
+          </div>
 
-      <!-- 内容头部 -->
-      <div class="content-header">
-        <div class="header-left">
-          <h2 class="page-title">公开卡组</h2>
-          <span class="total-badge" v-if="deckList.length > 0">{{ deckList.length }} 个卡组</span>
-        </div>
-        <div class="header-right">
-          <el-input 
-            v-model="filterTags" 
-            placeholder="按标签筛选" 
-            style="width: 160px"
-            clearable
-            @change="handleSearch"
+          <!-- 学习统计 -->
+          <StudyStats :stats="stats" v-if="isLoggedIn" class="cn-learn-reveal" />
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content cn-learn-main">
+          <!-- 学习热力图 -->
+          <Heatmap :data="heatmapData" class="heatmap-section cn-learn-reveal" v-if="isLoggedIn" />
+
+          <!-- 内容头部 -->
+          <div class="content-header cn-learn-panel cn-learn-reveal">
+            <div class="header-left">
+              <h2 class="page-title">公开卡组</h2>
+              <span class="total-badge" v-if="deckList.length > 0">{{ deckList.length }} 个卡组</span>
+            </div>
+            <div class="header-right">
+              <el-input
+                v-model="filterTags"
+                placeholder="按标签筛选"
+                style="width: 160px"
+                clearable
+                @change="handleSearch"
+              >
+                <template #prefix>
+                  <el-icon><PriceTag /></el-icon>
+                </template>
+              </el-input>
+            </div>
+          </div>
+
+          <!-- 卡组网格 -->
+          <div v-loading="loading" class="deck-grid">
+            <DeckCard
+              v-for="deck in deckList"
+              :key="deck.id"
+              :deck="deck"
+              :show-progress="isLoggedIn"
+              class="cn-learn-reveal"
+              @click="goToDeckDetail(deck)"
+            />
+          </div>
+
+          <!-- 空状态 -->
+          <el-empty
+            v-if="!loading && deckList.length === 0"
+            description="暂无公开卡组"
+            :image-size="120"
           >
-            <template #prefix>
-              <el-icon><PriceTag /></el-icon>
-            </template>
-          </el-input>
-        </div>
+            <el-button type="primary" @click="goToCreate">创建第一个卡组</el-button>
+          </el-empty>
+        </main>
       </div>
-
-      <!-- 卡组网格 -->
-      <div v-loading="loading" class="deck-grid">
-        <DeckCard 
-          v-for="deck in deckList" 
-          :key="deck.id"
-          :deck="deck"
-          :show-progress="isLoggedIn"
-          @click="goToDeckDetail(deck)"
-        />
-      </div>
-
-      <!-- 空状态 -->
-      <el-empty 
-        v-if="!loading && deckList.length === 0" 
-        description="暂无公开卡组"
-        :image-size="120"
-      >
-        <el-button type="primary" @click="goToCreate">创建第一个卡组</el-button>
-      </el-empty>
-    </main>
+    </div>
   </div>
 </template>
 
@@ -103,12 +121,14 @@ import { ElMessage } from 'element-plus'
 import { Search, Lightning, Reading, Collection, Plus, PriceTag } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { flashcardApi } from '@/api/flashcard'
+import { useRevealMotion } from '@/utils/reveal-motion'
 import DeckCard from './components/DeckCard.vue'
 import Heatmap from './components/Heatmap.vue'
 import StudyStats from './components/StudyStats.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
+useRevealMotion('.flashcard-index .cn-learn-reveal')
 
 const loading = ref(false)
 const searchKeyword = ref('')
@@ -200,12 +220,11 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .flashcard-index {
-  display: flex;
-  gap: 24px;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 24px;
-  min-height: calc(100vh - 60px);
+  min-height: calc(100vh - 68px);
+}
+
+.flashcard-index .cn-learn-layout {
+  align-items: flex-start;
 }
 
 .sidebar {
@@ -217,10 +236,10 @@ onMounted(() => {
 }
 
 .sidebar-section {
-  background: var(--el-bg-color);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 16px;
-  border: 1px solid var(--el-border-color-light);
+  background: transparent;
+  border: 0;
 }
 
 .section-title {
@@ -305,6 +324,8 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  padding: 15px 18px;
+  border-radius: 16px;
   
   .header-left {
     display: flex;
@@ -336,9 +357,8 @@ onMounted(() => {
 }
 
 @media (max-width: 900px) {
-  .flashcard-index {
+  .flashcard-index .cn-learn-layout {
     flex-direction: column;
-    padding: 16px;
   }
   
   .sidebar {

@@ -354,13 +354,68 @@ const clearDraft = () => {
 </script>
 
 <style scoped>
+/* 对话框装饰 */
+:deep(.el-dialog) {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+:deep(.el-dialog__header) {
+  background: linear-gradient(135deg, #f0f4ff 0%, #f5f0ff 50%, #fff5f7 100%);
+  border-bottom: 1px solid #e3edfa;
+  padding: 16px 20px;
+  margin: 0;
+}
+
+:deep(.el-dialog__title) {
+  font-weight: 700;
+  color: var(--cn-text-primary, #1a2233);
+}
+
+:deep(.el-dialog__body) {
+  padding: 16px 20px;
+}
+
+:deep(.el-dialog__footer) {
+  padding: 12px 20px 16px;
+  border-top: 1px solid #e8eef8;
+}
+
+/* textarea 美化 */
+:deep(.el-textarea__inner) {
+  border-radius: 10px;
+  border-color: #d7e4f8;
+  transition: all 0.25s;
+}
+
+:deep(.el-textarea__inner:focus) {
+  border-color: #6c63ff;
+  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.1);
+}
+
+/* 发布按钮 */
+:deep(.el-button--primary) {
+  background: linear-gradient(135deg, #6c63ff 0%, #4f46e5 100%);
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+  transition: all 0.3s;
+}
+
+:deep(.el-button--primary:hover) {
+  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35);
+  transform: translateY(-1px);
+}
+
 .upload-section {
   margin-top: 10px;
 }
 
 .upload-title {
   font-size: 14px;
-  color: #333;
+  color: var(--cn-text-primary, #1a2233);
+  font-weight: 600;
   margin-bottom: 10px;
 }
 
@@ -375,8 +430,9 @@ const clearDraft = () => {
   position: relative;
   width: 100px;
   height: 100px;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(18, 38, 63, 0.08);
 }
 
 .uploaded-image {
@@ -390,12 +446,13 @@ const clearDraft = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity 0.25s;
 }
 
 .image-item:hover .image-overlay {
@@ -405,42 +462,41 @@ const clearDraft = () => {
 .upload-item {
   width: 100px;
   height: 100px;
-  border: 2px dashed #dcdfe6;
-  border-radius: 8px;
+  border: 2px dashed #c2d8f5;
+  border-radius: 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: border-color 0.2s;
+  transition: all 0.25s;
+  background: #f8fbff;
 }
 
 .upload-item:hover {
-  border-color: #409eff;
+  border-color: #6c63ff;
+  background: #f5f3ff;
+  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.08);
 }
 
 .upload-icon {
   font-size: 24px;
-  color: #8c939d;
+  color: #6a82ae;
   margin-bottom: 5px;
 }
 
 .upload-text {
   font-size: 12px;
-  color: #8c939d;
+  color: #6a82ae;
 }
 
 .upload-tips {
   font-size: 12px;
-  color: #999;
-  line-height: 1.4;
+  color: #8ea0bd;
+  line-height: 1.5;
 }
 
 .toolbar {
   margin-bottom: 10px;
 }
-
-:deep(.el-dialog__body) {
-  padding-top: 10px;
-}
-</style> 
+</style>

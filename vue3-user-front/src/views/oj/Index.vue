@@ -1,207 +1,224 @@
 <template>
-  <div class="oj-index">
-    <!-- 左侧边栏 -->
-    <aside class="sidebar">
-      <!-- 搜索框 -->
-      <div class="sidebar-section search-section">
-        <el-input
-          v-model="searchKeyword"
-          placeholder="搜索题目..."
-          clearable
-          @clear="handleSearch"
-          @keyup.enter="handleSearch"
-        >
-          <template #prefix>
-            <el-icon><Search /></el-icon>
-          </template>
-          <template #append>
-            <el-button :icon="Search" @click="handleSearch" />
-          </template>
-        </el-input>
-      </div>
+  <div class="oj-index cn-learn-shell">
+    <div class="cn-learn-shell__inner">
+      <section class="cn-learn-hero cn-wave-reveal">
+        <div class="cn-learn-hero__content">
+          <span class="cn-learn-hero__eyebrow">Online Judge</span>
+          <h1 class="cn-learn-hero__title">在线判题训练台</h1>
+          <p class="cn-learn-hero__desc">按难度与标签精确筛题，结合每日一题与数据追踪，稳步提升算法实战能力。</p>
+        </div>
+        <div class="cn-learn-hero__meta">
+          <span class="cn-learn-chip">总题量 {{ ojStore.problemsTotal }}</span>
+          <span class="cn-learn-chip">标签 {{ ojStore.tags.length }}</span>
+          <span class="cn-learn-chip">筛选页 {{ queryParams.pageNum }}</span>
+        </div>
+      </section>
 
-      <!-- 难度筛选 -->
-      <div class="sidebar-section">
-        <div class="section-title">
-          <el-icon><Filter /></el-icon>
-          <span>难度筛选</span>
-        </div>
-        <div class="difficulty-list">
-          <div
-            class="difficulty-item"
-            :class="{ active: !queryParams.difficulty }"
-            @click="selectDifficulty(null)"
-          >
-            <span>全部难度</span>
+      <div class="cn-learn-layout">
+        <!-- 左侧边栏 -->
+        <aside class="sidebar cn-learn-sidebar">
+          <!-- 搜索框 -->
+          <div class="sidebar-section search-section cn-learn-panel cn-learn-float cn-learn-reveal">
+            <el-input
+              v-model="searchKeyword"
+              placeholder="搜索题目..."
+              clearable
+              @clear="handleSearch"
+              @keyup.enter="handleSearch"
+            >
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+              <template #append>
+                <el-button :icon="Search" @click="handleSearch" />
+              </template>
+            </el-input>
           </div>
-          <div
-            v-for="d in difficultyOptions"
-            :key="d.value"
-            class="difficulty-item"
-            :class="{ active: queryParams.difficulty === d.value }"
-            @click="selectDifficulty(d.value)"
-          >
-            <el-tag :type="d.tagType" size="small" effect="dark">{{ d.label }}</el-tag>
-          </div>
-        </div>
-      </div>
 
-      <!-- 标签筛选 -->
-      <div class="sidebar-section">
-        <div class="section-title">
-          <el-icon><CollectionTag /></el-icon>
-          <span>标签筛选</span>
-        </div>
-        <div class="tag-list" v-loading="ojStore.tagsLoading">
-          <div
-            class="tag-item"
-            :class="{ active: !queryParams.tagId }"
-            @click="selectTag(null)"
-          >
-            <span>全部标签</span>
-          </div>
-          <div
-            v-for="tag in ojStore.tags"
-            :key="tag.id"
-            class="tag-item"
-            :class="{ active: queryParams.tagId === tag.id }"
-            @click="selectTag(tag.id)"
-          >
-            <span>{{ tag.name }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 快捷入口 -->
-      <div class="sidebar-section quick-actions">
-        <div class="section-title">
-          <el-icon><Lightning /></el-icon>
-          <span>快捷入口</span>
-        </div>
-        <div class="action-buttons">
-          <div class="action-btn" @click="$router.push('/oj/my-submissions')">
-            <el-icon class="action-icon"><List /></el-icon>
-            <span>我的提交</span>
-          </div>
-          <div class="action-btn" @click="$router.push('/oj/statistics')">
-            <el-icon class="action-icon"><DataLine /></el-icon>
-            <span>做题统计</span>
-          </div>
-          <div class="action-btn" @click="$router.push('/oj/ranking')">
-            <el-icon class="action-icon"><Trophy /></el-icon>
-            <span>排行榜</span>
-          </div>
-        </div>
-      </div>
-    </aside>
-
-    <!-- 主内容区 -->
-    <main class="main-content">
-      <!-- 内容头部 -->
-      <div class="content-header">
-        <div class="header-left">
-          <h2 class="page-title">在线判题</h2>
-          <span class="total-badge" v-if="ojStore.problemsTotal > 0">
-            {{ ojStore.problemsTotal }} 道题目
-          </span>
-        </div>
-      </div>
-
-      <!-- 每日一题 -->
-      <div class="daily-card" v-if="dailyProblem" @click="goToProblem(dailyProblem)">
-        <div class="daily-label">每日一题</div>
-        <div class="daily-body">
-          <div class="daily-title">
-            <span>{{ dailyProblem.id }}. {{ dailyProblem.title }}</span>
-            <el-tag :type="getDifficultyTag(dailyProblem.difficulty)" size="small" effect="dark">
-              {{ getDifficultyLabel(dailyProblem.difficulty) }}
-            </el-tag>
-          </div>
-          <div class="daily-desc" v-if="dailyProblem.inputDescription">
-            {{ dailyProblem.inputDescription.substring(0, 80) }}
-            <span v-if="dailyProblem.inputDescription.length > 80">...</span>
-          </div>
-        </div>
-        <el-icon class="daily-arrow"><ArrowRight /></el-icon>
-      </div>
-
-      <!-- 题目表格 -->
-      <el-card shadow="never" class="table-card">
-        <el-table
-          v-loading="ojStore.problemsLoading"
-          :data="ojStore.problems"
-          style="width: 100%"
-          @row-click="goToProblem"
-          row-class-name="clickable-row"
-        >
-          <el-table-column prop="id" label="编号" width="80" align="center" />
-          <el-table-column prop="title" label="题目" min-width="250">
-            <template #default="{ row }">
-              <span class="problem-title">{{ row.title }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="难度" width="100" align="center">
-            <template #default="{ row }">
-              <el-tag
-                :type="getDifficultyTag(row.difficulty)"
-                size="small"
-                effect="dark"
+          <!-- 难度筛选 -->
+          <div class="sidebar-section cn-learn-panel cn-learn-float cn-learn-reveal">
+            <div class="section-title">
+              <el-icon><Filter /></el-icon>
+              <span>难度筛选</span>
+            </div>
+            <div class="difficulty-list">
+              <div
+                class="difficulty-item"
+                :class="{ active: !queryParams.difficulty }"
+                @click="selectDifficulty(null)"
               >
-                {{ getDifficultyLabel(row.difficulty) }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="通过率" width="120" align="center">
-            <template #default="{ row }">
-              <span v-if="row.submitCount > 0">
-                {{ ((row.acceptedCount / row.submitCount) * 100).toFixed(1) }}%
-              </span>
-              <span v-else class="text-muted">-</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="标签" min-width="200">
-            <template #default="{ row }">
-              <el-tag
-                v-for="tag in (row.tags || []).slice(0, 3)"
+                <span>全部难度</span>
+              </div>
+              <div
+                v-for="d in difficultyOptions"
+                :key="d.value"
+                class="difficulty-item"
+                :class="{ active: queryParams.difficulty === d.value }"
+                @click="selectDifficulty(d.value)"
+              >
+                <el-tag :type="d.tagType" size="small" effect="dark">{{ d.label }}</el-tag>
+              </div>
+            </div>
+          </div>
+
+          <!-- 标签筛选 -->
+          <div class="sidebar-section cn-learn-panel cn-learn-float cn-learn-reveal">
+            <div class="section-title">
+              <el-icon><CollectionTag /></el-icon>
+              <span>标签筛选</span>
+            </div>
+            <div class="tag-list" v-loading="ojStore.tagsLoading">
+              <div
+                class="tag-item"
+                :class="{ active: !queryParams.tagId }"
+                @click="selectTag(null)"
+              >
+                <span>全部标签</span>
+              </div>
+              <div
+                v-for="tag in ojStore.tags"
                 :key="tag.id"
-                size="small"
-                class="tag-chip"
+                class="tag-item"
+                :class="{ active: queryParams.tagId === tag.id }"
+                @click="selectTag(tag.id)"
               >
-                {{ tag.name }}
-              </el-tag>
-              <el-tag v-if="(row.tags || []).length > 3" size="small" type="info">
-                +{{ row.tags.length - 3 }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="提交/通过" width="120" align="center">
-            <template #default="{ row }">
-              <span class="text-muted">{{ row.submitCount || 0 }} / {{ row.acceptedCount || 0 }}</span>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-card>
+                <span>{{ tag.name }}</span>
+              </div>
+            </div>
+          </div>
 
-      <!-- 空状态 -->
-      <el-empty
-        v-if="!ojStore.problemsLoading && ojStore.problems.length === 0"
-        description="暂无题目数据"
-        :image-size="120"
-      />
+          <!-- 快捷入口 -->
+          <div class="sidebar-section quick-actions cn-learn-panel cn-learn-float cn-learn-reveal">
+            <div class="section-title">
+              <el-icon><Lightning /></el-icon>
+              <span>快捷入口</span>
+            </div>
+            <div class="action-buttons">
+              <div class="action-btn" @click="$router.push('/oj/my-submissions')">
+                <el-icon class="action-icon"><List /></el-icon>
+                <span>我的提交</span>
+              </div>
+              <div class="action-btn" @click="$router.push('/oj/statistics')">
+                <el-icon class="action-icon"><DataLine /></el-icon>
+                <span>做题统计</span>
+              </div>
+              <div class="action-btn" @click="$router.push('/oj/ranking')">
+                <el-icon class="action-icon"><Trophy /></el-icon>
+                <span>排行榜</span>
+              </div>
+            </div>
+          </div>
+        </aside>
 
-      <!-- 分页 -->
-      <div class="pagination-wrapper" v-if="ojStore.problemsTotal > 0">
-        <el-pagination
-          v-model:current-page="queryParams.pageNum"
-          v-model:page-size="queryParams.pageSize"
-          :page-sizes="[15, 30, 50]"
-          :total="ojStore.problemsTotal"
-          layout="total, sizes, prev, pager, next"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
+        <!-- 主内容区 -->
+        <main class="main-content cn-learn-main">
+          <!-- 内容头部 -->
+          <div class="content-header cn-learn-panel cn-learn-reveal">
+            <div class="header-left">
+              <h2 class="page-title">在线判题</h2>
+              <span class="total-badge" v-if="ojStore.problemsTotal > 0">
+                {{ ojStore.problemsTotal }} 道题目
+              </span>
+            </div>
+          </div>
+
+          <!-- 每日一题 -->
+          <div class="daily-card cn-learn-reveal cn-learn-shine" v-if="dailyProblem" @click="goToProblem(dailyProblem)">
+            <div class="daily-label">每日一题</div>
+            <div class="daily-body">
+              <div class="daily-title">
+                <span>{{ dailyProblem.id }}. {{ dailyProblem.title }}</span>
+                <el-tag :type="getDifficultyTag(dailyProblem.difficulty)" size="small" effect="dark">
+                  {{ getDifficultyLabel(dailyProblem.difficulty) }}
+                </el-tag>
+              </div>
+              <div class="daily-desc" v-if="dailyProblem.inputDescription">
+                {{ dailyProblem.inputDescription.substring(0, 80) }}
+                <span v-if="dailyProblem.inputDescription.length > 80">...</span>
+              </div>
+            </div>
+            <el-icon class="daily-arrow"><ArrowRight /></el-icon>
+          </div>
+
+          <!-- 题目表格 -->
+          <el-card shadow="never" class="table-card cn-learn-panel cn-learn-reveal">
+            <el-table
+              v-loading="ojStore.problemsLoading"
+              :data="ojStore.problems"
+              style="width: 100%"
+              @row-click="goToProblem"
+              row-class-name="clickable-row"
+            >
+              <el-table-column prop="id" label="编号" width="80" align="center" />
+              <el-table-column prop="title" label="题目" min-width="250">
+                <template #default="{ row }">
+                  <span class="problem-title">{{ row.title }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="难度" width="100" align="center">
+                <template #default="{ row }">
+                  <el-tag
+                    :type="getDifficultyTag(row.difficulty)"
+                    size="small"
+                    effect="dark"
+                  >
+                    {{ getDifficultyLabel(row.difficulty) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="通过率" width="120" align="center">
+                <template #default="{ row }">
+                  <span v-if="row.submitCount > 0">
+                    {{ ((row.acceptedCount / row.submitCount) * 100).toFixed(1) }}%
+                  </span>
+                  <span v-else class="text-muted">-</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="标签" min-width="200">
+                <template #default="{ row }">
+                  <el-tag
+                    v-for="tag in (row.tags || []).slice(0, 3)"
+                    :key="tag.id"
+                    size="small"
+                    class="tag-chip"
+                  >
+                    {{ tag.name }}
+                  </el-tag>
+                  <el-tag v-if="(row.tags || []).length > 3" size="small" type="info">
+                    +{{ row.tags.length - 3 }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="提交/通过" width="120" align="center">
+                <template #default="{ row }">
+                  <span class="text-muted">{{ row.submitCount || 0 }} / {{ row.acceptedCount || 0 }}</span>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-card>
+
+          <!-- 空状态 -->
+          <el-empty
+            v-if="!ojStore.problemsLoading && ojStore.problems.length === 0"
+            description="暂无题目数据"
+            :image-size="120"
+          />
+
+          <!-- 分页 -->
+          <div class="pagination-wrapper cn-learn-reveal" v-if="ojStore.problemsTotal > 0">
+            <el-pagination
+              v-model:current-page="queryParams.pageNum"
+              v-model:page-size="queryParams.pageSize"
+              :page-sizes="[15, 30, 50]"
+              :total="ojStore.problemsTotal"
+              layout="total, sizes, prev, pager, next"
+              @size-change="handleSizeChange"
+              @current-change="handleCurrentChange"
+            />
+          </div>
+        </main>
       </div>
-    </main>
+    </div>
   </div>
 </template>
 
@@ -213,9 +230,11 @@ import {
 } from '@element-plus/icons-vue'
 import { useOjStore } from '@/stores/oj'
 import { ojApi } from '@/api/oj'
+import { useRevealMotion } from '@/utils/reveal-motion'
 
 const router = useRouter()
 const ojStore = useOjStore()
+useRevealMotion('.oj-index .cn-learn-reveal')
 
 const dailyProblem = ref(null)
 const searchKeyword = ref('')
@@ -295,26 +314,27 @@ onMounted(() => {
 
 <style scoped>
 .oj-index {
-  display: flex;
-  gap: 16px;
-  max-width: 1420px;
-  margin: 0 auto;
-  padding: 8px 10px 18px;
-  min-height: calc(100vh - 60px);
+  min-height: calc(100vh - 68px);
+}
+
+.oj-index .cn-learn-layout {
+  align-items: flex-start;
 }
 
 .sidebar {
   width: 276px;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .sidebar-section {
-  background: #fff;
-  border: 1px solid #dbe7f8;
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 16px;
-  margin-bottom: 14px;
-  box-shadow: 0 10px 26px rgba(18, 38, 63, 0.05);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
 .section-title {
@@ -426,8 +446,8 @@ onMounted(() => {
 }
 
 .table-card {
-  border-radius: 14px;
-  border: 1px solid #dbe7f8;
+  border-radius: 16px;
+  border: 1px solid rgba(115, 156, 225, 0.24);
 }
 
 .table-card :deep(.el-card__body) {
@@ -459,14 +479,18 @@ onMounted(() => {
 .pagination-wrapper {
   display: flex;
   justify-content: center;
-  margin-top: 16px;
-  padding-bottom: 8px;
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(115, 156, 225, 0.24);
+  box-shadow: 0 18px 42px rgba(22, 63, 119, 0.12);
 }
 
 /* 每日一题 */
 .daily-card {
   background: linear-gradient(135deg, #4f8eff 0%, #1f6feb 100%);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 16px 20px;
   margin-bottom: 14px;
   display: flex;
@@ -475,7 +499,8 @@ onMounted(() => {
   cursor: pointer;
   transition: transform 0.22s, box-shadow 0.22s;
   color: #fff;
-  box-shadow: 0 12px 30px rgba(31, 111, 235, 0.28);
+  box-shadow: 0 16px 36px rgba(31, 111, 235, 0.28);
+  border: 1px solid rgba(163, 212, 255, 0.36);
 }
 
 .daily-card:hover {
@@ -521,18 +546,12 @@ onMounted(() => {
 
 /* 响应式 */
 @media (max-width: 900px) {
-  .oj-index {
+  .oj-index .cn-learn-layout {
     flex-direction: column;
-    padding: 6px 2px 14px;
   }
 
   .sidebar {
     width: 100%;
-    order: 2;
-  }
-
-  .main-content {
-    order: 1;
   }
 }
 </style>

@@ -233,7 +233,7 @@ const getPercentage = (count) => {
 <style scoped>
 .review-page {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: linear-gradient(135deg, #f8f7ff 0%, #f0eeff 50%, #f5f0ff 100%);
   padding: 20px;
 }
 
@@ -265,8 +265,36 @@ const getPercentage = (count) => {
   gap: 12px;
   padding: 16px 20px;
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(108, 99, 255, 0.06);
+  border: 1px solid rgba(108, 99, 255, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+}
+
+.stat-card.overdue::before {
+  background: linear-gradient(180deg, #ef4444, #f97316);
+}
+
+.stat-card.today::before {
+  background: linear-gradient(180deg, #f59e0b, #eab308);
+}
+
+.stat-card.week::before {
+  background: linear-gradient(180deg, #10b981, #34d399);
+}
+
+.stat-card.total::before {
+  background: linear-gradient(180deg, #6c63ff, #ec4899);
 }
 
 .stat-icon {
@@ -291,10 +319,12 @@ const getPercentage = (count) => {
 
 .review-list {
   background: #fff;
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 20px;
   margin-bottom: 24px;
   min-height: 300px;
+  box-shadow: 0 2px 12px rgba(108, 99, 255, 0.06);
+  border: 1px solid rgba(108, 99, 255, 0.06);
 }
 
 .question-list {
@@ -315,7 +345,7 @@ const getPercentage = (count) => {
 }
 
 .question-item:hover {
-  background: #f0f2f5;
+  background: #f8f7ff;
   transform: translateX(4px);
 }
 
@@ -361,8 +391,10 @@ const getPercentage = (count) => {
 
 .mastery-distribution {
   background: #fff;
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 20px;
+  box-shadow: 0 2px 12px rgba(108, 99, 255, 0.06);
+  border: 1px solid rgba(108, 99, 255, 0.06);
 }
 
 .section-title {

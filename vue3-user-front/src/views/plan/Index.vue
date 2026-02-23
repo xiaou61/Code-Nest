@@ -1,7 +1,21 @@
 <template>
-  <div class="plan-container">
+  <div class="plan-container cn-learn-shell">
+    <div class="cn-learn-shell__inner">
+    <section class="cn-learn-hero cn-wave-reveal">
+      <div class="cn-learn-hero__content">
+        <span class="cn-learn-hero__eyebrow">Plan Check-in</span>
+        <h1 class="cn-learn-hero__title">计划打卡执行面板</h1>
+        <p class="cn-learn-hero__desc">把每日任务、打卡状态和长期趋势集中到同一个视图，持续稳定推进目标。</p>
+      </div>
+      <div class="cn-learn-hero__meta">
+        <span class="cn-learn-chip">进行中 {{ stats.totalPlans || 0 }}</span>
+        <span class="cn-learn-chip">今日打卡 {{ stats.todayCheckins || 0 }}</span>
+        <span class="cn-learn-chip">最长连续 {{ stats.maxStreak || 0 }}</span>
+      </div>
+    </section>
+
     <!-- 统计概览卡片 -->
-    <div class="stats-card">
+    <div class="stats-card cn-learn-panel cn-learn-reveal">
       <div class="stats-header">
         <h2>📋 我的计划打卡</h2>
         <p class="stats-subtitle">坚持每日打卡，养成好习惯</p>
@@ -27,7 +41,7 @@
     </div>
 
     <!-- 今日任务区域 -->
-    <div class="section today-section">
+    <div class="section today-section cn-learn-panel cn-learn-reveal">
       <div class="section-header">
         <h3>🎯 今日任务</h3>
         <span class="task-count">{{ todayTasks.length }} 个任务</span>
@@ -47,7 +61,7 @@
         <div 
           v-for="task in todayTasks" 
           :key="task.planId"
-          class="task-card"
+          class="task-card cn-learn-float"
           :class="{ 'completed': task.todayChecked }"
         >
           <div class="task-main">
@@ -93,7 +107,7 @@
     </div>
 
     <!-- 我的计划列表 -->
-    <div class="section plan-section">
+    <div class="section plan-section cn-learn-panel cn-learn-reveal">
       <div class="section-header">
         <h3>📑 我的计划</h3>
         <button class="create-btn" @click="openCreateDialog">
@@ -143,7 +157,7 @@
         <div 
           v-for="plan in planList" 
           :key="plan.id"
-          class="plan-card"
+          class="plan-card cn-learn-float"
         >
           <div class="plan-header">
             <div class="plan-title">
@@ -241,6 +255,7 @@
       :plan-id="recordPlanId"
       :plan-name="recordPlanName"
     />
+    </div>
   </div>
 </template>
 
@@ -252,9 +267,11 @@ import {
   Edit, Document, VideoPause, VideoPlay, Delete, Calendar, Aim
 } from '@element-plus/icons-vue'
 import planApi from '@/api/plan'
+import { useRevealMotion } from '@/utils/reveal-motion'
 import PlanFormDialog from './components/PlanFormDialog.vue'
 import CheckinDialog from './components/CheckinDialog.vue'
 import CheckinRecordDialog from './components/CheckinRecordDialog.vue'
+useRevealMotion('.plan-container .cn-learn-reveal')
 
 // 统计数据
 const stats = ref({})
@@ -492,22 +509,21 @@ const formatDate = (dateStr) => {
 
 <style lang="scss" scoped>
 .plan-container {
-  padding: 24px 32px;
-  background: #f5f7fa;
-  min-height: calc(100vh - 60px);
+  min-height: calc(100vh - 68px);
   
   @media (max-width: 768px) {
-    padding: 16px;
+    min-height: calc(100vh - 62px);
   }
 }
 
 // 统计卡片
 .stats-card {
-  background: white;
   border-radius: 16px;
   padding: 24px 32px;
-  margin-bottom: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  margin: 20px 0 24px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
 .stats-header {
@@ -559,11 +575,12 @@ const formatDate = (dateStr) => {
 
 // 区块通用样式
 .section {
-  background: white;
   border-radius: 16px;
   padding: 24px;
   margin-bottom: 24px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
 .section-header {

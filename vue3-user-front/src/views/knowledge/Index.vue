@@ -1,97 +1,100 @@
 <template>
-  <div class="knowledge-page">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-content">
-        <h1>知识图谱</h1>
-        <p>可视化学习面试知识点，从整体到细节的渐进式学习体验</p>
-      </div>
-      
-      <!-- 搜索栏 -->
-      <div class="search-section">
-        <el-input
-          v-model="searchForm.keyword"
-          placeholder="搜索知识图谱..."
-          :prefix-icon="Search"
-          size="large"
-          style="max-width: 400px;"
-          @keyup.enter="handleSearch"
-        />
-        <el-button type="primary" size="large" :icon="Search" @click="handleSearch">
-          搜索
-        </el-button>
-      </div>
-    </div>
+  <div class="knowledge-page cn-learn-shell">
+    <div class="cn-learn-shell__inner">
+      <!-- 页面头部 -->
+      <div class="page-header cn-learn-hero cn-wave-reveal">
+        <div class="header-content">
+          <span class="cn-learn-hero__eyebrow">Knowledge Map</span>
+          <h1 class="cn-learn-hero__title">知识图谱</h1>
+          <p class="cn-learn-hero__desc">可视化学习面试知识点，从整体到细节的渐进式学习体验</p>
+        </div>
 
-    <!-- 图谱列表 -->
-    <div class="maps-container">
-      <div v-loading="loading" class="maps-grid">
-        <div
-          v-for="map in mapList"
-          :key="map.id"
-          class="map-card"
-          @click="handleViewMap(map)"
-        >
-          <div class="card-cover">
-            <img 
-              v-if="map.coverImage" 
-              :src="map.coverImage" 
-              :alt="map.title"
-              class="cover-image"
-            />
-            <div v-else class="cover-placeholder">
-              <el-icon size="48"><DataAnalysis /></el-icon>
+        <!-- 搜索栏 -->
+        <div class="search-section cn-learn-hero__meta">
+          <el-input
+            v-model="searchForm.keyword"
+            placeholder="搜索知识图谱..."
+            :prefix-icon="Search"
+            size="large"
+            style="max-width: 400px;"
+            @keyup.enter="handleSearch"
+          />
+          <el-button type="primary" size="large" :icon="Search" @click="handleSearch">
+            搜索
+          </el-button>
+        </div>
+      </div>
+
+      <!-- 图谱列表 -->
+      <div class="maps-container">
+        <div v-loading="loading" class="maps-grid">
+          <div
+            v-for="map in mapList"
+            :key="map.id"
+            class="map-card cn-learn-panel cn-learn-float cn-learn-shine cn-learn-reveal"
+            @click="handleViewMap(map)"
+          >
+            <div class="card-cover">
+              <img
+                v-if="map.coverImage"
+                :src="map.coverImage"
+                :alt="map.title"
+                class="cover-image"
+              />
+              <div v-else class="cover-placeholder">
+                <el-icon size="48"><DataAnalysis /></el-icon>
+              </div>
             </div>
-          </div>
-          
-          <div class="card-content">
-            <h3 class="map-title">{{ map.title }}</h3>
-            <p class="map-description">{{ map.description || '暂无描述' }}</p>
-            
-            <div class="map-stats">
-              <div class="stat-item">
-                <el-icon><Connection /></el-icon>
-                <span>{{ map.nodeCount || 0 }} 个节点</span>
+
+            <div class="card-content">
+              <h3 class="map-title">{{ map.title }}</h3>
+              <p class="map-description">{{ map.description || '暂无描述' }}</p>
+
+              <div class="map-stats">
+                <div class="stat-item">
+                  <el-icon><Connection /></el-icon>
+                  <span>{{ map.nodeCount || 0 }} 个节点</span>
+                </div>
+                <div class="stat-item">
+                  <el-icon><View /></el-icon>
+                  <span>{{ map.viewCount || 0 }} 次查看</span>
+                </div>
               </div>
-              <div class="stat-item">
-                <el-icon><View /></el-icon>
-                <span>{{ map.viewCount || 0 }} 次查看</span>
+
+              <div class="card-footer">
+                <div class="update-time">
+                  更新于 {{ formatDate(map.updateTime) }}
+                </div>
+                <el-button type="primary" size="small">
+                  开始学习
+                  <el-icon class="ml-2"><ArrowRight /></el-icon>
+                </el-button>
               </div>
-            </div>
-            
-            <div class="card-footer">
-              <div class="update-time">
-                更新于 {{ formatDate(map.updateTime) }}
-              </div>
-              <el-button type="primary" size="small">
-                开始学习
-                <el-icon class="ml-2"><ArrowRight /></el-icon>
-              </el-button>
             </div>
           </div>
         </div>
-      </div>
-      
-      <!-- 空状态 -->
-      <div v-if="!loading && !mapList.length" class="empty-state">
-        <el-icon size="64" color="#c0c4cc"><DataAnalysis /></el-icon>
-        <p>暂无知识图谱</p>
-        <p style="color: #909399; font-size: 14px;">
-          {{ searchForm.keyword ? '未找到相关图谱，请尝试其他关键词' : '敬请期待更多内容' }}
-        </p>
-      </div>
-      
-      <!-- 分页 -->
-      <div v-if="pagination.total > 0" class="pagination-container">
-        <el-pagination
-          v-model:current-page="pagination.page"
-          v-model:page-size="pagination.size"
-          :total="pagination.total"
-          :page-sizes="[12, 24, 48]"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
+
+        <!-- 空状态 -->
+        <div v-if="!loading && !mapList.length" class="empty-state cn-learn-panel cn-learn-reveal">
+          <el-icon size="64" color="#c0c4cc"><DataAnalysis /></el-icon>
+          <p>暂无知识图谱</p>
+          <p style="color: #909399; font-size: 14px;">
+            {{ searchForm.keyword ? '未找到相关图谱，请尝试其他关键词' : '敬请期待更多内容' }}
+          </p>
+        </div>
+
+        <!-- 分页 -->
+        <div v-if="pagination.total > 0" class="pagination-container cn-learn-reveal">
+          <el-pagination
+            v-model:current-page="pagination.page"
+            v-model:page-size="pagination.size"
+            :total="pagination.total"
+            :page-sizes="[12, 24, 48]"
+            layout="total, sizes, prev, pager, next, jumper"
+            @size-change="handleSizeChange"
+            @current-change="handleCurrentChange"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -105,8 +108,10 @@ import {
   Search, ArrowRight, DataAnalysis, Connection, View
 } from '@element-plus/icons-vue'
 import { getPublishedKnowledgeMaps } from '@/api/knowledge'
+import { useRevealMotion } from '@/utils/reveal-motion'
 
 const router = useRouter()
+useRevealMotion('.knowledge-page .cn-learn-reveal')
 
 // 响应式数据
 const loading = ref(false)
@@ -189,30 +194,27 @@ onMounted(() => {
 
 <style scoped>
 .knowledge-page {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: calc(100vh - 68px);
 }
 
 .page-header {
-  padding: 60px 20px;
-  text-align: center;
-  color: white;
+  padding: 24px 28px;
+  margin-bottom: 18px;
+  border-radius: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .header-content h1 {
-  font-size: 2.5rem;
-  margin: 0 0 16px 0;
-  font-weight: 700;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  margin: 10px 0 8px;
 }
 
 .header-content p {
-  font-size: 1.125rem;
-  margin: 0 0 40px 0;
-  opacity: 0.9;
+  margin: 0;
   max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
   line-height: 1.6;
 }
 
@@ -226,9 +228,7 @@ onMounted(() => {
 }
 
 .maps-container {
-  padding: 40px 20px;
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: 0 2px 8px;
 }
 
 .maps-grid {
@@ -239,17 +239,17 @@ onMounted(() => {
 }
 
 .map-card {
-  background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  background: transparent;
+  box-shadow: none;
+  border: 0;
   transition: all 0.3s ease;
   cursor: pointer;
 }
 
 .map-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 30px rgba(0,0,0,0.15);
 }
 
 .card-cover {
@@ -340,8 +340,9 @@ onMounted(() => {
 
 .empty-state {
   text-align: center;
-  padding: 80px 20px;
+  padding: 60px 20px;
   color: #909399;
+  border-radius: 16px;
 }
 
 .empty-state p {
@@ -352,21 +353,18 @@ onMounted(() => {
 .pagination-container {
   display: flex;
   justify-content: center;
-  margin-top: 40px;
+  margin-top: 20px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(115, 156, 225, 0.24);
+  box-shadow: 0 18px 42px rgba(22, 63, 119, 0.12);
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
   .page-header {
-    padding: 40px 20px;
-  }
-  
-  .header-content h1 {
-    font-size: 2rem;
-  }
-  
-  .header-content p {
-    font-size: 1rem;
+    padding: 18px 16px;
   }
   
   .search-section {

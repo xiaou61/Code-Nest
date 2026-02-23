@@ -173,11 +173,65 @@ const insertEmoji = (emoji) => {
 </script>
 
 <style scoped>
+/* 对话框装饰 */
+:deep(.el-dialog) {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+:deep(.el-dialog__header) {
+  background: linear-gradient(135deg, #f0f4ff 0%, #f5f0ff 50%, #fff5f7 100%);
+  border-bottom: 1px solid #e3edfa;
+  padding: 16px 20px;
+  margin: 0;
+}
+
+:deep(.el-dialog__title) {
+  font-weight: 700;
+  color: var(--cn-text-primary, #1a2233);
+}
+
+:deep(.el-dialog__body) {
+  padding: 16px 20px;
+}
+
+:deep(.el-dialog__footer) {
+  padding: 12px 20px 16px;
+  border-top: 1px solid #e8eef8;
+}
+
+/* textarea 美化 */
+:deep(.el-textarea__inner) {
+  border-radius: 10px;
+  border-color: #d7e4f8;
+  transition: all 0.25s;
+}
+
+:deep(.el-textarea__inner:focus) {
+  border-color: #6c63ff;
+  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.1);
+}
+
+/* 按钮美化 */
+:deep(.el-button--primary) {
+  background: linear-gradient(135deg, #6c63ff 0%, #4f46e5 100%);
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+}
+
+:deep(.el-button--primary:hover) {
+  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35);
+  transform: translateY(-1px);
+}
+
 .moment-preview {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 15px;
+  background: #faf9ff;
+  border-radius: 12px;
+  padding: 16px;
   margin-bottom: 10px;
+  border-left: 3px solid #d4ccff;
 }
 
 .user-info {
@@ -191,28 +245,25 @@ const insertEmoji = (emoji) => {
 }
 
 .user-name {
-  font-weight: 500;
-  color: #333;
+  font-weight: 600;
+  color: #6c63ff;
   font-size: 14px;
 }
 
 .publish-time {
-  color: #999;
+  color: #8ea0bd;
   font-size: 12px;
   margin-top: 2px;
 }
 
 .moment-content {
-  color: #333;
-  line-height: 1.5;
+  color: var(--cn-text-primary, #1a2233);
+  line-height: 1.6;
   font-size: 14px;
 }
 
 :deep(.el-divider) {
   margin: 15px 0;
+  border-color: #e8eef8;
 }
-
-:deep(.el-dialog__body) {
-  padding-top: 10px;
-}
-</style> 
+</style>

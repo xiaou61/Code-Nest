@@ -30,46 +30,35 @@
           </router-link>
           
           <!-- 学习工具下拉菜单 -->
-          <el-dropdown trigger="hover" @command="handleNavCommand" popper-class="global-nav-popper">
-            <div class="nav-item nav-dropdown">
+          <el-dropdown trigger="hover" @command="handleNavCommand" popper-class="global-nav-popper global-nav-learning-popper">
+            <div class="nav-item nav-dropdown" :class="{ active: isLearningRoute }">
               <el-icon><Document /></el-icon>
               <span>学习</span>
               <el-icon class="dropdown-arrow"><ArrowDown /></el-icon>
             </div>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="/interview">
-                  <el-icon><Document /></el-icon>
-                  面试题库
-                </el-dropdown-item>
-                <el-dropdown-item command="/mock-interview">
-                  <el-icon><Mic /></el-icon>
-                  AI模拟面试
-                </el-dropdown-item>
-                <el-dropdown-item command="/knowledge">
-                  <el-icon><DataAnalysis /></el-icon>
-                  知识图谱
-                </el-dropdown-item>
-                <el-dropdown-item command="/plan">
-                  <el-icon><Calendar /></el-icon>
-                  计划打卡
-                </el-dropdown-item>
-                <el-dropdown-item command="/team">
-                  <el-icon><UserFilled /></el-icon>
-                  学习小组
-                </el-dropdown-item>
-                <el-dropdown-item command="/flashcard">
-                  <el-icon><Postcard /></el-icon>
-                  闪卡记忆
-                </el-dropdown-item>
-                <el-dropdown-item divided command="/oj">
-                  <el-icon><Monitor /></el-icon>
-                  在线判题
-                </el-dropdown-item>
-                <el-dropdown-item command="/oj/playground">
-                  <el-icon><Cpu /></el-icon>
-                  练习场
-                </el-dropdown-item>
+                <template v-for="group in learningMenuGroups" :key="group.title">
+                  <el-dropdown-item disabled class="learn-menu-group-label">
+                    {{ group.title }}
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-for="item in group.items"
+                    :key="item.path"
+                    :command="item.path"
+                    :class="{ 'is-route-active': isMenuRouteActive(item.path) }"
+                  >
+                    <span class="learn-menu-item">
+                      <span class="learn-menu-icon">
+                        <el-icon><component :is="item.icon" /></el-icon>
+                      </span>
+                      <span class="learn-menu-text">
+                        <span class="learn-menu-title">{{ item.label }}</span>
+                        <span class="learn-menu-desc">{{ item.desc }}</span>
+                      </span>
+                    </span>
+                  </el-dropdown-item>
+                </template>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -193,6 +182,27 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
+const learningMenuGroups = [
+  {
+    title: '学习主线',
+    items: [
+      { path: '/interview', label: '面试题库', desc: '题单学习与进度追踪', icon: Document },
+      { path: '/mock-interview', label: 'AI 模拟面试', desc: '真实问答与评分反馈', icon: Mic },
+      { path: '/knowledge', label: '知识图谱', desc: '可视化构建知识体系', icon: DataAnalysis },
+      { path: '/plan', label: '计划打卡', desc: '每日计划执行与复盘', icon: Calendar }
+    ]
+  },
+  {
+    title: '练习与协作',
+    items: [
+      { path: '/team', label: '学习小组', desc: '组队监督与共学成长', icon: UserFilled },
+      { path: '/flashcard', label: '闪卡记忆', desc: '间隔复习强化长期记忆', icon: Postcard },
+      { path: '/oj', label: '在线判题', desc: '算法刷题与多语言判题', icon: Monitor },
+      { path: '/oj/playground', label: '练习场', desc: '独立运行调试代码片段', icon: Cpu }
+    ]
+  }
+]
+
 // 未读消息数量
 const unreadCount = ref(0)
 const isHeaderScrolled = ref(false)
@@ -200,6 +210,27 @@ const isHeaderScrolled = ref(false)
 // 判断是否是认证页面（登录/注册）
 const isAuthPage = computed(() => {
   return route.path === '/login' || route.path === '/register'
+})
+
+const isMenuRouteActive = (path) => {
+  if (path === '/oj') {
+    return (
+      route.path === '/oj' ||
+      route.path.startsWith('/oj/problem/') ||
+      route.path.startsWith('/oj/submission/') ||
+      route.path.startsWith('/oj/my-submissions') ||
+      route.path.startsWith('/oj/statistics') ||
+      route.path.startsWith('/oj/ranking')
+    )
+  }
+  if (path === '/oj/playground') {
+    return route.path.startsWith('/oj/playground')
+  }
+  return route.path === path || route.path.startsWith(`${path}/`)
+}
+
+const isLearningRoute = computed(() => {
+  return learningMenuGroups.some(group => group.items.some(item => isMenuRouteActive(item.path)))
 })
 
 // 回到首页
@@ -449,6 +480,110 @@ onUnmounted(() => {
 .global-nav-popper .el-dropdown-menu__item:not(.is-disabled):hover {
   background: #eef4ff;
   color: var(--cn-primary);
+}
+
+.global-nav-learning-popper .el-dropdown-menu {
+  min-width: 296px;
+  padding: 8px;
+  border-radius: 14px;
+  border-color: #dbe9fb;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 16px 34px rgba(16, 47, 89, 0.16);
+}
+
+.global-nav-learning-popper .learn-menu-group-label {
+  pointer-events: none;
+  min-height: auto;
+  padding: 6px 10px 4px;
+  margin-top: 4px;
+  color: #8b9ab6;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: transparent !important;
+}
+
+.global-nav-learning-popper .el-dropdown-menu__item {
+  min-height: auto;
+  line-height: 1;
+  margin: 2px 0;
+  padding: 0;
+  border-radius: 12px;
+  color: var(--cn-text-secondary);
+  transition:
+    background-color var(--cn-motion-fast) var(--cn-ease-out),
+    transform var(--cn-motion-fast) var(--cn-ease-out),
+    box-shadow var(--cn-motion-fast) var(--cn-ease-out);
+}
+
+.global-nav-learning-popper .learn-menu-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+}
+
+.global-nav-learning-popper .learn-menu-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  color: #1f6feb;
+  background: linear-gradient(135deg, #e9f2ff 0%, #dcecff 100%);
+  box-shadow: inset 0 0 0 1px rgba(97, 144, 223, 0.2);
+}
+
+.global-nav-learning-popper .learn-menu-icon .el-icon {
+  margin-right: 0;
+  font-size: inherit;
+  color: inherit;
+}
+
+.global-nav-learning-popper .learn-menu-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.global-nav-learning-popper .learn-menu-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cn-text-primary);
+}
+
+.global-nav-learning-popper .learn-menu-desc {
+  font-size: 12px;
+  color: #7f8ba3;
+  line-height: 1.4;
+}
+
+.global-nav-learning-popper .el-dropdown-menu__item:not(.is-disabled):hover {
+  transform: translateY(-1px);
+  background: linear-gradient(180deg, #f5f9ff 0%, #e9f2ff 100%);
+  box-shadow: inset 0 0 0 1px #d6e7ff;
+}
+
+.global-nav-learning-popper .el-dropdown-menu__item.is-route-active {
+  background: linear-gradient(180deg, #f3f8ff 0%, #e4efff 100%);
+  box-shadow:
+    inset 0 0 0 1px #cde1ff,
+    0 6px 14px rgba(28, 101, 209, 0.14);
+}
+
+.global-nav-learning-popper .el-dropdown-menu__item.is-route-active .learn-menu-icon {
+  color: #fff;
+  background: linear-gradient(135deg, #2c7af2 0%, #1793ed 100%);
+  box-shadow: none;
+}
+
+.global-nav-learning-popper .el-dropdown-menu__item.is-route-active .learn-menu-title {
+  color: #1653b2;
 }
 
 .user-actions {

@@ -7,7 +7,7 @@ const routes = [
   {
     path: '/',
     name: 'Home',
-    component: () => import('@/views/Home.vue'),
+    component: () => import('@/views/HomeRevamp.vue'),
     meta: {
       title: '首页',
       requiresAuth: true

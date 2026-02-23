@@ -1,82 +1,98 @@
 <template>
-  <div class="playground">
-    <!-- 顶部工具栏 -->
-    <div class="toolbar">
-      <div class="toolbar-left">
-        <h3 class="page-title">练习场</h3>
-        <el-select v-model="selectedLanguage" style="width: 140px" size="small">
-          <el-option v-for="lang in languages" :key="lang.value" :label="lang.label" :value="lang.value" />
-        </el-select>
-      </div>
-      <div class="toolbar-right">
-        <el-button type="primary" size="small" :loading="running" @click="handleRun">
-          <el-icon><CaretRight /></el-icon>
-          运行
-        </el-button>
-        <el-button size="small" @click="handleClear">
-          <el-icon><Delete /></el-icon>
-          清空
-        </el-button>
-      </div>
-    </div>
+  <div class="playground-shell cn-learn-shell">
+    <div class="cn-learn-shell__inner">
+      <section class="playground-hero cn-learn-hero cn-wave-reveal">
+        <div class="cn-learn-hero__content">
+          <span class="cn-learn-hero__eyebrow">Code Playground</span>
+          <h1 class="cn-learn-hero__title">练习场</h1>
+          <p class="cn-learn-hero__desc">在线运行多语言代码，快速验证思路与输入输出，专注练习反馈闭环。</p>
+        </div>
+        <div class="cn-learn-hero__meta">
+          <span class="cn-learn-chip">语言 {{ selectedLanguage }}</span>
+          <span class="cn-learn-chip">运行状态 {{ running ? '执行中' : '待命' }}</span>
+        </div>
+      </section>
 
-    <!-- 主体区域 -->
-    <div class="main-area">
-      <!-- 编辑器 -->
-      <div class="editor-section">
-        <div class="editor-container" ref="editorContainer"></div>
-      </div>
-
-      <!-- 右侧 IO 面板 -->
-      <div class="io-section">
-        <!-- 输入 -->
-        <div class="io-block input-block">
-          <div class="io-header">
-            <span>标准输入 (stdin)</span>
+      <div class="playground cn-learn-panel cn-learn-reveal">
+        <!-- 顶部工具栏 -->
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <h3 class="page-title">练习场</h3>
+            <el-select v-model="selectedLanguage" style="width: 140px" size="small">
+              <el-option v-for="lang in languages" :key="lang.value" :label="lang.label" :value="lang.value" />
+            </el-select>
           </div>
-          <textarea
-            v-model="stdin"
-            class="io-textarea"
-            placeholder="在此输入程序的标准输入数据..."
-            spellcheck="false"
-          ></textarea>
+          <div class="toolbar-right">
+            <el-button type="primary" size="small" :loading="running" @click="handleRun">
+              <el-icon><CaretRight /></el-icon>
+              运行
+            </el-button>
+            <el-button size="small" @click="handleClear">
+              <el-icon><Delete /></el-icon>
+              清空
+            </el-button>
+          </div>
         </div>
 
-        <!-- 输出 -->
-        <div class="io-block output-block">
-          <div class="io-header">
-            <span>输出</span>
-            <span v-if="result" class="run-info">
-              {{ result.timeUsed }}ms · {{ formatMemory(result.memoryUsed) }}
-            </span>
+        <!-- 主体区域 -->
+        <div class="main-area">
+          <!-- 编辑器 -->
+          <div class="editor-section">
+            <div class="editor-container" ref="editorContainer"></div>
           </div>
 
-          <!-- 状态提示 -->
-          <div v-if="running" class="io-status loading">
-            <el-icon class="is-loading"><Loading /></el-icon>
-            运行中...
-          </div>
+          <!-- 右侧 IO 面板 -->
+          <div class="io-section">
+            <!-- 输入 -->
+            <div class="io-block input-block">
+              <div class="io-header">
+                <span>标准输入 (stdin)</span>
+              </div>
+              <textarea
+                v-model="stdin"
+                class="io-textarea"
+                placeholder="在此输入程序的标准输入数据..."
+                spellcheck="false"
+              ></textarea>
+            </div>
 
-          <div v-else-if="result" class="io-output-content">
-            <!-- 错误状态 -->
-            <div v-if="result.status === 'compile_error'" class="status-badge error">编译错误</div>
-            <div v-else-if="result.status === 'runtime_error'" class="status-badge error">运行错误</div>
-            <div v-else-if="result.status === 'time_limit_exceeded'" class="status-badge warn">超时</div>
-            <div v-else-if="result.status === 'memory_limit_exceeded'" class="status-badge warn">超内存</div>
-            <div v-else-if="result.status === 'error'" class="status-badge error">错误</div>
-            <div v-else class="status-badge success">运行成功</div>
+            <!-- 输出 -->
+            <div class="io-block output-block">
+              <div class="io-header">
+                <span>输出</span>
+                <span v-if="result" class="run-info">
+                  {{ result.timeUsed }}ms · {{ formatMemory(result.memoryUsed) }}
+                </span>
+              </div>
 
-            <!-- stdout -->
-            <pre v-if="result.stdout" class="output-pre stdout">{{ result.stdout }}</pre>
+              <!-- 状态提示 -->
+              <div v-if="running" class="io-status loading">
+                <el-icon class="is-loading"><Loading /></el-icon>
+                运行中...
+              </div>
 
-            <!-- stderr -->
-            <pre v-if="result.stderr" class="output-pre stderr">{{ result.stderr }}</pre>
+              <div v-else-if="result" class="io-output-content">
+                <!-- 错误状态 -->
+                <div v-if="result.status === 'compile_error'" class="status-badge error">编译错误</div>
+                <div v-else-if="result.status === 'runtime_error'" class="status-badge error">运行错误</div>
+                <div v-else-if="result.status === 'time_limit_exceeded'" class="status-badge warn">超时</div>
+                <div v-else-if="result.status === 'memory_limit_exceeded'" class="status-badge warn">超内存</div>
+                <div v-else-if="result.status === 'error'" class="status-badge error">错误</div>
+                <div v-else class="status-badge success">运行成功</div>
 
-            <div v-if="!result.stdout && !result.stderr" class="empty-output">（无输出）</div>
-          </div>
+                <!-- stdout -->
+                <pre v-if="result.stdout" class="output-pre stdout">{{ result.stdout }}</pre>
 
-          <div v-else class="io-placeholder">
-            点击「运行」查看输出结果
+                <!-- stderr -->
+                <pre v-if="result.stderr" class="output-pre stderr">{{ result.stderr }}</pre>
+
+                <div v-if="!result.stdout && !result.stderr" class="empty-output">（无输出）</div>
+              </div>
+
+              <div v-else class="io-placeholder">
+                点击「运行」查看输出结果
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -90,9 +106,11 @@ import { ElMessage } from 'element-plus'
 import { CaretRight, Delete, Loading } from '@element-plus/icons-vue'
 import { ojApi } from '@/api/oj'
 import loader from '@monaco-editor/loader'
+import { useRevealMotion } from '@/utils/reveal-motion'
 
 const editorContainer = ref(null)
 let editorInstance = null
+useRevealMotion('.playground-shell .cn-learn-reveal')
 
 const selectedLanguage = ref('java')
 const stdin = ref('')
@@ -205,11 +223,25 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.playground-shell {
+  min-height: calc(100vh - 68px);
+}
+
+.playground-hero {
+  margin-bottom: 16px;
+  border-radius: 24px;
+  padding: 22px 26px;
+}
+
 .playground {
-  height: 100vh;
+  height: calc(100vh - 250px);
   display: flex;
   flex-direction: column;
   background: #1e1e1e;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(154, 195, 252, 0.3);
+  box-shadow: 0 22px 48px rgba(15, 46, 94, 0.24);
 }
 
 .toolbar {
@@ -374,5 +406,28 @@ onBeforeUnmount(() => {
   padding: 16px 12px;
   color: #5a5a5a;
   font-size: 13px;
+}
+
+@media (max-width: 1024px) {
+  .playground {
+    height: calc(100vh - 270px);
+  }
+}
+
+@media (max-width: 768px) {
+  .playground {
+    height: calc(100vh - 292px);
+  }
+
+  .main-area {
+    flex-direction: column;
+  }
+
+  .io-section {
+    width: 100%;
+    height: 46%;
+    border-left: 0;
+    border-top: 1px solid #3c3c3c;
+  }
 }
 </style>

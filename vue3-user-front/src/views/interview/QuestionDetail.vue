@@ -375,7 +375,7 @@ onMounted(() => {
 <style scoped>
 .question-detail {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: linear-gradient(180deg, #f8f7ff 0%, #f5f3ff 100%);
   display: flex;
   flex-direction: column;
 }
@@ -406,11 +406,11 @@ onMounted(() => {
 
 .nav-left :deep(.el-button) {
   font-weight: 500;
-  color: #409eff;
+  color: #6c63ff;
 }
 
 .nav-left :deep(.el-button:hover) {
-  color: #337ecc;
+  color: #4f46e5;
 }
 
 .breadcrumb {
@@ -435,7 +435,7 @@ onMounted(() => {
 }
 
 .mode-toggle :deep(.el-switch) {
-  --el-switch-on-color: #409eff;
+  --el-switch-on-color: #6c63ff;
 }
 
 /* 题目内容区域 */
@@ -451,8 +451,8 @@ onMounted(() => {
   margin: 0 auto;
   background: #ffffff;
   border: none;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  border-radius: 14px;
+  box-shadow: 0 2px 16px rgba(108, 99, 255, 0.08);
   overflow: hidden;
 }
 
@@ -473,8 +473,8 @@ onMounted(() => {
   bottom: -2px;
   left: 0;
   width: 60px;
-  height: 2px;
-  background: #409eff;
+  height: 3px;
+  background: linear-gradient(90deg, #6c63ff, #ec4899);
   border-radius: 2px;
 }
 
@@ -505,8 +505,8 @@ onMounted(() => {
 }
 
 .question-meta span:hover {
-  background: #ecf5ff;
-  color: #409eff;
+  background: #f5f3ff;
+  color: #6c63ff;
 }
 
 .question-meta :deep(.el-icon) {
@@ -537,7 +537,7 @@ onMounted(() => {
   display: inline-block;
   width: 4px;
   height: 20px;
-  background: #409eff;
+  background: linear-gradient(180deg, #6c63ff, #ec4899);
   border-radius: 2px;
 }
 
@@ -586,11 +586,11 @@ onMounted(() => {
 }
 
 .markdown-content :deep(blockquote) {
-  border-left: 4px solid #409eff;
+  border-left: 4px solid #6c63ff;
   padding-left: 16px;
   margin: 16px 0;
   color: #64748b;
-  background: #f8fafc;
+  background: #f8f7ff;
   padding: 12px 16px;
   border-radius: 0 8px 8px 0;
 }
@@ -609,12 +609,12 @@ onMounted(() => {
 }
 
 .action-buttons :deep(.el-button--primary) {
-  background: #409eff;
+  background: linear-gradient(135deg, #6c63ff 0%, #4f46e5 100%);
   border: none;
 }
 
 .action-buttons :deep(.el-button--primary:hover) {
-  background: #337ecc;
+  background: linear-gradient(135deg, #4f46e5 0%, #6c63ff 100%);
 }
 
 .mode-tip {
@@ -692,7 +692,7 @@ onMounted(() => {
 }
 
 .progress-info :deep(.el-progress-bar__inner) {
-  background: #409eff;
+  background: linear-gradient(90deg, #6c63ff, #8b5cf6);
 }
 
 /* ===== 平板端适配 (768px - 1024px) ===== */
@@ -931,7 +931,7 @@ onMounted(() => {
   }
   
   .mobile-nav-buttons :deep(.el-button--primary) {
-    background: #409eff;
+    background: linear-gradient(135deg, #6c63ff 0%, #4f46e5 100%);
     border: none;
   }
   

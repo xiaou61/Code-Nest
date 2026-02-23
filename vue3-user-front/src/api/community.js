@@ -85,7 +85,7 @@ export const communityApi = {
 
   // 获取热门帖子
   getHotPosts(limit = 5) {
-    return request.get('/community/posts/hot', { params: { limit } })
+    return request.get('/community/posts/hot', { limit })
   },
 
   // 获取启用的标签列表
@@ -95,7 +95,7 @@ export const communityApi = {
 
   // 获取热门标签
   getHotTags(limit = 10) {
-    return request.get('/community/tags/hot', { params: { limit } })
+    return request.get('/community/tags/hot', { limit })
   },
 
   // 获取标签下的帖子
@@ -137,6 +137,6 @@ export const communityApi = {
 
   // 获取热门搜索词
   getHotKeywords(limit = 10) {
-    return request.get('/community/hot-keywords', { params: { limit } })
+    return request.get('/community/hot-keywords', { limit })
   }
 } 
