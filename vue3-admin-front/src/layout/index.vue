@@ -409,7 +409,7 @@
       
       <el-container>
         <!-- 头部 -->
-        <el-header height="60px" class="header">
+        <el-header height="60px" class="header" :class="{ 'header-elevated': isMainScrolled }">
           <div class="header-left">
             <!-- 折叠按钮 -->
             <el-button
@@ -463,9 +463,13 @@
         </el-header>
         
         <!-- 主内容区域 -->
-        <el-main class="main-content">
+        <el-main class="main-content" @scroll.passive="handleMainScroll">
           <div class="page-container">
-            <router-view />
+            <router-view v-slot="{ Component }">
+              <transition name="admin-page-fade" mode="out-in">
+                <component :is="Component" />
+              </transition>
+            </router-view>
           </div>
         </el-main>
       </el-container>
@@ -538,6 +542,11 @@ const currentTitle = computed(() => route.meta?.title || '仪表板')
 // 搜索相关
 const searchKeyword = ref('')
 const searchInput = ref()
+const isMainScrolled = ref(false)
+
+const handleMainScroll = (event) => {
+  isMainScrolled.value = event.target.scrollTop > 8
+}
 
 // 智能图标推断函数
 const getIconByPath = (path, title = '') => {
@@ -917,6 +926,16 @@ const handleUserCommand = async (command) => {
   justify-content: space-between;
   align-items: center;
   padding: 0 18px 0 14px;
+  transition:
+    background-color var(--cn-motion-base) var(--cn-ease-out),
+    border-color var(--cn-motion-base) var(--cn-ease-out),
+    box-shadow var(--cn-motion-base) var(--cn-ease-out);
+}
+
+.header.header-elevated {
+  background-color: rgba(255, 255, 255, 0.96);
+  border-bottom-color: #d8e4f6;
+  box-shadow: 0 10px 26px rgba(18, 38, 63, 0.08);
 }
 
 .header-left {
@@ -1042,6 +1061,19 @@ const handleUserCommand = async (command) => {
   border-radius: var(--cn-radius-md);
   padding: 24px;
   box-shadow: var(--cn-shadow-xs);
+}
+
+.admin-page-fade-enter-active,
+.admin-page-fade-leave-active {
+  transition:
+    opacity var(--cn-motion-base) var(--cn-ease-in-out),
+    transform var(--cn-motion-base) var(--cn-ease-out);
+}
+
+.admin-page-fade-enter-from,
+.admin-page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
 }
 
 .sidebar-search-input-wrapper {

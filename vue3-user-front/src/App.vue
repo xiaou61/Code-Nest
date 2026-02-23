@@ -1,7 +1,9 @@
 <template>
   <div id="app">
+    <a href="#app-main-content" class="skip-link">跳到主要内容</a>
+
     <!-- 全局导航栏 -->
-    <div class="global-header" v-if="!isAuthPage">
+    <div class="global-header" v-if="!isAuthPage" :class="{ 'header-scrolled': isHeaderScrolled }">
       <div class="header-content">
         <!-- Logo区域 -->
         <div class="logo" @click="goHome">
@@ -166,14 +168,18 @@
     </div>
     
     <!-- 主要内容区域 -->
-    <div class="app-main" :class="{ 'with-header': !isAuthPage }">
-      <router-view />
+    <div id="app-main-content" tabindex="-1" class="app-main" :class="{ 'with-header': !isAuthPage }">
+      <router-view v-slot="{ Component }">
+        <transition name="page-fade" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -189,6 +195,7 @@ const userStore = useUserStore()
 
 // 未读消息数量
 const unreadCount = ref(0)
+const isHeaderScrolled = ref(false)
 
 // 判断是否是认证页面（登录/注册）
 const isAuthPage = computed(() => {
@@ -242,6 +249,23 @@ const handleUserAction = async (command) => {
       break
   }
 }
+
+const handleWindowScroll = () => {
+  if (isAuthPage.value) {
+    isHeaderScrolled.value = false
+    return
+  }
+  isHeaderScrolled.value = window.scrollY > 8
+}
+
+onMounted(() => {
+  handleWindowScroll()
+  window.addEventListener('scroll', handleWindowScroll, { passive: true })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleWindowScroll)
+})
 </script>
 
 <style>
@@ -250,6 +274,24 @@ const handleUserAction = async (command) => {
   overflow-x: hidden;
   font-family: var(--cn-font-sans);
   color: var(--cn-text-primary);
+}
+
+.skip-link {
+  position: fixed;
+  left: 14px;
+  top: -44px;
+  z-index: 1200;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #1f6feb;
+  color: #fff;
+  text-decoration: none;
+  font-size: 13px;
+  transition: top var(--cn-motion-fast) var(--cn-ease-out);
+}
+
+.skip-link:focus {
+  top: 12px;
 }
 
 .global-header {
@@ -262,6 +304,16 @@ const handleUserAction = async (command) => {
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--cn-border-soft);
   box-shadow: 0 10px 30px rgba(18, 38, 63, 0.06);
+  transition:
+    background-color var(--cn-motion-base) var(--cn-ease-out),
+    box-shadow var(--cn-motion-base) var(--cn-ease-out),
+    border-color var(--cn-motion-base) var(--cn-ease-out);
+}
+
+.global-header.header-scrolled {
+  background: rgba(255, 255, 255, 0.94);
+  border-bottom-color: #d8e4f6;
+  box-shadow: 0 14px 34px rgba(18, 38, 63, 0.1);
 }
 
 .header-content {
@@ -273,6 +325,11 @@ const handleUserAction = async (command) => {
   height: 68px;
   max-width: 1360px;
   margin: 0 auto;
+  transition: height var(--cn-motion-base) var(--cn-ease-out);
+}
+
+.global-header.header-scrolled .header-content {
+  height: 64px;
 }
 
 .logo {
@@ -295,6 +352,7 @@ const handleUserAction = async (command) => {
 }
 
 .main-nav {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -302,9 +360,12 @@ const handleUserAction = async (command) => {
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid var(--cn-border-soft);
   border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .nav-item {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -318,9 +379,28 @@ const handleUserAction = async (command) => {
   white-space: nowrap;
 }
 
+.nav-item::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #1f6feb 0%, #4d93ff 100%);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform var(--cn-motion-base) var(--cn-ease-out);
+}
+
 .nav-item:hover {
   color: var(--cn-primary);
   background: #edf3ff;
+}
+
+.nav-item:hover::after,
+.nav-item.active::after {
+  transform: scaleX(1);
 }
 
 .nav-item.active {
@@ -430,6 +510,7 @@ const handleUserAction = async (command) => {
 }
 
 .app-main {
+  position: relative;
   min-height: 100vh;
   background:
     radial-gradient(circle at 2% -18%, rgba(31, 111, 235, 0.2) 0%, rgba(31, 111, 235, 0) 32%),
@@ -441,13 +522,15 @@ const handleUserAction = async (command) => {
   padding-top: 68px;
 }
 
-.v-enter-active,
-.v-leave-active {
-  transition: all 0.25s ease;
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition:
+    opacity var(--cn-motion-base) var(--cn-ease-in-out),
+    transform var(--cn-motion-base) var(--cn-ease-out);
 }
 
-.v-enter-from,
-.v-leave-to {
+.page-fade-enter-from,
+.page-fade-leave-to {
   opacity: 0;
   transform: translateY(8px);
 }
@@ -471,6 +554,10 @@ const handleUserAction = async (command) => {
   .header-content {
     height: 62px;
     gap: 8px;
+  }
+
+  .global-header.header-scrolled .header-content {
+    height: 58px;
   }
 
   .app-main.with-header {

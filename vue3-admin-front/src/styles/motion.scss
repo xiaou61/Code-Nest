@@ -1,0 +1,42 @@
+:root {
+  --cn-motion-fast: 160ms;
+  --cn-motion-base: 240ms;
+  --cn-motion-slow: 360ms;
+  --cn-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --cn-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cn-hover-lift {
+  transition:
+    transform var(--cn-motion-base) var(--cn-ease-out),
+    box-shadow var(--cn-motion-base) var(--cn-ease-out),
+    border-color var(--cn-motion-base) var(--cn-ease-out);
+}
+
+.cn-hover-lift:hover {
+  transform: translateY(-4px);
+}
+
+.cn-fade-up-enter-active,
+.cn-fade-up-leave-active {
+  transition:
+    opacity var(--cn-motion-base) var(--cn-ease-in-out),
+    transform var(--cn-motion-base) var(--cn-ease-out);
+}
+
+.cn-fade-up-enter-from,
+.cn-fade-up-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

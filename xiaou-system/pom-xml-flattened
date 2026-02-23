@@ -5,17 +5,32 @@
   <parent>
     <groupId>com.xiaou</groupId>
     <artifactId>Code-Nest</artifactId>
-    <version>1.7.1</version>
+    <version>1.7.2</version>
   </parent>
   <groupId>com.xiaou</groupId>
   <artifactId>xiaou-system</artifactId>
-  <version>1.7.1</version>
+  <version>1.7.2</version>
   <name>xiaou-system</name>
   <description>系统管理模块</description>
   <dependencies>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-common</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-user</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-chat</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-points</artifactId>
       <version>${revision}</version>
     </dependency>
     <dependency>

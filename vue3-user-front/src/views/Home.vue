@@ -32,26 +32,23 @@
           </el-button>
         </div>
         <div class="hero-stats">
-          <div class="stat-item">
-            <span class="stat-number">1000+</span>
-            <span class="stat-label">面试题目</span>
-          </div>
-          <div class="stat-divider"></div>
-          <div class="stat-item">
-            <span class="stat-number">50+</span>
-            <span class="stat-label">知识图谱</span>
-          </div>
-          <div class="stat-divider"></div>
-          <div class="stat-item">
-            <span class="stat-number">10+</span>
-            <span class="stat-label">实用工具</span>
-          </div>
+          <template v-for="(stat, index) in stats" :key="stat.label">
+            <div class="stat-item">
+              <span class="stat-number">{{ stat.display }}{{ stat.suffix }}</span>
+              <span class="stat-label">{{ stat.label }}</span>
+            </div>
+            <div v-if="index < stats.length - 1" class="stat-divider"></div>
+          </template>
         </div>
       </div>
     </section>
 
     <!-- 核心功能区域 -->
-    <section class="features-section">
+    <section
+      class="features-section section-reveal"
+      data-section="features"
+      :class="{ 'is-visible': visibleSections.features }"
+    >
       <div class="section-header">
         <h2 class="section-title">核心功能</h2>
         <p class="section-subtitle">全方位助力你的技术成长之路</p>
@@ -60,8 +57,8 @@
         <div 
           v-for="(feature, index) in features" 
           :key="feature.title" 
-          class="feature-card"
-          :style="{ animationDelay: `${index * 0.1}s` }"
+          class="feature-card cn-hover-lift"
+          :style="{ '--delay': `${index * 70}ms` }"
           @click="$router.push(feature.path)"
         >
           <div class="feature-icon" :style="{ background: feature.gradient }">
@@ -77,7 +74,11 @@
     </section>
 
     <!-- 快速入口区域 -->
-    <section class="quick-access-section">
+    <section
+      class="quick-access-section section-reveal"
+      data-section="quick"
+      :class="{ 'is-visible': visibleSections.quick }"
+    >
       <div class="section-header">
         <h2 class="section-title">快速入口</h2>
         <p class="section-subtitle">一键直达常用功能</p>
@@ -86,7 +87,7 @@
         <div 
           v-for="item in quickAccess" 
           :key="item.title" 
-          class="quick-item"
+          class="quick-item cn-hover-lift"
           @click="$router.push(item.path)"
         >
           <div class="quick-icon" :style="{ background: item.color }">
@@ -98,9 +99,13 @@
     </section>
 
     <!-- 特色亮点区域 -->
-    <section class="highlights-section">
+    <section
+      class="highlights-section section-reveal"
+      data-section="highlights"
+      :class="{ 'is-visible': visibleSections.highlights }"
+    >
       <div class="highlights-content">
-        <div class="highlight-item">
+        <div class="highlight-item cn-hover-lift">
           <div class="highlight-icon">
             <el-icon :size="32"><Cpu /></el-icon>
           </div>
@@ -109,7 +114,7 @@
             <p>基于知识图谱的学习路径规划，助你高效提升技术能力</p>
           </div>
         </div>
-        <div class="highlight-item">
+        <div class="highlight-item cn-hover-lift">
           <div class="highlight-icon">
             <el-icon :size="32"><Trophy /></el-icon>
           </div>
@@ -118,7 +123,7 @@
             <p>完成任务获取积分，参与抽奖赢取丰厚奖品</p>
           </div>
         </div>
-        <div class="highlight-item">
+        <div class="highlight-item cn-hover-lift">
           <div class="highlight-icon">
             <el-icon :size="32"><Connection /></el-icon>
           </div>
@@ -131,7 +136,11 @@
     </section>
 
     <!-- 底部 CTA -->
-    <section class="cta-section">
+    <section
+      class="cta-section section-reveal"
+      data-section="cta"
+      :class="{ 'is-visible': visibleSections.cta }"
+    >
       <div class="cta-content">
         <h2>准备好开始你的技术成长之旅了吗？</h2>
         <p>加入 Code Nest，与万千开发者一起学习进步</p>
@@ -145,12 +154,16 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import { 
   Reading, ChatDotRound, ArrowRight, Document, Edit, 
   Monitor, Share, Bell, Trophy, Cpu, Connection,
-  Compass, Coffee, TrendCharts, Ticket, ChatLineSquare, DataAnalysis, Calendar
+  Compass, Coffee, Ticket, ChatLineSquare, DataAnalysis, Calendar
 } from '@element-plus/icons-vue'
+import { interviewApi } from '@/api/interview'
+import { getPublishedKnowledgeMaps } from '@/api/knowledge'
+import { getOnlineCount } from '@/api/chat'
 
 // 核心功能数据
 const features = ref([
@@ -217,6 +230,100 @@ const quickAccess = ref([
   { title: '开发工具', icon: 'Compass', path: '/dev-tools', color: 'linear-gradient(135deg, #2ea8d0, #2f78cd)' },
   { title: '版本历史', icon: 'DataAnalysis', path: '/version-history', color: 'linear-gradient(135deg, #6aa8ff, #3b76de)' }
 ])
+
+const stats = ref([
+  { label: '已学习题目', value: 0, suffix: '', display: 0 },
+  { label: '已发布图谱', value: 0, suffix: '', display: 0 },
+  { label: '实时在线', value: 0, suffix: '', display: 0 }
+])
+
+const visibleSections = ref({
+  features: false,
+  quick: false,
+  highlights: false,
+  cta: false
+})
+
+let sectionObserver = null
+
+const animateStats = () => {
+  const duration = 1300
+  const startTime = performance.now()
+
+  const update = (now) => {
+    const progress = Math.min((now - startTime) / duration, 1)
+    const easedProgress = 1 - Math.pow(1 - progress, 3)
+
+    stats.value.forEach((item) => {
+      item.display = Math.round(item.value * easedProgress)
+    })
+
+    if (progress < 1) {
+      requestAnimationFrame(update)
+    }
+  }
+
+  requestAnimationFrame(update)
+}
+
+const loadHeroStats = async () => {
+  try {
+    const [learnedCount, knowledgeMaps, onlineCount] = await Promise.all([
+      interviewApi.getTotalLearned(),
+      getPublishedKnowledgeMaps({ pageNum: 1, pageSize: 1 }),
+      getOnlineCount()
+    ])
+
+    stats.value[0].value = Number(learnedCount) || 0
+    stats.value[1].value = Number(knowledgeMaps?.total) || 0
+    stats.value[2].value = Number(onlineCount) || 0
+  } catch (error) {
+    ElMessage.warning('首页统计加载失败，已展示默认值')
+    stats.value.forEach((item) => {
+      item.value = 0
+    })
+  }
+}
+
+const observeSections = () => {
+  if (!('IntersectionObserver' in window)) {
+    Object.keys(visibleSections.value).forEach((key) => {
+      visibleSections.value[key] = true
+    })
+    return
+  }
+
+  sectionObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return
+        const section = entry.target.dataset.section
+        if (section && Object.prototype.hasOwnProperty.call(visibleSections.value, section)) {
+          visibleSections.value[section] = true
+        }
+        sectionObserver.unobserve(entry.target)
+      })
+    },
+    { threshold: 0.15, rootMargin: '0px 0px -10% 0px' }
+  )
+
+  document.querySelectorAll('.section-reveal').forEach((element) => {
+    sectionObserver.observe(element)
+  })
+}
+
+onMounted(async () => {
+  await loadHeroStats()
+  animateStats()
+  observeSections()
+})
+
+onBeforeUnmount(() => {
+  if (sectionObserver) {
+    sectionObserver.disconnect()
+    sectionObserver = null
+  }
+})
 </script>
 
 <style scoped>
@@ -430,6 +537,10 @@ const quickAccess = ref([
   margin: 0 auto;
 }
 
+.features-section.section-reveal {
+  transition-delay: 30ms;
+}
+
 .section-header {
   text-align: center;
   margin-bottom: 52px;
@@ -448,6 +559,19 @@ const quickAccess = ref([
   color: var(--cn-text-secondary);
 }
 
+.section-reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity var(--cn-motion-slow) var(--cn-ease-out),
+    transform var(--cn-motion-slow) var(--cn-ease-out);
+}
+
+.section-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .features-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -463,8 +587,14 @@ const quickAccess = ref([
   padding: 28px 26px 56px;
   box-shadow: 0 10px 30px rgba(18, 38, 63, 0.06);
   cursor: pointer;
-  transition: all 0.24s ease;
-  animation: fadeInUp 0.6s ease-out both;
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    transform var(--cn-motion-base) var(--cn-ease-out),
+    box-shadow var(--cn-motion-base) var(--cn-ease-out),
+    border-color var(--cn-motion-base) var(--cn-ease-out),
+    opacity var(--cn-motion-slow) var(--cn-ease-out);
+  transition-delay: var(--delay, 0ms);
 }
 
 .feature-card::before {
@@ -478,6 +608,22 @@ const quickAccess = ref([
   transition: opacity 0.24s ease;
 }
 
+.feature-card::after {
+  content: '';
+  position: absolute;
+  inset: -38% auto auto -24%;
+  width: 160px;
+  height: 160px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 72%);
+  opacity: 0;
+  transition: opacity var(--cn-motion-base) var(--cn-ease-out);
+}
+
+.features-section.is-visible .feature-card {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .feature-card:hover {
   transform: translateY(-6px);
   border-color: #c7daf6;
@@ -485,6 +631,10 @@ const quickAccess = ref([
 }
 
 .feature-card:hover::before {
+  opacity: 1;
+}
+
+.feature-card:hover::after {
   opacity: 1;
 }
 
@@ -543,6 +693,10 @@ const quickAccess = ref([
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.86) 0%, #f7fbff 100%);
 }
 
+.quick-access-section.section-reveal {
+  transition-delay: 70ms;
+}
+
 .quick-access-grid {
   max-width: 1240px;
   margin: 0 auto;
@@ -593,6 +747,10 @@ const quickAccess = ref([
 .highlights-section {
   padding: 82px 20px;
   background: linear-gradient(180deg, #f2f7ff 0%, #eef4ff 100%);
+}
+
+.highlights-section.section-reveal {
+  transition-delay: 90ms;
 }
 
 .highlights-content {
@@ -649,6 +807,10 @@ const quickAccess = ref([
   padding: 88px 20px 98px;
   text-align: center;
   background: linear-gradient(135deg, #2f73d8 0%, #1f60bf 58%, #1e57a8 100%);
+}
+
+.cta-section.section-reveal {
+  transition-delay: 110ms;
 }
 
 .cta-content h2 {
@@ -774,8 +936,15 @@ const quickAccess = ref([
 @media (prefers-reduced-motion: reduce) {
   .shape,
   .hero-content,
-  .feature-card {
+  .feature-card,
+  .section-reveal {
     animation: none !important;
+  }
+
+  .section-reveal,
+  .feature-card {
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
 </style>
