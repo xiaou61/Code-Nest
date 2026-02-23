@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.oj.mapper.OjContestProblemMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.oj.domain.OjContestProblem">
+        <id column="id" property="id"/>
+        <result column="contest_id" property="contestId"/>
+        <result column="problem_id" property="problemId"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <delete id="deleteByContestId">
+        DELETE FROM oj_contest_problem WHERE contest_id = #{contestId}
+    </delete>
+
+    <insert id="insertBatch">
+        INSERT INTO oj_contest_problem (contest_id, problem_id, sort_order, create_time)
+        VALUES
+        <foreach collection="problemIds" item="problemId" index="idx" separator=",">
+            (#{contestId}, #{problemId}, #{idx}, NOW())
+        </foreach>
+    </insert>
+
+    <select id="selectProblemIdsByContestId" resultType="java.lang.Long">
+        SELECT problem_id
+        FROM oj_contest_problem
+        WHERE contest_id = #{contestId}
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <select id="existsProblemInContest" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM oj_contest_problem
+            WHERE contest_id = #{contestId} AND problem_id = #{problemId}
+        )
+    </select>
+
+    <select id="selectByContestId" resultMap="BaseResultMap">
+        SELECT * FROM oj_contest_problem
+        WHERE contest_id = #{contestId}
+        ORDER BY sort_order ASC, id ASC
+    </select>
+</mapper>
