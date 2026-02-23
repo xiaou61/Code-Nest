@@ -3,9 +3,9 @@
     <!-- 顶部栏 -->
     <div class="top-bar">
       <div class="top-left">
-        <el-button text @click="$router.push('/oj')">
+        <el-button text @click="handleBack">
           <el-icon><ArrowLeft /></el-icon>
-          返回题目列表
+          {{ backText }}
         </el-button>
         <h3 class="problem-name" v-if="problem.title">
           {{ problem.id }}. {{ problem.title }}
@@ -430,6 +430,16 @@ import { registerCompletionProviders, disposeCompletionProviders } from '@/utils
 const route = useRoute()
 const router = useRouter()
 const md = new MarkdownIt()
+const contestId = computed(() => {
+  const raw = route.query.contestId
+  if (raw == null || raw === '') {
+    return null
+  }
+  const value = Array.isArray(raw) ? raw[0] : raw
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+})
+const backText = computed(() => (contestId.value ? '返回赛事详情' : '返回题目列表'))
 
 // ============ 状态 ============
 const loading = ref(false)
@@ -507,6 +517,14 @@ const runOutputText = computed(() => {
   if (r.status === 'error') return r.stderr || '系统错误'
   return r.stdout || '(无输出)'
 })
+
+const handleBack = () => {
+  if (contestId.value) {
+    router.push(`/oj/contests/${contestId.value}`)
+    return
+  }
+  router.push('/oj')
+}
 
 // ============ Monaco 编辑器 ============
 
@@ -633,11 +651,15 @@ const handleSubmit = async () => {
   submitting.value = true
   submissionResult.value = null
   try {
-    const submissionId = await ojApi.submitCode({
+    const payload = {
       problemId: problem.value.id,
       language: selectedLanguage.value,
       code
-    })
+    }
+    if (contestId.value) {
+      payload.contestId = contestId.value
+    }
+    const submissionId = await ojApi.submitCode(payload)
     ElMessage.success('提交成功，正在判题...')
     startPolling(submissionId)
   } catch (error) {
@@ -871,7 +893,7 @@ onMounted(async () => {
     problem.value = await ojApi.getProblemDetail(id) || {}
   } catch {
     ElMessage.error('题目不存在')
-    router.push('/oj')
+    handleBack()
   } finally {
     loading.value = false
   }

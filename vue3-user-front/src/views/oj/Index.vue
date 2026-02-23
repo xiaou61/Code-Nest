@@ -106,6 +106,10 @@
                 <el-icon class="action-icon"><Trophy /></el-icon>
                 <span>排行榜</span>
               </div>
+              <div class="action-btn" @click="$router.push('/oj/contests')">
+                <el-icon class="action-icon"><CollectionTag /></el-icon>
+                <span>赛事中心</span>
+              </div>
             </div>
           </div>
         </aside>

@@ -103,6 +103,26 @@ const routes = [
     }
   },
   {
+    path: '/oj/contests',
+    name: 'OjContests',
+    component: () => import('@/views/oj/Contests.vue'),
+    meta: {
+      title: '赛事中心',
+      requiresAuth: true,
+      keepAlive: true
+    }
+  },
+  {
+    path: '/oj/contests/:id',
+    name: 'OjContestDetail',
+    component: () => import('@/views/oj/ContestDetail.vue'),
+    meta: {
+      title: '赛事详情',
+      requiresAuth: true,
+      keepAlive: false
+    }
+  },
+  {
     path: '/oj/problem/:id',
     name: 'OjProblemDetail',
     component: () => import('@/views/oj/ProblemDetail.vue'),

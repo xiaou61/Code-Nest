@@ -198,6 +198,7 @@ const learningMenuGroups = [
       { path: '/team', label: '学习小组', desc: '组队监督与共学成长', icon: UserFilled },
       { path: '/flashcard', label: '闪卡记忆', desc: '间隔复习强化长期记忆', icon: Postcard },
       { path: '/oj', label: '在线判题', desc: '算法刷题与多语言判题', icon: Monitor },
+      { path: '/oj/contests', label: '赛事中心', desc: '周赛挑战与实时榜单', icon: Trophy },
       { path: '/oj/playground', label: '练习场', desc: '独立运行调试代码片段', icon: Cpu }
     ]
   }
@@ -225,6 +226,9 @@ const isMenuRouteActive = (path) => {
   }
   if (path === '/oj/playground') {
     return route.path.startsWith('/oj/playground')
+  }
+  if (path === '/oj/contests') {
+    return route.path.startsWith('/oj/contests')
   }
   return route.path === path || route.path.startsWith(`${path}/`)
 }

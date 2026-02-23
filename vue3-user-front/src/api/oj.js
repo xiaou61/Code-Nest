@@ -73,6 +73,28 @@ export const ojApi = {
     return request.get('/oj/ranking', { params: { type } })
   },
 
+  // ============ 赛事 ============  
+
+  // 分页查询赛事
+  getContestList(data) {
+    return request.post('/oj/contests/list', data)
+  },
+
+  // 获取赛事详情
+  getContestDetail(id) {
+    return request.get(`/oj/contests/${id}`)
+  },
+
+  // 报名赛事
+  joinContest(id) {
+    return request.post(`/oj/contests/${id}/join`)
+  },
+
+  // 获取赛事榜单
+  getContestRanking(id) {
+    return request.get(`/oj/contests/${id}/ranking`)
+  },
+
   // ============ 每日一题 ============
 
   // 获取每日一题
