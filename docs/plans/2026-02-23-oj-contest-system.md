@@ -489,3 +489,19 @@ git commit -m "docs(oj): add contest feature docs and verification notes"
 - 赛事 Rating/ELO（新增 `oj_contest_rating`、赛后批量结算）。
 - 冻结榜单（封榜时间点后仅赛后揭榜）。
 - 队伍赛（多人组队与队伍榜单）。
+
+---
+
+## 执行记录（2026-02-23）
+
+- 已完成：Task 8（管理端赛事运营页面）
+  - `vue3-admin-front/src/api/oj.js` 新增赛事管理接口封装
+  - `vue3-admin-front/src/router/index.js` 新增赛事管理路由
+  - `vue3-admin-front/src/layout/index.vue` 新增侧边栏入口
+  - `vue3-admin-front/src/views/oj/contests/index.vue`、`edit.vue` 完成最小闭环
+- 已完成验证：
+  - `cd vue3-admin-front && npm run build`
+  - `cd vue3-user-front && npm run build`
+  - `mvn -pl xiaou-oj -am test`
+- 待继续：
+  - Task 9 的后端赛事功能全链路验收（依赖赛事后端模块完整接入）
