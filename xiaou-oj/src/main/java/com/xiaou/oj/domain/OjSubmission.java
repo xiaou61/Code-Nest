@@ -23,6 +23,11 @@ public class OjSubmission {
     private Long problemId;
 
     /**
+     * 赛事ID（为空表示普通提交）
+     */
+    private Long contestId;
+
+    /**
      * 用户ID
      */
     private Long userId;

@@ -5,6 +5,7 @@
     <resultMap id="BaseResultMap" type="com.xiaou.oj.domain.OjSubmission">
         <id column="id" property="id"/>
         <result column="problem_id" property="problemId"/>
+        <result column="contest_id" property="contestId"/>
         <result column="user_id" property="userId"/>
         <result column="language" property="language"/>
         <result column="code" property="code"/>
@@ -18,8 +19,8 @@
     </resultMap>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO oj_submission (problem_id, user_id, language, code, status, create_time)
-        VALUES (#{problemId}, #{userId}, #{language}, #{code}, #{status}, NOW())
+        INSERT INTO oj_submission (problem_id, contest_id, user_id, language, code, status, create_time)
+        VALUES (#{problemId}, #{contestId}, #{userId}, #{language}, #{code}, #{status}, NOW())
     </insert>
 
     <update id="updateById">
@@ -134,5 +135,11 @@
             WHERE user_id = #{userId} AND problem_id = #{problemId}
               AND status = 'accepted' AND id &lt; #{submissionId}
         )
+    </select>
+
+    <select id="selectByContestId" resultMap="BaseResultMap">
+        SELECT * FROM oj_submission
+        WHERE contest_id = #{contestId}
+        ORDER BY create_time ASC, id ASC
     </select>
 </mapper>

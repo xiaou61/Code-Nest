@@ -64,4 +64,9 @@ public interface OjSubmissionMapper {
      * 检查是否为用户对某题的首次AC（无更早的accepted提交）
      */
     boolean isFirstAccepted(@Param("userId") Long userId, @Param("problemId") Long problemId, @Param("submissionId") Long submissionId);
+
+    /**
+     * 查询某赛事的全部提交（按提交时间升序）
+     */
+    List<OjSubmission> selectByContestId(@Param("contestId") Long contestId);
 }
