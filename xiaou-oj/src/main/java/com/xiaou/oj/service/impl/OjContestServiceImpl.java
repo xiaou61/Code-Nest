@@ -4,9 +4,11 @@ import com.github.pagehelper.PageHelper;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.exception.BusinessException;
 import com.xiaou.oj.domain.OjContest;
+import com.xiaou.oj.domain.OjContestParticipant;
 import com.xiaou.oj.dto.contest.ContestQueryRequest;
 import com.xiaou.oj.dto.contest.ContestSaveRequest;
 import com.xiaou.oj.mapper.OjContestMapper;
+import com.xiaou.oj.mapper.OjContestParticipantMapper;
 import com.xiaou.oj.mapper.OjContestProblemMapper;
 import com.xiaou.oj.service.OjContestService;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ public class OjContestServiceImpl implements OjContestService {
 
     private final OjContestMapper contestMapper;
     private final OjContestProblemMapper contestProblemMapper;
+    private final OjContestParticipantMapper contestParticipantMapper;
 
     @Override
     @Transactional
@@ -72,6 +75,7 @@ public class OjContestServiceImpl implements OjContestService {
     @Transactional
     public void deleteContest(Long contestId) {
         contestProblemMapper.deleteByContestId(contestId);
+        contestParticipantMapper.deleteByContestId(contestId);
         contestMapper.deleteById(contestId);
     }
 
@@ -94,6 +98,14 @@ public class OjContestServiceImpl implements OjContestService {
     }
 
     @Override
+    public PageResult<OjContest> getPublicContests(ContestQueryRequest request) {
+        PageHelper.startPage(request.getPageNum(), request.getPageSize());
+        List<OjContest> records = contestMapper.selectPublicPage(request);
+        long total = contestMapper.countPublicPage(request);
+        return PageResult.of(request.getPageNum(), request.getPageSize(), total, records);
+    }
+
+    @Override
     @Transactional
     public void updateContestStatus(Long contestId, Integer status) {
         if (status == null) {
@@ -104,6 +116,24 @@ public class OjContestServiceImpl implements OjContestService {
             throw new BusinessException("赛事不存在");
         }
         contestMapper.updateStatus(contestId, status);
+    }
+
+    @Override
+    @Transactional
+    public void joinContest(Long contestId, Long userId) {
+        OjContest contest = contestMapper.selectById(contestId);
+        if (contest == null) {
+            throw new BusinessException("赛事不存在");
+        }
+        if (contest.getStatus() != null && contest.getStatus() == 0) {
+            throw new BusinessException("赛事未发布");
+        }
+        if (contest.getEndTime() != null && LocalDateTime.now().isAfter(contest.getEndTime())) {
+            throw new BusinessException("赛事已结束");
+        }
+        contestParticipantMapper.insert(new OjContestParticipant()
+                .setContestId(contestId)
+                .setUserId(userId));
     }
 
     private void validateContestRequest(ContestSaveRequest request) {

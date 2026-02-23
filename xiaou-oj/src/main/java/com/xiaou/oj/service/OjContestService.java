@@ -38,7 +38,17 @@ public interface OjContestService {
     PageResult<OjContest> getContests(ContestQueryRequest request);
 
     /**
+     * 用户端分页查询赛事
+     */
+    PageResult<OjContest> getPublicContests(ContestQueryRequest request);
+
+    /**
      * 更新赛事状态
      */
     void updateContestStatus(Long contestId, Integer status);
+
+    /**
+     * 报名赛事
+     */
+    void joinContest(Long contestId, Long userId);
 }

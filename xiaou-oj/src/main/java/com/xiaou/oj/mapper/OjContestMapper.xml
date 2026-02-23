@@ -82,6 +82,46 @@
         </where>
     </select>
 
+    <select id="selectPublicPage" resultMap="BaseResultMap">
+        SELECT c.*,
+               (SELECT COUNT(*) FROM oj_contest_problem cp WHERE cp.contest_id = c.id) AS problem_count,
+               (SELECT COUNT(*) FROM oj_contest_participant p WHERE p.contest_id = c.id) AS participant_count
+        FROM oj_contest c
+        <where>
+            <if test="request.status != null">
+                AND c.status = #{request.status}
+            </if>
+            <if test="request.status == null">
+                AND c.status &lt;&gt; 0
+            </if>
+            <if test="request.keyword != null and request.keyword != ''">
+                AND c.title LIKE CONCAT('%', #{request.keyword}, '%')
+            </if>
+            <if test="request.contestType != null and request.contestType != ''">
+                AND c.contest_type = #{request.contestType}
+            </if>
+        </where>
+        ORDER BY c.start_time DESC, c.id DESC
+    </select>
+
+    <select id="countPublicPage" resultType="long">
+        SELECT COUNT(*) FROM oj_contest c
+        <where>
+            <if test="request.status != null">
+                AND c.status = #{request.status}
+            </if>
+            <if test="request.status == null">
+                AND c.status &lt;&gt; 0
+            </if>
+            <if test="request.keyword != null and request.keyword != ''">
+                AND c.title LIKE CONCAT('%', #{request.keyword}, '%')
+            </if>
+            <if test="request.contestType != null and request.contestType != ''">
+                AND c.contest_type = #{request.contestType}
+            </if>
+        </where>
+    </select>
+
     <update id="updateStatus">
         UPDATE oj_contest
         SET status = #{status}, update_time = NOW()

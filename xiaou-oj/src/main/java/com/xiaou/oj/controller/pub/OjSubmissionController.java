@@ -43,7 +43,7 @@ public class OjSubmissionController {
         return Result.success(codeRunnerService.selfTest(request));
     }
 
-    @Operation(summary = "提交代码")
+    @Operation(summary = "提交代码（支持可选赛事ID）")
     @PostMapping("/submit")
     public Result<Long> submitCode(@Valid @RequestBody SubmitCodeRequest request) {
         Long userId = StpUserUtil.getLoginIdAsLong();

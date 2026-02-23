@@ -3,6 +3,7 @@ package com.xiaou.oj.service.impl;
 import com.xiaou.common.exception.BusinessException;
 import com.xiaou.oj.dto.contest.ContestSaveRequest;
 import com.xiaou.oj.mapper.OjContestMapper;
+import com.xiaou.oj.mapper.OjContestParticipantMapper;
 import com.xiaou.oj.mapper.OjContestProblemMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,6 +24,9 @@ class OjContestServiceImplTest {
 
     @Mock
     private OjContestProblemMapper contestProblemMapper;
+
+    @Mock
+    private OjContestParticipantMapper contestParticipantMapper;
 
     @InjectMocks
     private OjContestServiceImpl service;

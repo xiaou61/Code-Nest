@@ -27,5 +27,9 @@ public interface OjContestMapper {
 
     long countPage(@Param("request") ContestQueryRequest request);
 
+    List<OjContest> selectPublicPage(@Param("request") ContestQueryRequest request);
+
+    long countPublicPage(@Param("request") ContestQueryRequest request);
+
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
 }
