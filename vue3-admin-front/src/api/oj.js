@@ -84,5 +84,37 @@ export const ojApi = {
   // 获取题目的标准答案
   getSolutionsByProblem(problemId) {
     return request.get(`/admin/oj/solutions/problem/${problemId}`)
+  },
+
+  // ============ 赛事管理 ============
+
+  // 分页查询赛事
+  getContestList(data) {
+    return request.post('/admin/oj/contests/list', data)
+  },
+
+  // 获取赛事详情
+  getContestDetail(id) {
+    return request.get(`/admin/oj/contests/${id}`)
+  },
+
+  // 创建赛事
+  createContest(data) {
+    return request.post('/admin/oj/contests', data)
+  },
+
+  // 更新赛事
+  updateContest(id, data) {
+    return request.put(`/admin/oj/contests/${id}`, data)
+  },
+
+  // 删除赛事
+  deleteContest(id) {
+    return request.delete(`/admin/oj/contests/${id}`)
+  },
+
+  // 更新赛事状态
+  updateContestStatus(id, status) {
+    return request.post(`/admin/oj/contests/${id}/status`, { status })
   }
 }

@@ -116,6 +116,10 @@
               <el-icon><Edit /></el-icon>
               <span>题目管理</span>
             </el-menu-item>
+            <el-menu-item index="/oj/contests">
+              <el-icon><Trophy /></el-icon>
+              <span>赛事管理</span>
+            </el-menu-item>
             <el-menu-item index="/oj/tags">
               <el-icon><PriceTag /></el-icon>
               <span>标签管理</span>
@@ -568,6 +572,8 @@ const getIconByPath = (path, title = '') => {
     'dashboard': 'Odometer',
     'user': 'Avatar', 
     'interview': 'Document',
+    'oj': 'Monitor',
+    'contests': 'Trophy',
     'categories': 'FolderOpened',
     'tags': 'PriceTag',
     'question-sets': 'Collection',
@@ -623,6 +629,7 @@ const getIconByPath = (path, title = '') => {
     '分类': 'FolderOpened',
     '标签': 'PriceTag',
     '题目': 'Edit',
+    '赛事': 'Trophy',
     '题单': 'Collection',
     '知识': 'DataAnalysis',
     '图谱': 'Share',

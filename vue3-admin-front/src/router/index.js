@@ -87,6 +87,25 @@ const routes = [
         props: true
       },
       {
+        path: 'contests',
+        name: 'OjContests',
+        component: () => import('@/views/oj/contests/index.vue'),
+        meta: { title: '赛事管理' }
+      },
+      {
+        path: 'contests/create',
+        name: 'OjContestCreate',
+        component: () => import('@/views/oj/contests/edit.vue'),
+        meta: { title: '新增赛事' }
+      },
+      {
+        path: 'contests/:id/edit',
+        name: 'OjContestEdit',
+        component: () => import('@/views/oj/contests/edit.vue'),
+        meta: { title: '编辑赛事' },
+        props: true
+      },
+      {
         path: 'tags',
         name: 'OjTags',
         component: () => import('@/views/oj/tags/index.vue'),
