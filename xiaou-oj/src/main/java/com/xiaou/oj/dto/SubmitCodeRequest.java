@@ -19,6 +19,11 @@ public class SubmitCodeRequest {
     private Long problemId;
 
     /**
+     * 赛事ID（可选）
+     */
+    private Long contestId;
+
+    /**
      * 编程语言
      */
     @NotBlank(message = "编程语言不能为空")

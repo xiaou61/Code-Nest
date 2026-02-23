@@ -51,6 +51,9 @@
             <if test="request.problemId != null">
                 AND s.problem_id = #{request.problemId}
             </if>
+            <if test="request.contestId != null">
+                AND s.contest_id = #{request.contestId}
+            </if>
             <if test="request.userId != null">
                 AND s.user_id = #{request.userId}
             </if>
@@ -69,6 +72,9 @@
         <where>
             <if test="request.problemId != null">
                 AND s.problem_id = #{request.problemId}
+            </if>
+            <if test="request.contestId != null">
+                AND s.contest_id = #{request.contestId}
             </if>
             <if test="request.userId != null">
                 AND s.user_id = #{request.userId}

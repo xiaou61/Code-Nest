@@ -2,6 +2,9 @@ package com.xiaou.oj.service.impl;
 
 import com.github.pagehelper.PageHelper;
 import com.xiaou.common.core.domain.PageResult;
+import com.xiaou.common.exception.BusinessException;
+import com.xiaou.oj.contest.ContestRuleValidator;
+import com.xiaou.oj.domain.OjContest;
 import com.xiaou.oj.domain.OjProblem;
 import com.xiaou.oj.domain.OjSubmission;
 import com.xiaou.oj.dto.OjStatisticsVO;
@@ -10,6 +13,9 @@ import com.xiaou.oj.dto.SubmitCodeRequest;
 import com.xiaou.oj.enums.JudgeLanguage;
 import com.xiaou.oj.enums.SubmissionStatus;
 import com.xiaou.oj.judge.JudgeService;
+import com.xiaou.oj.mapper.OjContestMapper;
+import com.xiaou.oj.mapper.OjContestParticipantMapper;
+import com.xiaou.oj.mapper.OjContestProblemMapper;
 import com.xiaou.oj.mapper.OjProblemMapper;
 import com.xiaou.oj.mapper.OjSubmissionMapper;
 import com.xiaou.oj.service.OjSubmissionService;
@@ -17,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -31,6 +38,9 @@ public class OjSubmissionServiceImpl implements OjSubmissionService {
 
     private final OjSubmissionMapper submissionMapper;
     private final OjProblemMapper problemMapper;
+    private final OjContestMapper contestMapper;
+    private final OjContestProblemMapper contestProblemMapper;
+    private final OjContestParticipantMapper contestParticipantMapper;
     private final JudgeService judgeService;
 
     @Override
@@ -41,12 +51,17 @@ public class OjSubmissionServiceImpl implements OjSubmissionService {
         // 校验题目
         OjProblem problem = problemMapper.selectById(request.getProblemId());
         if (problem == null) {
-            throw new RuntimeException("题目不存在");
+            throw new BusinessException("题目不存在");
+        }
+
+        if (request.getContestId() != null) {
+            validateContestSubmit(request.getContestId(), userId, request.getProblemId());
         }
 
         // 创建提交记录
         OjSubmission submission = new OjSubmission()
                 .setProblemId(request.getProblemId())
+                .setContestId(request.getContestId())
                 .setUserId(userId)
                 .setLanguage(request.getLanguage())
                 .setCode(request.getCode())
@@ -102,5 +117,23 @@ public class OjSubmissionServiceImpl implements OjSubmissionService {
         vo.setMediumAccepted(submissionMapper.countAcceptedByDifficulty(userId, "medium"));
         vo.setHardAccepted(submissionMapper.countAcceptedByDifficulty(userId, "hard"));
         return vo;
+    }
+
+    private void validateContestSubmit(Long contestId, Long userId, Long problemId) {
+        OjContest contest = contestMapper.selectById(contestId);
+        if (contest == null) {
+            throw new BusinessException("赛事不存在");
+        }
+        ContestRuleValidator.checkCanSubmit(contest, LocalDateTime.now());
+
+        boolean joined = contestParticipantMapper.existsByContestIdAndUserId(contestId, userId);
+        if (!joined) {
+            throw new BusinessException("请先报名赛事");
+        }
+
+        boolean existsProblem = contestProblemMapper.existsProblemInContest(contestId, problemId);
+        if (!existsProblem) {
+            throw new BusinessException("题目不属于该赛事");
+        }
     }
 }

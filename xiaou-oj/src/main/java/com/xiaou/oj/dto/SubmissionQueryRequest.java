@@ -20,6 +20,11 @@ public class SubmissionQueryRequest {
     private Long problemId;
 
     /**
+     * 赛事ID
+     */
+    private Long contestId;
+
+    /**
      * 用户ID
      */
     private Long userId;
