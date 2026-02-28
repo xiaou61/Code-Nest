@@ -125,25 +125,25 @@
           </el-select>
         </el-form-item>
         <el-form-item
-          v-if="form.sourceType === 'api'"
-          label="API地址"
+          v-if="form.sourceType !== 'local'"
+          :label="form.sourceType === 'github' ? 'GitHub地址' : 'API地址'"
           prop="apiUrl"
         >
           <el-input
             v-model="form.apiUrl"
-            placeholder="请输入API地址"
+            :placeholder="form.sourceType === 'github' ? '请输入GitHub文件地址（支持blob/raw/api）' : '请输入API地址'"
             maxlength="500"
           />
         </el-form-item>
         <el-form-item
-          v-if="form.sourceType === 'api'"
-          label="API密钥"
+          v-if="form.sourceType !== 'local'"
+          :label="form.sourceType === 'github' ? '访问令牌' : 'API密钥'"
           prop="apiKey"
         >
           <el-input
             v-model="form.apiKey"
             type="password"
-            placeholder="请输入API密钥"
+            :placeholder="form.sourceType === 'github' ? '可选，私有仓库请填写Token' : '可选，按需填写API密钥'"
             maxlength="255"
             show-password
           />
@@ -298,12 +298,12 @@ const handleTestConnection = async (row) => {
 
 const handleSync = async (row) => {
   try {
-    const loading = ElMessage.loading('正在同步词库，请稍候...')
+    const syncLoading = ElMessage.loading('正在同步词库，请稍候...')
     const result = await syncSource(row.id)
-    loading.close()
-    
+    syncLoading.close()
+
     ElMessage.success(
-      `同步完成：成功 ${result.success} 个，失败 ${result.failed} 个`
+      result.message || `同步完成：新增 ${result.addedCount || 0}，更新 ${result.updatedCount || 0}，失败 ${result.failedCount || 0}`
     )
     handleQuery()
   } catch (error) {

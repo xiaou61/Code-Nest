@@ -77,6 +77,22 @@ public interface SensitiveWordMapper {
     int batchInsertWords(@Param("words") List<SensitiveWord> words);
 
     /**
+     * 批量查询已存在的敏感词
+     *
+     * @param words 词列表
+     * @return 已存在的敏感词列表
+     */
+    List<SensitiveWord> selectWordsByWords(@Param("words") List<String> words);
+
+    /**
+     * 按词汇批量启用敏感词
+     *
+     * @param words 词列表
+     * @return 影响行数
+     */
+    int batchEnableByWords(@Param("words") List<String> words);
+
+    /**
      * 统计敏感词数量
      * @param query 查询条件
      * @return 数量
