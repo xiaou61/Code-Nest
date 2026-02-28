@@ -234,6 +234,16 @@ const routes = [
     }
   },
   {
+    path: '/job-battle',
+    name: 'JobBattle',
+    component: () => import('@/views/job-battle/Index.vue'),
+    meta: {
+      title: '求职作战台',
+      requiresAuth: true,
+      keepAlive: true
+    }
+  },
+  {
     path: '/resume',
     name: 'ResumeHome',
     component: () => import('@/views/resume/MyResumes.vue'),
