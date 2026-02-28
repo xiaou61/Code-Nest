@@ -44,3 +44,4 @@ build/
 /.claude/
 /.agents/
 /.worktrees/
+xiaou-application/src/main/resources/application-sec.yml

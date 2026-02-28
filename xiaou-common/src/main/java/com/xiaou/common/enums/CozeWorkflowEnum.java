@@ -39,6 +39,26 @@ public enum CozeWorkflowEnum {
     MOCK_INTERVIEW_GENERATE_QUESTIONS("7586303842754347035", "模拟面试AI出题", "AI根据方向和难度生成面试题目"),
 
     /**
+     * 求职作战台 - JD解析
+     */
+    JOB_BATTLE_JD_PARSE("7611786534887194639", "求职作战台JD解析", "解析岗位JD并提取结构化要求"),
+
+    /**
+     * 求职作战台 - 简历匹配评估
+     */
+    JOB_BATTLE_RESUME_MATCH("7611787299885432838", "求职作战台简历匹配评估", "评估简历与岗位JD的匹配度并识别能力差距"),
+
+    /**
+     * 求职作战台 - 补短板行动计划
+     */
+    JOB_BATTLE_PLAN_GENERATE("7611787804339388468", "求职作战台行动计划生成", "生成求职冲刺提升计划"),
+
+    /**
+     * 求职作战台 - 面试复盘总结
+     */
+    JOB_BATTLE_INTERVIEW_REVIEW("7611788282342473738", "求职作战台面试复盘", "基于面试记录生成复盘结论与改进建议"),
+
+    /**
      * 慢SQL优化分析
      */
     SQL_OPTIMIZE_ANALYZE("PLACEHOLDER_SQL_OPTIMIZE", "慢SQL优化分析", "分析SQL执行计划并给出优化建议");
