@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 
 /**
  * 求职作战台AI服务实现
@@ -41,27 +42,24 @@ public class AiJobBattleServiceImpl implements AiJobBattleService {
                 return JobBattleJdParseResult.fallbackResult(jdText);
             }
 
-            Map<String, Object> params = new LinkedHashMap<>();
-            params.put("jdText", jdText);
-            putIfNotBlank(params, "targetRole", targetRole);
-            putIfNotBlank(params, "targetLevel", targetLevel);
-            putIfNotBlank(params, "city", city);
+            Map<String, Object> params = buildJdParseParams(jdText, targetRole, targetLevel, city);
 
             Result<String> result = cozeUtils.runWorkflow(CozeWorkflowEnum.JOB_BATTLE_JD_PARSE, params);
             if (!result.isSuccess() || CozeResponseParser.isErrorResponse(result.getData())) {
                 log.warn("JD解析工作流调用失败: {}", result.getMessage());
-                return JobBattleJdParseResult.fallbackResult(jdText);
+                return buildLocalJdFallback(jdText, targetRole, targetLevel);
             }
 
+            log.info("JD解析工作流原始响应: {}", abbreviate(result.getData(), 500));
             JSONObject json = CozeResponseParser.parse(result.getData());
             if (json == null) {
-                return JobBattleJdParseResult.fallbackResult(jdText);
+                return buildLocalJdFallback(jdText, targetRole, targetLevel);
             }
 
-            return parseJdResult(json);
+            return parseJdResult(json, jdText, targetRole, targetLevel);
         } catch (Exception e) {
             log.error("JD解析失败", e);
-            return JobBattleJdParseResult.fallbackResult(jdText);
+            return buildLocalJdFallback(jdText, targetRole, targetLevel);
         }
     }
 
@@ -167,17 +165,51 @@ public class AiJobBattleServiceImpl implements AiJobBattleService {
         }
     }
 
-    private JobBattleJdParseResult parseJdResult(JSONObject json) {
+    private JobBattleJdParseResult parseJdResult(JSONObject json, String jdText, String targetRole, String targetLevel) {
+        JSONObject normalized = normalizeJdJson(json);
+
+        String jobTitle = getStringByAliases(normalized, "未识别岗位",
+                "jobTitle", "position", "positionName", "job_title", "岗位", "岗位名称");
+        String level = getStringByAliases(normalized, "未知",
+                "level", "jobLevel", "seniority", "seniorityLevel", "级别", "职级");
+        List<String> mustSkills = getListByAliases(normalized,
+                "mustSkills", "requiredSkills", "coreSkills", "required_skills", "must_have_skills", "必备技能", "核心技能");
+        List<String> niceSkills = getListByAliases(normalized,
+                "niceSkills", "preferredSkills", "plusSkills", "preferred_skills", "加分技能", "优先技能");
+        List<String> responsibilities = getListByAliases(normalized,
+                "responsibilities", "jobResponsibilities", "duties", "岗位职责", "工作职责");
+        String seniorityYears = getStringByAliases(normalized, "未识别",
+                "seniorityYears", "experienceYears", "yearsOfExperience", "experience", "经验要求", "工作年限");
+        List<String> keywords = getListByAliases(normalized,
+                "keywords", "keyWords", "tags", "关键字", "关键词");
+        List<String> riskPoints = getListByAliases(normalized,
+                "riskPoints", "risks", "ambiguities", "risk_points", "风险点", "模糊点");
+        String summary = getStringByAliases(normalized, "暂无总结",
+                "summary", "jdSummary", "overview", "description", "摘要", "总结");
+
+        boolean invalid = "未识别岗位".equals(jobTitle)
+                && mustSkills.isEmpty()
+                && keywords.isEmpty()
+                && "暂无总结".equals(summary);
+        if (invalid) {
+            log.warn("JD解析返回字段与约定不一致，原始结果: {}", json);
+            JobBattleJdParseResult fallback = buildLocalJdFallback(jdText, targetRole, targetLevel);
+            List<String> risks = new ArrayList<>(fallback.getRiskPoints() == null ? List.of() : fallback.getRiskPoints());
+            risks.add("AI返回格式与约定不一致，已使用本地规则兜底");
+            fallback.setRiskPoints(risks);
+            return fallback;
+        }
+
         return new JobBattleJdParseResult()
-                .setJobTitle(CozeResponseParser.getString(json, "jobTitle", "未识别岗位"))
-                .setLevel(CozeResponseParser.getString(json, "level", "未知"))
-                .setMustSkills(parseStringList(json.get("mustSkills")))
-                .setNiceSkills(parseStringList(json.get("niceSkills")))
-                .setResponsibilities(parseStringList(json.get("responsibilities")))
-                .setSeniorityYears(CozeResponseParser.getString(json, "seniorityYears", "未识别"))
-                .setKeywords(parseStringList(json.get("keywords")))
-                .setRiskPoints(parseStringList(json.get("riskPoints")))
-                .setSummary(CozeResponseParser.getString(json, "summary", "暂无总结"))
+                .setJobTitle(jobTitle)
+                .setLevel(level)
+                .setMustSkills(mustSkills)
+                .setNiceSkills(niceSkills)
+                .setResponsibilities(responsibilities)
+                .setSeniorityYears(seniorityYears)
+                .setKeywords(keywords)
+                .setRiskPoints(riskPoints)
+                .setSummary(summary)
                 .setFallback(false);
     }
 
@@ -388,5 +420,181 @@ public class AiJobBattleServiceImpl implements AiJobBattleService {
             params.put(key, value);
         }
     }
-}
 
+    private Map<String, Object> buildJdParseParams(String jdText, String targetRole, String targetLevel, String city) {
+        Map<String, Object> params = new LinkedHashMap<>();
+        String safeJd = jdText == null ? "" : jdText;
+        params.put("jdText", safeJd);
+        // 兼容不同工作流参数命名
+        params.put("jd", safeJd);
+        params.put("input", safeJd);
+        params.put("content", safeJd);
+        params.put("text", safeJd);
+
+        putIfNotBlank(params, "targetRole", targetRole);
+        putIfNotBlank(params, "role", targetRole);
+        putIfNotBlank(params, "targetLevel", targetLevel);
+        putIfNotBlank(params, "level", targetLevel);
+        putIfNotBlank(params, "city", city);
+        return params;
+    }
+
+    private JobBattleJdParseResult buildLocalJdFallback(String jdText, String targetRole, String targetLevel) {
+        String text = jdText == null ? "" : jdText;
+        String lower = text.toLowerCase(Locale.ROOT);
+
+        String jobTitle = StrUtil.isNotBlank(targetRole) ? targetRole : "未识别岗位";
+        if ("未识别岗位".equals(jobTitle)) {
+            if (lower.contains("java")) {
+                jobTitle = "Java后端开发";
+            } else if (lower.contains("前端") || lower.contains("vue") || lower.contains("react")) {
+                jobTitle = "前端开发";
+            } else if (lower.contains("python")) {
+                jobTitle = "Python开发";
+            } else if (lower.contains("go")) {
+                jobTitle = "Go开发";
+            } else if (lower.contains("算法")) {
+                jobTitle = "算法工程师";
+            }
+        }
+
+        List<String> mustSkills = new ArrayList<>();
+        collectSkillIfContains(lower, mustSkills, "java");
+        collectSkillIfContains(lower, mustSkills, "spring boot");
+        collectSkillIfContains(lower, mustSkills, "mysql");
+        collectSkillIfContains(lower, mustSkills, "redis");
+        collectSkillIfContains(lower, mustSkills, "mq");
+        collectSkillIfContains(lower, mustSkills, "kafka");
+        collectSkillIfContains(lower, mustSkills, "es");
+        collectSkillIfContains(lower, mustSkills, "vue");
+        collectSkillIfContains(lower, mustSkills, "react");
+        collectSkillIfContains(lower, mustSkills, "typescript");
+        collectSkillIfContains(lower, mustSkills, "docker");
+        collectSkillIfContains(lower, mustSkills, "k8s");
+
+        List<String> keywords = new ArrayList<>();
+        collectKeywordIfContains(lower, keywords, "高并发");
+        collectKeywordIfContains(lower, keywords, "分布式");
+        collectKeywordIfContains(lower, keywords, "性能优化");
+        collectKeywordIfContains(lower, keywords, "架构");
+        collectKeywordIfContains(lower, keywords, "微服务");
+
+        String summary = StrUtil.isNotBlank(text)
+                ? "已根据JD文本进行本地规则解析，建议检查Coze工作流输出字段映射"
+                : "暂无JD文本，无法解析";
+
+        return new JobBattleJdParseResult()
+                .setJobTitle(jobTitle)
+                .setLevel(StrUtil.isNotBlank(targetLevel) ? targetLevel : "未知")
+                .setMustSkills(mustSkills)
+                .setNiceSkills(List.of())
+                .setResponsibilities(List.of())
+                .setSeniorityYears("未识别")
+                .setKeywords(keywords)
+                .setRiskPoints(new ArrayList<>(List.of("当前为本地规则兜底结果")))
+                .setSummary(summary)
+                .setFallback(true);
+    }
+
+    private void collectSkillIfContains(String lowerText, List<String> list, String keyword) {
+        if (lowerText.contains(keyword) && list.stream().noneMatch(v -> v.equalsIgnoreCase(keyword))) {
+            list.add(keyword);
+        }
+    }
+
+    private void collectKeywordIfContains(String lowerText, List<String> list, String keyword) {
+        if (lowerText.contains(keyword) && !list.contains(keyword)) {
+            list.add(keyword);
+        }
+    }
+
+    private String abbreviate(String text, int max) {
+        if (text == null) {
+            return null;
+        }
+        if (text.length() <= max) {
+            return text;
+        }
+        return text.substring(0, max) + "...";
+    }
+
+    /**
+     * 兼容工作流可能返回 data/result/content 包裹层
+     */
+    private JSONObject normalizeJdJson(JSONObject json) {
+        if (json == null) {
+            return null;
+        }
+
+        if (json.containsKey("jobTitle") || json.containsKey("mustSkills")
+                || json.containsKey("岗位") || json.containsKey("必备技能")) {
+            return json;
+        }
+
+        Object nested = json.get("data");
+        if (nested instanceof JSONObject nestedObj) {
+            return nestedObj;
+        }
+
+        nested = json.get("result");
+        if (nested instanceof JSONObject nestedObj) {
+            return nestedObj;
+        }
+
+        nested = json.get("content");
+        if (nested instanceof JSONObject nestedObj) {
+            return nestedObj;
+        }
+        if (nested instanceof String nestedStr) {
+            JSONObject parsed = CozeResponseParser.parse(nestedStr);
+            if (parsed != null) {
+                return parsed;
+            }
+        }
+
+        nested = json.get("text");
+        if (nested instanceof String nestedStr) {
+            JSONObject parsed = CozeResponseParser.parse(nestedStr);
+            if (parsed != null) {
+                return parsed;
+            }
+        }
+
+        return json;
+    }
+
+    private String getStringByAliases(JSONObject json, String fallback, String... keys) {
+        if (json == null || keys == null) {
+            return fallback;
+        }
+        for (String key : keys) {
+            if (StrUtil.isBlank(key)) {
+                continue;
+            }
+            String value = json.getStr(key);
+            if (StrUtil.isNotBlank(value)) {
+                return value.trim();
+            }
+        }
+        return fallback;
+    }
+
+    private List<String> getListByAliases(JSONObject json, String... keys) {
+        List<String> result = new ArrayList<>();
+        if (json == null || keys == null) {
+            return result;
+        }
+
+        for (String key : keys) {
+            if (StrUtil.isBlank(key)) {
+                continue;
+            }
+            List<String> values = parseStringList(json.get(key));
+            if (!values.isEmpty()) {
+                return values;
+            }
+        }
+
+        return result;
+    }
+}

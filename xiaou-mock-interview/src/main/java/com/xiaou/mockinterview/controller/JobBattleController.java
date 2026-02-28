@@ -4,9 +4,13 @@ import com.xiaou.ai.dto.jobbattle.JobBattleInterviewReviewResult;
 import com.xiaou.ai.dto.jobbattle.JobBattleJdParseResult;
 import com.xiaou.ai.dto.jobbattle.JobBattlePlanResult;
 import com.xiaou.ai.dto.jobbattle.JobBattleResumeMatchResult;
+import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.satoken.StpUserUtil;
+import com.xiaou.mockinterview.domain.JobBattlePlanRecord;
 import com.xiaou.mockinterview.dto.request.JobBattleGeneratePlanRequest;
 import com.xiaou.mockinterview.dto.request.JobBattleInterviewReviewRequest;
+import com.xiaou.mockinterview.dto.request.JobBattlePlanHistoryRequest;
 import com.xiaou.mockinterview.dto.request.JobBattleParseJdRequest;
 import com.xiaou.mockinterview.dto.request.JobBattleResumeMatchRequest;
 import com.xiaou.mockinterview.service.JobBattleService;
@@ -48,8 +52,28 @@ public class JobBattleController {
     @Operation(summary = "生成补短板计划")
     @PostMapping("/plan/generate")
     public Result<JobBattlePlanResult> generatePlan(@Valid @RequestBody JobBattleGeneratePlanRequest request) {
-        JobBattlePlanResult result = jobBattleService.generatePlan(request);
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        JobBattlePlanResult result = jobBattleService.generatePlan(userId, request);
         return Result.success("行动计划生成完成", result);
+    }
+
+    @Operation(summary = "获取计划历史")
+    @PostMapping("/plan/history")
+    public Result<PageResult<JobBattlePlanRecord>> getPlanHistory(@RequestBody(required = false) JobBattlePlanHistoryRequest request) {
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        if (request == null) {
+            request = new JobBattlePlanHistoryRequest();
+        }
+        PageResult<JobBattlePlanRecord> result = jobBattleService.getPlanHistory(userId, request);
+        return Result.success(result);
+    }
+
+    @Operation(summary = "获取计划历史详情")
+    @GetMapping("/plan/history/{id}")
+    public Result<JobBattlePlanRecord> getPlanHistoryDetail(@PathVariable Long id) {
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        JobBattlePlanRecord result = jobBattleService.getPlanHistoryDetail(userId, id);
+        return Result.success(result);
     }
 
     @Operation(summary = "面试复盘总结")
@@ -59,4 +83,3 @@ public class JobBattleController {
         return Result.success("面试复盘完成", result);
     }
 }
-
