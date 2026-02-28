@@ -151,17 +151,36 @@
         LIMIT #{limit}
     </select>
 
+    <sql id="Admin_Filter_Where">
+        <if test="request.direction != null and request.direction != ''">
+            AND direction = #{request.direction}
+        </if>
+        <if test="request.status != null">
+            AND status = #{request.status}
+        </if>
+        <if test="request.userId != null">
+            AND user_id = #{request.userId}
+        </if>
+        <if test="request.minScore != null">
+            AND total_score &gt;= #{request.minScore}
+        </if>
+        <if test="request.maxScore != null">
+            AND total_score &lt;= #{request.maxScore}
+        </if>
+        <if test="request.startTime != null and request.startTime != ''">
+            AND create_time &gt;= #{request.startTime}
+        </if>
+        <if test="request.endTime != null and request.endTime != ''">
+            AND create_time &lt;= #{request.endTime}
+        </if>
+    </sql>
+
     <!-- 管理端分页查询所有面试记录 -->
     <select id="selectPageAll" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM mock_interview_session
         <where>
-            <if test="request.direction != null and request.direction != ''">
-                AND direction = #{request.direction}
-            </if>
-            <if test="request.status != null">
-                AND status = #{request.status}
-            </if>
+            <include refid="Admin_Filter_Where"/>
         </where>
         ORDER BY create_time DESC
     </select>
@@ -171,13 +190,54 @@
         SELECT COUNT(*)
         FROM mock_interview_session
         <where>
-            <if test="request.direction != null and request.direction != ''">
-                AND direction = #{request.direction}
+            <include refid="Admin_Filter_Where"/>
+        </where>
+    </select>
+
+    <!-- 管理端统计总览 -->
+    <select id="selectAdminOverviewStats" resultType="map">
+        SELECT
+            COUNT(*) AS totalSessions,
+            SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS completedSessions,
+            SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS ongoingSessions,
+            SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) AS interruptedSessions,
+            ROUND(AVG(CASE WHEN status = 1 AND total_score IS NOT NULL THEN total_score END), 2) AS avgScore,
+            ROUND(AVG(CASE
+                WHEN status = 1 AND start_time IS NOT NULL AND end_time IS NOT NULL
+                THEN TIMESTAMPDIFF(MINUTE, start_time, end_time)
+            END), 0) AS avgDurationMinutes,
+            COUNT(DISTINCT user_id) AS activeUsers
+        FROM mock_interview_session
+        <where>
+            <if test="startTime != null and startTime != ''">
+                AND create_time &gt;= #{startTime}
             </if>
-            <if test="request.status != null">
-                AND status = #{request.status}
+            <if test="endTime != null and endTime != ''">
+                AND create_time &lt;= #{endTime}
             </if>
         </where>
+    </select>
+
+    <!-- 管理端方向分布统计 -->
+    <select id="selectDirectionDistributionStats" resultType="map">
+        SELECT
+            s.direction AS direction,
+            COALESCE(d.direction_name, s.direction) AS directionName,
+            COUNT(*) AS sessionCount,
+            ROUND(AVG(CASE WHEN s.status = 1 AND s.total_score IS NOT NULL THEN s.total_score END), 2) AS avgScore,
+            SUM(CASE WHEN s.status = 1 THEN 1 ELSE 0 END) AS completedCount
+        FROM mock_interview_session s
+        LEFT JOIN mock_interview_direction d ON d.direction_code = s.direction
+        <where>
+            <if test="startTime != null and startTime != ''">
+                AND s.create_time &gt;= #{startTime}
+            </if>
+            <if test="endTime != null and endTime != ''">
+                AND s.create_time &lt;= #{endTime}
+            </if>
+        </where>
+        GROUP BY s.direction, d.direction_name
+        ORDER BY sessionCount DESC
     </select>
 
 </mapper>

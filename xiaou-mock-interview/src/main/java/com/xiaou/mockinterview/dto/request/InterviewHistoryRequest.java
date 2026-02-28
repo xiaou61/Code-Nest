@@ -32,6 +32,11 @@ public class InterviewHistoryRequest implements PageRequest {
     private Integer status;
 
     /**
+     * 用户ID筛选（管理端）
+     */
+    private Long userId;
+
+    /**
      * 开始时间筛选
      */
     private String startTime;

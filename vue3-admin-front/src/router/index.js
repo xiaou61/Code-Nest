@@ -62,6 +62,26 @@ const routes = [
     ]
   },
   {
+    path: '/mock-interview',
+    component: Layout,
+    redirect: '/mock-interview/sessions',
+    meta: { title: '模拟面试运营' },
+    children: [
+      {
+        path: 'sessions',
+        name: 'MockInterviewSessions',
+        component: () => import('@/views/mock-interview/sessions/index.vue'),
+        meta: { title: '面试会话' }
+      },
+      {
+        path: 'directions',
+        name: 'MockInterviewDirections',
+        component: () => import('@/views/mock-interview/directions/index.vue'),
+        meta: { title: '方向配置' }
+      }
+    ]
+  },
+  {
     path: '/oj',
     component: Layout,
     redirect: '/oj/problems',
