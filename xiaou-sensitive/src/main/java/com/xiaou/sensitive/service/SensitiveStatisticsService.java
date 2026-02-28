@@ -70,4 +70,33 @@ public interface SensitiveStatisticsService {
      * @return 模块分布数据
      */
     List<Map<String, Object>> getModuleDistribution(SensitiveStatisticsQuery query);
+
+    /**
+     * 导出统计报表（CSV）
+     *
+     * @param query 查询条件
+     * @return 导出结果
+     */
+    ExportResult exportReport(SensitiveStatisticsQuery query);
+
+    /**
+     * 导出结果
+     */
+    class ExportResult {
+        private final String fileName;
+        private final String content;
+
+        public ExportResult(String fileName, String content) {
+            this.fileName = fileName;
+            this.content = content;
+        }
+
+        public String getFileName() {
+            return fileName;
+        }
+
+        public String getContent() {
+            return content;
+        }
+    }
 }

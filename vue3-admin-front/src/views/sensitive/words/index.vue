@@ -91,6 +91,16 @@
             </el-button>
           </el-col>
           <el-col :span="1.5">
+            <el-button
+              type="success"
+              :loading="exporting"
+              @click="handleExport"
+            >
+              <el-icon><Download /></el-icon>
+              导出
+            </el-button>
+          </el-col>
+          <el-col :span="1.5">
             <el-button type="warning" @click="handleRefresh">
               <el-icon><Refresh /></el-icon>
               刷新词库
@@ -250,8 +260,9 @@
     <!-- 导入对话框 -->
     <el-dialog
       v-model="importDialogVisible"
-      title="批量导入敏感词"
-      width="500px"
+      title="批量导入敏感词（预览确认）"
+      width="620px"
+      @close="resetImportState"
     >
       <div class="import-tips">
         <el-alert
@@ -277,14 +288,44 @@
           将文件拖到此处，或<em>点击上传</em>
         </div>
       </el-upload>
+      <div v-if="previewResult" class="preview-result">
+        <el-descriptions :column="3" border size="small" title="导入预览">
+          <el-descriptions-item label="总词条">{{ previewResult.total || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="可导入">{{ previewResult.importableCount || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="无效词条">{{ previewResult.invalidCount || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="文件内重复">{{ previewResult.duplicateInFileCount || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="库内已存在">{{ previewResult.duplicateInDbCount || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="有效去重后">{{ previewResult.validCount || 0 }}</el-descriptions-item>
+        </el-descriptions>
+        <div class="preview-samples" v-if="previewResult.importableSamples?.length">
+          <div class="preview-samples-title">可导入示例</div>
+          <el-tag
+            v-for="item in previewResult.importableSamples"
+            :key="'importable-' + item"
+            type="success"
+            size="small"
+            class="sample-tag"
+          >
+            {{ item }}
+          </el-tag>
+        </div>
+      </div>
       <template #footer>
         <el-button @click="importDialogVisible = false">取消</el-button>
         <el-button
+          type="info"
+          :loading="previewingImport"
+          @click="handlePreviewImport"
+        >
+          预览
+        </el-button>
+        <el-button
           type="primary"
           :loading="importing"
+          :disabled="!previewResult || (previewResult.importableCount || 0) <= 0"
           @click="handleImportSubmit"
         >
-          导入
+          确认导入
         </el-button>
       </template>
     </el-dialog>
@@ -299,7 +340,8 @@ import {
   Refresh,
   Plus,
   Delete,
-  Upload
+  Upload,
+  Download
 } from '@element-plus/icons-vue'
 import {
   listSensitiveWords,
@@ -307,7 +349,9 @@ import {
   updateSensitiveWord,
   deleteSensitiveWord,
   deleteSensitiveWords,
-  importSensitiveWords,
+  previewSensitiveWordsImport,
+  confirmSensitiveWordsImport,
+  exportSensitiveWords,
   refreshWordLibrary,
   listSensitiveCategories
 } from '@/api/sensitive'
@@ -317,12 +361,15 @@ const loading = ref(false)
 const dialogVisible = ref(false)
 const importDialogVisible = ref(false)
 const importing = ref(false)
+const previewingImport = ref(false)
+const exporting = ref(false)
 const dialogTitle = ref('')
 const tableData = ref([])
 const categories = ref([])
 const selectedRows = ref([])
 const total = ref(0)
 const fileList = ref([])
+const previewResult = ref(null)
 const formRef = ref()
 const uploadRef = ref()
 
@@ -456,12 +503,32 @@ const handleSelectionChange = (selection) => {
 }
 
 const handleImport = () => {
-  fileList.value = []
+  resetImportState()
   importDialogVisible.value = true
 }
 
 const handleFileChange = (file, files) => {
   fileList.value = files
+  previewResult.value = null
+}
+
+const handlePreviewImport = async () => {
+  if (fileList.value.length === 0) {
+    ElMessage.warning('请选择要导入的文件')
+    return
+  }
+
+  previewingImport.value = true
+  try {
+    const file = fileList.value[0].raw
+    const result = await previewSensitiveWordsImport(file)
+    previewResult.value = result
+    ElMessage.success('预览完成，请确认后导入')
+  } catch (error) {
+    ElMessage.error('预览失败')
+  } finally {
+    previewingImport.value = false
+  }
 }
 
 const handleImportSubmit = async () => {
@@ -473,16 +540,49 @@ const handleImportSubmit = async () => {
   importing.value = true
   try {
     const file = fileList.value[0].raw
-    const result = await importSensitiveWords(file)
+    const result = await confirmSensitiveWordsImport(file)
     ElMessage.success(
       `导入完成：成功 ${result.success} 个，重复 ${result.duplicate} 个，失败 ${result.errors.length} 个`
     )
     importDialogVisible.value = false
+    resetImportState()
     handleQuery()
   } catch (error) {
     ElMessage.error('导入失败')
   } finally {
     importing.value = false
+  }
+}
+
+const handleExport = async () => {
+  exporting.value = true
+  try {
+    const result = await exportSensitiveWords({
+      word: queryForm.word,
+      categoryId: queryForm.categoryId,
+      level: queryForm.level,
+      status: queryForm.status,
+      startTime: queryForm.startTime,
+      endTime: queryForm.endTime
+    })
+
+    const blob = new Blob([result.content || ''], { type: 'text/csv;charset=utf-8;' })
+    const fileName = result.fileName || `sensitive_words_${Date.now()}.csv`
+
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+
+    ElMessage.success(`导出成功，共 ${result.total || 0} 条`)
+  } catch (error) {
+    ElMessage.error('导出失败')
+  } finally {
+    exporting.value = false
   }
 }
 
@@ -492,6 +592,16 @@ const handleRefresh = async () => {
     ElMessage.success('敏感词库刷新成功')
   } catch (error) {
     ElMessage.error('敏感词库刷新失败')
+  }
+}
+
+const resetImportState = () => {
+  fileList.value = []
+  previewResult.value = null
+  importing.value = false
+  previewingImport.value = false
+  if (uploadRef.value) {
+    uploadRef.value.clearFiles()
   }
 }
 
@@ -508,13 +618,10 @@ const resetForm = () => {
 }
 
 const loadCategories = async () => {
-  console.log('开始加载分类数据...')
   try {
     const result = await listSensitiveCategories()
-    console.log('分类数据加载成功：', result)
     categories.value = result
   } catch (error) {
-    console.error('加载分类失败：', error)
     ElMessage.error('加载分类失败')
   }
 }
@@ -542,7 +649,6 @@ const getActionTagType = (action) => {
 
 // 生命周期
 onMounted(() => {
-  console.log('敏感词管理页面已挂载，开始初始化...')
   loadCategories()
   handleQuery()
 })
@@ -568,5 +674,24 @@ onMounted(() => {
 
 .import-tips {
   margin-bottom: 20px;
+}
+
+.preview-result {
+  margin-top: 16px;
+}
+
+.preview-samples {
+  margin-top: 12px;
+}
+
+.preview-samples-title {
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #606266;
+}
+
+.sample-tag {
+  margin-right: 6px;
+  margin-bottom: 6px;
 }
 </style> 

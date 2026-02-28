@@ -74,4 +74,14 @@ public class SensitiveStatisticsController {
         List<Map<String, Object>> distribution = statisticsService.getModuleDistribution(query);
         return Result.success(distribution);
     }
+
+    /**
+     * 导出统计报表
+     */
+    @PostMapping("/export")
+    @RequireAdmin
+    public Result<SensitiveStatisticsService.ExportResult> export(@RequestBody(required = false) SensitiveStatisticsQuery query) {
+        SensitiveStatisticsQuery exportQuery = query == null ? new SensitiveStatisticsQuery() : query;
+        return Result.success(statisticsService.exportReport(exportQuery));
+    }
 }

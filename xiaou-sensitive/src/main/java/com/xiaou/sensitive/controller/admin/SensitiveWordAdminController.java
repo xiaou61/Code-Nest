@@ -1,6 +1,5 @@
 package com.xiaou.sensitive.controller.admin;
 
-import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.util.StrUtil;
 import com.xiaou.common.annotation.RequireAdmin;
 import com.xiaou.common.core.domain.PageResult;
@@ -106,6 +105,7 @@ public class SensitiveWordAdminController {
             if (word.getId() == null) {
                 return Result.error("敏感词ID不能为空");
             }
+            word.setCreatorId(StpAdminUtil.getLoginIdAsLong());
 
             boolean success = sensitiveWordService.updateWord(word);
             if (success) {
@@ -171,23 +171,7 @@ public class SensitiveWordAdminController {
             if (file.isEmpty()) {
                 return Result.error("请选择要导入的文件");
             }
-
-            // 读取文件内容
-            List<String> words = new ArrayList<>();
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    if (StrUtil.isNotBlank(line)) {
-                        // 支持逗号分隔和换行分隔
-                        if (line.contains(",")) {
-                            words.addAll(Arrays.asList(line.split(",")));
-                        } else {
-                            words.add(line.trim());
-                        }
-                    }
-                }
-            }
+            List<String> words = parseWordsFromFile(file);
 
             if (words.isEmpty()) {
                 return Result.error("文件内容为空");
@@ -200,6 +184,66 @@ public class SensitiveWordAdminController {
         } catch (Exception e) {
             log.error("导入敏感词失败：{}", e.getMessage(), e);
             return Result.error("导入敏感词失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 导入预览
+     */
+    @PostMapping("/words/preview-import")
+    @RequireAdmin
+    public Result<SensitiveWordService.ImportPreviewResult> previewImportWords(@RequestParam("file") MultipartFile file) {
+        try {
+            if (file.isEmpty()) {
+                return Result.error("请选择要导入的文件");
+            }
+            List<String> words = parseWordsFromFile(file);
+            if (words.isEmpty()) {
+                return Result.error("文件内容为空");
+            }
+            return Result.success(sensitiveWordService.previewImportWords(words));
+        } catch (Exception e) {
+            log.error("预览导入敏感词失败：{}", e.getMessage(), e);
+            return Result.error("预览导入失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 确认导入（两步导入流程）
+     */
+    @PostMapping("/words/confirm-import")
+    @RequireAdmin
+    public Result<SensitiveWordService.ImportResult> confirmImportWords(@RequestParam("file") MultipartFile file) {
+        try {
+            if (file.isEmpty()) {
+                return Result.error("请选择要导入的文件");
+            }
+            List<String> words = parseWordsFromFile(file);
+            if (words.isEmpty()) {
+                return Result.error("文件内容为空");
+            }
+            Long creatorId = StpAdminUtil.getLoginIdAsLong();
+            SensitiveWordService.ImportResult result = sensitiveWordService.importWords(words, creatorId);
+            return Result.success(result);
+        } catch (Exception e) {
+            log.error("确认导入敏感词失败：{}", e.getMessage(), e);
+            return Result.error("确认导入失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 导出敏感词（CSV）
+     */
+    @PostMapping("/words/export")
+    @RequireAdmin
+    public Result<SensitiveWordService.ExportResult> exportWords(@RequestBody(required = false) SensitiveWordQuery query) {
+        try {
+            SensitiveWordQuery exportQuery = query == null ? new SensitiveWordQuery() : query;
+            SensitiveWordService.ExportResult result = sensitiveWordService.exportWords(exportQuery);
+            return Result.success(result);
+        } catch (Exception e) {
+            log.error("导出敏感词失败：{}", e.getMessage(), e);
+            return Result.error("导出敏感词失败");
         }
     }
 
@@ -232,4 +276,25 @@ public class SensitiveWordAdminController {
             return Result.error("查询敏感词分类失败");
         }
     }
-} 
+
+    private List<String> parseWordsFromFile(MultipartFile file) throws Exception {
+        List<String> words = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String trimLine = StrUtil.trim(line);
+                if (StrUtil.isBlank(trimLine) || trimLine.startsWith("#") || trimLine.startsWith("//")) {
+                    continue;
+                }
+                String normalizedLine = trimLine
+                        .replace("，", ",")
+                        .replace("；", ";")
+                        .replace("|", ",");
+                String[] parts = normalizedLine.split("[,;]");
+                words.addAll(Arrays.stream(parts).map(String::trim).toList());
+            }
+        }
+        return words;
+    }
+}

@@ -15,6 +15,7 @@ import com.xiaou.sensitive.mapper.SensitiveSourceMapper;
 import com.xiaou.sensitive.mapper.SensitiveWordMapper;
 import com.xiaou.sensitive.api.SensitiveCheckService;
 import com.xiaou.sensitive.service.SensitiveSourceService;
+import com.xiaou.sensitive.service.SensitiveVersionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -49,6 +50,7 @@ public class SensitiveSourceServiceImpl implements SensitiveSourceService {
     private final SensitiveSourceMapper sourceMapper;
     private final SensitiveWordMapper sensitiveWordMapper;
     private final SensitiveCheckService sensitiveCheckService;
+    private final SensitiveVersionService sensitiveVersionService;
 
     @Override
     public PageResult<SensitiveSource> listSources(SensitiveSourceQuery query) {
@@ -530,6 +532,22 @@ public class SensitiveSourceServiceImpl implements SensitiveSourceService {
         }
 
         int failedCount = normalizeResult.getInvalidCount();
+        int changedCount = addedCount + updatedCount;
+        if (changedCount > 0) {
+            recordVersionSafely(
+                    "sync",
+                    changedCount,
+                    JSONUtil.toJsonStr(Map.of(
+                            "sourceId", source.getId(),
+                            "sourceName", StrUtil.blankToDefault(source.getSourceName(), ""),
+                            "added", addedCount,
+                            "enabled", updatedCount,
+                            "invalid", failedCount
+                    )),
+                    "词库来源同步"
+            );
+        }
+
         String message = String.format(
                 "同步完成（来源：%s），新增 %d，启用 %d，无效 %d",
                 source.getSourceName(), addedCount, updatedCount, failedCount
@@ -615,6 +633,14 @@ public class SensitiveSourceServiceImpl implements SensitiveSourceService {
             return min;
         }
         return Math.max(min, Math.min(max, value));
+    }
+
+    private void recordVersionSafely(String changeType, int changeCount, String changeDetail, String remark) {
+        try {
+            sensitiveVersionService.createVersion(changeType, changeCount, changeDetail, SYSTEM_CREATOR_ID, remark);
+        } catch (Exception e) {
+            log.warn("记录同步版本失败: sourceChangeType={}, reason={}", changeType, e.getMessage());
+        }
     }
 
     /**
