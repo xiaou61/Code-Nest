@@ -14,7 +14,7 @@
     </el-card>
 
     <el-card class="search-card" shadow="never">
-      <el-row :gutter="16">
+      <el-row :gutter="16" class="search-row">
         <el-col :xs="24" :md="8">
           <el-input
             v-model="searchForm.keyword"
@@ -43,7 +43,7 @@
             <el-option label="下线" :value="0" />
           </el-select>
         </el-col>
-        <el-col :xs="24" :md="4" class="text-right">
+        <el-col :xs="24" :md="4" class="search-actions">
           <el-button type="primary" @click="handleSearch">
             <el-icon><Search /></el-icon>
             搜索
@@ -56,7 +56,7 @@
       </el-row>
     </el-card>
 
-    <el-card shadow="never">
+    <el-card shadow="never" class="table-card">
       <el-table
         :data="templateList"
         v-loading="loading"
@@ -200,7 +200,7 @@
               v-for="tag in parseTags(currentTemplate.tags)"
               :key="tag"
               size="small"
-              class="mr-4"
+              class="tag-gap"
             >
               {{ tag }}
             </el-tag>
@@ -416,47 +416,70 @@ onMounted(() => {
 
 <style scoped>
 .resume-template-admin {
-  padding: 20px;
-  background: #f5f7fa;
-  min-height: 100vh;
+  display: grid;
+  gap: 14px;
+  padding: 2px 0 8px;
+  min-height: calc(100vh - 130px);
 }
 
 .header-card {
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 
 .header-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.header-content h2 {
-  margin: 0;
-  font-size: 22px;
-}
-
-.header-content p {
-  margin: 4px 0 0;
-  color: #909399;
-}
-
-.search-card {
-  margin-bottom: 16px;
-}
-
-.text-right {
-  display: flex;
-  justify-content: flex-end;
   gap: 12px;
 }
 
+.header-content h2 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  color: var(--cn-text-primary);
+  font-weight: 600;
+}
+
+.header-content p {
+  margin: 0;
+  color: var(--cn-text-secondary);
+  font-size: 14px;
+}
+
+.search-card {
+  margin-bottom: 0;
+}
+
+.search-row :deep(.el-select),
+.search-row :deep(.el-input) {
+  width: 100%;
+}
+
+.search-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  align-items: center;
+}
+
+.table-card :deep(.el-card__body) {
+  padding-top: 8px;
+}
+
+.table-card :deep(.el-rate) {
+  --el-rate-fill-color: #f2a93b;
+}
+
+.table-card :deep(.el-drawer__body) {
+  background: #f8fbff;
+}
+
 .pagination {
-  margin-top: 16px;
+  margin-top: 14px;
   text-align: right;
 }
 
-.mr-4 {
+.tag-gap {
   margin-right: 6px;
   margin-bottom: 6px;
 }
@@ -468,7 +491,7 @@ onMounted(() => {
     gap: 12px;
   }
   
-  .text-right {
+  .search-actions {
     justify-content: flex-start;
   }
 }

@@ -270,7 +270,7 @@ onMounted(fetchHeatmap)
 
 <style scoped>
 .learning-heatmap-wrapper {
-  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 50%, #14b8a6 100%);
+  background: linear-gradient(135deg, #6c63ff 0%, #7c3aed 50%, #06b6d4 100%);
   border-radius: 16px;
   padding: 20px;
   color: #fff;
@@ -449,10 +449,10 @@ onMounted(fetchHeatmap)
 }
 
 .cell.level-0 { background: #ebedf0; }
-.cell.level-1 { background: #9be9a8; }
-.cell.level-2 { background: #40c463; }
-.cell.level-3 { background: #30a14e; }
-.cell.level-4 { background: #216e39; }
+.cell.level-1 { background: #ddd6fe; }
+.cell.level-2 { background: #a78bfa; }
+.cell.level-3 { background: #7c3aed; }
+.cell.level-4 { background: #5b21b6; }
 
 .cell:not(.empty):hover {
   transform: scale(1.3);

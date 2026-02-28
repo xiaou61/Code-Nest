@@ -273,7 +273,7 @@ onMounted(() => {
 <style scoped>
 .favorites-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, #f8f7ff 0%, #f0eeff 50%, #ede9fe 100%);
 }
 
 .header {
@@ -297,9 +297,12 @@ onMounted(() => {
 
 .header-left h2 {
   margin: 0 0 5px 0;
-  color: #303133;
   font-size: 28px;
   font-weight: bold;
+  background: linear-gradient(135deg, #6c63ff, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .header-left p {
@@ -374,8 +377,8 @@ onMounted(() => {
 
 .question-set-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
-  border-color: #409EFF;
+  box-shadow: 0 12px 32px rgba(108, 99, 255, 0.15);
+  border-color: #6c63ff;
 }
 
 .card-header {
@@ -464,8 +467,8 @@ onMounted(() => {
 }
 
 .question-item:hover {
-  background: #f8f9fa;
-  border-color: #409EFF;
+  background: #f8f7ff;
+  border-color: #6c63ff;
   transform: translateX(4px);
 }
 
@@ -496,7 +499,7 @@ onMounted(() => {
 }
 
 .set-name {
-  color: #409EFF;
+  color: #6c63ff;
   font-weight: 500;
 }
 

@@ -35,6 +35,7 @@
         <module>xiaou-flashcard</module>
         <module>xiaou-ai</module>
         <module>xiaou-sql-optimizer</module>
+        <module>xiaou-oj</module>
     </modules>
 
     <properties>

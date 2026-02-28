@@ -20,6 +20,23 @@
             <artifactId>xiaou-common</artifactId>
             <version>${revision}</version>
         </dependency>
+
+        <!-- 仪表板聚合依赖 -->
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-user</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-chat</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-points</artifactId>
+            <version>${revision}</version>
+        </dependency>
         
         <!-- JWT（保留兼容旧代码，已由 Sa-Token 替代） -->
         <dependency>

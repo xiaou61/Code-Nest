@@ -347,7 +347,7 @@ onMounted(() => {
 <style scoped>
 .random-questions {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background: linear-gradient(135deg, #f8f7ff 0%, #f0eeff 50%, #f5f0ff 100%);
   padding: 20px;
 }
 
@@ -357,13 +357,17 @@ onMounted(() => {
   margin-bottom: 20px;
   background: white;
   padding: 12px 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(108, 99, 255, 0.06);
+  border: 1px solid rgba(108, 99, 255, 0.06);
 }
 
 .nav-bar h2 {
   margin: 0;
-  color: #409eff;
+  background: linear-gradient(135deg, #6c63ff, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .config-card {
@@ -389,7 +393,7 @@ onMounted(() => {
 
 .question-sets-section h3 {
   margin: 0 0 16px 0;
-  color: #409eff;
+  color: #6c63ff;
 }
 
 .question-sets-grid {
@@ -414,14 +418,14 @@ onMounted(() => {
 }
 
 .question-set-item:hover {
-  border-color: #409eff;
+  border-color: #6c63ff;
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(64, 158, 255, 0.1);
+  box-shadow: 0 4px 8px rgba(108, 99, 255, 0.1);
 }
 
 .question-set-item.selected {
-  border-color: #409eff;
-  background: #f0f8ff;
+  border-color: #6c63ff;
+  background: #f8f7ff;
 }
 
 .set-header {
@@ -500,7 +504,7 @@ onMounted(() => {
 
 .result-info h3 {
   margin: 0 0 4px 0;
-  color: #409eff;
+  color: #6c63ff;
 }
 
 .result-info p {
@@ -537,7 +541,7 @@ onMounted(() => {
 
 .question-number {
   font-weight: 600;
-  color: #409eff;
+  color: #6c63ff;
 }
 
 .question-content {
@@ -562,7 +566,7 @@ onMounted(() => {
 }
 
 .set-title {
-  color: #409eff;
+  color: #6c63ff;
   font-weight: 500;
 }
 
@@ -584,14 +588,14 @@ onMounted(() => {
 
 .answer-content {
   padding: 16px;
-  background: #f8f9fa;
-  border-radius: 6px;
-  border-left: 4px solid #409eff;
+  background: #f8f7ff;
+  border-radius: 10px;
+  border-left: 4px solid #6c63ff;
 }
 
 .answer-content h4 {
   margin: 0 0 12px 0;
-  color: #409eff;
+  color: #6c63ff;
   font-size: 16px;
 }
 

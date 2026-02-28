@@ -287,11 +287,61 @@ const handleDeleteComment = async (comment) => {
 </script>
 
 <style scoped>
+/* 对话框装饰 */
+:deep(.el-dialog) {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+:deep(.el-dialog__header) {
+  background: linear-gradient(135deg, #f0f4ff 0%, #f5f0ff 50%, #fff5f7 100%);
+  border-bottom: 1px solid #e3edfa;
+  padding: 16px 20px;
+  margin: 0;
+}
+
+:deep(.el-dialog__title) {
+  font-weight: 700;
+  color: var(--cn-text-primary, #1a2233);
+}
+
+:deep(.el-dialog__body) {
+  padding: 16px 20px;
+  max-height: 70vh;
+  overflow: hidden;
+}
+
+/* textarea 美化 */
+:deep(.el-textarea__inner) {
+  border-radius: 10px;
+  border-color: #d7e4f8;
+  transition: all 0.25s;
+}
+
+:deep(.el-textarea__inner:focus) {
+  border-color: #6c63ff;
+  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.1);
+}
+
+/* 按钮 */
+:deep(.el-button--primary) {
+  background: linear-gradient(135deg, #6c63ff 0%, #4f46e5 100%);
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+}
+
+:deep(.el-button--primary:hover) {
+  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35);
+}
+
 .moment-preview {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 15px;
+  background: #faf9ff;
+  border-radius: 12px;
+  padding: 16px;
   margin-bottom: 10px;
+  border-left: 3px solid #d4ccff;
 }
 
 .user-info {
@@ -305,26 +355,40 @@ const handleDeleteComment = async (comment) => {
 }
 
 .user-name {
-  font-weight: 500;
-  color: #333;
+  font-weight: 600;
+  color: var(--cn-text-primary, #1a2233);
   font-size: 14px;
 }
 
 .publish-time {
-  color: #999;
+  color: #8ea0bd;
   font-size: 12px;
   margin-top: 2px;
 }
 
 .moment-content {
-  color: #333;
-  line-height: 1.5;
+  color: var(--cn-text-primary, #1a2233);
+  line-height: 1.6;
   font-size: 14px;
 }
 
 .comments-section {
   max-height: 500px;
   overflow-y: auto;
+  position: relative;
+}
+
+.comments-section::before {
+  content: '';
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: block;
+  height: 1px;
+  box-shadow: 0 8px 16px 8px rgba(255, 255, 255, 0.9);
+  z-index: 2;
+  pointer-events: none;
 }
 
 .comments-header {
@@ -332,14 +396,21 @@ const handleDeleteComment = async (comment) => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 15px;
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--cn-text-primary, #1a2233);
+}
+
+.comments-header :deep(.el-button) {
+  color: #6c63ff;
+  font-weight: 600;
 }
 
 .comment-form {
-  background: #f8f9fa;
-  padding: 15px;
-  border-radius: 8px;
+  background: #f6f9ff;
+  padding: 16px;
+  border-radius: 12px;
   margin-bottom: 15px;
+  border: 1px solid #e3edfa;
 }
 
 .comment-actions {
@@ -355,8 +426,15 @@ const handleDeleteComment = async (comment) => {
 
 .comment-item {
   display: flex;
-  margin-bottom: 15px;
+  margin-bottom: 4px;
   align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  transition: background 0.2s;
+}
+
+.comment-item:hover {
+  background: #f6f9ff;
 }
 
 .comment-content {
@@ -372,19 +450,19 @@ const handleDeleteComment = async (comment) => {
 }
 
 .comment-user {
-  font-weight: 500;
-  color: #333;
+  font-weight: 600;
+  color: #6c63ff;
   font-size: 14px;
 }
 
 .comment-time {
-  color: #999;
+  color: #8ea0bd;
   font-size: 12px;
 }
 
 .comment-text {
-  color: #333;
-  line-height: 1.5;
+  color: var(--cn-text-primary, #1a2233);
+  line-height: 1.6;
   font-size: 14px;
 }
 
@@ -393,13 +471,17 @@ const handleDeleteComment = async (comment) => {
   padding: 15px;
 }
 
-:deep(.el-divider) {
-  margin: 15px 0;
+.load-more :deep(.el-button) {
+  color: #6a82ae;
+  font-weight: 500;
 }
 
-:deep(.el-dialog__body) {
-  padding-top: 10px;
-  max-height: 70vh;
-  overflow: hidden;
+.load-more :deep(.el-button:hover) {
+  color: #6c63ff;
 }
-</style> 
+
+:deep(.el-divider) {
+  margin: 15px 0;
+  border-color: #e8eef8;
+}
+</style>

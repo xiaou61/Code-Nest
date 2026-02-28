@@ -15,7 +15,8 @@ public enum PointsType {
     ADMIN_GRANT(1, "后台发放", "管理员手动发放的积分奖励"),
     CHECK_IN(2, "打卡积分", "用户每日打卡获得的积分"),
     LOTTERY_COST(3, "抽奖消耗", "参与积分抽奖消耗的积分"),
-    LOTTERY_REWARD(4, "抽奖奖励", "积分抽奖获得的奖励");
+    LOTTERY_REWARD(4, "抽奖奖励", "积分抽奖获得的奖励"),
+    OJ_AC(5, "OJ通过", "首次通过OJ题目获得的积分");
     
     private final int code;
     private final String desc;

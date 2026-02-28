@@ -62,6 +62,58 @@ const routes = [
     ]
   },
   {
+    path: '/oj',
+    component: Layout,
+    redirect: '/oj/problems',
+    meta: { title: 'OJ 判题管理' },
+    children: [
+      {
+        path: 'problems',
+        name: 'OjProblems',
+        component: () => import('@/views/oj/problems/index.vue'),
+        meta: { title: '题目管理' }
+      },
+      {
+        path: 'problems/create',
+        name: 'OjProblemCreate',
+        component: () => import('@/views/oj/problems/edit.vue'),
+        meta: { title: '新增题目' }
+      },
+      {
+        path: 'problems/:id/edit',
+        name: 'OjProblemEdit',
+        component: () => import('@/views/oj/problems/edit.vue'),
+        meta: { title: '编辑题目' },
+        props: true
+      },
+      {
+        path: 'contests',
+        name: 'OjContests',
+        component: () => import('@/views/oj/contests/index.vue'),
+        meta: { title: '赛事管理' }
+      },
+      {
+        path: 'contests/create',
+        name: 'OjContestCreate',
+        component: () => import('@/views/oj/contests/edit.vue'),
+        meta: { title: '新增赛事' }
+      },
+      {
+        path: 'contests/:id/edit',
+        name: 'OjContestEdit',
+        component: () => import('@/views/oj/contests/edit.vue'),
+        meta: { title: '编辑赛事' },
+        props: true
+      },
+      {
+        path: 'tags',
+        name: 'OjTags',
+        component: () => import('@/views/oj/tags/index.vue'),
+        meta: { title: '标签管理' }
+      }
+    ]
+  },
+  {
     path: '/resume',
     component: Layout,
     redirect: '/resume/templates',

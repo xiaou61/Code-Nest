@@ -202,8 +202,8 @@ watch(() => props.visible, (val) => {
 }
 
 .mastery-card {
-  border-radius: 12px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e4e7ed 100%);
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f8f7ff 0%, #f0eeff 100%);
 }
 
 :deep(.el-card__body) {
@@ -263,8 +263,8 @@ watch(() => props.visible, (val) => {
 }
 
 .mastery-option.selected {
-  border-color: #409EFF;
-  background: #ecf5ff;
+  border-color: #6c63ff;
+  background: #f5f3ff;
 }
 
 .mastery-option.was-selected {
@@ -283,8 +283,8 @@ watch(() => props.visible, (val) => {
 }
 
 .mastery-option:nth-child(3).selected {
-  border-color: #409EFF;
-  background: #ecf5ff;
+  border-color: #6c63ff;
+  background: #f5f3ff;
 }
 
 .mastery-option:nth-child(4).selected {

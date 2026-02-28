@@ -1,7 +1,21 @@
 <template>
-  <div class="team-container">
+  <div class="team-container cn-learn-shell">
+    <div class="cn-learn-shell__inner">
+    <section class="cn-learn-hero cn-wave-reveal">
+      <div class="cn-learn-hero__content">
+        <span class="cn-learn-hero__eyebrow">Learning Team</span>
+        <h1 class="cn-learn-hero__title">学习小组协作广场</h1>
+        <p class="cn-learn-hero__desc">围绕目标型、学习型、打卡型小组构建协作氛围，持续增强学习执行力。</p>
+      </div>
+      <div class="cn-learn-hero__meta">
+        <span class="cn-learn-chip">小组总量 {{ total }}</span>
+        <span class="cn-learn-chip">推荐 {{ recommendList.length }}</span>
+        <span class="cn-learn-chip">我的小组 {{ myTeamList.length }}</span>
+      </div>
+    </section>
+
     <!-- 页面头部 -->
-    <div class="page-header">
+    <div class="page-header cn-learn-panel cn-learn-reveal">
       <div class="header-content">
         <h1>👥 学习小组</h1>
         <p class="header-subtitle">组队学习，互相监督，共同进步</p>
@@ -23,7 +37,7 @@
       <!-- 左侧边栏 -->
       <aside class="sidebar sidebar-left">
         <!-- 类型筛选 -->
-        <div class="sidebar-card filter-card">
+        <div class="sidebar-card filter-card cn-learn-panel cn-learn-float cn-learn-reveal">
           <div class="card-header">
             <el-icon><Filter /></el-icon>
             <span>小组类型</span>
@@ -65,7 +79,7 @@
         </div>
 
         <!-- 邀请码加入 -->
-        <div class="sidebar-card invite-card">
+        <div class="sidebar-card invite-card cn-learn-panel cn-learn-float cn-learn-reveal">
           <div class="card-header">
             <el-icon><Key /></el-icon>
             <span>邀请码加入</span>
@@ -89,7 +103,7 @@
       <!-- 中间内容区 -->
       <main class="main-content">
         <!-- 搜索和排序 -->
-        <div class="content-header-card">
+        <div class="content-header-card cn-learn-panel cn-learn-reveal">
           <div class="search-bar">
             <el-input 
               v-model="keyword" 
@@ -162,7 +176,7 @@
       <!-- 右侧边栏 -->
       <aside class="sidebar sidebar-right">
         <!-- 推荐小组 -->
-        <div class="sidebar-card recommend-card">
+        <div class="sidebar-card recommend-card cn-learn-panel cn-learn-float cn-learn-reveal">
           <div class="card-header">
             <el-icon><Star /></el-icon>
             <span>推荐小组</span>
@@ -192,7 +206,7 @@
         </div>
 
         <!-- 我的小组快捷入口 -->
-        <div class="sidebar-card my-teams-card" v-if="myTeamList.length > 0">
+        <div class="sidebar-card my-teams-card cn-learn-panel cn-learn-float cn-learn-reveal" v-if="myTeamList.length > 0">
           <div class="card-header">
             <el-icon><Folder /></el-icon>
             <span>我的小组</span>
@@ -245,6 +259,7 @@
         </el-button>
       </template>
     </el-dialog>
+    </div>
   </div>
 </template>
 
@@ -257,9 +272,11 @@ import {
   Star, Folder 
 } from '@element-plus/icons-vue'
 import teamApi from '@/api/team'
+import { useRevealMotion } from '@/utils/reveal-motion'
 import TeamCard from './components/TeamCard.vue'
 
 const router = useRouter()
+useRevealMotion('.team-container .cn-learn-reveal')
 
 // 列表数据
 const teamList = ref([])
@@ -396,12 +413,10 @@ const goToDetail = (id) => router.push(`/team/${id}`)
 
 <style lang="scss" scoped>
 .team-container {
-  padding: 24px 32px;
-  background: #f5f7fa;
-  min-height: calc(100vh - 60px);
+  min-height: calc(100vh - 68px);
   
   @media (max-width: 768px) {
-    padding: 16px;
+    min-height: calc(100vh - 62px);
   }
 }
 
@@ -410,11 +425,12 @@ const goToDetail = (id) => router.push(`/team/${id}`)
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin: 20px 0 24px;
   padding: 24px;
-  background: white;
   border-radius: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
   
   h1 {
     font-size: 24px;
@@ -472,11 +488,12 @@ const goToDetail = (id) => router.push(`/team/${id}`)
 
 // 侧边栏卡片
 .sidebar-card {
-  background: white;
   border-radius: 12px;
   padding: 16px;
   margin-bottom: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
   
   .card-header {
     display: flex;
@@ -546,11 +563,12 @@ const goToDetail = (id) => router.push(`/team/${id}`)
 
 // 内容区头部
 .content-header-card {
-  background: white;
   border-radius: 12px;
   padding: 16px 20px;
   margin-bottom: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
 .search-bar {
@@ -615,7 +633,7 @@ const goToDetail = (id) => router.push(`/team/${id}`)
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  background: white;
+  background: rgba(255, 255, 255, 0.78);
   border-radius: 12px;
   
   .empty-icon {

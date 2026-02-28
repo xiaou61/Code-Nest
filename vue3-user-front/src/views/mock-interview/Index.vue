@@ -1,15 +1,17 @@
 <template>
-  <div class="mock-interview-index">
+  <div class="mock-interview-index cn-learn-shell">
+    <div class="cn-learn-shell__inner">
     <!-- 页面头部 -->
-    <div class="page-header">
+    <div class="page-header cn-learn-hero cn-wave-reveal">
       <div class="header-content">
-        <h1 class="page-title">
+        <span class="cn-learn-hero__eyebrow">AI Interview</span>
+        <h1 class="page-title cn-learn-hero__title">
           <el-icon><Mic /></el-icon>
           AI 模拟面试
         </h1>
-        <p class="page-subtitle">智能面试官，助你轻松拿下心仪Offer</p>
+        <p class="page-subtitle cn-learn-hero__desc">智能面试官，助你轻松拿下心仪 Offer</p>
       </div>
-      <div class="header-actions">
+      <div class="header-actions cn-learn-hero__meta">
         <el-button type="primary" size="large" @click="goToHistory" :icon="Clock">
           历史记录
         </el-button>
@@ -17,9 +19,9 @@
     </div>
 
     <!-- 用户统计 -->
-    <el-row :gutter="20" class="stats-row">
+    <el-row :gutter="20" class="stats-row cn-learn-reveal">
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
+        <el-card shadow="hover" class="stat-card cn-learn-panel cn-learn-float">
           <div class="stat-content">
             <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
               <el-icon><DataLine /></el-icon>
@@ -32,7 +34,7 @@
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
+        <el-card shadow="hover" class="stat-card cn-learn-panel cn-learn-float">
           <div class="stat-content">
             <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
               <el-icon><TrophyBase /></el-icon>
@@ -45,7 +47,7 @@
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
+        <el-card shadow="hover" class="stat-card cn-learn-panel cn-learn-float">
           <div class="stat-content">
             <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
               <el-icon><Timer /></el-icon>
@@ -58,7 +60,7 @@
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
+        <el-card shadow="hover" class="stat-card cn-learn-panel cn-learn-float">
           <div class="stat-content">
             <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
               <el-icon><Calendar /></el-icon>
@@ -73,7 +75,7 @@
     </el-row>
 
     <!-- 面试方向选择 -->
-    <el-card shadow="never" class="direction-card">
+    <el-card shadow="never" class="direction-card cn-learn-panel cn-learn-reveal">
       <template #header>
         <div class="card-header">
           <span class="header-title">
@@ -88,7 +90,7 @@
         <div 
           v-for="direction in directions" 
           :key="direction.directionCode"
-          class="direction-item"
+          class="direction-item cn-learn-tilt"
           :class="{ 'is-selected': selectedDirection === direction.directionCode }"
           @click="selectDirection(direction)"
         >
@@ -109,7 +111,7 @@
     </el-card>
 
     <!-- 开始面试按钮 -->
-    <div class="start-section">
+    <div class="start-section cn-learn-reveal">
       <el-button 
         type="primary" 
         size="large" 
@@ -124,7 +126,7 @@
     </div>
 
     <!-- 功能介绍 -->
-    <el-card shadow="never" class="feature-card">
+    <el-card shadow="never" class="feature-card cn-learn-panel cn-learn-reveal">
       <template #header>
         <span class="header-title">
           <el-icon><InfoFilled /></el-icon>
@@ -134,28 +136,28 @@
 
       <el-row :gutter="20">
         <el-col :span="6">
-          <div class="feature-item">
+          <div class="feature-item cn-learn-float">
             <div class="feature-icon">🤖</div>
             <h4>AI 智能出题</h4>
             <p>根据方向和难度智能生成面试题</p>
           </div>
         </el-col>
         <el-col :span="6">
-          <div class="feature-item">
+          <div class="feature-item cn-learn-float">
             <div class="feature-icon">💬</div>
             <h4>实时评价反馈</h4>
             <p>AI即时评价答案，给出改进建议</p>
           </div>
         </el-col>
         <el-col :span="6">
-          <div class="feature-item">
+          <div class="feature-item cn-learn-float">
             <div class="feature-icon">🎯</div>
             <h4>追问深入考察</h4>
             <p>模拟真实面试，追问考察深度</p>
           </div>
         </el-col>
         <el-col :span="6">
-          <div class="feature-item">
+          <div class="feature-item cn-learn-float">
             <div class="feature-icon">📊</div>
             <h4>详细面试报告</h4>
             <p>多维度评分，个性化学习建议</p>
@@ -163,6 +165,7 @@
         </el-col>
       </el-row>
     </el-card>
+    </div>
   </div>
 </template>
 
@@ -175,8 +178,10 @@ import {
   VideoPlay, InfoFilled, Monitor, Cpu, DataBoard, Connection, Setting
 } from '@element-plus/icons-vue'
 import { mockInterviewApi } from '@/api/mockInterview'
+import { useRevealMotion } from '@/utils/reveal-motion'
 
 const router = useRouter()
+useRevealMotion('.mock-interview-index .cn-learn-reveal')
 
 // 响应式数据
 const loading = ref(false)
@@ -265,9 +270,7 @@ onMounted(() => {
 
 <style scoped>
 .mock-interview-index {
-  padding: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
+  min-height: calc(100vh - 68px);
 }
 
 /* 页面头部 */
@@ -276,10 +279,8 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  padding: 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
-  color: white;
+  padding: 24px 28px;
+  border-radius: 24px;
 }
 
 .page-title {
@@ -293,7 +294,7 @@ onMounted(() => {
 
 .page-subtitle {
   margin: 0;
-  opacity: 0.9;
+  opacity: 0.88;
   font-size: 14px;
 }
 
@@ -303,7 +304,8 @@ onMounted(() => {
 }
 
 .stat-card {
-  border-radius: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(115, 156, 225, 0.22);
 }
 
 .stat-content {
@@ -338,7 +340,7 @@ onMounted(() => {
 /* 方向选择 */
 .direction-card {
   margin-bottom: 24px;
-  border-radius: 12px;
+  border-radius: 16px;
 }
 
 .card-header {
@@ -369,22 +371,22 @@ onMounted(() => {
 .direction-item {
   position: relative;
   padding: 20px;
-  border: 2px solid #e4e7ed;
-  border-radius: 12px;
+  border: 1px solid #d7e7fb;
+  border-radius: 14px;
   cursor: pointer;
   transition: all 0.3s;
-  background: #fafafa;
+  background: #f9fbff;
 }
 
 .direction-item:hover {
-  border-color: #409eff;
+  border-color: #2f7cf5;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.15);
+  box-shadow: 0 12px 24px rgba(31, 111, 235, 0.18);
 }
 
 .direction-item.is-selected {
-  border-color: #409eff;
-  background: linear-gradient(135deg, #ecf5ff 0%, #f0f9ff 100%);
+  border-color: #2f7cf5;
+  background: linear-gradient(135deg, #ebf4ff 0%, #e4f1ff 100%);
 }
 
 .direction-icon {
@@ -447,12 +449,15 @@ onMounted(() => {
 
 /* 功能介绍 */
 .feature-card {
-  border-radius: 12px;
+  border-radius: 16px;
 }
 
 .feature-item {
   text-align: center;
   padding: 20px;
+  border-radius: 14px;
+  border: 1px solid rgba(188, 210, 242, 0.65);
+  background: linear-gradient(180deg, #fbfdff 0%, #f3f8ff 100%);
 }
 
 .feature-icon {

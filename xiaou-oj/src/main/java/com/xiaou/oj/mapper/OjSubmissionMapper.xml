@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.oj.mapper.OjSubmissionMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.oj.domain.OjSubmission">
+        <id column="id" property="id"/>
+        <result column="problem_id" property="problemId"/>
+        <result column="contest_id" property="contestId"/>
+        <result column="user_id" property="userId"/>
+        <result column="language" property="language"/>
+        <result column="code" property="code"/>
+        <result column="status" property="status"/>
+        <result column="time_used" property="timeUsed"/>
+        <result column="memory_used" property="memoryUsed"/>
+        <result column="error_message" property="errorMessage"/>
+        <result column="pass_count" property="passCount"/>
+        <result column="total_count" property="totalCount"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO oj_submission (problem_id, contest_id, user_id, language, code, status, create_time)
+        VALUES (#{problemId}, #{contestId}, #{userId}, #{language}, #{code}, #{status}, NOW())
+    </insert>
+
+    <update id="updateById">
+        UPDATE oj_submission
+        <set>
+            <if test="status != null">status = #{status},</if>
+            <if test="timeUsed != null">time_used = #{timeUsed},</if>
+            <if test="memoryUsed != null">memory_used = #{memoryUsed},</if>
+            error_message = #{errorMessage},
+            <if test="passCount != null">pass_count = #{passCount},</if>
+            <if test="totalCount != null">total_count = #{totalCount},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT s.*, p.title AS problem_title
+        FROM oj_submission s
+        LEFT JOIN oj_problem p ON s.problem_id = p.id
+        WHERE s.id = #{id}
+    </select>
+
+    <select id="selectPage" resultMap="BaseResultMap">
+        SELECT s.*, p.title AS problem_title
+        FROM oj_submission s
+        LEFT JOIN oj_problem p ON s.problem_id = p.id
+        <where>
+            <if test="request.problemId != null">
+                AND s.problem_id = #{request.problemId}
+            </if>
+            <if test="request.contestId != null">
+                AND s.contest_id = #{request.contestId}
+            </if>
+            <if test="request.userId != null">
+                AND s.user_id = #{request.userId}
+            </if>
+            <if test="request.language != null and request.language != ''">
+                AND s.language = #{request.language}
+            </if>
+            <if test="request.status != null and request.status != ''">
+                AND s.status = #{request.status}
+            </if>
+        </where>
+        ORDER BY s.id DESC
+    </select>
+
+    <select id="countPage" resultType="long">
+        SELECT COUNT(*) FROM oj_submission s
+        <where>
+            <if test="request.problemId != null">
+                AND s.problem_id = #{request.problemId}
+            </if>
+            <if test="request.contestId != null">
+                AND s.contest_id = #{request.contestId}
+            </if>
+            <if test="request.userId != null">
+                AND s.user_id = #{request.userId}
+            </if>
+            <if test="request.language != null and request.language != ''">
+                AND s.language = #{request.language}
+            </if>
+            <if test="request.status != null and request.status != ''">
+                AND s.status = #{request.status}
+            </if>
+        </where>
+    </select>
+
+    <select id="countByUserId" resultType="int">
+        SELECT COUNT(*) FROM oj_submission WHERE user_id = #{userId}
+    </select>
+
+    <select id="countAcceptedProblemsByUserId" resultType="int">
+        SELECT COUNT(DISTINCT problem_id) FROM oj_submission
+        WHERE user_id = #{userId} AND status = 'accepted'
+    </select>
+
+    <select id="countAttemptedProblemsByUserId" resultType="int">
+        SELECT COUNT(DISTINCT problem_id) FROM oj_submission WHERE user_id = #{userId}
+    </select>
+
+    <select id="countAcceptedByDifficulty" resultType="int">
+        SELECT COUNT(DISTINCT s.problem_id)
+        FROM oj_submission s
+        INNER JOIN oj_problem p ON s.problem_id = p.id
+        WHERE s.user_id = #{userId} AND s.status = 'accepted' AND p.difficulty = #{difficulty}
+    </select>
+
+    <select id="existsAccepted" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM oj_submission
+            WHERE user_id = #{userId} AND problem_id = #{problemId} AND status = 'accepted'
+        )
+    </select>
+    <select id="selectRankingAll" resultType="com.xiaou.oj.dto.RankingItem">
+        SELECT user_id AS userId,
+               COUNT(DISTINCT problem_id) AS acceptedCount,
+               COUNT(*) AS submissionCount
+        FROM oj_submission
+        WHERE status = 'accepted'
+        GROUP BY user_id
+        ORDER BY acceptedCount DESC, submissionCount ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectRankingWeekly" resultType="com.xiaou.oj.dto.RankingItem">
+        SELECT user_id AS userId,
+               COUNT(DISTINCT problem_id) AS acceptedCount,
+               COUNT(*) AS submissionCount
+        FROM oj_submission
+        WHERE status = 'accepted' AND create_time >= #{weekStart}
+        GROUP BY user_id
+        ORDER BY acceptedCount DESC, submissionCount ASC
+        LIMIT #{limit}
+    </select>
+    <select id="isFirstAccepted" resultType="boolean">
+        SELECT NOT EXISTS(
+            SELECT 1 FROM oj_submission
+            WHERE user_id = #{userId} AND problem_id = #{problemId}
+              AND status = 'accepted' AND id &lt; #{submissionId}
+        )
+    </select>
+
+    <select id="selectByContestId" resultMap="BaseResultMap">
+        SELECT * FROM oj_submission
+        WHERE contest_id = #{contestId}
+        ORDER BY create_time ASC, id ASC
+    </select>
+</mapper>

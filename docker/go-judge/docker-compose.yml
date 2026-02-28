@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  go-judge:
+    build: .
+    image: go-judge-full:latest
+    container_name: go-judge
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "5050:5050"
+    environment:
+      # 并发执行数量
+      - GOJUDGE_PARALLELISM=4
+      # 文件存储路径
+      - GOJUDGE_FILE_STORE=/tmp/gojudge
+    volumes:
+      - go-judge-data:/tmp/gojudge
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '2.0'
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+volumes:
+  go-judge-data:

@@ -1,189 +1,206 @@
 <template>
-  <div class="interview-index">
-    <!-- 左侧边栏 -->
-    <aside class="sidebar">
-      <!-- 搜索框 -->
-      <div class="sidebar-section search-section">
-        <el-input 
-          v-model="searchKeyword" 
-          placeholder="搜索题单..." 
-          clearable
-          @clear="handleSearch"
-          @keyup.enter="handleSearch"
-        >
-          <template #prefix>
-            <el-icon><Search /></el-icon>
-          </template>
-          <template #append>
-            <el-button :icon="Search" @click="handleSearch" />
-          </template>
-        </el-input>
-      </div>
+  <div class="interview-index cn-learn-shell">
+    <div class="cn-learn-shell__inner">
+      <section class="cn-learn-hero cn-wave-reveal">
+        <div class="cn-learn-hero__content">
+          <span class="cn-learn-hero__eyebrow">Interview Studio</span>
+          <h1 class="cn-learn-hero__title">面试题库学习中枢</h1>
+          <p class="cn-learn-hero__desc">把刷题、收藏、复习和学习足迹放在同一工作台，形成高效闭环。</p>
+        </div>
+        <div class="cn-learn-hero__meta">
+          <span class="cn-learn-chip">题单 {{ totalQuestionSets }}</span>
+          <span class="cn-learn-chip">分类 {{ categoryList.length }}</span>
+          <span class="cn-learn-chip">当前结果 {{ total }}</span>
+        </div>
+      </section>
 
-      <!-- 分类筛选 -->
-      <div class="sidebar-section category-section">
-        <div class="section-title">
-          <el-icon><Folder /></el-icon>
-          <span>分类筛选</span>
-        </div>
-        <div class="category-list">
-          <div 
-            class="category-item" 
-            :class="{ active: currentCategoryId === null }"
-            @click="selectCategory(null)"
-          >
-            <span class="category-name">全部分类</span>
-            <span class="category-count">{{ totalQuestionSets }}</span>
+      <div class="cn-learn-layout">
+        <!-- 左侧边栏 -->
+        <aside class="sidebar cn-learn-sidebar">
+          <!-- 搜索框 -->
+          <div class="sidebar-section search-section cn-learn-panel cn-learn-float cn-learn-reveal">
+            <el-input
+              v-model="searchKeyword"
+              placeholder="搜索题单..."
+              clearable
+              @clear="handleSearch"
+              @keyup.enter="handleSearch"
+            >
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+              <template #append>
+                <el-button :icon="Search" @click="handleSearch" />
+              </template>
+            </el-input>
           </div>
-          <div 
-            v-for="category in categoryList" 
-            :key="category.id"
-            class="category-item"
-            :class="{ active: currentCategoryId === category.id }"
-            @click="selectCategory(category.id)"
-          >
-            <span class="category-name">{{ category.name }}</span>
-            <span class="category-count">{{ category.questionSetCount || 0 }}</span>
-          </div>
-        </div>
-      </div>
 
-      <!-- 快捷功能 -->
-      <div class="sidebar-section quick-actions">
-        <div class="section-title">
-          <el-icon><Lightning /></el-icon>
-          <span>快捷功能</span>
-        </div>
-        <div class="action-buttons">
-          <div class="action-btn" @click="goToRandomQuestions">
-            <el-icon class="action-icon refresh-icon"><Refresh /></el-icon>
-            <span>随机抽题</span>
-          </div>
-          <div class="action-btn" @click="goToFavorites">
-            <el-icon class="action-icon star-icon"><Star /></el-icon>
-            <span>我的收藏</span>
-          </div>
-          <div class="action-btn review-btn" @click="goToReview">
-            <el-icon class="action-icon review-icon"><Clock /></el-icon>
-            <span>复习中心</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 学习统计 -->
-      <div class="sidebar-section stats-section">
-        <div class="section-title">
-          <el-icon><DataLine /></el-icon>
-          <span>数据统计</span>
-        </div>
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-value">{{ totalQuestionSets }}</div>
-            <div class="stat-label">题单总数</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value">{{ categoryList.length }}</div>
-            <div class="stat-label">分类数量</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 复习提醒卡片 -->
-      <ReviewReminderCard />
-    </aside>
-
-    <!-- 主内容区 -->
-    <main class="main-content">
-      <!-- 学习热力图 -->
-      <LearningHeatmap class="heatmap-section" />
-
-      <!-- 内容头部 -->
-      <div class="content-header">
-        <div class="header-left">
-          <h2 class="page-title">题单列表</h2>
-          <span class="total-badge" v-if="total > 0">{{ total }} 个题单</span>
-        </div>
-        <div class="header-right">
-          <el-select v-model="sortType" placeholder="排序方式" style="width: 140px" @change="handleSortChange">
-            <el-option label="最新发布" value="newest" />
-            <el-option label="最多浏览" value="views" />
-            <el-option label="最多收藏" value="favorites" />
-          </el-select>
-        </div>
-      </div>
-
-      <!-- 题单网格 -->
-      <div v-loading="loading" class="question-sets-grid">
-        <div 
-          v-for="questionSet in questionSetList" 
-          :key="questionSet.id"
-          class="question-set-card"
-          @click="goToQuestionSet(questionSet)"
-        >
-          <div class="card-header">
-            <h3 class="card-title">{{ questionSet.title }}</h3>
-            <el-tag :type="questionSet.type === 1 ? 'success' : 'info'" size="small" effect="dark">
-              {{ questionSet.type === 1 ? '官方' : '用户' }}
-            </el-tag>
-          </div>
-          
-          <p class="card-description">{{ questionSet.description || '暂无描述' }}</p>
-          
-          <div class="card-tags" v-if="questionSet.categoryName">
-            <el-tag type="warning" size="small" round>
-              {{ questionSet.categoryName }}
-            </el-tag>
-          </div>
-          
-          <div class="card-stats">
-            <div class="stat-item">
-              <el-icon><Edit /></el-icon>
-              <span>{{ questionSet.questionCount || 0 }} 题</span>
+          <!-- 分类筛选 -->
+          <div class="sidebar-section category-section cn-learn-panel cn-learn-float cn-learn-reveal">
+            <div class="section-title">
+              <el-icon><Folder /></el-icon>
+              <span>分类筛选</span>
             </div>
-            <div class="stat-item">
-              <el-icon><View /></el-icon>
-              <span>{{ questionSet.viewCount || 0 }}</span>
-            </div>
-            <div class="stat-item">
-              <el-icon><Star /></el-icon>
-              <span>{{ questionSet.favoriteCount || 0 }}</span>
+            <div class="category-list">
+              <div
+                class="category-item"
+                :class="{ active: currentCategoryId === null }"
+                @click="selectCategory(null)"
+              >
+                <span class="category-name">全部分类</span>
+                <span class="category-count">{{ totalQuestionSets }}</span>
+              </div>
+              <div
+                v-for="category in categoryList"
+                :key="category.id"
+                class="category-item"
+                :class="{ active: currentCategoryId === category.id }"
+                @click="selectCategory(category.id)"
+              >
+                <span class="category-name">{{ category.name }}</span>
+                <span class="category-count">{{ category.questionSetCount || 0 }}</span>
+              </div>
             </div>
           </div>
-          
-          <div class="card-footer">
-            <div class="card-author" v-if="questionSet.creatorName">
-              <el-avatar :size="20" :src="questionSet.creatorAvatar">
-                {{ questionSet.creatorName?.charAt(0) }}
-              </el-avatar>
-              <span>{{ questionSet.creatorName }}</span>
+
+          <!-- 快捷功能 -->
+          <div class="sidebar-section quick-actions cn-learn-panel cn-learn-float cn-learn-reveal">
+            <div class="section-title">
+              <el-icon><Lightning /></el-icon>
+              <span>快捷功能</span>
             </div>
-            <div class="card-date">
-              {{ formatDate(questionSet.createTime) }}
+            <div class="action-buttons">
+              <div class="action-btn" @click="goToRandomQuestions">
+                <el-icon class="action-icon refresh-icon"><Refresh /></el-icon>
+                <span>随机抽题</span>
+              </div>
+              <div class="action-btn" @click="goToFavorites">
+                <el-icon class="action-icon star-icon"><Star /></el-icon>
+                <span>我的收藏</span>
+              </div>
+              <div class="action-btn review-btn" @click="goToReview">
+                <el-icon class="action-icon review-icon"><Clock /></el-icon>
+                <span>复习中心</span>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- 空状态 -->
-      <el-empty 
-        v-if="!loading && questionSetList.length === 0" 
-        description="暂无题单数据"
-        :image-size="120"
-      />
+          <!-- 学习统计 -->
+          <div class="sidebar-section stats-section cn-learn-panel cn-learn-float cn-learn-reveal">
+            <div class="section-title">
+              <el-icon><DataLine /></el-icon>
+              <span>数据统计</span>
+            </div>
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-value">{{ totalQuestionSets }}</div>
+                <div class="stat-label">题单总数</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">{{ categoryList.length }}</div>
+                <div class="stat-label">分类数量</div>
+              </div>
+            </div>
+          </div>
 
-      <!-- 分页 -->
-      <div class="pagination-wrapper" v-if="total > 0">
-        <el-pagination 
-          v-model:current-page="queryParams.page" 
-          v-model:page-size="queryParams.size"
-          :page-sizes="[12, 24, 36, 48]"
-          :total="total"
-          layout="total, sizes, prev, pager, next"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
+          <!-- 复习提醒卡片 -->
+          <ReviewReminderCard class="cn-learn-reveal" />
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content cn-learn-main">
+          <!-- 学习热力图 -->
+          <LearningHeatmap class="heatmap-section cn-learn-reveal" />
+
+          <!-- 内容头部 -->
+          <div class="content-header cn-learn-panel cn-learn-reveal">
+            <div class="header-left">
+              <h2 class="page-title">题单列表</h2>
+              <span class="total-badge" v-if="total > 0">{{ total }} 个题单</span>
+            </div>
+            <div class="header-right">
+              <el-select v-model="sortType" placeholder="排序方式" style="width: 140px" @change="handleSortChange">
+                <el-option label="最新发布" value="newest" />
+                <el-option label="最多浏览" value="views" />
+                <el-option label="最多收藏" value="favorites" />
+              </el-select>
+            </div>
+          </div>
+
+          <!-- 题单网格 -->
+          <div v-loading="loading" class="question-sets-grid">
+            <div
+              v-for="questionSet in questionSetList"
+              :key="questionSet.id"
+              class="question-set-card cn-learn-panel cn-learn-float cn-learn-shine cn-learn-reveal"
+              @click="goToQuestionSet(questionSet)"
+            >
+              <div class="card-header">
+                <h3 class="card-title">{{ questionSet.title }}</h3>
+                <el-tag :type="questionSet.type === 1 ? 'success' : 'info'" size="small" effect="dark">
+                  {{ questionSet.type === 1 ? '官方' : '用户' }}
+                </el-tag>
+              </div>
+
+              <p class="card-description">{{ questionSet.description || '暂无描述' }}</p>
+
+              <div class="card-tags" v-if="questionSet.categoryName">
+                <el-tag type="warning" size="small" round>
+                  {{ questionSet.categoryName }}
+                </el-tag>
+              </div>
+
+              <div class="card-stats">
+                <div class="stat-item">
+                  <el-icon><Edit /></el-icon>
+                  <span>{{ questionSet.questionCount || 0 }} 题</span>
+                </div>
+                <div class="stat-item">
+                  <el-icon><View /></el-icon>
+                  <span>{{ questionSet.viewCount || 0 }}</span>
+                </div>
+                <div class="stat-item">
+                  <el-icon><Star /></el-icon>
+                  <span>{{ questionSet.favoriteCount || 0 }}</span>
+                </div>
+              </div>
+
+              <div class="card-footer">
+                <div class="card-author" v-if="questionSet.creatorName">
+                  <el-avatar :size="20" :src="questionSet.creatorAvatar">
+                    {{ questionSet.creatorName?.charAt(0) }}
+                  </el-avatar>
+                  <span>{{ questionSet.creatorName }}</span>
+                </div>
+                <div class="card-date">
+                  {{ formatDate(questionSet.createTime) }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 空状态 -->
+          <el-empty
+            v-if="!loading && questionSetList.length === 0"
+            description="暂无题单数据"
+            :image-size="120"
+          />
+
+          <!-- 分页 -->
+          <div class="pagination-wrapper" v-if="total > 0">
+            <el-pagination
+              v-model:current-page="queryParams.page"
+              v-model:page-size="queryParams.size"
+              :page-sizes="[12, 24, 36, 48]"
+              :total="total"
+              layout="total, sizes, prev, pager, next"
+              @size-change="handleSizeChange"
+              @current-change="handleCurrentChange"
+            />
+          </div>
+        </main>
       </div>
-    </main>
+    </div>
   </div>
 </template>
 
@@ -195,11 +212,13 @@ import {
   Search, Star, Edit, View, Refresh, Folder, DataLine, Lightning, Clock
 } from '@element-plus/icons-vue'
 import { useInterviewStore } from '@/stores/interview'
+import { useRevealMotion } from '@/utils/reveal-motion'
 import ReviewReminderCard from './components/ReviewReminderCard.vue'
 import LearningHeatmap from './components/LearningHeatmap.vue'
 
 const router = useRouter()
 const interviewStore = useInterviewStore()
+useRevealMotion('.interview-index .cn-learn-reveal')
 
 // 响应式数据
 const searchKeyword = ref('')
@@ -329,11 +348,11 @@ onMounted(async () => {
 <style scoped>
 /* 整体布局 */
 .interview-index {
-  display: flex;
-  gap: 24px;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%);
-  padding: 24px;
+  min-height: calc(100vh - 68px);
+}
+
+.interview-index .cn-learn-layout {
+  align-items: flex-start;
 }
 
 /* ========== 左侧边栏 ========== */
@@ -351,10 +370,15 @@ onMounted(async () => {
 }
 
 .sidebar-section {
-  background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  background: transparent;
+  box-shadow: none;
+  border: none;
+}
+
+.sidebar-section:hover {
+  box-shadow: none;
 }
 
 .section-title {
@@ -370,7 +394,7 @@ onMounted(async () => {
 }
 
 .section-title .el-icon {
-  color: #409eff;
+  color: #1f6feb;
 }
 
 /* 搜索框 */
@@ -379,8 +403,8 @@ onMounted(async () => {
 }
 
 .search-section :deep(.el-input-group__append) {
-  background: #409eff;
-  border-color: #409eff;
+  background: linear-gradient(135deg, #2f7cf5 0%, #1f6feb 100%);
+  border-color: #2f7cf5;
 }
 
 .search-section :deep(.el-input-group__append .el-button) {
@@ -412,7 +436,7 @@ onMounted(async () => {
 }
 
 .category-item.active {
-  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+  background: linear-gradient(135deg, #2f7cf5 0%, #1f6feb 100%);
   color: white;
 }
 
@@ -462,22 +486,22 @@ onMounted(async () => {
 }
 
 .action-btn:first-child:hover {
-  background: linear-gradient(135deg, #f0f9eb 0%, #e1f3d8 100%);
-  color: #67c23a;
+  background: linear-gradient(135deg, #edf6ff 0%, #e4f1ff 100%);
+  color: #1f6feb;
 }
 
 .action-btn:nth-child(2):hover {
-  background: linear-gradient(135deg, #fef0f0 0%, #fde2e2 100%);
-  color: #f56c6c;
+  background: linear-gradient(135deg, #fff4ea 0%, #ffecdb 100%);
+  color: #d87c16;
 }
 
 .action-btn.review-btn:hover {
-  background: linear-gradient(135deg, #ecf5ff 0%, #d9ecff 100%);
-  color: #409eff;
+  background: linear-gradient(135deg, #edf8ff 0%, #e3f3ff 100%);
+  color: #1779d4;
 }
 
 .review-icon {
-  color: #409eff;
+  color: #1779d4;
 }
 
 .action-icon {
@@ -485,11 +509,11 @@ onMounted(async () => {
 }
 
 .refresh-icon {
-  color: #67c23a;
+  color: #1f6feb;
 }
 
 .star-icon {
-  color: #f56c6c;
+  color: #d87c16;
 }
 
 /* 统计卡片 */
@@ -500,8 +524,8 @@ onMounted(async () => {
 }
 
 .stat-card {
-  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
-  border-radius: 8px;
+  background: linear-gradient(135deg, #edf5ff 0%, #e6f0ff 100%);
+  border-radius: 10px;
   padding: 12px;
   text-align: center;
 }
@@ -509,7 +533,10 @@ onMounted(async () => {
 .stat-value {
   font-size: 24px;
   font-weight: 700;
-  color: #409eff;
+  background: linear-gradient(135deg, #1f6feb, #1799eb);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .stat-label {
@@ -533,10 +560,8 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  background: white;
   padding: 16px 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
 }
 
 .header-left {
@@ -553,7 +578,7 @@ onMounted(async () => {
 }
 
 .total-badge {
-  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+  background: linear-gradient(135deg, #2f7cf5 0%, #1f6feb 100%);
   color: white;
   padding: 4px 12px;
   border-radius: 12px;
@@ -569,21 +594,35 @@ onMounted(async () => {
 }
 
 .question-set-card {
-  background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 20px;
   cursor: pointer;
   transition: all 0.3s;
-  border: 1px solid transparent;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.question-set-card::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #2f7cf5, #15a5ef);
+  opacity: 0;
+  transition: opacity 0.3s;
 }
 
 .question-set-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(64, 158, 255, 0.15);
-  border-color: #409eff;
+  border-color: rgba(47, 124, 245, 0.36);
+}
+
+.question-set-card:hover::after {
+  opacity: 1;
 }
 
 .card-header {
@@ -659,7 +698,7 @@ onMounted(async () => {
 }
 
 .card-author .el-avatar {
-  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+  background: linear-gradient(135deg, #1f6feb 0%, #15a5ef 100%);
   font-size: 12px;
 }
 
@@ -669,9 +708,10 @@ onMounted(async () => {
   justify-content: center;
   margin-top: 24px;
   padding: 16px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(115, 156, 225, 0.24);
+  box-shadow: 0 18px 42px rgba(22, 63, 119, 0.12);
 }
 
 /* ========== 响应式设计 ========== */

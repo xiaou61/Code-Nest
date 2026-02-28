@@ -107,6 +107,25 @@
             </el-menu-item>
           </el-sub-menu>
           
+          <el-sub-menu index="/oj">
+            <template #title>
+              <el-icon><Monitor /></el-icon>
+              <span>OJ 判题管理</span>
+            </template>
+            <el-menu-item index="/oj/problems">
+              <el-icon><Edit /></el-icon>
+              <span>题目管理</span>
+            </el-menu-item>
+            <el-menu-item index="/oj/contests">
+              <el-icon><Trophy /></el-icon>
+              <span>赛事管理</span>
+            </el-menu-item>
+            <el-menu-item index="/oj/tags">
+              <el-icon><PriceTag /></el-icon>
+              <span>标签管理</span>
+            </el-menu-item>
+          </el-sub-menu>
+          
           <el-sub-menu index="/resume">
             <template #title>
               <el-icon><EditPen /></el-icon>
@@ -394,13 +413,13 @@
       
       <el-container>
         <!-- 头部 -->
-        <el-header height="60px" class="header">
+        <el-header height="60px" class="header" :class="{ 'header-elevated': isMainScrolled }">
           <div class="header-left">
             <!-- 折叠按钮 -->
             <el-button
               type="text"
               @click="toggleSidebar"
-              style="font-size: 18px; margin-right: 20px;"
+              class="header-toggle-btn"
             >
               <el-icon>
                 <Expand v-if="collapsed" />
@@ -409,7 +428,7 @@
             </el-button>
             
             <!-- 面包屑 -->
-            <span style="font-size: 16px; color: #333;">{{ currentTitle }}</span>
+            <span class="header-title">{{ currentTitle }}</span>
           </div>
           
           <div class="header-right">
@@ -419,7 +438,7 @@
               <el-avatar
                 :size="32"
                 :src="userStore.avatar"
-                style="margin-right: 8px;"
+                class="header-avatar"
               >
                 {{ userStore.realName.charAt(0) || userStore.username.charAt(0) }}
               </el-avatar>
@@ -448,9 +467,13 @@
         </el-header>
         
         <!-- 主内容区域 -->
-        <el-main class="main-content">
+        <el-main class="main-content" @scroll.passive="handleMainScroll">
           <div class="page-container">
-            <router-view />
+            <router-view v-slot="{ Component }">
+              <transition name="admin-page-fade" mode="out-in">
+                <component :is="Component" />
+              </transition>
+            </router-view>
           </div>
         </el-main>
       </el-container>
@@ -523,6 +546,11 @@ const currentTitle = computed(() => route.meta?.title || '仪表板')
 // 搜索相关
 const searchKeyword = ref('')
 const searchInput = ref()
+const isMainScrolled = ref(false)
+
+const handleMainScroll = (event) => {
+  isMainScrolled.value = event.target.scrollTop > 8
+}
 
 // 智能图标推断函数
 const getIconByPath = (path, title = '') => {
@@ -544,6 +572,8 @@ const getIconByPath = (path, title = '') => {
     'dashboard': 'Odometer',
     'user': 'Avatar', 
     'interview': 'Document',
+    'oj': 'Monitor',
+    'contests': 'Trophy',
     'categories': 'FolderOpened',
     'tags': 'PriceTag',
     'question-sets': 'Collection',
@@ -599,6 +629,7 @@ const getIconByPath = (path, title = '') => {
     '分类': 'FolderOpened',
     '标签': 'PriceTag',
     '题目': 'Edit',
+    '赛事': 'Trophy',
     '题单': 'Collection',
     '知识': 'DataAnalysis',
     '图谱': 'Share',
@@ -868,11 +899,13 @@ const handleUserCommand = async (command) => {
 <style scoped>
 .layout-container {
   height: 100vh;
+  background: transparent;
 }
 
 .sidebar {
-  background-color: #001529;
-  transition: width 0.2s;
+  background: linear-gradient(180deg, #fdfefe 0%, #f7fafe 100%);
+  border-right: 1px solid var(--cn-border-soft);
+  transition: width 0.24s ease;
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -883,24 +916,57 @@ const handleUserCommand = async (command) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: 18px;
-  font-weight: bold;
-  border-bottom: 1px solid #1e3a8a;
+  color: var(--cn-primary);
+  font-family: var(--cn-font-heading);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--cn-border-soft);
+  background: rgba(31, 111, 235, 0.04);
 }
 
 .header {
-  background-color: white;
-  border-bottom: 1px solid #e8e8e8;
+  background-color: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--cn-border-soft);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 18px 0 14px;
+  transition:
+    background-color var(--cn-motion-base) var(--cn-ease-out),
+    border-color var(--cn-motion-base) var(--cn-ease-out),
+    box-shadow var(--cn-motion-base) var(--cn-ease-out);
+}
+
+.header.header-elevated {
+  background-color: rgba(255, 255, 255, 0.96);
+  border-bottom-color: #d8e4f6;
+  box-shadow: 0 10px 26px rgba(18, 38, 63, 0.08);
 }
 
 .header-left {
   display: flex;
   align-items: center;
+}
+
+.header-toggle-btn {
+  margin-right: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--cn-radius-sm);
+  color: var(--cn-text-secondary);
+}
+
+.header-toggle-btn:hover {
+  color: var(--cn-primary);
+  background: var(--cn-primary-soft);
+}
+
+.header-title {
+  font-size: 17px;
+  color: var(--cn-text-primary);
+  font-weight: 600;
 }
 
 .header-right {
@@ -913,141 +979,172 @@ const handleUserCommand = async (command) => {
   align-items: center;
 }
 
+.header-avatar {
+  margin-right: 8px;
+  border: 2px solid #dce6f5;
+  color: var(--cn-primary);
+  background-color: #f1f6ff;
+}
+
 .username {
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 8px 12px;
-  border-radius: 4px;
-  transition: background-color 0.2s;
+  padding: 7px 12px;
+  border-radius: var(--cn-radius-sm);
+  color: var(--cn-text-secondary);
+  font-weight: 500;
+  transition: var(--cn-transition);
 }
 
 .username:hover {
-  background-color: #f5f5f5;
+  color: var(--cn-primary);
+  background: var(--cn-primary-soft);
 }
 
 .sidebar-menu {
   border: none;
-  background-color: #001529;
+  background: transparent;
   flex: 1;
   overflow-y: auto;
+  padding: 8px 10px 14px;
 }
 
-.sidebar-menu :deep(.el-menu-item) {
-  color: rgba(255, 255, 255, 0.8);
+.sidebar-menu :deep(.el-menu-item),
+.sidebar-menu :deep(.el-sub-menu__title) {
+  height: 42px;
+  line-height: 42px;
+  margin: 4px 0;
+  border-radius: 10px;
+  color: var(--cn-text-secondary);
+  font-weight: 500;
 }
 
-.sidebar-menu :deep(.el-menu-item:hover) {
-  background-color: #1890ff !important;
-  color: white;
+.sidebar-menu :deep(.el-menu-item .el-icon),
+.sidebar-menu :deep(.el-sub-menu__title .el-icon) {
+  color: #6281be;
+}
+
+.sidebar-menu :deep(.el-menu-item:hover),
+.sidebar-menu :deep(.el-sub-menu__title:hover) {
+  background: #eef4ff !important;
+  color: var(--cn-primary) !important;
+}
+
+.sidebar-menu :deep(.el-menu-item:hover .el-icon),
+.sidebar-menu :deep(.el-sub-menu__title:hover .el-icon) {
+  color: var(--cn-primary);
 }
 
 .sidebar-menu :deep(.el-menu-item.is-active) {
-  background-color: #1890ff !important;
-  color: white;
+  color: var(--cn-primary) !important;
+  background: linear-gradient(90deg, #e5efff 0%, #f3f7ff 100%) !important;
+  box-shadow: inset 3px 0 0 var(--cn-primary);
 }
 
-.sidebar-menu :deep(.el-sub-menu__title) {
-  color: rgba(255, 255, 255, 0.8);
+.sidebar-menu :deep(.el-menu-item.is-active .el-icon) {
+  color: var(--cn-primary);
 }
 
-.sidebar-menu :deep(.el-sub-menu__title:hover) {
-  background-color: #1890ff !important;
-  color: white;
+.sidebar-menu :deep(.el-sub-menu.is-active > .el-sub-menu__title) {
+  color: var(--cn-primary) !important;
+}
+
+.sidebar-menu :deep(.el-menu--inline .el-menu-item) {
+  padding-left: 46px !important;
 }
 
 .main-content {
-  background-color: #f0f2f5;
-  padding: 0;
+  background: transparent;
+  padding: 16px;
 }
 
 .page-container {
   height: 100%;
   overflow: auto;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--cn-border-soft);
+  border-radius: var(--cn-radius-md);
+  padding: 24px;
+  box-shadow: var(--cn-shadow-xs);
 }
 
-/* 侧边栏搜索输入框容器 */
+.admin-page-fade-enter-active,
+.admin-page-fade-leave-active {
+  transition:
+    opacity var(--cn-motion-base) var(--cn-ease-in-out),
+    transform var(--cn-motion-base) var(--cn-ease-out);
+}
+
+.admin-page-fade-enter-from,
+.admin-page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
 .sidebar-search-input-wrapper {
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  flex-shrink: 0; /* 防止搜索区域被压缩 */
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--cn-border-soft);
+  background: rgba(255, 255, 255, 0.72);
+  flex-shrink: 0;
 }
 
 .sidebar-search-input {
   width: 100%;
 }
 
-.sidebar-search :deep(.el-input__wrapper) {
-  background-color: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
+.sidebar-search-input :deep(.el-input__wrapper) {
+  background: #f4f8ff;
+  border: 1px solid #d6e3f5;
+  border-radius: 10px;
+  box-shadow: none;
   transition: all 0.3s ease;
 }
 
-.sidebar-search :deep(.el-input__wrapper:hover) {
-  background-color: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.3);
+.sidebar-search-input :deep(.el-input__wrapper:hover) {
+  border-color: #bdd2f2;
+  background: #f8fbff;
 }
 
-.sidebar-search :deep(.el-input__wrapper.is-focus) {
-  background-color: rgba(255, 255, 255, 0.2);
-  border-color: #409eff;
-  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+.sidebar-search-input :deep(.el-input__wrapper.is-focus) {
+  background: #fff;
+  border-color: var(--cn-primary);
+  box-shadow: 0 0 0 2px rgba(31, 111, 235, 0.12);
 }
 
-.sidebar-search :deep(.el-input__inner) {
-  color: white;
+.sidebar-search-input :deep(.el-input__inner) {
+  color: var(--cn-text-primary);
   font-size: 13px;
 }
 
-.sidebar-search :deep(.el-input__inner::placeholder) {
-  color: rgba(255, 255, 255, 0.6);
+.sidebar-search-input :deep(.el-input__inner::placeholder) {
+  color: var(--cn-text-tertiary);
 }
 
-.sidebar-search :deep(.el-input__prefix) {
-  color: rgba(255, 255, 255, 0.8);
+.sidebar-search-input :deep(.el-input__prefix) {
+  color: #7690bf;
 }
 
-/* 搜索结果容器 - 占用菜单区域的空间 */
 .search-results-container {
-  flex: 1; /* 占用剩余空间，和菜单区域一样 */
+  flex: 1;
   overflow-y: auto;
-  padding: 0 16px 16px 16px;
+  padding: 10px 14px 16px;
 }
 
-/* 搜索结果区域 */
 .search-results {
-  border-radius: 6px;
-  background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* 搜索结果滚动条样式 */
-.search-results::-webkit-scrollbar {
-  width: 4px;
-}
-
-.search-results::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
-}
-
-.search-results::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 2px;
-}
-
-.search-results::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
+  border-radius: var(--cn-radius-md);
+  background: var(--cn-surface-1);
+  border: 1px solid var(--cn-border-soft);
+  box-shadow: var(--cn-shadow-xs);
 }
 
 .search-results-header {
-  padding: 8px 12px;
+  padding: 10px 12px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--cn-text-secondary);
+  border-bottom: 1px solid var(--cn-border-soft);
+  background: #f6f9ff;
 }
 
 .search-result-item {
@@ -1055,12 +1152,12 @@ const handleUserCommand = async (command) => {
   align-items: center;
   padding: 10px 12px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: var(--cn-transition);
+  border-bottom: 1px solid #edf2fa;
 }
 
 .search-result-item:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background: #f1f6ff;
 }
 
 .search-result-item:last-child {
@@ -1069,7 +1166,7 @@ const handleUserCommand = async (command) => {
 
 .search-result-icon {
   margin-right: 10px;
-  color: rgba(255, 255, 255, 0.8);
+  color: #5f7fbd;
   font-size: 16px;
   flex-shrink: 0;
 }
@@ -1082,7 +1179,7 @@ const handleUserCommand = async (command) => {
 .search-result-title {
   font-size: 13px;
   font-weight: 500;
-  color: white;
+  color: var(--cn-text-primary);
   margin-bottom: 2px;
   white-space: nowrap;
   overflow: hidden;
@@ -1091,52 +1188,61 @@ const handleUserCommand = async (command) => {
 
 .search-result-path {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--cn-text-tertiary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* 无搜索结果 */
 .search-no-results {
   text-align: center;
   padding: 40px 20px;
-  color: rgba(255, 255, 255, 0.6);
-  border-radius: 6px;
-  background-color: rgba(255, 255, 255, 0.02);
+  color: var(--cn-text-tertiary);
+  border-radius: var(--cn-radius-md);
+  background: rgba(255, 255, 255, 0.66);
+  border: 1px dashed var(--cn-border);
 }
 
 .no-results-icon {
-  font-size: 24px;
+  font-size: 22px;
   margin-bottom: 8px;
-  opacity: 0.5;
+  opacity: 0.75;
 }
 
 .no-results-text {
   font-size: 12px;
 }
 
-/* 折叠状态下的搜索按钮 */
 .sidebar-search-collapsed {
   display: flex;
   justify-content: center;
   padding: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--cn-border-soft);
 }
 
 .search-toggle-btn {
   width: 40px;
   height: 40px;
-  border-radius: 8px;
+  border-radius: 10px;
   display: flex !important;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.8) !important;
-  transition: all 0.3s ease;
+  color: var(--cn-text-secondary) !important;
+  transition: var(--cn-transition);
 }
 
 .search-toggle-btn:hover {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  color: white !important;
+  background: var(--cn-primary-soft) !important;
+  color: var(--cn-primary) !important;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding: 10px;
+  }
+
+  .page-container {
+    padding: 14px;
+  }
 }
 </style> 

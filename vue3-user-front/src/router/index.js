@@ -7,7 +7,7 @@ const routes = [
   {
     path: '/',
     name: 'Home',
-    component: () => import('@/views/Home.vue'),
+    component: () => import('@/views/HomeRevamp.vue'),
     meta: {
       title: '首页',
       requiresAuth: true
@@ -89,6 +89,97 @@ const routes = [
       title: '智能复习',
       requiresAuth: true,
       keepAlive: false
+    }
+  },
+  // ============ 在线判题 ============
+  {
+    path: '/oj',
+    name: 'OJ',
+    component: () => import('@/views/oj/Index.vue'),
+    meta: {
+      title: '在线判题',
+      requiresAuth: true,
+      keepAlive: true
+    }
+  },
+  {
+    path: '/oj/contests',
+    name: 'OjContests',
+    component: () => import('@/views/oj/Contests.vue'),
+    meta: {
+      title: '赛事中心',
+      requiresAuth: true,
+      keepAlive: true
+    }
+  },
+  {
+    path: '/oj/contests/:id',
+    name: 'OjContestDetail',
+    component: () => import('@/views/oj/ContestDetail.vue'),
+    meta: {
+      title: '赛事详情',
+      requiresAuth: true,
+      keepAlive: false
+    }
+  },
+  {
+    path: '/oj/problem/:id',
+    name: 'OjProblemDetail',
+    component: () => import('@/views/oj/ProblemDetail.vue'),
+    meta: {
+      title: '题目详情',
+      requiresAuth: true,
+      keepAlive: false
+    }
+  },
+  {
+    path: '/oj/submission/:id',
+    name: 'OjSubmissionDetail',
+    component: () => import('@/views/oj/SubmissionDetail.vue'),
+    meta: {
+      title: '提交详情',
+      requiresAuth: true,
+      keepAlive: false
+    }
+  },
+  {
+    path: '/oj/my-submissions',
+    name: 'OjMySubmissions',
+    component: () => import('@/views/oj/MySubmissions.vue'),
+    meta: {
+      title: '我的提交',
+      requiresAuth: true,
+      keepAlive: true
+    }
+  },
+  {
+    path: '/oj/statistics',
+    name: 'OjStatistics',
+    component: () => import('@/views/oj/Statistics.vue'),
+    meta: {
+      title: '做题统计',
+      requiresAuth: true,
+      keepAlive: false
+    }
+  },
+  {
+    path: '/oj/playground',
+    name: 'OjPlayground',
+    component: () => import('@/views/oj/Playground.vue'),
+    meta: {
+      title: '练习场',
+      requiresAuth: true,
+      keepAlive: false
+    }
+  },
+  {
+    path: '/oj/ranking',
+    name: 'OjRanking',
+    component: () => import('@/views/oj/Ranking.vue'),
+    meta: {
+      title: '排行榜',
+      requiresAuth: true,
+      keepAlive: true
     }
   },
   // ============ 模拟面试 ============

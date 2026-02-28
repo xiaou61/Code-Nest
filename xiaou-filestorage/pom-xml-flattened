@@ -5,11 +5,11 @@
   <parent>
     <groupId>com.xiaou</groupId>
     <artifactId>Code-Nest</artifactId>
-    <version>1.7.1</version>
+    <version>1.7.2</version>
   </parent>
   <groupId>com.xiaou</groupId>
   <artifactId>xiaou-filestorage</artifactId>
-  <version>1.7.1</version>
+  <version>1.7.2</version>
   <name>xiaou-filestorage</name>
   <description>文件存储模块</description>
   <properties>

@@ -687,6 +687,24 @@ public class PointsServiceImpl implements PointsService {
                 .build();
     }
     
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void grantSystemPoints(Long userId, int points, int type, String description) {
+        log.info("系统发放积分: userId={}, points={}, type={}, desc={}", userId, points, type, description);
+        ensureUserPointsBalance(userId);
+        pointsBalanceMapper.addPoints(userId, points);
+        UserPointsBalance balance = pointsBalanceMapper.selectByUserId(userId);
+
+        UserPointsDetail detail = new UserPointsDetail();
+        detail.setUserId(userId);
+        detail.setPointsChange(points);
+        detail.setPointsType(type);
+        detail.setDescription(description);
+        detail.setBalanceAfter(balance.getTotalPoints());
+        detail.setCreateTime(LocalDateTime.now());
+        pointsDetailMapper.insert(detail);
+    }
+
     /**
      * 获取用户名称
      */

@@ -334,7 +334,7 @@ onMounted(() => {
   display: flex;
   gap: 24px;
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%);
+  background: linear-gradient(135deg, #f8f7ff 0%, #f0eeff 50%, #f5f0ff 100%);
   padding: 24px;
 }
 
@@ -368,16 +368,17 @@ onMounted(() => {
 }
 
 .back-btn:hover {
-  color: #409eff;
+  color: #6c63ff;
   transform: translateX(-4px);
 }
 
 /* 信息卡片 */
 .info-card {
   background: white;
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 12px rgba(108, 99, 255, 0.06);
+  border: 1px solid rgba(108, 99, 255, 0.06);
 }
 
 .info-header {
@@ -404,12 +405,13 @@ onMounted(() => {
 /* 统计卡片 */
 .stats-card {
   background: white;
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 12px rgba(108, 99, 255, 0.06);
+  border: 1px solid rgba(108, 99, 255, 0.06);
 }
 
 .stat-item {
@@ -429,18 +431,18 @@ onMounted(() => {
 }
 
 .questions-icon {
-  background: linear-gradient(135deg, #e8f4ff 0%, #d4e8ff 100%);
-  color: #409eff;
+  background: linear-gradient(135deg, #f0edff 0%, #e8e4ff 100%);
+  color: #6c63ff;
 }
 
 .views-icon {
-  background: linear-gradient(135deg, #e8f8e8 0%, #d4f0d4 100%);
-  color: #67c23a;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  color: #10b981;
 }
 
 .favorites-icon {
-  background: linear-gradient(135deg, #fff3e8 0%, #ffe8d4 100%);
-  color: #e6a23c;
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  color: #f59e0b;
 }
 
 .stat-info {
@@ -478,7 +480,10 @@ onMounted(() => {
 }
 
 .progress-text {
-  color: #409eff;
+  background: linear-gradient(135deg, #6c63ff, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   font-weight: 700;
 }
 
@@ -495,12 +500,12 @@ onMounted(() => {
   font-size: 16px;
   font-weight: 600;
   border-radius: 12px;
-  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+  background: linear-gradient(135deg, #6c63ff 0%, #4f46e5 100%);
   border: none;
 }
 
 .start-btn:hover {
-  background: linear-gradient(135deg, #66b1ff 0%, #409eff 100%);
+  background: linear-gradient(135deg, #4f46e5 0%, #6c63ff 100%);
 }
 
 .favorite-btn {
@@ -521,9 +526,10 @@ onMounted(() => {
   align-items: center;
   background: white;
   padding: 16px 20px;
-  border-radius: 12px;
+  border-radius: 14px;
   margin-bottom: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 12px rgba(108, 99, 255, 0.06);
+  border: 1px solid rgba(108, 99, 255, 0.06);
 }
 
 .header-left {
@@ -540,7 +546,7 @@ onMounted(() => {
 }
 
 .question-badge {
-  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+  background: linear-gradient(135deg, #6c63ff 0%, #8b5cf6 100%);
   color: white;
   padding: 4px 12px;
   border-radius: 12px;
@@ -559,21 +565,21 @@ onMounted(() => {
   align-items: center;
   padding: 16px 20px;
   background: white;
-  border-radius: 12px;
+  border-radius: 14px;
   cursor: pointer;
   transition: all 0.3s;
   border: 2px solid transparent;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 12px rgba(108, 99, 255, 0.04);
 }
 
 .question-item:hover {
-  border-color: #409eff;
+  border-color: rgba(108, 99, 255, 0.3);
   transform: translateX(8px);
-  box-shadow: 0 8px 24px rgba(64, 158, 255, 0.15);
+  box-shadow: 0 8px 24px rgba(108, 99, 255, 0.12);
 }
 
 .question-item:hover .question-action {
-  color: #409eff;
+  color: #6c63ff;
 }
 
 .question-item:hover .action-text {

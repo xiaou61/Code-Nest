@@ -1,14 +1,83 @@
-// 全局样式重置
+@use './motion.scss';
+
+:root {
+  --cn-font-sans: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  --cn-font-heading: 'Poppins', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+  --cn-bg-page: #f3f6fb;
+  --cn-bg-canvas: #eaf0f9;
+  --cn-surface-1: #ffffff;
+  --cn-surface-2: #f8fbff;
+
+  --cn-text-primary: #1f2a44;
+  --cn-text-secondary: #4e5d7a;
+  --cn-text-tertiary: #7f8ba3;
+  --cn-border: #d6e1ef;
+  --cn-border-soft: #e7edf7;
+
+  --cn-primary: #1f6feb;
+  --cn-primary-hover: #145bd1;
+  --cn-primary-soft: #eaf1ff;
+  --cn-success: #1f9d64;
+  --cn-warning: #d9911b;
+  --cn-danger: #d14343;
+
+  --cn-shadow-xs: 0 2px 8px rgba(18, 38, 63, 0.04);
+  --cn-shadow-sm: 0 8px 24px rgba(18, 38, 63, 0.06);
+  --cn-shadow-md: 0 14px 36px rgba(18, 38, 63, 0.1);
+
+  --cn-radius-sm: 8px;
+  --cn-radius-md: 12px;
+  --cn-radius-lg: 18px;
+  --cn-transition: all 0.22s ease;
+
+  --el-color-primary: var(--cn-primary);
+  --el-color-primary-light-3: #4b88ef;
+  --el-color-primary-light-5: #7ba8f3;
+  --el-color-primary-light-7: #a8c4f7;
+  --el-color-primary-light-8: #bfd2fa;
+  --el-color-primary-light-9: #d7e2fc;
+  --el-color-primary-dark-2: #0f4fb2;
+
+  --el-color-success: var(--cn-success);
+  --el-color-warning: var(--cn-warning);
+  --el-color-danger: var(--cn-danger);
+  --el-border-radius-base: var(--cn-radius-sm);
+  --el-bg-color-page: var(--cn-bg-page);
+  --el-bg-color: var(--cn-surface-1);
+  --el-text-color-primary: var(--cn-text-primary);
+  --el-text-color-regular: var(--cn-text-secondary);
+  --el-border-color: var(--cn-border-soft);
+}
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background-color: #f0f2f5;
+  background: radial-gradient(circle at 10% -10%, #ffffff 0%, var(--cn-bg-page) 52%, var(--cn-bg-canvas) 100%);
+  font-family: var(--cn-font-sans);
+  color: var(--cn-text-primary);
+}
+
+body {
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--cn-font-heading);
+  letter-spacing: 0.01em;
 }
 
 #app {
@@ -17,48 +86,282 @@ html, body {
   overflow: hidden;
 }
 
-// 滚动条样式
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
+  background: #edf2fb;
+  border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
+  background: #b8c8e4;
+  border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
+  background: #97adcf;
 }
 
-// Element Plus 样式调整
 .el-main {
-  padding: 20px;
+  padding: 24px;
   overflow-y: auto;
   height: calc(100vh - 60px);
 }
 
-.el-aside {
-  background-color: #001529;
-  color: #fff;
-}
-
 .el-header {
-  background-color: #fff;
-  border-bottom: 1px solid #e8e8e8;
+  background-color: var(--cn-surface-1);
+  border-bottom: 1px solid var(--cn-border-soft);
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-// 工具类
+.el-card {
+  border-radius: var(--cn-radius-md);
+  border: 1px solid var(--cn-border-soft);
+  box-shadow: var(--cn-shadow-xs);
+}
+
+.el-card__header {
+  border-bottom: 1px solid var(--cn-border-soft);
+}
+
+.el-table {
+  border-radius: var(--cn-radius-sm);
+  overflow: hidden;
+}
+
+.el-table__header-wrapper th.el-table__cell {
+  background: #f7f9fd;
+}
+
+/* 第二轮：统一组件层视觉规范 */
+.el-button {
+  border-radius: 10px;
+  font-weight: 500;
+  transition: var(--cn-transition);
+}
+
+.el-button:not(.is-disabled):not(.is-loading):hover {
+  transform: translateY(-1px);
+}
+
+.el-button--primary {
+  border-color: #1e67dc;
+  background: linear-gradient(135deg, #2b7cf6 0%, #1f6feb 100%);
+  box-shadow: 0 8px 18px rgba(31, 111, 235, 0.22);
+}
+
+.el-button--primary:not(.is-disabled):hover {
+  border-color: #1252bb;
+  background: linear-gradient(135deg, #2f82ff 0%, #165fd9 100%);
+  box-shadow: 0 10px 22px rgba(22, 95, 217, 0.24);
+}
+
+.el-button--default {
+  color: var(--cn-text-secondary);
+  border-color: #d4e1f4;
+  background: #fff;
+}
+
+.el-button.is-text:not(.is-disabled),
+.el-button.is-link:not(.is-disabled) {
+  color: var(--cn-primary);
+}
+
+.el-input__wrapper,
+.el-textarea__inner {
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px #d6e3f5 inset !important;
+  background: #fff;
+  transition: var(--cn-transition);
+}
+
+.el-input__wrapper:hover,
+.el-textarea__inner:hover {
+  box-shadow: 0 0 0 1px #bfd3f2 inset !important;
+}
+
+.el-input.is-focus .el-input__wrapper,
+.el-textarea__inner:focus {
+  box-shadow:
+    0 0 0 1px var(--cn-primary) inset,
+    0 0 0 3px rgba(31, 111, 235, 0.12) !important;
+}
+
+.el-select .el-input.is-focus .el-input__wrapper,
+.el-date-editor.el-input__wrapper.is-focus {
+  box-shadow:
+    0 0 0 1px var(--cn-primary) inset,
+    0 0 0 3px rgba(31, 111, 235, 0.12) !important;
+}
+
+.el-form-item__label {
+  color: var(--cn-text-secondary);
+  font-weight: 500;
+}
+
+.el-table {
+  border: 1px solid var(--cn-border-soft);
+}
+
+.el-table tr th.el-table__cell {
+  color: var(--cn-text-secondary);
+  font-weight: 600;
+}
+
+.el-table .el-table__row td.el-table__cell {
+  color: var(--cn-text-primary);
+  border-bottom: 1px solid #edf2fa;
+}
+
+.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background: #fbfdff;
+}
+
+.el-table .el-table__body tr:hover > td.el-table__cell {
+  background: #f3f8ff !important;
+}
+
+.el-pagination {
+  margin-top: 4px;
+}
+
+.el-pagination .btn-prev,
+.el-pagination .btn-next,
+.el-pagination .el-pager li {
+  min-width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: 1px solid #d6e3f5;
+  background: #fff;
+  color: var(--cn-text-secondary);
+  transition: var(--cn-transition);
+}
+
+.el-pagination .el-pager li.is-active {
+  border-color: #bfd4ff;
+  background: #eef4ff;
+  color: var(--cn-primary);
+  font-weight: 600;
+}
+
+.el-pagination .btn-prev:hover,
+.el-pagination .btn-next:hover,
+.el-pagination .el-pager li:hover {
+  color: var(--cn-primary);
+  border-color: #bfd4ff;
+  background: #f3f8ff;
+}
+
+.el-tag {
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+.el-empty {
+  padding: 24px 0;
+}
+
+.el-tabs__item {
+  color: var(--cn-text-secondary);
+  font-weight: 500;
+}
+
+.el-tabs__item.is-active {
+  color: var(--cn-primary);
+  font-weight: 600;
+}
+
+.el-tabs__active-bar {
+  background: var(--cn-primary);
+}
+
+.el-tabs__nav-wrap::after {
+  background: var(--cn-border-soft);
+}
+
+.el-overlay {
+  background-color: rgba(21, 35, 58, 0.3);
+  backdrop-filter: blur(3px);
+}
+
+.el-dialog {
+  border-radius: 14px;
+  border: 1px solid var(--cn-border-soft);
+  box-shadow: 0 22px 48px rgba(18, 38, 63, 0.18);
+  overflow: hidden;
+}
+
+.el-dialog__header {
+  margin-right: 0;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--cn-border-soft);
+  background: linear-gradient(180deg, #fafdff 0%, #f5f8fe 100%);
+}
+
+.el-dialog__title {
+  color: var(--cn-text-primary);
+  font-weight: 600;
+}
+
+.el-dialog__body {
+  padding: 20px;
+}
+
+.el-drawer {
+  border-left: 1px solid var(--cn-border-soft);
+}
+
+.header-card,
+.search-card,
+.table-card {
+  margin-bottom: 16px;
+  border: 1px solid var(--cn-border-soft);
+  border-radius: var(--cn-radius-md);
+  box-shadow: var(--cn-shadow-xs);
+}
+
+.header-card .el-card__body {
+  background: linear-gradient(180deg, #fdfefe 0%, #f6f9ff 100%);
+}
+
+.search-card .el-card__body {
+  background: #fbfdff;
+}
+
+.table-card .el-card__body {
+  background: #fff;
+}
+
+.page-header,
+.page-toolbar,
+.action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.search-form,
+.filter-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.stat-card {
+  border: 1px solid var(--cn-border-soft);
+  border-radius: 14px;
+  box-shadow: var(--cn-shadow-xs);
+  background: linear-gradient(160deg, #ffffff 0%, #f6f9ff 100%);
+}
+
 .flex {
   display: flex;
 }
@@ -79,9 +382,11 @@ html, body {
   margin-bottom: 16px;
 }
 
-// 登录页面样式
 .login-container {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background:
+    radial-gradient(circle at 22% 18%, rgba(31, 111, 235, 0.16) 0%, rgba(31, 111, 235, 0) 46%),
+    radial-gradient(circle at 86% -8%, rgba(76, 154, 255, 0.2) 0%, rgba(76, 154, 255, 0) 42%),
+    linear-gradient(155deg, #f6f9ff 0%, #edf3ff 48%, #f9fbff 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -89,180 +394,101 @@ html, body {
 }
 
 .login-form {
-  background: rgba(255, 255, 255, 0.9);
-  padding: 40px;
-  border-radius: 10px;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-  width: 400px;
-  
+  width: min(420px, 92%);
+  padding: 36px 32px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(214, 225, 239, 0.95);
+  border-radius: var(--cn-radius-lg);
+  box-shadow: var(--cn-shadow-md);
+  backdrop-filter: blur(8px);
+
   .title {
+    margin-bottom: 28px;
     text-align: center;
-    font-size: 24px;
-    font-weight: bold;
-    margin-bottom: 30px;
-    color: #333;
+    font-size: 25px;
+    font-weight: 600;
+    color: var(--cn-text-primary);
+    letter-spacing: 0.02em;
   }
-  
+
   .el-form-item {
     margin-bottom: 20px;
   }
-  
+
   .login-button {
     width: 100%;
-    margin-top: 20px;
+    margin-top: 10px;
+    height: 42px;
   }
 }
 
-// 布局相关样式
 .layout-container {
   height: 100vh;
-  
-  .sidebar {
-    background-color: #001529 !important;
-    
-    .logo {
-      height: 60px;
-      line-height: 60px;
-      text-align: center;
-      background-color: rgba(255, 255, 255, 0.1);
-      color: #fff;
-      font-size: 18px;
-      font-weight: bold;
-    }
-    
-    .el-menu {
-      border: none;
-      background-color: transparent;
-      
-      .el-menu-item {
-        color: rgba(255, 255, 255, 0.8);
-        
-        &:hover {
-          background-color: rgba(255, 255, 255, 0.1);
-          color: #fff;
-        }
-        
-        &.is-active {
-          background-color: #1890ff;
-          color: #fff;
-        }
-      }
-      
-      // 修复子菜单标题样式，与普通菜单项保持一致
-      .el-sub-menu {
-        .el-sub-menu__title {
-          color: rgba(255, 255, 255, 0.8) !important;
-          
-          &:hover {
-            background-color: rgba(255, 255, 255, 0.1) !important;
-            color: #fff !important;
-          }
-        }
-        
-        &.is-active .el-sub-menu__title {
-          color: #fff !important;
-        }
-        
-        // 子菜单展开时的背景
-        &.is-opened .el-sub-menu__title {
-          background-color: rgba(255, 255, 255, 0.1);
-          color: #fff;
-        }
-      }
-    }
-  }
-  
-  .header {
-    padding: 0 20px;
-    box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
-  }
-  
-  .main-content {
-    background-color: #f0f2f5;
-    padding: 20px;
-    
-    .page-container {
-      background: #fff;
-      padding: 24px;
-      border-radius: 4px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-      min-height: calc(100vh - 140px);
-    }
+}
+
+.main-content {
+  background: transparent;
+  padding: 0;
+
+  .page-container {
+    min-height: 100%;
+    padding: 24px;
+    border-radius: var(--cn-radius-md);
   }
 }
 
-// 响应式设计
-@media (max-width: 768px) {
-  .login-form {
-    width: 90%;
-    max-width: 400px;
-    padding: 30px 20px;
-  }
-  
-  .main-content {
-    padding: 10px;
-    
-    .page-container {
-      padding: 16px;
-    }
-  }
-} 
-
-// 页面内容样式统一，确保与仪表盘一致
 .login-logs-container,
 .operation-logs-container {
-  // 确保背景透明，使用父容器的白色背景
   background: transparent !important;
-  
-  // 统一标题样式，与仪表盘保持一致
+
   h1 {
-    color: #303133 !important;
-    font-weight: 500 !important;
+    color: var(--cn-text-primary) !important;
+    font-weight: 600 !important;
     font-size: 20px !important;
   }
-  
-  // 统一卡片样式，确保与仪表盘card样式一致  
+
   .el-card {
-    background: #fff !important;
-    border: 1px solid #ebeef5 !important;
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1) !important;
-    
-    .el-card__header {
-      background: #fff !important;
-      border-bottom: 1px solid #ebeef5 !important;
-    }
-    
-    .el-card__body {
-      background: #fff !important;
-    }
+    background: var(--cn-surface-1) !important;
+    border: 1px solid var(--cn-border-soft) !important;
+    box-shadow: var(--cn-shadow-xs) !important;
   }
-  
-  // 统一表格样式，确保背景纯白
+
+  .el-card__header {
+    background: var(--cn-surface-1) !important;
+    border-bottom: 1px solid var(--cn-border-soft) !important;
+  }
+
   .el-table {
-    background: #fff !important;
-    
-    .el-table__header {
-      background: #fafafa !important;
-    }
-    
-    .el-table__body {
-      background: #fff !important;
-    }
-    
-    .el-table__row {
-      background: #fff !important;
-      
-      &:hover {
-        background: #f5f7fa !important;
-      }
-    }
-    
-    .el-table__row--striped {
-      background: #fafafa !important;
-      
-      &:hover {
-        background: #f5f7fa !important;
-      }
-    }
+    background: var(--cn-surface-1) !important;
   }
-} 
+
+  .el-table__row:hover > td.el-table__cell {
+    background: #f4f7fd !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .el-main {
+    padding: 14px;
+  }
+
+  .header-card,
+  .search-card,
+  .table-card {
+    margin-bottom: 12px;
+  }
+
+  .page-header,
+  .page-toolbar,
+  .action-bar {
+    align-items: stretch;
+  }
+
+  .login-form {
+    padding: 30px 22px;
+  }
+
+  .main-content .page-container {
+    padding: 14px;
+  }
+}
