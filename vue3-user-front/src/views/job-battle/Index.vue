@@ -56,10 +56,14 @@
             </el-col>
           </el-row>
           <div class="step-actions">
+            <el-button plain @click="openPlanHistory">
+              查看历史计划
+            </el-button>
             <el-button type="primary" :loading="loading.jd" @click="handleParseJd">
               下一步：解析JD
             </el-button>
           </div>
+          <div class="tip-text">可先载入历史计划，系统会自动跳转到步骤3继续执行。</div>
         </el-form>
       </el-card>
 
@@ -171,18 +175,120 @@
 
         <div v-if="planResult" class="plan-preview">
           <el-divider>计划生成结果</el-divider>
-          <div class="result-item"><b>计划名：</b>{{ planResult.planName || '-' }}</div>
-          <div class="result-item"><b>总天数：</b>{{ planResult.totalDays || '-' }}</div>
-          <div class="result-item"><b>周目标：</b>{{ joinText(planResult.weeklyGoals, ' | ') }}</div>
-          <div class="result-item">
-            <b>里程碑：</b>
-            <pre class="json-view">{{ formatJson(planResult.milestones) }}</pre>
+
+          <div class="plan-summary-grid">
+            <el-card shadow="never" class="plan-summary-card">
+              <div class="summary-label">计划名称</div>
+              <div class="summary-value">{{ planResult.planName || '-' }}</div>
+            </el-card>
+            <el-card shadow="never" class="plan-summary-card">
+              <div class="summary-label">总天数</div>
+              <div class="summary-value">{{ planResult.totalDays || '-' }} 天</div>
+            </el-card>
+            <el-card shadow="never" class="plan-summary-card">
+              <div class="summary-label">每周投入</div>
+              <div class="summary-value">{{ planForm.weeklyHours || '-' }} h</div>
+            </el-card>
+            <el-card shadow="never" class="plan-summary-card">
+              <div class="summary-label">计划类型</div>
+              <div class="summary-value">
+                <el-tag :type="planResult.fallback ? 'warning' : 'success'">
+                  {{ planResult.fallback ? '降级计划' : 'AI计划' }}
+                </el-tag>
+              </div>
+            </el-card>
           </div>
-          <div class="result-item">
-            <b>每日任务（预览）：</b>
-            <pre class="json-view">{{ formatJson(planResult.dailyTasks) }}</pre>
+
+          <div class="plan-main-grid">
+            <el-card shadow="never" class="plan-section-card">
+              <template #header>
+                <div class="section-title">周目标卡片</div>
+              </template>
+              <div v-if="normalizedWeeklyGoals.length" class="weekly-goals-grid">
+                <div
+                  v-for="(week, index) in normalizedWeeklyGoals"
+                  :key="`week-${index}`"
+                  class="weekly-goal-card"
+                >
+                  <div class="weekly-goal-head">
+                    <el-tag size="small" type="primary">Week {{ week.weekNum || index + 1 }}</el-tag>
+                  </div>
+                  <div class="weekly-goal-text">{{ week.goal || '未提供周目标内容' }}</div>
+                  <div v-if="week.focusGaps.length" class="weekly-gap-list">
+                    <el-tag
+                      v-for="(gap, gapIndex) in week.focusGaps"
+                      :key="`gap-${index}-${gapIndex}`"
+                      size="small"
+                      type="warning"
+                      effect="plain"
+                    >
+                      {{ gap }}
+                    </el-tag>
+                  </div>
+                </div>
+              </div>
+              <el-empty v-else description="暂无周目标数据" :image-size="80" />
+            </el-card>
+
+            <el-card shadow="never" class="plan-section-card">
+              <template #header>
+                <div class="section-title">里程碑时间线</div>
+              </template>
+              <el-timeline v-if="normalizedMilestones.length">
+                <el-timeline-item
+                  v-for="(milestone, index) in normalizedMilestones"
+                  :key="`milestone-${index}`"
+                  :timestamp="`Day ${milestone.day ?? '-'}`"
+                  :type="index === normalizedMilestones.length - 1 ? 'success' : 'primary'"
+                >
+                  <div class="milestone-goal">{{ milestone.goal || '未提供里程碑目标' }}</div>
+                </el-timeline-item>
+              </el-timeline>
+              <el-empty v-else description="暂无里程碑数据" :image-size="80" />
+            </el-card>
           </div>
-          <div class="result-item"><b>风险与兜底：</b>{{ joinText(planResult.riskAndFallback) }}</div>
+
+          <el-card shadow="never" class="plan-section-card">
+            <template #header>
+              <div class="section-title">每日任务（预览）</div>
+            </template>
+            <el-table :data="normalizedDailyTasks" stripe border class="daily-task-table" max-height="360">
+              <el-table-column prop="day" label="天数" width="72">
+                <template #default="{ row }">Day {{ row.day ?? '-' }}</template>
+              </el-table-column>
+              <el-table-column prop="taskType" label="类型" width="108">
+                <template #default="{ row }">
+                  <el-tag size="small" effect="plain">{{ taskTypeLabel(row.taskType) }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="task" label="任务" min-width="280" show-overflow-tooltip />
+              <el-table-column prop="durationMinutes" label="时长" width="96">
+                <template #default="{ row }">{{ row.durationMinutes || '-' }} min</template>
+              </el-table-column>
+              <el-table-column prop="deliverable" label="交付物" min-width="240" show-overflow-tooltip />
+            </el-table>
+            <el-empty v-if="!normalizedDailyTasks.length" description="暂无每日任务数据" :image-size="80" />
+          </el-card>
+
+          <el-card shadow="never" class="plan-section-card">
+            <template #header>
+              <div class="section-title">风险与兜底</div>
+            </template>
+            <div v-if="normalizedRiskItems.length" class="risk-list">
+              <div
+                v-for="(risk, index) in normalizedRiskItems"
+                :key="`risk-${index}`"
+                class="risk-item"
+              >
+                <div class="risk-item-title">
+                  <el-tag type="danger" size="small">风险 {{ index + 1 }}</el-tag>
+                  <span>{{ risk.risk || '未提供风险描述' }}</span>
+                </div>
+                <div class="risk-item-fallback">兜底：{{ risk.fallback || '未提供兜底方案' }}</div>
+              </div>
+            </div>
+            <el-empty v-else description="暂无风险与兜底数据" :image-size="80" />
+          </el-card>
         </div>
       </el-card>
 
@@ -198,7 +304,7 @@
         <div class="context-box">
           <div><b>计划名：</b>{{ planResult?.planName || '-' }}</div>
           <div><b>总天数：</b>{{ planResult?.totalDays || '-' }}</div>
-          <div><b>周目标：</b>{{ joinText(planResult?.weeklyGoals, ' | ') }}</div>
+          <div><b>周目标：</b>{{ joinText(planWeeklyGoalTexts, ' | ') }}</div>
         </div>
         <el-form label-position="top">
           <el-form-item label="面试记录">
@@ -342,7 +448,7 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Trophy } from '@element-plus/icons-vue'
 import { jobBattleApi } from '@/api/jobBattle'
@@ -401,6 +507,189 @@ const historyState = reactive({
 
 const buildParsedJdJson = () => JSON.stringify(jdResult.value || {})
 const buildGapsJson = () => JSON.stringify(matchResult.value?.gaps || [])
+
+const TASK_TYPE_LABEL_MAP = {
+  learn: '学习',
+  practice: '练习',
+  project: '项目',
+  mock: '模拟面试',
+  review: '复盘'
+}
+
+const taskTypeLabel = (taskType) => {
+  if (!taskType) {
+    return '未分类'
+  }
+  return TASK_TYPE_LABEL_MAP[taskType] || taskType
+}
+
+const tryParseJson = (value) => {
+  if (typeof value !== 'string') {
+    return null
+  }
+  const text = value.trim()
+  if (!text || (!text.startsWith('{') && !text.startsWith('['))) {
+    return null
+  }
+  try {
+    return JSON.parse(text)
+  } catch (e) {
+    return null
+  }
+}
+
+const normalizeToArray = (value) => {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (value == null) {
+    return []
+  }
+  if (typeof value === 'string') {
+    const parsed = tryParseJson(value)
+    if (Array.isArray(parsed)) {
+      return parsed
+    }
+    return value
+      .split(/\n+/)
+      .map(item => item.trim())
+      .filter(Boolean)
+  }
+  return [value]
+}
+
+const normalizeTextList = (value) => {
+  if (Array.isArray(value)) {
+    return value.map(item => (item == null ? '' : String(item).trim())).filter(Boolean)
+  }
+  if (typeof value === 'string') {
+    return value
+      .split(/[|；;、,，]/)
+      .map(item => item.trim())
+      .filter(Boolean)
+  }
+  return []
+}
+
+const normalizeWeeklyGoalItem = (item, index) => {
+  let source = item
+  if (typeof source === 'string') {
+    const parsed = tryParseJson(source)
+    source = parsed || source
+  }
+
+  if (source && typeof source === 'object' && !Array.isArray(source)) {
+    return {
+      weekNum: Number(source.weekNum || source.week || source.weekNo || index + 1),
+      goal: source.goal || source.target || source.title || source.content || '',
+      focusGaps: normalizeTextList(source.focusGaps || source.gaps || source.focus || source.keywords)
+    }
+  }
+
+  return {
+    weekNum: index + 1,
+    goal: source == null ? '' : String(source),
+    focusGaps: []
+  }
+}
+
+const normalizeMilestoneItem = (item) => {
+  let source = item
+  if (typeof source === 'string') {
+    const parsed = tryParseJson(source)
+    source = parsed || source
+  }
+
+  if (source && typeof source === 'object' && !Array.isArray(source)) {
+    return {
+      day: Number(source.day || source.milestoneDay || source.dueDay || 0) || null,
+      goal: source.goal || source.target || source.content || ''
+    }
+  }
+
+  return {
+    day: null,
+    goal: source == null ? '' : String(source)
+  }
+}
+
+const normalizeDailyTaskItem = (item) => {
+  let source = item
+  if (typeof source === 'string') {
+    const parsed = tryParseJson(source)
+    source = parsed || source
+  }
+
+  if (source && typeof source === 'object' && !Array.isArray(source)) {
+    return {
+      day: Number(source.day || source.taskDay || 0) || null,
+      task: source.task || source.title || source.content || '',
+      durationMinutes: Number(source.durationMinutes || source.duration || 0) || null,
+      taskType: source.taskType || source.type || '',
+      deliverable: source.deliverable || source.output || source.result || ''
+    }
+  }
+
+  return {
+    day: null,
+    task: source == null ? '' : String(source),
+    durationMinutes: null,
+    taskType: '',
+    deliverable: ''
+  }
+}
+
+const normalizeRiskItem = (item) => {
+  let source = item
+  if (typeof source === 'string') {
+    const parsed = tryParseJson(source)
+    source = parsed || source
+  }
+
+  if (source && typeof source === 'object' && !Array.isArray(source)) {
+    return {
+      risk: source.risk || source.issue || source.problem || '',
+      fallback: source.fallback || source.solution || source.action || ''
+    }
+  }
+
+  return {
+    risk: source == null ? '' : String(source),
+    fallback: ''
+  }
+}
+
+const normalizedWeeklyGoals = computed(() => {
+  const raw = normalizeToArray(planResult.value?.weeklyGoals)
+  return raw
+    .map((item, index) => normalizeWeeklyGoalItem(item, index))
+    .filter(item => item.goal || item.focusGaps.length)
+})
+
+const planWeeklyGoalTexts = computed(() => normalizedWeeklyGoals.value.map(item => item.goal).filter(Boolean))
+
+const normalizedMilestones = computed(() => {
+  const raw = normalizeToArray(planResult.value?.milestones)
+  return raw
+    .map(item => normalizeMilestoneItem(item))
+    .filter(item => item.day != null || item.goal)
+    .sort((a, b) => (a.day || 0) - (b.day || 0))
+})
+
+const normalizedDailyTasks = computed(() => {
+  const raw = normalizeToArray(planResult.value?.dailyTasks)
+  return raw
+    .map(item => normalizeDailyTaskItem(item))
+    .filter(item => item.task || item.day != null)
+    .sort((a, b) => (a.day || 0) - (b.day || 0))
+})
+
+const normalizedRiskItems = computed(() => {
+  const raw = normalizeToArray(planResult.value?.riskAndFallback)
+  return raw
+    .map(item => normalizeRiskItem(item))
+    .filter(item => item.risk || item.fallback)
+})
 
 const handleParseJd = async () => {
   if (!jdForm.jdText.trim()) {
@@ -697,6 +986,113 @@ const parsePlanJson = (jsonText) => {
 
 .plan-preview {
   margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.plan-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.plan-summary-card {
+  border-radius: 12px;
+}
+
+.summary-label {
+  color: #7a8ba6;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.summary-value {
+  font-size: 16px;
+  color: #1f2d3d;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.plan-main-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 12px;
+}
+
+.plan-section-card {
+  border-radius: 12px;
+}
+
+.section-title {
+  font-weight: 600;
+  color: #243b53;
+}
+
+.weekly-goals-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.weekly-goal-card {
+  border: 1px solid #e3ecfb;
+  border-radius: 10px;
+  padding: 10px;
+  background: #f9fbff;
+}
+
+.weekly-goal-head {
+  margin-bottom: 8px;
+}
+
+.weekly-goal-text {
+  color: #334e68;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.weekly-gap-list {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.milestone-goal {
+  color: #334e68;
+  line-height: 1.6;
+}
+
+.daily-task-table {
+  margin-bottom: 6px;
+}
+
+.risk-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.risk-item {
+  border: 1px solid #fde2df;
+  background: #fff8f7;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.risk-item-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #7c2d12;
+  margin-bottom: 6px;
+}
+
+.risk-item-fallback {
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .history-toolbar {
@@ -742,6 +1138,18 @@ const parsePlanJson = (jsonText) => {
 }
 
 @media (max-width: 992px) {
+  .plan-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .plan-main-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .weekly-goals-grid {
+    grid-template-columns: 1fr;
+  }
+
   .history-toolbar {
     flex-wrap: wrap;
   }
