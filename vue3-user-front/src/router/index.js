@@ -244,6 +244,16 @@ const routes = [
     }
   },
   {
+    path: '/career-loop',
+    name: 'CareerLoop',
+    component: () => import('@/views/career-loop/Index.vue'),
+    meta: {
+      title: '求职闭环中台',
+      requiresAuth: true,
+      keepAlive: true
+    }
+  },
+  {
     path: '/resume',
     name: 'ResumeHome',
     component: () => import('@/views/resume/MyResumes.vue'),

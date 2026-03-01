@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.mockinterview.mapper.CareerLoopStageLogMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.mockinterview.domain.CareerLoopStageLog">
+        <id column="id" property="id"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="from_stage" property="fromStage"/>
+        <result column="to_stage" property="toStage"/>
+        <result column="trigger_source" property="triggerSource"/>
+        <result column="trigger_ref_id" property="triggerRefId"/>
+        <result column="note" property="note"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO career_loop_stage_log(
+            session_id, from_stage, to_stage, trigger_source, trigger_ref_id, note, create_time
+        ) VALUES (
+            #{sessionId}, #{fromStage}, #{toStage}, #{triggerSource}, #{triggerRefId}, #{note}, NOW()
+        )
+    </insert>
+
+    <select id="selectBySessionId" resultMap="BaseResultMap">
+        SELECT
+            id, session_id, from_stage, to_stage, trigger_source, trigger_ref_id, note, create_time
+        FROM career_loop_stage_log
+        WHERE session_id = #{sessionId}
+        ORDER BY id DESC
+    </select>
+
+</mapper>
+

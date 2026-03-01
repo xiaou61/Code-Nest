@@ -10,6 +10,7 @@ import com.xiaou.interview.domain.InterviewQuestionSet;
 import com.xiaou.interview.mapper.InterviewQuestionSetMapper;
 import com.xiaou.mockinterview.domain.*;
 import com.xiaou.mockinterview.dto.AIEvaluationResult;
+import com.xiaou.mockinterview.dto.request.CareerLoopEventRequest;
 import com.xiaou.mockinterview.dto.request.CreateInterviewRequest;
 import com.xiaou.mockinterview.dto.request.InterviewHistoryRequest;
 import com.xiaou.mockinterview.dto.request.SubmitAnswerRequest;
@@ -18,6 +19,7 @@ import com.xiaou.mockinterview.enums.*;
 import com.xiaou.mockinterview.service.QuestionSelectorService.GeneratedQuestion;
 import com.xiaou.mockinterview.mapper.*;
 import com.xiaou.mockinterview.service.AIInterviewerService;
+import com.xiaou.mockinterview.service.CareerLoopService;
 import com.xiaou.mockinterview.service.MockInterviewService;
 import com.xiaou.mockinterview.service.QuestionSelectorService;
 import lombok.RequiredArgsConstructor;
@@ -49,6 +51,7 @@ public class MockInterviewServiceImpl implements MockInterviewService {
     private final MockInterviewUserStatsMapper userStatsMapper;
     private final QuestionSelectorService questionSelectorService;
     private final AIInterviewerService aiInterviewerService;
+    private final CareerLoopService careerLoopService;
     private final InterviewQuestionSetMapper questionSetMapper;
 
     @Override
@@ -386,6 +389,7 @@ public class MockInterviewServiceImpl implements MockInterviewService {
 
         // 更新用户统计
         updateUserStatsOnComplete(userId, session);
+        pushLoopInterviewDone(userId, sessionId, session.getTotalScore());
 
         return getReport(userId, sessionId);
     }
@@ -427,6 +431,7 @@ public class MockInterviewServiceImpl implements MockInterviewService {
         if (needUpdateStats) {
             updateUserStatsOnComplete(userId, session);
         }
+        pushLoopInterviewDone(userId, sessionId, session.getTotalScore());
 
         return getReport(userId, sessionId);
     }
@@ -842,5 +847,19 @@ public class MockInterviewServiceImpl implements MockInterviewService {
         response.setFinished(false);
 
         return response;
+    }
+
+    private void pushLoopInterviewDone(Long userId, Long sessionId, Integer score) {
+        try {
+            careerLoopService.onEvent(userId, new CareerLoopEventRequest()
+                    .setSource("mock_interview")
+                    .setTargetStage(CareerLoopStageEnum.INTERVIEW_DONE.name())
+                    .setRefId(sessionId == null ? null : String.valueOf(sessionId))
+                    .setLatestMockScore(score)
+                    .setMockCount(1)
+                    .setNote("完成模拟面试"));
+        } catch (Exception e) {
+            log.warn("推送求职闭环面试完成事件失败，userId={}, sessionId={}", userId, sessionId, e);
+        }
     }
 }

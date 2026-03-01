@@ -22,12 +22,12 @@ public interface JobBattleService {
     /**
      * JD解析
      */
-    JobBattleJdParseResult parseJd(JobBattleParseJdRequest request);
+    JobBattleJdParseResult parseJd(Long userId, JobBattleParseJdRequest request);
 
     /**
      * 简历匹配
      */
-    JobBattleResumeMatchResult matchResume(JobBattleResumeMatchRequest request);
+    JobBattleResumeMatchResult matchResume(Long userId, JobBattleResumeMatchRequest request);
 
     /**
      * 生成计划
@@ -47,5 +47,5 @@ public interface JobBattleService {
     /**
      * 面试复盘
      */
-    JobBattleInterviewReviewResult reviewInterview(JobBattleInterviewReviewRequest request);
+    JobBattleInterviewReviewResult reviewInterview(Long userId, JobBattleInterviewReviewRequest request);
 }

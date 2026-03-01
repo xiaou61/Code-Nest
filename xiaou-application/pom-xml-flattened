@@ -5,11 +5,11 @@
   <parent>
     <groupId>com.xiaou</groupId>
     <artifactId>Code-Nest</artifactId>
-    <version>1.7.1</version>
+    <version>1.7.2</version>
   </parent>
   <groupId>com.xiaou</groupId>
   <artifactId>xiaou-application</artifactId>
-  <version>1.7.1</version>
+  <version>1.7.2</version>
   <name>xiaou-application</name>
   <dependencies>
     <dependency>
@@ -130,6 +130,11 @@
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-sql-optimizer</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-oj</artifactId>
       <version>${revision}</version>
     </dependency>
     <dependency>

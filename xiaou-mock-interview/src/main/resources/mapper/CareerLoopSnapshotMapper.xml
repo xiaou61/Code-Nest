@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.mockinterview.mapper.CareerLoopSnapshotMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.mockinterview.domain.CareerLoopSnapshot">
+        <id column="id" property="id"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="plan_progress" property="planProgress"/>
+        <result column="mock_count" property="mockCount"/>
+        <result column="latest_mock_score" property="latestMockScore"/>
+        <result column="review_count" property="reviewCount"/>
+        <result column="resume_updated_at" property="resumeUpdatedAt"/>
+        <result column="risk_flags_json" property="riskFlagsJson"/>
+        <result column="next_suggestion_json" property="nextSuggestionJson"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectBySessionId" resultMap="BaseResultMap">
+        SELECT
+            id, session_id, plan_progress, mock_count, latest_mock_score, review_count, resume_updated_at,
+            risk_flags_json, next_suggestion_json, create_time, update_time
+        FROM career_loop_snapshot
+        WHERE session_id = #{sessionId}
+        LIMIT 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO career_loop_snapshot(
+            session_id, plan_progress, mock_count, latest_mock_score, review_count, resume_updated_at,
+            risk_flags_json, next_suggestion_json, create_time, update_time
+        ) VALUES (
+            #{sessionId}, #{planProgress}, #{mockCount}, #{latestMockScore}, #{reviewCount}, #{resumeUpdatedAt},
+            #{riskFlagsJson}, #{nextSuggestionJson}, NOW(), NOW()
+        )
+    </insert>
+
+    <update id="updateBySessionId">
+        UPDATE career_loop_snapshot
+        SET
+            plan_progress = #{planProgress},
+            mock_count = #{mockCount},
+            latest_mock_score = #{latestMockScore},
+            review_count = #{reviewCount},
+            resume_updated_at = #{resumeUpdatedAt},
+            risk_flags_json = #{riskFlagsJson},
+            next_suggestion_json = #{nextSuggestionJson},
+            update_time = NOW()
+        WHERE session_id = #{sessionId}
+    </update>
+
+</mapper>
+

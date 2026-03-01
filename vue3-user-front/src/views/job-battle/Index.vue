@@ -167,6 +167,18 @@
             <el-button plain @click="openPlanHistory">
               查看历史计划
             </el-button>
+            <el-button
+              type="warning"
+              plain
+              :disabled="!planResult"
+              :loading="loading.loopSync"
+              @click="syncToCareerLoop"
+            >
+              同步到闭环
+            </el-button>
+            <el-button type="info" plain @click="goCareerLoop">
+              查看闭环进度
+            </el-button>
             <el-button type="success" plain :disabled="!planResult" @click="goToReviewStep">
               下一步：进入复盘
             </el-button>
@@ -448,17 +460,23 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Trophy } from '@element-plus/icons-vue'
 import { jobBattleApi } from '@/api/jobBattle'
+import { careerLoopApi } from '@/api/careerLoop'
+
+const route = useRoute()
+const router = useRouter()
 
 const activeStep = ref(0)
 const loading = reactive({
   jd: false,
   match: false,
   plan: false,
-  review: false
+  review: false,
+  loopSync: false
 })
 
 const jdForm = reactive({
@@ -515,6 +533,18 @@ const TASK_TYPE_LABEL_MAP = {
   mock: '模拟面试',
   review: '复盘'
 }
+
+const LOOP_STAGE_ORDER = {
+  INIT: 0,
+  JD_PARSED: 1,
+  RESUME_MATCHED: 2,
+  PLAN_READY: 3,
+  PLAN_EXECUTING: 4,
+  INTERVIEW_DONE: 5,
+  REVIEWED: 6
+}
+const STEP_NAME_MAP = ['步骤1：JD解析', '步骤2：简历匹配', '步骤3：计划生成', '步骤4：面试复盘']
+const routeStepHintKey = ref('')
 
 const taskTypeLabel = (taskType) => {
   if (!taskType) {
@@ -783,6 +813,59 @@ const goToReviewStep = () => {
   activeStep.value = 3
 }
 
+const buildLoopSyncPayload = (currentStage) => {
+  const riskFlags = normalizedRiskItems.value
+    .map(item => item.risk)
+    .filter(Boolean)
+    .slice(0, 6)
+  const nextSuggestions = normalizedDailyTasks.value
+    .map(item => item.task)
+    .filter(Boolean)
+    .slice(0, 6)
+
+  const payload = {
+    source: 'job_battle',
+    note: `同步行动计划：${planResult.value?.planName || '30天行动计划'}`,
+    planProgress: 10,
+    riskFlags,
+    nextSuggestions
+  }
+
+  const stageOrder = LOOP_STAGE_ORDER[currentStage] ?? 0
+  if (stageOrder <= LOOP_STAGE_ORDER.PLAN_READY) {
+    payload.targetStage = 'PLAN_READY'
+  }
+  return payload
+}
+
+const syncToCareerLoop = async () => {
+  if (!planResult.value) {
+    ElMessage.warning('请先生成计划后再同步闭环')
+    return
+  }
+  loading.loopSync = true
+  try {
+    let currentStage = 'INIT'
+    try {
+      const current = await careerLoopApi.getCurrent()
+      currentStage = current?.session?.currentStage || 'INIT'
+    } catch (e) {
+      // 忽略阶段探测失败，按默认阶段尝试同步
+    }
+    await careerLoopApi.sync(buildLoopSyncPayload(currentStage))
+    ElMessage.success('已同步到求职闭环中台')
+  } catch (e) {
+    console.error('同步闭环失败', e)
+    ElMessage.error('同步闭环失败')
+  } finally {
+    loading.loopSync = false
+  }
+}
+
+const goCareerLoop = () => {
+  router.push('/career-loop')
+}
+
 const openPlanHistory = async () => {
   historyState.visible = true
   await fetchPlanHistory()
@@ -922,6 +1005,33 @@ const parsePlanJson = (jsonText) => {
     return null
   }
 }
+
+const applyRouteStepIntent = () => {
+  const stepQuery = route.query.step
+  if (stepQuery == null || stepQuery === '') {
+    return
+  }
+  const step = Number(stepQuery)
+  if (!Number.isInteger(step) || step < 0 || step > 3) {
+    return
+  }
+  activeStep.value = step
+  if (route.query.from === 'career-loop') {
+    const currentHintKey = `${step}-${String(route.query.action || '')}`
+    if (routeStepHintKey.value !== currentHintKey) {
+      routeStepHintKey.value = currentHintKey
+      ElMessage.info(`已从求职闭环中台跳转到${STEP_NAME_MAP[step] || '作战台'}`)
+    }
+  }
+}
+
+watch(
+  () => [route.query.step, route.query.from, route.query.action],
+  () => {
+    applyRouteStepIntent()
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>
@@ -982,6 +1092,7 @@ const parsePlanJson = (jsonText) => {
   margin-top: 12px;
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .plan-preview {

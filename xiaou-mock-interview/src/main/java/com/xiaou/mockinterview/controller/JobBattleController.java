@@ -38,14 +38,16 @@ public class JobBattleController {
     @Operation(summary = "JD解析")
     @PostMapping("/jd/parse")
     public Result<JobBattleJdParseResult> parseJd(@Valid @RequestBody JobBattleParseJdRequest request) {
-        JobBattleJdParseResult result = jobBattleService.parseJd(request);
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        JobBattleJdParseResult result = jobBattleService.parseJd(userId, request);
         return Result.success("JD解析完成", result);
     }
 
     @Operation(summary = "简历匹配评估")
     @PostMapping("/resume/match")
     public Result<JobBattleResumeMatchResult> matchResume(@Valid @RequestBody JobBattleResumeMatchRequest request) {
-        JobBattleResumeMatchResult result = jobBattleService.matchResume(request);
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        JobBattleResumeMatchResult result = jobBattleService.matchResume(userId, request);
         return Result.success("简历匹配完成", result);
     }
 
@@ -79,7 +81,8 @@ public class JobBattleController {
     @Operation(summary = "面试复盘总结")
     @PostMapping("/interview/review")
     public Result<JobBattleInterviewReviewResult> reviewInterview(@Valid @RequestBody JobBattleInterviewReviewRequest request) {
-        JobBattleInterviewReviewResult result = jobBattleService.reviewInterview(request);
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        JobBattleInterviewReviewResult result = jobBattleService.reviewInterview(userId, request);
         return Result.success("面试复盘完成", result);
     }
 }
