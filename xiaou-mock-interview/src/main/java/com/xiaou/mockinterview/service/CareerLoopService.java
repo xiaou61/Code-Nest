@@ -4,6 +4,7 @@ import com.xiaou.mockinterview.domain.CareerLoopAction;
 import com.xiaou.mockinterview.domain.CareerLoopSession;
 import com.xiaou.mockinterview.domain.CareerLoopStageLog;
 import com.xiaou.mockinterview.dto.request.CareerLoopEventRequest;
+import com.xiaou.mockinterview.dto.request.CareerLoopProfileUpdateRequest;
 import com.xiaou.mockinterview.dto.request.CareerLoopStartRequest;
 import com.xiaou.mockinterview.dto.response.CareerLoopCurrentResponse;
 
@@ -25,6 +26,8 @@ public interface CareerLoopService {
     List<CareerLoopAction> getActions(Long userId);
 
     void markActionDone(Long userId, Long actionId);
+
+    CareerLoopSession updateProfile(Long userId, CareerLoopProfileUpdateRequest request);
 
     CareerLoopCurrentResponse sync(Long userId, CareerLoopEventRequest request);
 

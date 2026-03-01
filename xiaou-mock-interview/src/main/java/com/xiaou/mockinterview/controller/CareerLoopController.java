@@ -6,6 +6,7 @@ import com.xiaou.mockinterview.domain.CareerLoopAction;
 import com.xiaou.mockinterview.domain.CareerLoopSession;
 import com.xiaou.mockinterview.domain.CareerLoopStageLog;
 import com.xiaou.mockinterview.dto.request.CareerLoopEventRequest;
+import com.xiaou.mockinterview.dto.request.CareerLoopProfileUpdateRequest;
 import com.xiaou.mockinterview.dto.request.CareerLoopStartRequest;
 import com.xiaou.mockinterview.dto.response.CareerLoopCurrentResponse;
 import com.xiaou.mockinterview.service.CareerLoopService;
@@ -64,6 +65,14 @@ public class CareerLoopController {
         Long userId = StpUserUtil.getLoginIdAsLong();
         careerLoopService.markActionDone(userId, actionId);
         return Result.success();
+    }
+
+    @Operation(summary = "更新闭环会话目标配置")
+    @PostMapping("/profile")
+    public Result<CareerLoopSession> updateProfile(@RequestBody(required = false) CareerLoopProfileUpdateRequest request) {
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        CareerLoopProfileUpdateRequest body = request == null ? new CareerLoopProfileUpdateRequest() : request;
+        return Result.success(careerLoopService.updateProfile(userId, body));
     }
 
     @Operation(summary = "手动同步闭环状态")

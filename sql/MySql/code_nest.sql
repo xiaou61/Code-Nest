@@ -164,6 +164,7 @@ CREATE TABLE `career_loop_session`  (
   `user_id` bigint NOT NULL COMMENT '用户ID',
   `target_role` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '目标岗位',
   `target_company_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '目标公司类型',
+  `weekly_hours` int NULL DEFAULT 8 COMMENT '每周投入时长(小时)',
   `current_stage` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '当前阶段',
   `health_score` int NOT NULL DEFAULT 60 COMMENT '健康分(0-100)',
   `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active' COMMENT '状态:active/completed/archived',

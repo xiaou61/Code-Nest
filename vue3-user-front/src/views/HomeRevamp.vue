@@ -286,7 +286,8 @@ const quickAccess = [
   { title: '幸运抽奖', icon: Ticket, path: '/lottery', color: 'linear-gradient(135deg, #f5b43b, #e0861c)' },
   { title: '摸鱼工具', icon: Coffee, path: '/moyu-tools', color: 'linear-gradient(135deg, #688eff, #446ddc)' },
   { title: '开发工具', icon: Compass, path: '/dev-tools', color: 'linear-gradient(135deg, #2ea8d0, #2f78cd)' },
-  { title: '版本历史', icon: DataAnalysis, path: '/version-history', color: 'linear-gradient(135deg, #6aa8ff, #3b76de)' }
+  { title: '版本历史', icon: DataAnalysis, path: '/version-history', color: 'linear-gradient(135deg, #6aa8ff, #3b76de)' },
+  { title: '成长驾驶舱 2.0', icon: DataAnalysis, path: '/learning-cockpit', color: 'linear-gradient(135deg, #1f6feb, #0fa4ef)' }
 ]
 
 const heroDisplay = reactive({

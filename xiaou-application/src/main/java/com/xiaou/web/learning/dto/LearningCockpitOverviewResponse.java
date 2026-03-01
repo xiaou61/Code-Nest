@@ -1,0 +1,126 @@
+package com.xiaou.web.learning.dto;
+
+import lombok.Data;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 学习成长驾驶舱概览响应
+ */
+@Data
+public class LearningCockpitOverviewResponse {
+
+    /**
+     * 周期文案，例如：2026-03-02 至 2026-03-08
+     */
+    private String weekRange;
+
+    /**
+     * 数据更新时间
+     */
+    private String generatedAt;
+
+    /**
+     * 总览指标
+     */
+    private Summary summary = new Summary();
+
+    /**
+     * 目标配置档案
+     */
+    private TargetProfile targetProfile = new TargetProfile();
+
+    /**
+     * 分模块目标进度
+     */
+    private List<ModuleGoal> moduleGoals = new ArrayList<>();
+
+    /**
+     * 排名洞察
+     */
+    private RankingInsight ranking = new RankingInsight();
+
+    /**
+     * 最近7日趋势
+     */
+    private List<TrendPoint> trend = new ArrayList<>();
+
+    /**
+     * 下一步建议
+     */
+    private List<NextAction> nextActions = new ArrayList<>();
+
+    @Data
+    public static class Summary {
+        private Integer totalTarget = 0;
+        private Integer totalCompleted = 0;
+        private Integer completionRate = 0;
+        private Integer activeDays = 0;
+        private String headline = "";
+    }
+
+    @Data
+    public static class TargetProfile {
+        /**
+         * 目标岗位
+         */
+        private String targetRole = "";
+
+        /**
+         * 每周投入时长
+         */
+        private Integer weeklyHours = 0;
+
+        /**
+         * 来源：session / manual
+         */
+        private String source = "session";
+
+        /**
+         * 配置说明
+         */
+        private String note = "";
+    }
+
+    @Data
+    public static class ModuleGoal {
+        private String moduleKey;
+        private String moduleName;
+        private Integer target = 0;
+        private Integer actual = 0;
+        private Integer completionRate = 0;
+        private String unit = "";
+        private String status = "";
+        private String hint = "";
+        private String routePath = "";
+    }
+
+    @Data
+    public static class RankingInsight {
+        private Integer weeklyRank;
+        private Integer allRank;
+        private Integer weeklyPopulation = 0;
+        private Integer allPopulation = 0;
+        private Integer weeklyVsAllDelta;
+        private String comment = "";
+    }
+
+    @Data
+    public static class TrendPoint {
+        private String date;
+        private Integer interviewCount = 0;
+        private Integer flashcardCount = 0;
+        private Boolean pointsCheckin = false;
+        private Integer score = 0;
+    }
+
+    @Data
+    public static class NextAction {
+        private Integer priority = 0;
+        private String title = "";
+        private String description = "";
+        private String routePath = "";
+        private String moduleKey = "";
+    }
+}

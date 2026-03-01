@@ -9,6 +9,7 @@ import com.xiaou.mockinterview.domain.CareerLoopSession;
 import com.xiaou.mockinterview.domain.CareerLoopSnapshot;
 import com.xiaou.mockinterview.domain.CareerLoopStageLog;
 import com.xiaou.mockinterview.dto.request.CareerLoopEventRequest;
+import com.xiaou.mockinterview.dto.request.CareerLoopProfileUpdateRequest;
 import com.xiaou.mockinterview.dto.request.CareerLoopStartRequest;
 import com.xiaou.mockinterview.dto.response.CareerLoopCurrentResponse;
 import com.xiaou.mockinterview.enums.CareerLoopStageEnum;
@@ -38,6 +39,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CareerLoopServiceImpl implements CareerLoopService {
 
+    private static final int DEFAULT_WEEKLY_HOURS = 8;
+    private static final int MIN_WEEKLY_HOURS = 3;
+    private static final int MAX_WEEKLY_HOURS = 40;
+
     private final CareerLoopSessionMapper sessionMapper;
     private final CareerLoopStageLogMapper stageLogMapper;
     private final CareerLoopActionMapper actionMapper;
@@ -54,8 +59,9 @@ public class CareerLoopServiceImpl implements CareerLoopService {
 
         CareerLoopSession created = new CareerLoopSession()
                 .setUserId(userId)
-                .setTargetRole(request == null ? null : request.getTargetRole())
+                .setTargetRole(normalizeRole(request == null ? null : request.getTargetRole()))
                 .setTargetCompanyType(request == null ? null : request.getTargetCompanyType())
+                .setWeeklyHours(normalizeWeeklyHours(request == null ? null : request.getWeeklyHours()))
                 .setCurrentStage(CareerLoopStageEnum.INIT.name())
                 .setHealthScore(60)
                 .setStatus("active");
@@ -100,6 +106,31 @@ public class CareerLoopServiceImpl implements CareerLoopService {
         if (updated <= 0) {
             throw new BusinessException("动作项不存在");
         }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public CareerLoopSession updateProfile(Long userId, CareerLoopProfileUpdateRequest request) {
+        CareerLoopSession session = ensureActiveSession(userId);
+        if (request == null) {
+            return session;
+        }
+
+        boolean changed = false;
+        if (request.getTargetRole() != null) {
+            session.setTargetRole(normalizeRole(request.getTargetRole()));
+            changed = true;
+        }
+        if (request.getWeeklyHours() != null) {
+            session.setWeeklyHours(normalizeWeeklyHours(request.getWeeklyHours()));
+            changed = true;
+        }
+        if (!changed) {
+            return session;
+        }
+
+        sessionMapper.updateById(session);
+        return sessionMapper.selectActiveByUserId(userId);
     }
 
     @Override
@@ -242,6 +273,21 @@ public class CareerLoopServiceImpl implements CareerLoopService {
             log.warn("解析JSON数组失败: {}", jsonText);
             return Collections.singletonList(jsonText);
         }
+    }
+
+    private Integer normalizeWeeklyHours(Integer weeklyHours) {
+        if (weeklyHours == null || weeklyHours <= 0) {
+            return DEFAULT_WEEKLY_HOURS;
+        }
+        return Math.max(MIN_WEEKLY_HOURS, Math.min(MAX_WEEKLY_HOURS, weeklyHours));
+    }
+
+    private String normalizeRole(String targetRole) {
+        if (targetRole == null) {
+            return null;
+        }
+        String trimmed = targetRole.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private void resetActionsByStage(Long sessionId, CareerLoopStageEnum stage) {

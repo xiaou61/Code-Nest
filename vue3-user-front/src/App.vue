@@ -190,6 +190,7 @@ const learningMenuGroups = [
       { path: '/mock-interview', label: 'AI 模拟面试', desc: '真实问答与评分反馈', icon: Mic },
       { path: '/job-battle', label: '求职作战台', desc: 'JD解析到复盘的闭环训练', icon: Trophy },
       { path: '/career-loop', label: '求职闭环中台', desc: '统一追踪求职阶段与动作清单', icon: DataAnalysis },
+      { path: '/learning-cockpit', label: '学习成长驾驶舱 2.0', desc: '统一周目标、完成率与排名变化', icon: DataAnalysis },
       { path: '/knowledge', label: '知识图谱', desc: '可视化构建知识体系', icon: DataAnalysis },
       { path: '/plan', label: '计划打卡', desc: '每日计划执行与复盘', icon: Calendar }
     ]

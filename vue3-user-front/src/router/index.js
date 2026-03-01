@@ -254,6 +254,16 @@ const routes = [
     }
   },
   {
+    path: '/learning-cockpit',
+    name: 'LearningCockpit',
+    component: () => import('@/views/learning-cockpit/Index.vue'),
+    meta: {
+      title: '学习成长驾驶舱 2.0',
+      requiresAuth: true,
+      keepAlive: true
+    }
+  },
+  {
     path: '/resume',
     name: 'ResumeHome',
     component: () => import('@/views/resume/MyResumes.vue'),
