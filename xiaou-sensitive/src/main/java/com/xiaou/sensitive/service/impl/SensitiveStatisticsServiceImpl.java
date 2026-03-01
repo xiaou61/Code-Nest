@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -99,13 +100,7 @@ public class SensitiveStatisticsServiceImpl implements SensitiveStatisticsServic
     @Override
     public StatisticsOverviewVO getOverview(SensitiveStatisticsQuery query) {
         try {
-            // 设置默认查询时间为今天
-            if (query.getStartDate() == null) {
-                query.setStartDate(LocalDate.now());
-            }
-            if (query.getEndDate() == null) {
-                query.setEndDate(LocalDate.now());
-            }
+            applyDefaultTodayRange(query);
 
             // 查询总命中数
             Long hitCount = hitStatisticsMapper.selectTotalHitCount(query);
@@ -142,13 +137,7 @@ public class SensitiveStatisticsServiceImpl implements SensitiveStatisticsServic
     @Override
     public List<TrendDataVO> getHitTrend(SensitiveStatisticsQuery query) {
         try {
-            // 设置默认查询时间为最近7天
-            if (query.getStartDate() == null) {
-                query.setStartDate(LocalDate.now().minusDays(6));
-            }
-            if (query.getEndDate() == null) {
-                query.setEndDate(LocalDate.now());
-            }
+            applyDefaultRecentSevenDays(query);
 
             return hitStatisticsMapper.selectTrend(query);
         } catch (Exception e) {
@@ -160,13 +149,7 @@ public class SensitiveStatisticsServiceImpl implements SensitiveStatisticsServic
     @Override
     public List<HotWordVO> getHotWords(SensitiveStatisticsQuery query) {
         try {
-            // 设置默认查询时间为今天
-            if (query.getStartDate() == null) {
-                query.setStartDate(LocalDate.now());
-            }
-            if (query.getEndDate() == null) {
-                query.setEndDate(LocalDate.now());
-            }
+            applyDefaultTodayRange(query);
             
             // 设置默认TOP数量
             if (query.getTopN() == null) {
@@ -183,13 +166,7 @@ public class SensitiveStatisticsServiceImpl implements SensitiveStatisticsServic
     @Override
     public List<Map<String, Object>> getCategoryDistribution(SensitiveStatisticsQuery query) {
         try {
-            // 设置默认查询时间为今天
-            if (query.getStartDate() == null) {
-                query.setStartDate(LocalDate.now());
-            }
-            if (query.getEndDate() == null) {
-                query.setEndDate(LocalDate.now());
-            }
+            applyDefaultTodayRange(query);
 
             return hitStatisticsMapper.selectCategoryDistribution(query);
         } catch (Exception e) {
@@ -201,18 +178,125 @@ public class SensitiveStatisticsServiceImpl implements SensitiveStatisticsServic
     @Override
     public List<Map<String, Object>> getModuleDistribution(SensitiveStatisticsQuery query) {
         try {
-            // 设置默认查询时间为今天
-            if (query.getStartDate() == null) {
-                query.setStartDate(LocalDate.now());
-            }
-            if (query.getEndDate() == null) {
-                query.setEndDate(LocalDate.now());
-            }
+            applyDefaultTodayRange(query);
 
             return hitStatisticsMapper.selectModuleDistribution(query);
         } catch (Exception e) {
             log.error("获取模块分布失败", e);
             return List.of();
         }
+    }
+
+    @Override
+    public ExportResult exportReport(SensitiveStatisticsQuery query) {
+        SensitiveStatisticsQuery exportQuery = query == null ? new SensitiveStatisticsQuery() : query;
+        applyDefaultRecentSevenDays(exportQuery);
+
+        StatisticsOverviewVO overview = getOverview(cloneQuery(exportQuery));
+        List<TrendDataVO> trendData = getHitTrend(cloneQuery(exportQuery));
+
+        SensitiveStatisticsQuery hotQuery = cloneQuery(exportQuery);
+        hotQuery.setTopN(100);
+        List<HotWordVO> hotWords = getHotWords(hotQuery);
+
+        List<Map<String, Object>> categoryDistribution = getCategoryDistribution(cloneQuery(exportQuery));
+        List<Map<String, Object>> moduleDistribution = getModuleDistribution(cloneQuery(exportQuery));
+
+        StringBuilder csv = new StringBuilder();
+        csv.append('\uFEFF');
+        csv.append("统计项,数值\n");
+        csv.append("总检测数,").append(nullToZero(overview.getTotalCheck())).append('\n');
+        csv.append("命中数,").append(nullToZero(overview.getHitCount())).append('\n');
+        csv.append("命中率(%),").append(overview.getHitRate() == null ? 0 : overview.getHitRate()).append('\n');
+        csv.append("拒绝数,").append(nullToZero(overview.getRejectCount())).append('\n');
+        csv.append("替换数,").append(nullToZero(overview.getReplaceCount())).append('\n');
+        csv.append("违规用户数,").append(nullToZero(overview.getViolationUserCount())).append('\n');
+
+        csv.append('\n').append("趋势数据").append('\n');
+        csv.append("日期,模块,命中次数\n");
+        for (TrendDataVO item : trendData) {
+            csv.append(item.getDate() == null ? "" : item.getDate()).append(',')
+                    .append(escapeCsv(item.getModule())).append(',')
+                    .append(item.getHitCount() == null ? 0 : item.getHitCount())
+                    .append('\n');
+        }
+
+        csv.append('\n').append("热门敏感词").append('\n');
+        csv.append("敏感词,命中次数,分类,模块\n");
+        for (HotWordVO item : hotWords) {
+            csv.append(escapeCsv(item.getWord())).append(',')
+                    .append(item.getHitCount() == null ? 0 : item.getHitCount()).append(',')
+                    .append(escapeCsv(item.getCategory())).append(',')
+                    .append(escapeCsv(item.getModule()))
+                    .append('\n');
+        }
+
+        csv.append('\n').append("分类分布").append('\n');
+        csv.append("分类,命中次数\n");
+        for (Map<String, Object> item : categoryDistribution) {
+            csv.append(escapeCsv(valueToString(item.get("category")))).append(',')
+                    .append(valueToString(item.get("count")))
+                    .append('\n');
+        }
+
+        csv.append('\n').append("模块分布").append('\n');
+        csv.append("模块,命中次数\n");
+        for (Map<String, Object> item : moduleDistribution) {
+            csv.append(escapeCsv(valueToString(item.get("module")))).append(',')
+                    .append(valueToString(item.get("count")))
+                    .append('\n');
+        }
+
+        String fileName = "sensitive_statistics_" +
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) +
+                ".csv";
+        return new ExportResult(fileName, csv.toString());
+    }
+
+    private SensitiveStatisticsQuery cloneQuery(SensitiveStatisticsQuery source) {
+        SensitiveStatisticsQuery target = new SensitiveStatisticsQuery();
+        target.setStartDate(source.getStartDate());
+        target.setEndDate(source.getEndDate());
+        target.setModule(source.getModule());
+        target.setCategoryId(source.getCategoryId());
+        target.setTopN(source.getTopN());
+        return target;
+    }
+
+    private void applyDefaultTodayRange(SensitiveStatisticsQuery query) {
+        if (query.getStartDate() == null) {
+            query.setStartDate(LocalDate.now());
+        }
+        if (query.getEndDate() == null) {
+            query.setEndDate(LocalDate.now());
+        }
+    }
+
+    private void applyDefaultRecentSevenDays(SensitiveStatisticsQuery query) {
+        if (query.getStartDate() == null) {
+            query.setStartDate(LocalDate.now().minusDays(6));
+        }
+        if (query.getEndDate() == null) {
+            query.setEndDate(LocalDate.now());
+        }
+    }
+
+    private long nullToZero(Long value) {
+        return value == null ? 0L : value;
+    }
+
+    private String valueToString(Object value) {
+        return value == null ? "0" : String.valueOf(value);
+    }
+
+    private String escapeCsv(String value) {
+        if (value == null) {
+            return "";
+        }
+        String escaped = value.replace("\"", "\"\"");
+        if (escaped.contains(",") || escaped.contains("\"") || escaped.contains("\n")) {
+            return "\"" + escaped + "\"";
+        }
+        return escaped;
     }
 }

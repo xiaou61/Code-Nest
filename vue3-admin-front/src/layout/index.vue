@@ -106,6 +106,21 @@
               <span>题目管理</span>
             </el-menu-item>
           </el-sub-menu>
+
+          <el-sub-menu index="/mock-interview">
+            <template #title>
+              <el-icon><Mic /></el-icon>
+              <span>模拟面试运营</span>
+            </template>
+            <el-menu-item index="/mock-interview/sessions">
+              <el-icon><DataAnalysis /></el-icon>
+              <span>面试会话</span>
+            </el-menu-item>
+            <el-menu-item index="/mock-interview/directions">
+              <el-icon><SetUp /></el-icon>
+              <span>方向配置</span>
+            </el-menu-item>
+          </el-sub-menu>
           
           <el-sub-menu index="/oj">
             <template #title>
@@ -523,7 +538,8 @@ import {
   Coffee,
   Calendar,
   Reading,
-  Check
+  Check,
+  Mic
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 
@@ -572,6 +588,7 @@ const getIconByPath = (path, title = '') => {
     'dashboard': 'Odometer',
     'user': 'Avatar', 
     'interview': 'Document',
+    'mock-interview': 'Mic',
     'oj': 'Monitor',
     'contests': 'Trophy',
     'categories': 'FolderOpened',
@@ -629,6 +646,7 @@ const getIconByPath = (path, title = '') => {
     '分类': 'FolderOpened',
     '标签': 'PriceTag',
     '题目': 'Edit',
+    '模拟面试': 'Mic',
     '赛事': 'Trophy',
     '题单': 'Collection',
     '知识': 'DataAnalysis',
@@ -695,6 +713,7 @@ const generateBreadcrumb = (path, title) => {
   // 路径段到父级模块名称的映射
   const moduleNames = {
     'interview': '面试题目管理',
+    'mock-interview': '模拟面试运营',
     'knowledge': '知识图谱管理', 
     'community': '社区管理',
     'moments': '朋友圈管理',

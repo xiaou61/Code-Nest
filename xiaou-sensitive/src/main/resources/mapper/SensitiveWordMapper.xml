@@ -137,6 +137,15 @@
         WHERE sw.word = #{word}
     </select>
 
+    <!-- 批量查询已存在的敏感词 -->
+    <select id="selectWordsByWords" parameterType="java.util.List" resultMap="SensitiveWordResult">
+        <include refid="selectSensitiveWordVo"/>
+        WHERE sw.word IN
+        <foreach collection="words" item="word" open="(" separator="," close=")">
+            #{word}
+        </foreach>
+    </select>
+
     <!-- 批量插入敏感词 -->
     <insert id="batchInsertWords" parameterType="java.util.List">
         INSERT INTO sensitive_word (word, category_id, level, action, status, creator_id)
@@ -145,6 +154,17 @@
             (#{word.word}, #{word.categoryId}, #{word.level}, #{word.action}, #{word.status}, #{word.creatorId})
         </foreach>
     </insert>
+
+    <!-- 按词汇批量启用敏感词 -->
+    <update id="batchEnableByWords" parameterType="java.util.List">
+        UPDATE sensitive_word
+        SET status = 1
+        WHERE status = 0
+          AND word IN
+          <foreach collection="words" item="word" open="(" separator="," close=")">
+              #{word}
+          </foreach>
+    </update>
 
     <!-- 统计敏感词数量 -->
     <select id="countWords" parameterType="com.xiaou.sensitive.dto.SensitiveWordQuery" resultType="int">

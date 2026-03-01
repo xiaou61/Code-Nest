@@ -40,7 +40,7 @@
 
     <properties>
         <!-- 统一版本管理 -->
-<revision>1.7.2</revision>
+<revision>1.8.1</revision>
         
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>17</maven.compiler.source>

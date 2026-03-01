@@ -42,6 +42,33 @@ export function importSensitiveWords(file) {
   })
 }
 
+// 预览导入敏感词
+export function previewSensitiveWordsImport(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request.post('/admin/sensitive/words/preview-import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+// 确认导入敏感词
+export function confirmSensitiveWordsImport(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request.post('/admin/sensitive/words/confirm-import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+// 导出敏感词（CSV内容）
+export function exportSensitiveWords(data) {
+  return request.post('/admin/sensitive/words/export', data)
+}
+
 // 刷新敏感词库
 export function refreshWordLibrary() {
   return request.post('/admin/sensitive/refresh')
@@ -148,6 +175,11 @@ export function getCategoryDistribution(data) {
 // 获取模块分布
 export function getModuleDistribution(data) {
   return request.post('/sensitive/statistics/module-distribution', data)
+}
+
+// 导出统计报表
+export function exportStatisticsReport(data) {
+  return request.post('/sensitive/statistics/export', data)
 }
 
 // ==================== 词库来源管理 ====================

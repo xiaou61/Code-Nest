@@ -64,6 +64,20 @@ public interface SensitiveWordService {
     ImportResult importWords(List<String> words, Long creatorId);
 
     /**
+     * 预览导入敏感词
+     * @param words 待导入词列表
+     * @return 预览结果
+     */
+    ImportPreviewResult previewImportWords(List<String> words);
+
+    /**
+     * 导出敏感词（CSV）
+     * @param query 查询条件
+     * @return 导出结果
+     */
+    ExportResult exportWords(SensitiveWordQuery query);
+
+    /**
      * 查询所有分类
      * @return 分类列表
      */
@@ -91,4 +105,97 @@ public interface SensitiveWordService {
         public int getDuplicate() { return duplicate; }
         public List<String> getErrors() { return errors; }
     }
-} 
+
+    /**
+     * 导入预览结果
+     */
+    class ImportPreviewResult {
+        private final int total;
+        private final int validCount;
+        private final int invalidCount;
+        private final int duplicateInFileCount;
+        private final int duplicateInDbCount;
+        private final int importableCount;
+        private final List<String> importableSamples;
+        private final List<String> duplicateSamples;
+        private final List<String> invalidSamples;
+
+        public ImportPreviewResult(int total, int validCount, int invalidCount,
+                                   int duplicateInFileCount, int duplicateInDbCount,
+                                   int importableCount, List<String> importableSamples,
+                                   List<String> duplicateSamples, List<String> invalidSamples) {
+            this.total = total;
+            this.validCount = validCount;
+            this.invalidCount = invalidCount;
+            this.duplicateInFileCount = duplicateInFileCount;
+            this.duplicateInDbCount = duplicateInDbCount;
+            this.importableCount = importableCount;
+            this.importableSamples = importableSamples;
+            this.duplicateSamples = duplicateSamples;
+            this.invalidSamples = invalidSamples;
+        }
+
+        public int getTotal() {
+            return total;
+        }
+
+        public int getValidCount() {
+            return validCount;
+        }
+
+        public int getInvalidCount() {
+            return invalidCount;
+        }
+
+        public int getDuplicateInFileCount() {
+            return duplicateInFileCount;
+        }
+
+        public int getDuplicateInDbCount() {
+            return duplicateInDbCount;
+        }
+
+        public int getImportableCount() {
+            return importableCount;
+        }
+
+        public List<String> getImportableSamples() {
+            return importableSamples;
+        }
+
+        public List<String> getDuplicateSamples() {
+            return duplicateSamples;
+        }
+
+        public List<String> getInvalidSamples() {
+            return invalidSamples;
+        }
+    }
+
+    /**
+     * 导出结果
+     */
+    class ExportResult {
+        private final int total;
+        private final String fileName;
+        private final String content;
+
+        public ExportResult(int total, String fileName, String content) {
+            this.total = total;
+            this.fileName = fileName;
+            this.content = content;
+        }
+
+        public int getTotal() {
+            return total;
+        }
+
+        public String getFileName() {
+            return fileName;
+        }
+
+        public String getContent() {
+            return content;
+        }
+    }
+}

@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 模拟面试会话Mapper
@@ -71,4 +72,16 @@ public interface MockInterviewSessionMapper {
      * 管理端统计所有面试记录数量
      */
     long countAll(@Param("request") InterviewHistoryRequest request);
+
+    /**
+     * 管理端统计总览
+     */
+    Map<String, Object> selectAdminOverviewStats(@Param("startTime") String startTime,
+                                                 @Param("endTime") String endTime);
+
+    /**
+     * 管理端方向分布统计
+     */
+    List<Map<String, Object>> selectDirectionDistributionStats(@Param("startTime") String startTime,
+                                                               @Param("endTime") String endTime);
 }

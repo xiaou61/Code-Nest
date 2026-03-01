@@ -5,16 +5,26 @@
   <parent>
     <groupId>com.xiaou</groupId>
     <artifactId>Code-Nest</artifactId>
-    <version>1.7.2</version>
+    <version>1.8.1</version>
   </parent>
   <groupId>com.xiaou</groupId>
   <artifactId>xiaou-oj</artifactId>
-  <version>1.7.2</version>
+  <version>1.8.1</version>
   <description>OJ在线判题模块</description>
   <dependencies>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-common</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-user-api</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-points</artifactId>
       <version>${revision}</version>
     </dependency>
     <dependency>
@@ -34,6 +44,11 @@
     <dependency>
       <groupId>cn.hutool</groupId>
       <artifactId>hutool-all</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
   <build>

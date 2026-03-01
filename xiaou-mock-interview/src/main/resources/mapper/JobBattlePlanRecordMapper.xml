@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.mockinterview.mapper.JobBattlePlanRecordMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.mockinterview.domain.JobBattlePlanRecord">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="plan_name" property="planName"/>
+        <result column="total_days" property="totalDays"/>
+        <result column="target_days" property="targetDays"/>
+        <result column="weekly_hours" property="weeklyHours"/>
+        <result column="preferred_learning_mode" property="preferredLearningMode"/>
+        <result column="next_interview_date" property="nextInterviewDate"/>
+        <result column="gaps_json" property="gapsJson"/>
+        <result column="plan_result_json" property="planResultJson"/>
+        <result column="is_fallback" property="fallback"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, user_id, plan_name, total_days, target_days, weekly_hours, preferred_learning_mode,
+        next_interview_date, gaps_json, plan_result_json, is_fallback, create_time, update_time
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO job_battle_plan_record (
+            user_id, plan_name, total_days, target_days, weekly_hours, preferred_learning_mode,
+            next_interview_date, gaps_json, plan_result_json, is_fallback, create_time, update_time
+        ) VALUES (
+            #{userId}, #{planName}, #{totalDays}, #{targetDays}, #{weeklyHours}, #{preferredLearningMode},
+            #{nextInterviewDate}, #{gapsJson}, #{planResultJson}, #{fallback}, NOW(), NOW()
+        )
+    </insert>
+
+    <select id="selectPageByUserId" resultMap="BaseResultMap">
+        SELECT
+            id, user_id, plan_name, total_days, target_days, weekly_hours, preferred_learning_mode,
+            next_interview_date, is_fallback, create_time, update_time
+        FROM job_battle_plan_record
+        <where>
+            user_id = #{userId}
+            <if test="request != null and request.keyword != null and request.keyword != ''">
+                AND plan_name LIKE CONCAT('%', #{request.keyword}, '%')
+            </if>
+        </where>
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByIdAndUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM job_battle_plan_record
+        WHERE id = #{id} AND user_id = #{userId}
+        LIMIT 1
+    </select>
+
+</mapper>
+

@@ -35,6 +35,14 @@
               <el-icon><Search /></el-icon>
               查询
             </el-button>
+            <el-button
+              type="success"
+              :loading="exportingReport"
+              @click="handleExportReport"
+            >
+              <el-icon><Download /></el-icon>
+              导出报表
+            </el-button>
             <el-button @click="resetQuery">
               <el-icon><Refresh /></el-icon>
               重置
@@ -51,7 +59,7 @@
           <el-card shadow="hover" class="stats-card">
             <div class="stats-item">
               <div class="stats-label">总检测次数</div>
-              <div class="stats-value">{{ overview.totalChecks || 0 }}</div>
+              <div class="stats-value">{{ overview.totalCheck || 0 }}</div>
             </div>
           </el-card>
         </el-col>
@@ -67,7 +75,7 @@
           <el-card shadow="hover" class="stats-card">
             <div class="stats-item">
               <div class="stats-label">拦截率</div>
-              <div class="stats-value warning">{{ overview.blockRate || '0%' }}</div>
+              <div class="stats-value warning">{{ formatPercent(overview.hitRate) }}</div>
             </div>
           </el-card>
         </el-col>
@@ -75,7 +83,7 @@
           <el-card shadow="hover" class="stats-card">
             <div class="stats-item">
               <div class="stats-label">违规用户数</div>
-              <div class="stats-value info">{{ overview.violationUsers || 0 }}</div>
+              <div class="stats-value info">{{ overview.violationUserCount || 0 }}</div>
             </div>
           </el-card>
         </el-col>
@@ -143,14 +151,15 @@
 <script setup>
 import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Search, Refresh } from '@element-plus/icons-vue'
+import { Search, Refresh, Download } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import {
   getStatisticsOverview,
   getHitTrend,
   getHotWords,
   getCategoryDistribution,
-  getModuleDistribution
+  getModuleDistribution,
+  exportStatisticsReport
 } from '@/api/sensitive'
 
 // 响应式数据
@@ -163,6 +172,7 @@ const moduleChartRef = ref()
 let trendChart = null
 let categoryChart = null
 let moduleChart = null
+const exportingReport = ref(false)
 
 // 查询表单
 const queryForm = reactive({
@@ -198,6 +208,28 @@ const resetQuery = () => {
   queryForm.endDate = ''
   queryForm.module = ''
   handleQuery()
+}
+
+const handleExportReport = async () => {
+  exportingReport.value = true
+  try {
+    const result = await exportStatisticsReport(queryForm)
+    const blob = new Blob([result.content || ''], { type: 'text/csv;charset=utf-8;' })
+    const fileName = result.fileName || `sensitive_statistics_${Date.now()}.csv`
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    ElMessage.success('统计报表导出成功')
+  } catch (error) {
+    ElMessage.error('统计报表导出失败')
+  } finally {
+    exportingReport.value = false
+  }
 }
 
 const loadOverview = async () => {
@@ -259,7 +291,7 @@ const renderTrendChart = (data) => {
   }
 
   const dates = data.map(item => item.date)
-  const counts = data.map(item => item.count)
+  const counts = data.map(item => item.hitCount || 0)
 
   const option = {
     tooltip: {
@@ -312,8 +344,8 @@ const renderCategoryChart = (data) => {
   }
 
   const chartData = data.map(item => ({
-    name: item.name || item.categoryName,
-    value: item.count || item.value
+    name: item.category || item.name || item.categoryName || '未分类',
+    value: item.count ?? item.value ?? 0
   }))
 
   const option = {
@@ -351,8 +383,8 @@ const renderModuleChart = (data) => {
     moduleChart = echarts.init(moduleChartRef.value)
   }
 
-  const modules = data.map(item => item.name || item.moduleName)
-  const counts = data.map(item => item.count || item.value)
+  const modules = data.map(item => item.module || item.name || item.moduleName || '未知模块')
+  const counts = data.map(item => item.count ?? item.value ?? 0)
 
   const option = {
     tooltip: {
@@ -397,6 +429,17 @@ const handleResize = () => {
   trendChart?.resize()
   categoryChart?.resize()
   moduleChart?.resize()
+}
+
+const formatPercent = (value) => {
+  if (value === null || value === undefined) {
+    return '0%'
+  }
+  const numberValue = Number(value)
+  if (Number.isNaN(numberValue)) {
+    return '0%'
+  }
+  return `${numberValue.toFixed(2)}%`
 }
 
 // 生命周期
