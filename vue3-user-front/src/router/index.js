@@ -264,6 +264,16 @@ const routes = [
     }
   },
   {
+    path: '/growth-autopilot',
+    name: 'GrowthAutopilot',
+    component: () => import('@/views/growth-autopilot/Index.vue'),
+    meta: {
+      title: '成长闭环自动驾驶',
+      requiresAuth: true,
+      keepAlive: true
+    }
+  },
+  {
     path: '/resume',
     name: 'ResumeHome',
     component: () => import('@/views/resume/MyResumes.vue'),

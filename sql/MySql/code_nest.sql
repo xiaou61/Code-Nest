@@ -2779,6 +2779,77 @@ CREATE TABLE `user_plan`  (
 ) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户计划表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
+-- Table structure for growth_autopilot_goal
+-- ----------------------------
+DROP TABLE IF EXISTS `growth_autopilot_goal`;
+CREATE TABLE `growth_autopilot_goal`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `user_id` bigint NOT NULL COMMENT '用户ID',
+  `week_start` date NOT NULL COMMENT '周起始日期（周一）',
+  `week_end` date NOT NULL COMMENT '周结束日期（周日）',
+  `target_role` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '目标岗位',
+  `weekly_hours` int NULL DEFAULT 8 COMMENT '每周投入时长（小时）',
+  `total_score_target` int NULL DEFAULT 0 COMMENT '目标总分',
+  `total_score_completed` int NULL DEFAULT 0 COMMENT '已完成总分',
+  `total_tasks` int NULL DEFAULT 0 COMMENT '任务总数',
+  `completed_tasks` int NULL DEFAULT 0 COMMENT '已完成任务数',
+  `completion_rate` int NULL DEFAULT 0 COMMENT '完成率（0-100）',
+  `risk_level` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT 'low' COMMENT '风险等级：low/medium/high',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT 'active' COMMENT '状态：active/archived',
+  `generated_at` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '计划生成时间',
+  `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_user_week`(`user_id` ASC, `week_start` ASC) USING BTREE,
+  INDEX `idx_user_time`(`user_id` ASC, `create_time` DESC) USING BTREE,
+  INDEX `idx_week`(`week_start` ASC, `week_end` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '成长自动驾驶周目标' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for growth_autopilot_task
+-- ----------------------------
+DROP TABLE IF EXISTS `growth_autopilot_task`;
+CREATE TABLE `growth_autopilot_task`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `goal_id` bigint NOT NULL COMMENT '周目标ID',
+  `user_id` bigint NOT NULL COMMENT '用户ID',
+  `module_key` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '模块标识',
+  `module_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '模块名称',
+  `task_date` date NOT NULL COMMENT '任务日期',
+  `title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '任务标题',
+  `description` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '任务描述',
+  `planned_minutes` int NULL DEFAULT 30 COMMENT '计划投入分钟数',
+  `task_score` int NULL DEFAULT 1 COMMENT '任务分值',
+  `priority` varchar(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT 'P2' COMMENT '优先级：P1/P2/P3',
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT 'todo' COMMENT '状态：todo/done/missed',
+  `source` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT 'auto' COMMENT '来源：auto/replan',
+  `route_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '前端跳转路径',
+  `complete_time` datetime NULL DEFAULT NULL COMMENT '完成时间',
+  `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_goal_date`(`goal_id` ASC, `task_date` ASC) USING BTREE,
+  INDEX `idx_goal_status`(`goal_id` ASC, `status` ASC) USING BTREE,
+  INDEX `idx_user_date`(`user_id` ASC, `task_date` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '成长自动驾驶任务' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for growth_autopilot_event
+-- ----------------------------
+DROP TABLE IF EXISTS `growth_autopilot_event`;
+CREATE TABLE `growth_autopilot_event`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `goal_id` bigint NOT NULL COMMENT '周目标ID',
+  `user_id` bigint NOT NULL COMMENT '用户ID',
+  `event_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '事件类型：generate/replan/complete',
+  `event_detail` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '事件描述',
+  `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_goal_time`(`goal_id` ASC, `create_time` DESC) USING BTREE,
+  INDEX `idx_user_time`(`user_id` ASC, `create_time` DESC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '成长自动驾驶事件日志' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
 -- Table structure for user_points_balance
 -- ----------------------------
 DROP TABLE IF EXISTS `user_points_balance`;
