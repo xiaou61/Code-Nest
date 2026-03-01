@@ -5,11 +5,11 @@
   <parent>
     <groupId>com.xiaou</groupId>
     <artifactId>Code-Nest</artifactId>
-    <version>1.7.2</version>
+    <version>1.8.1</version>
   </parent>
   <groupId>com.xiaou</groupId>
   <artifactId>xiaou-mock-interview</artifactId>
-  <version>1.7.2</version>
+  <version>1.8.1</version>
   <description>AI模拟面试模块</description>
   <dependencies>
     <dependency>

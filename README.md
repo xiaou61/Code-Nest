@@ -1,6 +1,6 @@
 # Code Nest
 
-![Version](https://img.shields.io/badge/version-1.7.2-blue.svg)
+![Version](https://img.shields.io/badge/version-1.8.1-blue.svg)
 ![Java](https://img.shields.io/badge/java-17-orange.svg)
 ![Spring Boot](https://img.shields.io/badge/spring%20boot-3.4.4-brightgreen.svg)
 ![Vue](https://img.shields.io/badge/vue-3.x-4fc08d.svg)
@@ -117,10 +117,11 @@ Code-Nest/
 │   └── Prometheus运维部署指南.md
 ├── logs/                       # 运行期日志（开发环境可忽略）
 ├── sql/
-│   ├── struct.sql              # 数据库结构
-│   ├── data.sql                # 初始化数据
-│   ├── v1.6.0/                 # 增量脚本（CodePen 等）
-│   └── v1.7.0/                 # 增量脚本（学习追踪等）
+│   ├── MySql/
+│   │   ├── code_nest.sql       # 最新完整结构（全量建表）
+│   │   └── code_nest_data.sql  # 最新初始化数据（可重复执行）
+│   ├── v1.8.0/                 # OJ 相关增量脚本
+│   └── v1.8.3/                 # 闭环中台与SQL优化相关增量脚本
 ├── vue3-admin-front/           # 管理端前端
 ├── vue3-user-front/            # 用户端前端
 ├── xiaou-common/               # 通用模块
@@ -155,9 +156,9 @@ mysql -u root -p
 
 CREATE DATABASE code_nest DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE code_nest;
-SOURCE sql/struct.sql;
-SOURCE sql/data.sql;
--- 如需最新功能，请额外执行 sql/v1.7.0/*.sql
+SOURCE sql/MySql/code_nest.sql;
+SOURCE sql/MySql/code_nest_data.sql;
+-- 如需增量升级，请按版本顺序执行 sql/v1.x.x/*.sql
 ```
 
 ### 3. 配置文件
@@ -204,7 +205,7 @@ mvn clean package -DskipTests
 mvn -pl xiaou-application -am spring-boot:run
 
 # 或直接运行打包后的 jar
-java -jar xiaou-application/target/xiaou-application-1.7.2.jar --spring.profiles.active=prod
+java -jar xiaou-application/target/xiaou-application-1.8.1.jar --spring.profiles.active=prod
 ```
 
 - API 根地址：`http://localhost:9999/api`
@@ -237,7 +238,7 @@ npm run dev
 | 端 | 账号 | 密码 | 备注 |
 | --- | --- | --- | --- |
 | 管理后台 | `admin` | `123456` | 可在用户管理中修改 |
-| 用户端 | 已内置演示数据 | `sql/data.sql` 中提供 | 也可自行注册 |
+| 用户端 | 已内置演示数据 | `sql/MySql/code_nest_data.sql` 中提供 | 也可自行注册 |
 
 ### 7. 构建与部署产物
 
@@ -313,7 +314,7 @@ management:
 
 ```bash
 # 构建镜像
-docker build -t code-nest:1.7.2 -f docker/Dockerfile .
+docker build -t code-nest:1.8.1 -f docker/Dockerfile .
 
 # 运行容器
 docker run -d \
@@ -321,7 +322,7 @@ docker run -d \
   -p 9999:9999 \
   -e SPRING_PROFILES_ACTIVE=prod \
   --env-file docker/env/example.env \
-  code-nest:1.7.2
+  code-nest:1.8.1
 ```
 
 可与 MySQL/Redis 容器组合，或使用 `docker-compose`.
@@ -360,13 +361,23 @@ server {
 - `docs/PRD/`：覆盖简历、代码工坊、IM、积分、抽奖、知识图谱、敏感词、SQL 优化等 20+ 模块的产品文档。
 - `docs/PRD/OJ赛事系统PRD-v1.0.0.md`：OJ 赛事系统（周赛/挑战赛）需求定义与里程碑。
 - `docs/Prometheus运维部署指南.md`：Prometheus + Grafana 安装、指标、告警策略。
-- `sql/struct.sql` & `sql/data.sql`：完整结构与示例数据，`sql/v1.7.0/` 为最新增量脚本。
+- `sql/MySql/code_nest.sql`：最新完整结构脚本。
+- `sql/MySql/code_nest_data.sql`：汇总初始化数据脚本（可重复执行）。
+- `sql/v1.8.0~v1.8.3/`：近期增量脚本（OJ、求职作战台、闭环中台等）。
 - `pom.xml`：多模块管理、版本统一、Flatten 插件配置。
 - `docker/`：容器化部署示例。
 
 ## 📝 更新日志
 
 仅列出最近版本，更多历史可查看 `git log`。
+
+### v1.8.1 🔁 求职闭环中台与作战链路升级
+
+- 🆕 **求职闭环中台（Career Loop）**：新增后端状态机与会话模型（阶段、时间线、动作清单、快照），统一管理 `JD解析 -> 简历匹配 -> 计划生成 -> 计划执行 -> 面试完成 -> 复盘完成` 全链路。
+- 🆕 **闭环用户端页面**：新增 `/career-loop`，支持阶段总览、动作清单、风险建议、时间线，并补充雷达图与近4周热力图可视化。
+- 🔗 **跨模块事件联动**：Job Battle 与 AI 模拟面试关键节点自动推送闭环事件；作战台支持“同步到闭环”和“查看闭环进度”。
+- 🎯 **作战台体验强化**：历史计划入口前置、步骤串行校验优化、计划生成结果升级为卡片+时间线+表格+风险区的可视化展示。
+- 🗄️ **SQL脚本整理与数据脚本补齐**：`sql/MySql/code_nest.sql` 作为最新结构脚本，新增 `sql/MySql/code_nest_data.sql` 汇总初始化数据，并补充 `v1.8.3` 增量脚本。
 
 ### v1.8.0 🏆 OJ赛事系统（周赛/挑战赛）落地
 

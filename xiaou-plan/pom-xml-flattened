@@ -5,11 +5,11 @@
   <parent>
     <groupId>com.xiaou</groupId>
     <artifactId>Code-Nest</artifactId>
-    <version>1.7.2</version>
+    <version>1.8.1</version>
   </parent>
   <groupId>com.xiaou</groupId>
   <artifactId>xiaou-plan</artifactId>
-  <version>1.7.2</version>
+  <version>1.8.1</version>
   <name>xiaou-plan</name>
   <description>个人计划打卡模块</description>
   <properties>
