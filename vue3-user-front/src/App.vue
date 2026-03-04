@@ -116,7 +116,7 @@
         
         <!-- 用户操作区域 -->
         <div class="user-actions">
-          <div class="action-item" @click="goToNotification">
+          <div class="header-action-item" @click="goToNotification">
             <el-badge :value="unreadCount" :hidden="unreadCount === 0">
               <el-icon><Bell /></el-icon>
             </el-badge>
@@ -191,7 +191,6 @@ const learningMenuGroups = [
       { path: '/job-battle', label: '求职作战台', desc: 'JD解析到复盘的闭环训练', icon: Trophy },
       { path: '/career-loop', label: '求职闭环中台', desc: '统一追踪求职阶段与动作清单', icon: DataAnalysis },
       { path: '/learning-cockpit', label: '学习成长驾驶舱 2.0', desc: '统一周目标、完成率与排名变化', icon: DataAnalysis },
-      { path: '/growth-autopilot', label: '成长闭环自动驾驶', desc: '自动拆解任务、每日执行与一键重排', icon: DataAnalysis },
       { path: '/knowledge', label: '知识图谱', desc: '可视化构建知识体系', icon: DataAnalysis },
       { path: '/plan', label: '计划打卡', desc: '每日计划执行与复盘', icon: Calendar }
     ]
@@ -600,7 +599,7 @@ onUnmounted(() => {
   gap: 12px;
 }
 
-.action-item {
+.header-action-item {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -612,17 +611,17 @@ onUnmounted(() => {
   transition: var(--cn-transition);
 }
 
-.action-item:hover {
+.header-action-item:hover {
   border-color: #d6e3f8;
   background: #eef4ff;
 }
 
-.action-item .el-icon {
+.header-action-item .el-icon {
   font-size: 18px;
   color: var(--cn-text-secondary);
 }
 
-.action-item:hover .el-icon {
+.header-action-item:hover .el-icon {
   color: var(--cn-primary);
 }
 
@@ -736,7 +735,7 @@ onUnmounted(() => {
     font-size: 20px;
   }
 
-  .action-item {
+  .header-action-item {
     width: 34px;
     height: 34px;
   }

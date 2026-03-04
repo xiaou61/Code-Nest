@@ -266,7 +266,13 @@ const routes = [
   {
     path: '/growth-autopilot',
     name: 'GrowthAutopilot',
-    component: () => import('@/views/growth-autopilot/Index.vue'),
+    redirect: (to) => ({
+      path: '/learning-cockpit',
+      query: {
+        ...to.query,
+        tab: 'autopilot'
+      }
+    }),
     meta: {
       title: '成长闭环自动驾驶',
       requiresAuth: true,

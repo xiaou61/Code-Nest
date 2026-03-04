@@ -36,161 +36,173 @@
         </div>
       </section>
 
-      <section class="summary-grid">
-        <article class="summary-card cn-learn-panel cn-learn-float">
-          <div class="summary-label">本周总完成率</div>
-          <div class="summary-value">{{ summary.completionRate }}%</div>
-          <el-progress :show-text="false" :percentage="summary.completionRate" :stroke-width="9" />
-        </article>
-        <article class="summary-card cn-learn-panel cn-learn-float">
-          <div class="summary-label">周目标进度</div>
-          <div class="summary-value">{{ summary.totalCompleted }} / {{ summary.totalTarget }}</div>
-          <p class="summary-desc">有效活跃天数 {{ summary.activeDays }} 天</p>
-        </article>
-        <article class="summary-card cn-learn-panel cn-learn-float">
-          <div class="summary-label">OJ 周榜排名</div>
-          <div class="summary-value">{{ rankingDisplay.weeklyRankText }}</div>
-          <p class="summary-desc">
-            {{ rankingDisplay.rankTrendText }}
-            <span v-if="rankingDisplay.rankDeltaText" class="muted"> · {{ rankingDisplay.rankDeltaText }}</span>
-          </p>
-        </article>
-        <article class="summary-card cn-learn-panel cn-learn-float">
-          <div class="summary-label">推荐下一步</div>
-          <div class="summary-action">
-            <h4>{{ topAction.title || '今日先完成1个关键动作' }}</h4>
-            <p>{{ topAction.description || summary.headline }}</p>
-            <el-button
-              v-if="topAction.routePath"
-              type="primary"
-              size="small"
-              @click="goRoute(topAction.routePath)"
-            >
-              立即执行
-            </el-button>
-          </div>
-        </article>
-      </section>
+      <section class="cockpit-tabs cn-learn-panel">
+        <el-tabs v-model="activeTab" class="cockpit-tabs-inner" @tab-change="handleTabChange">
+          <el-tab-pane label="驾驶舱总览" name="overview">
+            <section class="summary-grid">
+              <article class="summary-card cn-learn-panel cn-learn-float">
+                <div class="summary-label">本周总完成率</div>
+                <div class="summary-value">{{ summary.completionRate }}%</div>
+                <el-progress :show-text="false" :percentage="summary.completionRate" :stroke-width="9" />
+              </article>
+              <article class="summary-card cn-learn-panel cn-learn-float">
+                <div class="summary-label">周目标进度</div>
+                <div class="summary-value">{{ summary.totalCompleted }} / {{ summary.totalTarget }}</div>
+                <p class="summary-desc">有效活跃天数 {{ summary.activeDays }} 天</p>
+              </article>
+              <article class="summary-card cn-learn-panel cn-learn-float">
+                <div class="summary-label">OJ 周榜排名</div>
+                <div class="summary-value">{{ rankingDisplay.weeklyRankText }}</div>
+                <p class="summary-desc">
+                  {{ rankingDisplay.rankTrendText }}
+                  <span v-if="rankingDisplay.rankDeltaText" class="muted"> · {{ rankingDisplay.rankDeltaText }}</span>
+                </p>
+              </article>
+              <article class="summary-card cn-learn-panel cn-learn-float">
+                <div class="summary-label">推荐下一步</div>
+                <div class="summary-action">
+                  <h4>{{ topAction.title || '今日先完成1个关键动作' }}</h4>
+                  <p>{{ topAction.description || summary.headline }}</p>
+                  <el-button
+                    v-if="topAction.routePath"
+                    type="primary"
+                    size="small"
+                    @click="goRoute(topAction.routePath)"
+                  >
+                    立即执行
+                  </el-button>
+                </div>
+              </article>
+            </section>
 
-      <section class="main-grid">
-        <div class="main-left">
-          <article class="cn-learn-panel panel-block">
-            <header class="panel-head">
-              <h3>周目标完成表</h3>
-              <span class="panel-subtitle">卡片 + 时间线 + 表格（信息最全）</span>
-            </header>
-            <el-table :data="moduleGoals" stripe border class="goal-table" v-loading="loading">
-              <el-table-column prop="moduleName" label="模块" min-width="120" />
-              <el-table-column label="目标" width="110" align="center">
-                <template #default="{ row }">
-                  {{ row.target }} {{ row.unit }}
-                </template>
-              </el-table-column>
-              <el-table-column label="实际" width="110" align="center">
-                <template #default="{ row }">
-                  {{ row.actual }} {{ row.unit }}
-                </template>
-              </el-table-column>
-              <el-table-column label="完成率" min-width="180">
-                <template #default="{ row }">
-                  <div class="rate-cell">
-                    <el-progress :show-text="false" :percentage="row.completionRate" :stroke-width="8" />
-                    <span>{{ row.completionRate }}%</span>
+            <section class="main-grid">
+              <div class="main-left">
+                <article class="cn-learn-panel panel-block">
+                  <header class="panel-head">
+                    <h3>周目标完成表</h3>
+                    <span class="panel-subtitle">卡片 + 时间线 + 表格（信息最全）</span>
+                  </header>
+                  <el-table :data="moduleGoals" stripe border class="goal-table" v-loading="loading">
+                    <el-table-column prop="moduleName" label="模块" min-width="120" />
+                    <el-table-column label="目标" width="110" align="center">
+                      <template #default="{ row }">
+                        {{ row.target }} {{ row.unit }}
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="实际" width="110" align="center">
+                      <template #default="{ row }">
+                        {{ row.actual }} {{ row.unit }}
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="完成率" min-width="180">
+                      <template #default="{ row }">
+                        <div class="rate-cell">
+                          <el-progress :show-text="false" :percentage="row.completionRate" :stroke-width="8" />
+                          <span>{{ row.completionRate }}%</span>
+                        </div>
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="状态" width="100" align="center">
+                      <template #default="{ row }">
+                        <el-tag size="small" :type="statusTagType(row.status)" effect="light">
+                          {{ statusText(row.status) }}
+                        </el-tag>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="hint" label="洞察" min-width="240" show-overflow-tooltip />
+                    <el-table-column label="操作" width="120" align="center">
+                      <template #default="{ row }">
+                        <el-button link type="primary" @click="goRoute(row.routePath)">去完成</el-button>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                </article>
+
+                <article class="cn-learn-panel panel-block">
+                  <header class="panel-head">
+                    <h3>本周节奏时间线</h3>
+                    <span class="panel-subtitle">按天看学习强度与打卡节奏</span>
+                  </header>
+                  <div class="timeline-wrap" v-if="trend.length">
+                    <div class="timeline-track"></div>
+                    <div v-for="item in trend" :key="item.date" class="timeline-item">
+                      <div class="timeline-date">{{ formatDate(item.date) }}</div>
+                      <div class="timeline-node" :style="{ '--score': item.score }">
+                        <span>{{ item.score }}</span>
+                      </div>
+                      <div class="timeline-meta">
+                        <p>题库 {{ item.interviewCount }}</p>
+                        <p>闪卡 {{ item.flashcardCount }}</p>
+                        <p>积分 {{ item.pointsCheckin ? '✓' : '-' }}</p>
+                      </div>
+                    </div>
                   </div>
-                </template>
-              </el-table-column>
-              <el-table-column label="状态" width="100" align="center">
-                <template #default="{ row }">
-                  <el-tag size="small" :type="statusTagType(row.status)" effect="light">
-                    {{ statusText(row.status) }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="hint" label="洞察" min-width="240" show-overflow-tooltip />
-              <el-table-column label="操作" width="120" align="center">
-                <template #default="{ row }">
-                  <el-button link type="primary" @click="goRoute(row.routePath)">去完成</el-button>
-                </template>
-              </el-table-column>
-            </el-table>
-          </article>
+                  <el-empty v-else description="暂无趋势数据" :image-size="72" />
+                </article>
+              </div>
 
-          <article class="cn-learn-panel panel-block">
-            <header class="panel-head">
-              <h3>本周节奏时间线</h3>
-              <span class="panel-subtitle">按天看学习强度与打卡节奏</span>
-            </header>
-            <div class="timeline-wrap" v-if="trend.length">
-              <div class="timeline-track"></div>
-              <div v-for="item in trend" :key="item.date" class="timeline-item">
-                <div class="timeline-date">{{ formatDate(item.date) }}</div>
-                <div class="timeline-node" :style="{ '--score': item.score }">
-                  <span>{{ item.score }}</span>
-                </div>
-                <div class="timeline-meta">
-                  <p>题库 {{ item.interviewCount }}</p>
-                  <p>闪卡 {{ item.flashcardCount }}</p>
-                  <p>积分 {{ item.pointsCheckin ? '✓' : '-' }}</p>
-                </div>
-              </div>
-            </div>
-            <el-empty v-else description="暂无趋势数据" :image-size="72" />
-          </article>
-        </div>
+              <div class="main-right">
+                <article class="cn-learn-panel panel-block">
+                  <header class="panel-head">
+                    <h3>排名变化</h3>
+                    <span class="panel-subtitle">周榜 vs 总榜</span>
+                  </header>
+                  <div class="rank-grid">
+                    <div class="rank-card">
+                      <label>OJ 周榜</label>
+                      <strong>{{ rankingDisplay.weeklyRankText }}</strong>
+                      <small>参与人数 {{ ranking.weeklyPopulation || 0 }}</small>
+                    </div>
+                    <div class="rank-card">
+                      <label>OJ 总榜</label>
+                      <strong>{{ rankingDisplay.allRankText }}</strong>
+                      <small>参与人数 {{ ranking.allPopulation || 0 }}</small>
+                    </div>
+                  </div>
+                  <p class="rank-trend">{{ rankingDisplay.rankTrendText }}</p>
+                  <div class="rank-history" v-if="rankingTrend.length">
+                    <div v-for="item in rankingTrend" :key="item.weekStart" class="rank-history-item">
+                      <span>{{ item.weekStart }}</span>
+                      <strong>{{ item.weeklyRank ? `#${item.weeklyRank}` : '未上榜' }}</strong>
+                    </div>
+                  </div>
+                  <p class="rank-comment">{{ ranking.comment || '保持稳定执行，排名会持续改善。' }}</p>
+                </article>
 
-        <div class="main-right">
-          <article class="cn-learn-panel panel-block">
-            <header class="panel-head">
-              <h3>排名变化</h3>
-              <span class="panel-subtitle">周榜 vs 总榜</span>
-            </header>
-            <div class="rank-grid">
-              <div class="rank-card">
-                <label>OJ 周榜</label>
-                <strong>{{ rankingDisplay.weeklyRankText }}</strong>
-                <small>参与人数 {{ ranking.weeklyPopulation || 0 }}</small>
-              </div>
-              <div class="rank-card">
-                <label>OJ 总榜</label>
-                <strong>{{ rankingDisplay.allRankText }}</strong>
-                <small>参与人数 {{ ranking.allPopulation || 0 }}</small>
-              </div>
-            </div>
-            <p class="rank-trend">{{ rankingDisplay.rankTrendText }}</p>
-            <div class="rank-history" v-if="rankingTrend.length">
-              <div v-for="item in rankingTrend" :key="item.weekStart" class="rank-history-item">
-                <span>{{ item.weekStart }}</span>
-                <strong>{{ item.weeklyRank ? `#${item.weeklyRank}` : '未上榜' }}</strong>
-              </div>
-            </div>
-            <p class="rank-comment">{{ ranking.comment || '保持稳定执行，排名会持续改善。' }}</p>
-          </article>
+                <article class="cn-learn-panel panel-block">
+                  <header class="panel-head">
+                    <h3>推荐下一步</h3>
+                    <span class="panel-subtitle">按优先级执行</span>
+                  </header>
+                  <div v-if="nextActions.length" class="action-list">
+                    <div v-for="action in nextActions" :key="`${action.moduleKey}-${action.priority}`" class="action-item">
+                      <div class="action-priority">P{{ action.priority }}</div>
+                      <div class="action-content">
+                        <h4>{{ action.title }}</h4>
+                        <p>{{ action.description }}</p>
+                        <p v-if="action.reason" class="action-reason">策略说明：{{ action.reason }}</p>
+                        <p v-if="action.expectedGain" class="action-gain">预期收益：{{ action.expectedGain }}</p>
+                        <el-button link type="primary" @click="goRoute(action.routePath)">去执行</el-button>
+                      </div>
+                    </div>
+                  </div>
+                  <el-empty v-else description="暂无建议" :image-size="72" />
+                </article>
 
-          <article class="cn-learn-panel panel-block">
-            <header class="panel-head">
-              <h3>推荐下一步</h3>
-              <span class="panel-subtitle">按优先级执行</span>
-            </header>
-            <div v-if="nextActions.length" class="action-list">
-              <div v-for="action in nextActions" :key="`${action.moduleKey}-${action.priority}`" class="action-item">
-                <div class="action-priority">P{{ action.priority }}</div>
-                <div class="action-content">
-                  <h4>{{ action.title }}</h4>
-                  <p>{{ action.description }}</p>
-                  <p v-if="action.reason" class="action-reason">策略说明：{{ action.reason }}</p>
-                  <p v-if="action.expectedGain" class="action-gain">预期收益：{{ action.expectedGain }}</p>
-                  <el-button link type="primary" @click="goRoute(action.routePath)">去执行</el-button>
-                </div>
+                <article class="cn-learn-panel panel-block headline-block">
+                  <h4>本周提示</h4>
+                  <p>{{ summary.headline || '先完成本周最低完成率模块，再冲刺排名。' }}</p>
+                </article>
               </div>
-            </div>
-            <el-empty v-else description="暂无建议" :image-size="72" />
-          </article>
+            </section>
+          </el-tab-pane>
 
-          <article class="cn-learn-panel panel-block headline-block">
-            <h4>本周提示</h4>
-            <p>{{ summary.headline || '先完成本周最低完成率模块，再冲刺排名。' }}</p>
-          </article>
-        </div>
+          <el-tab-pane label="自动驾驶计划" name="autopilot" lazy>
+            <div class="autopilot-tab-wrap">
+              <GrowthAutopilotPanel />
+            </div>
+          </el-tab-pane>
+        </el-tabs>
       </section>
 
       <el-dialog v-model="settingVisible" title="周目标设置" width="520px">
@@ -241,16 +253,21 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Calendar, Clock, Compass, DataAnalysis, Refresh, Setting } from '@element-plus/icons-vue'
 import { learningCockpitApi } from '@/api/learningCockpit'
+import GrowthAutopilotPanel from '@/views/growth-autopilot/GrowthAutopilotPanel.vue'
 
 const router = useRouter()
+const route = useRoute()
 const loading = ref(false)
 const savingProfile = ref(false)
 const settingVisible = ref(false)
+const allowedTabs = ['overview', 'autopilot']
+const normalizeTab = (tabName) => (allowedTabs.includes(tabName) ? tabName : 'overview')
+const activeTab = ref(normalizeTab(route.query.tab))
 const settingsStorageKey = 'cn_learning_cockpit_target_settings_v2'
 const roleOptions = ['后端开发', '前端开发', '全栈开发', '算法工程师', '测试开发', '产品经理', '运维开发']
 const targetSettings = reactive({
@@ -323,8 +340,31 @@ const formatDate = (text) => {
   return `${month}/${day}`
 }
 
+const handleTabChange = (tabName) => {
+  const nextTab = normalizeTab(tabName)
+  if (nextTab !== activeTab.value) {
+    activeTab.value = nextTab
+  }
+  const nextQuery = { ...route.query }
+  if (nextTab === 'overview') {
+    delete nextQuery.tab
+  } else {
+    nextQuery.tab = nextTab
+  }
+  const currentTab = route.query.tab
+  const queryMatched = nextTab === 'overview' ? !currentTab : currentTab === nextTab
+  if (queryMatched) {
+    return
+  }
+  router.replace({ path: route.path, query: nextQuery })
+}
+
 const goRoute = (path) => {
   if (!path) return
+  if (typeof path === 'string' && path.startsWith('/growth-autopilot')) {
+    router.push({ path: '/learning-cockpit', query: { tab: 'autopilot' } })
+    return
+  }
   router.push(path)
 }
 
@@ -411,6 +451,16 @@ onMounted(() => {
   loadLocalSettings()
   loadOverview()
 })
+
+watch(
+  () => route.query.tab,
+  (tabName) => {
+    const nextTab = normalizeTab(tabName)
+    if (activeTab.value !== nextTab) {
+      activeTab.value = nextTab
+    }
+  }
+)
 </script>
 
 <style scoped>
@@ -420,6 +470,33 @@ onMounted(() => {
 
 .hero {
   margin-bottom: 16px;
+}
+
+.cockpit-tabs {
+  padding: 10px 14px 14px;
+}
+
+:deep(.cockpit-tabs-inner > .el-tabs__header) {
+  margin-bottom: 14px;
+}
+
+:deep(.cockpit-tabs-inner > .el-tabs__header .el-tabs__nav-wrap::after) {
+  background-color: #dce8fa;
+}
+
+:deep(.cockpit-tabs-inner .el-tabs__item) {
+  height: 40px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #627ca1;
+}
+
+:deep(.cockpit-tabs-inner .el-tabs__item.is-active) {
+  color: #1f63c5;
+}
+
+.autopilot-tab-wrap {
+  padding-top: 4px;
 }
 
 .summary-grid {
