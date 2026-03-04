@@ -7,12 +7,16 @@ import com.xiaou.ai.dto.jobbattle.JobBattleResumeMatchResult;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.core.domain.Result;
 import com.xiaou.common.satoken.StpUserUtil;
+import com.xiaou.mockinterview.domain.JobBattleMatchRecord;
 import com.xiaou.mockinterview.domain.JobBattlePlanRecord;
 import com.xiaou.mockinterview.dto.request.JobBattleGeneratePlanRequest;
 import com.xiaou.mockinterview.dto.request.JobBattleInterviewReviewRequest;
+import com.xiaou.mockinterview.dto.request.JobBattleMatchEngineHistoryRequest;
+import com.xiaou.mockinterview.dto.request.JobBattleMatchEngineRunRequest;
 import com.xiaou.mockinterview.dto.request.JobBattlePlanHistoryRequest;
 import com.xiaou.mockinterview.dto.request.JobBattleParseJdRequest;
 import com.xiaou.mockinterview.dto.request.JobBattleResumeMatchRequest;
+import com.xiaou.mockinterview.dto.response.JobBattleMatchEngineResult;
 import com.xiaou.mockinterview.service.JobBattleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -75,6 +79,42 @@ public class JobBattleController {
     public Result<JobBattlePlanRecord> getPlanHistoryDetail(@PathVariable Long id) {
         Long userId = StpUserUtil.getLoginIdAsLong();
         JobBattlePlanRecord result = jobBattleService.getPlanHistoryDetail(userId, id);
+        return Result.success(result);
+    }
+
+    @Operation(summary = "岗位匹配引擎-批量分析")
+    @PostMapping("/match-engine/run")
+    public Result<JobBattleMatchEngineResult> runMatchEngine(@Valid @RequestBody JobBattleMatchEngineRunRequest request) {
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        JobBattleMatchEngineResult result = jobBattleService.runMatchEngine(userId, request);
+        return Result.success("岗位匹配分析完成", result);
+    }
+
+    @Operation(summary = "岗位匹配引擎-历史记录")
+    @PostMapping("/match-engine/history")
+    public Result<PageResult<JobBattleMatchRecord>> getMatchEngineHistory(
+            @RequestBody(required = false) JobBattleMatchEngineHistoryRequest request) {
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        if (request == null) {
+            request = new JobBattleMatchEngineHistoryRequest();
+        }
+        PageResult<JobBattleMatchRecord> result = jobBattleService.getMatchEngineHistory(userId, request);
+        return Result.success(result);
+    }
+
+    @Operation(summary = "岗位匹配引擎-历史详情")
+    @GetMapping("/match-engine/history/{id}")
+    public Result<JobBattleMatchEngineResult> getMatchEngineHistoryDetail(@PathVariable Long id) {
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        JobBattleMatchEngineResult result = jobBattleService.getMatchEngineDetail(userId, id);
+        return Result.success(result);
+    }
+
+    @Operation(summary = "岗位匹配引擎-最近一次分析")
+    @GetMapping("/match-engine/latest")
+    public Result<JobBattleMatchEngineResult> getLatestMatchEngineResult() {
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        JobBattleMatchEngineResult result = jobBattleService.getLatestMatchEngineResult(userId);
         return Result.success(result);
     }
 

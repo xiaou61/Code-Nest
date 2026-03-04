@@ -244,6 +244,16 @@ const routes = [
     }
   },
   {
+    path: '/job-match-engine',
+    name: 'JobMatchEngine',
+    component: () => import('@/views/job-battle/MatchEngine.vue'),
+    meta: {
+      title: '岗位匹配引擎 2.0',
+      requiresAuth: true,
+      keepAlive: true
+    }
+  },
+  {
     path: '/career-loop',
     name: 'CareerLoop',
     component: () => import('@/views/career-loop/Index.vue'),

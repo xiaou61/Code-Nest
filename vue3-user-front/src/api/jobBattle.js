@@ -26,6 +26,26 @@ export const jobBattleApi = {
     return request.get(`/user/job-battle/plan/history/${id}`)
   },
 
+  // 岗位匹配引擎：批量分析
+  runMatchEngine(data) {
+    return request.post('/user/job-battle/match-engine/run', data)
+  },
+
+  // 岗位匹配引擎：历史记录
+  getMatchEngineHistory(data) {
+    return request.post('/user/job-battle/match-engine/history', data)
+  },
+
+  // 岗位匹配引擎：历史详情
+  getMatchEngineHistoryDetail(id) {
+    return request.get(`/user/job-battle/match-engine/history/${id}`)
+  },
+
+  // 岗位匹配引擎：最近一次结果
+  getLatestMatchEngineResult() {
+    return request.get('/user/job-battle/match-engine/latest')
+  },
+
   // 面试复盘总结
   reviewInterview(data) {
     return request.post('/user/job-battle/interview/review', data)
