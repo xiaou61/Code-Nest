@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.plan.mapper.LearningCockpitRankSnapshotMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.plan.domain.LearningCockpitRankSnapshot">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="user_id" property="userId" jdbcType="BIGINT"/>
+        <result column="week_start" property="weekStart" jdbcType="DATE"/>
+        <result column="week_end" property="weekEnd" jdbcType="DATE"/>
+        <result column="weekly_rank" property="weeklyRank" jdbcType="INTEGER"/>
+        <result column="all_rank" property="allRank" jdbcType="INTEGER"/>
+        <result column="weekly_population" property="weeklyPopulation" jdbcType="INTEGER"/>
+        <result column="all_population" property="allPopulation" jdbcType="INTEGER"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, user_id, week_start, week_end, weekly_rank, all_rank,
+        weekly_population, all_population, create_time, update_time
+    </sql>
+
+    <select id="selectByUserAndWeekStart" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM learning_cockpit_rank_snapshot
+        WHERE user_id = #{userId}
+          AND week_start = #{weekStart}
+        LIMIT 1
+    </select>
+
+    <select id="selectLatestBeforeWeek" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM learning_cockpit_rank_snapshot
+        WHERE user_id = #{userId}
+          AND week_start &lt; #{weekStart}
+        ORDER BY week_start DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectRecentByUser" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM learning_cockpit_rank_snapshot
+        WHERE user_id = #{userId}
+        ORDER BY week_start DESC
+        LIMIT #{limit}
+    </select>
+
+    <insert id="upsert" parameterType="com.xiaou.plan.domain.LearningCockpitRankSnapshot">
+        INSERT INTO learning_cockpit_rank_snapshot (
+            user_id, week_start, week_end, weekly_rank, all_rank,
+            weekly_population, all_population, create_time, update_time
+        ) VALUES (
+            #{userId}, #{weekStart}, #{weekEnd}, #{weeklyRank}, #{allRank},
+            #{weeklyPopulation}, #{allPopulation}, NOW(), NOW()
+        )
+        ON DUPLICATE KEY UPDATE
+            week_end = VALUES(week_end),
+            weekly_rank = VALUES(weekly_rank),
+            all_rank = VALUES(all_rank),
+            weekly_population = VALUES(weekly_population),
+            all_population = VALUES(all_population),
+            update_time = NOW()
+    </insert>
+
+</mapper>
+

@@ -103,7 +103,30 @@ public class LearningCockpitOverviewResponse {
         private Integer weeklyPopulation = 0;
         private Integer allPopulation = 0;
         private Integer weeklyVsAllDelta;
+        /**
+         * 相对上周排名变化（上升为正，下降为负）
+         */
+        private Integer weeklyVsLastWeekDelta;
+        /**
+         * 上周周榜排名
+         */
+        private Integer lastWeekRank;
+        /**
+         * 排名变化描述
+         */
+        private String trendText = "";
+        /**
+         * 排名变化趋势
+         */
+        private List<RankTrendPoint> trend = new ArrayList<>();
         private String comment = "";
+    }
+
+    @Data
+    public static class RankTrendPoint {
+        private String weekStart = "";
+        private Integer weeklyRank;
+        private Integer allRank;
     }
 
     @Data
@@ -120,6 +143,8 @@ public class LearningCockpitOverviewResponse {
         private Integer priority = 0;
         private String title = "";
         private String description = "";
+        private String reason = "";
+        private Integer expectedGain = 0;
         private String routePath = "";
         private String moduleKey = "";
     }

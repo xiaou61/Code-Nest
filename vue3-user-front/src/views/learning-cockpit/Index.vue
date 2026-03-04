@@ -51,8 +51,8 @@
           <div class="summary-label">OJ 周榜排名</div>
           <div class="summary-value">{{ rankingDisplay.weeklyRankText }}</div>
           <p class="summary-desc">
-            {{ rankingDisplay.rankDeltaText }}
-            <span v-if="rankingSnapshotText" class="muted"> · {{ rankingSnapshotText }}</span>
+            {{ rankingDisplay.rankTrendText }}
+            <span v-if="rankingDisplay.rankDeltaText" class="muted"> · {{ rankingDisplay.rankDeltaText }}</span>
           </p>
         </article>
         <article class="summary-card cn-learn-panel cn-learn-float">
@@ -156,6 +156,13 @@
                 <small>参与人数 {{ ranking.allPopulation || 0 }}</small>
               </div>
             </div>
+            <p class="rank-trend">{{ rankingDisplay.rankTrendText }}</p>
+            <div class="rank-history" v-if="rankingTrend.length">
+              <div v-for="item in rankingTrend" :key="item.weekStart" class="rank-history-item">
+                <span>{{ item.weekStart }}</span>
+                <strong>{{ item.weeklyRank ? `#${item.weeklyRank}` : '未上榜' }}</strong>
+              </div>
+            </div>
             <p class="rank-comment">{{ ranking.comment || '保持稳定执行，排名会持续改善。' }}</p>
           </article>
 
@@ -170,6 +177,8 @@
                 <div class="action-content">
                   <h4>{{ action.title }}</h4>
                   <p>{{ action.description }}</p>
+                  <p v-if="action.reason" class="action-reason">策略说明：{{ action.reason }}</p>
+                  <p v-if="action.expectedGain" class="action-gain">预期收益：{{ action.expectedGain }}</p>
                   <el-button link type="primary" @click="goRoute(action.routePath)">去执行</el-button>
                 </div>
               </div>
@@ -242,7 +251,6 @@ const router = useRouter()
 const loading = ref(false)
 const savingProfile = ref(false)
 const settingVisible = ref(false)
-const rankSnapshotText = ref('')
 const settingsStorageKey = 'cn_learning_cockpit_target_settings_v2'
 const roleOptions = ['后端开发', '前端开发', '全栈开发', '算法工程师', '测试开发', '产品经理', '运维开发']
 const targetSettings = reactive({
@@ -266,6 +274,7 @@ const summary = computed(() => overview.value?.summary || {})
 const targetProfile = computed(() => overview.value?.targetProfile || {})
 const moduleGoals = computed(() => overview.value?.moduleGoals || [])
 const ranking = computed(() => overview.value?.ranking || {})
+const rankingTrend = computed(() => ranking.value?.trend || [])
 const trend = computed(() => overview.value?.trend || [])
 const nextActions = computed(() => overview.value?.nextActions || [])
 const topAction = computed(() => nextActions.value[0] || {})
@@ -274,12 +283,17 @@ const rankingDisplay = computed(() => {
   const weeklyRank = ranking.value.weeklyRank
   const allRank = ranking.value.allRank
   const delta = ranking.value.weeklyVsAllDelta
+  const weekDelta = ranking.value.weeklyVsLastWeekDelta
+  const trendText = ranking.value.trendText
   return {
     weeklyRankText: weeklyRank ? `#${weeklyRank}` : '未上榜',
     allRankText: allRank ? `#${allRank}` : '未上榜',
     rankDeltaText: Number.isFinite(delta)
       ? (delta > 0 ? `较总榜领先 ${delta} 位` : delta < 0 ? `较总榜落后 ${Math.abs(delta)} 位` : '与总榜持平')
-      : '暂无可比变化'
+      : '',
+    rankTrendText: trendText || (Number.isFinite(weekDelta)
+      ? (weekDelta > 0 ? `较上周上升 ${weekDelta} 位` : weekDelta < 0 ? `较上周下降 ${Math.abs(weekDelta)} 位` : '较上周持平')
+      : '暂无上周基线')
   }
 })
 
@@ -372,37 +386,6 @@ const applyTargetSettings = async () => {
   }
 }
 
-const updateRankSnapshot = (data) => {
-  const storageKey = 'cn_learning_cockpit_rank_snapshot_v1'
-  rankSnapshotText.value = ''
-  if (!data || typeof data.weeklyRank !== 'number') return
-
-  try {
-    const raw = localStorage.getItem(storageKey)
-    if (raw) {
-      const prev = JSON.parse(raw)
-      if (prev && Number.isFinite(prev.weeklyRank)) {
-        const delta = prev.weeklyRank - data.weeklyRank
-        if (delta > 0) {
-          rankSnapshotText.value = `较上次查看上升 ${delta} 位`
-        } else if (delta < 0) {
-          rankSnapshotText.value = `较上次查看下降 ${Math.abs(delta)} 位`
-        } else {
-          rankSnapshotText.value = '较上次查看持平'
-        }
-      }
-    }
-  } catch (e) {
-    rankSnapshotText.value = ''
-  }
-
-  localStorage.setItem(storageKey, JSON.stringify({
-    weeklyRank: data.weeklyRank,
-    allRank: data.allRank,
-    updatedAt: Date.now()
-  }))
-}
-
 const loadOverview = async () => {
   loading.value = true
   try {
@@ -416,7 +399,6 @@ const loadOverview = async () => {
       nextActions: []
     }
     applyProfileToSettings(overview.value?.targetProfile || {})
-    updateRankSnapshot(overview.value.ranking)
   } catch (error) {
     console.error('加载学习成长驾驶舱失败', error)
     ElMessage.error('加载学习成长驾驶舱失败，请稍后重试')
@@ -638,6 +620,41 @@ onMounted(() => {
   font-size: 13px;
 }
 
+.rank-trend {
+  margin: 10px 0 0;
+  color: #1f5fb5;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rank-history {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.rank-history-item {
+  border: 1px solid #dce9fb;
+  border-radius: 8px;
+  background: #f8fbff;
+  padding: 6px 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.rank-history-item span {
+  font-size: 12px;
+  color: #6b86ab;
+}
+
+.rank-history-item strong {
+  font-size: 13px;
+  color: #214b7d;
+}
+
 .action-list {
   display: flex;
   flex-direction: column;
@@ -677,6 +694,19 @@ onMounted(() => {
   font-size: 13px;
   color: #60789d;
   line-height: 1.65;
+}
+
+.action-reason {
+  margin-top: 6px !important;
+  color: #2f5f98 !important;
+  font-size: 12px !important;
+}
+
+.action-gain {
+  margin-top: 2px !important;
+  color: #1f6a45 !important;
+  font-size: 12px !important;
+  font-weight: 600;
 }
 
 .headline-block h4 {
@@ -730,6 +760,10 @@ onMounted(() => {
   }
 
   .rank-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rank-history {
     grid-template-columns: 1fr;
   }
 }

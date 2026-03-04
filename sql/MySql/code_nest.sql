@@ -2850,6 +2850,27 @@ CREATE TABLE `growth_autopilot_event`  (
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '成长自动驾驶事件日志' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
+-- Table structure for learning_cockpit_rank_snapshot
+-- ----------------------------
+DROP TABLE IF EXISTS `learning_cockpit_rank_snapshot`;
+CREATE TABLE `learning_cockpit_rank_snapshot`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `user_id` bigint NOT NULL COMMENT '用户ID',
+  `week_start` date NOT NULL COMMENT '周起始日期（周一）',
+  `week_end` date NOT NULL COMMENT '周结束日期（周日）',
+  `weekly_rank` int NULL DEFAULT NULL COMMENT '周榜排名',
+  `all_rank` int NULL DEFAULT NULL COMMENT '总榜排名',
+  `weekly_population` int NULL DEFAULT 0 COMMENT '周榜参与人数',
+  `all_population` int NULL DEFAULT 0 COMMENT '总榜参与人数',
+  `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_user_week_start`(`user_id` ASC, `week_start` ASC) USING BTREE,
+  INDEX `idx_user_week`(`user_id` ASC, `week_start` DESC) USING BTREE,
+  INDEX `idx_week_start`(`week_start` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '学习驾驶舱排名快照' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
 -- Table structure for user_points_balance
 -- ----------------------------
 DROP TABLE IF EXISTS `user_points_balance`;

@@ -13,6 +13,8 @@ import com.xiaou.oj.dto.OjStatisticsVO;
 import com.xiaou.oj.dto.RankingItem;
 import com.xiaou.oj.service.OjRankingService;
 import com.xiaou.oj.service.OjSubmissionService;
+import com.xiaou.plan.domain.LearningCockpitRankSnapshot;
+import com.xiaou.plan.mapper.LearningCockpitRankSnapshotMapper;
 import com.xiaou.plan.dto.PlanStatsResponse;
 import com.xiaou.plan.service.PlanService;
 import com.xiaou.points.dto.CheckinCalendarResponse;
@@ -30,6 +32,7 @@ import java.time.Year;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 /**
@@ -56,6 +59,7 @@ public class LearningCockpitService {
     private final OjSubmissionService ojSubmissionService;
     private final OjRankingService ojRankingService;
     private final CareerLoopService careerLoopService;
+    private final LearningCockpitRankSnapshotMapper rankSnapshotMapper;
 
     public LearningCockpitOverviewResponse getOverview(Long userId) {
         return getOverview(userId, null, null);
@@ -142,10 +146,11 @@ public class LearningCockpitService {
         response.setModuleGoals(modules);
 
         LearningCockpitOverviewResponse.RankingInsight ranking = buildRankingInsight(weeklyRanking, allRanking, userId);
+        enrichRankingWithHistory(ranking, userId, weekStart, weekEnd);
         response.setRanking(ranking);
         response.setTrend(buildTrend(interviewHeatmap, flashcardHeatmap, checkinDayMap, weekStart, today));
         response.setSummary(buildSummary(modules, checkinDayMap, weekStart, today, ranking));
-        response.setNextActions(buildNextActions(modules, reviewStats, pointsBalance));
+        response.setNextActions(buildNextActions(modules, reviewStats, pointsBalance, ranking));
         return response;
     }
 
@@ -176,6 +181,9 @@ public class LearningCockpitService {
         }
         if (ranking.getWeeklyRank() != null) {
             headline = headline + " OJ周榜当前第 " + ranking.getWeeklyRank() + " 名。";
+        }
+        if (ranking.getTrendText() != null && !ranking.getTrendText().isEmpty()) {
+            headline = headline + " " + ranking.getTrendText() + "。";
         }
         summary.setHeadline(headline);
         return summary;
@@ -211,6 +219,76 @@ public class LearningCockpitService {
             ranking.setComment("本周尚未进入周榜，建议先完成1-2题");
         }
         return ranking;
+    }
+
+    private void enrichRankingWithHistory(
+            LearningCockpitOverviewResponse.RankingInsight ranking,
+            Long userId,
+            LocalDate weekStart,
+            LocalDate weekEnd
+    ) {
+        if (userId == null || weekStart == null || weekEnd == null || ranking == null) {
+            return;
+        }
+        LearningCockpitRankSnapshot snapshot = new LearningCockpitRankSnapshot();
+        snapshot.setUserId(userId);
+        snapshot.setWeekStart(weekStart);
+        snapshot.setWeekEnd(weekEnd);
+        snapshot.setWeeklyRank(ranking.getWeeklyRank());
+        snapshot.setAllRank(ranking.getAllRank());
+        snapshot.setWeeklyPopulation(ranking.getWeeklyPopulation());
+        snapshot.setAllPopulation(ranking.getAllPopulation());
+        safeCall("learning.rankSnapshot.upsert", () -> rankSnapshotMapper.upsert(snapshot), 0);
+
+        LearningCockpitRankSnapshot previous = safeCall(
+                "learning.rankSnapshot.prev",
+                () -> rankSnapshotMapper.selectLatestBeforeWeek(userId, weekStart),
+                null
+        );
+        if (previous == null) {
+            ranking.setTrendText("暂无上周基线，已从本周开始记录排名变化。");
+        } else {
+            ranking.setLastWeekRank(previous.getWeeklyRank());
+            Integer lastWeekRank = previous.getWeeklyRank();
+            Integer thisWeekRank = ranking.getWeeklyRank();
+            if (lastWeekRank != null && thisWeekRank != null) {
+                int delta = lastWeekRank - thisWeekRank;
+                ranking.setWeeklyVsLastWeekDelta(delta);
+                if (delta > 0) {
+                    ranking.setTrendText("较上周上升 " + delta + " 位");
+                } else if (delta < 0) {
+                    ranking.setTrendText("较上周下降 " + Math.abs(delta) + " 位");
+                } else {
+                    ranking.setTrendText("较上周持平");
+                }
+            } else if (lastWeekRank == null && thisWeekRank != null) {
+                ranking.setTrendText("本周新进入周榜");
+            } else if (lastWeekRank != null) {
+                ranking.setTrendText("本周暂未上榜（上周 #" + lastWeekRank + "）");
+            } else {
+                ranking.setTrendText("暂无可比周榜数据");
+            }
+        }
+
+        List<LearningCockpitRankSnapshot> recent = safeCall(
+                "learning.rankSnapshot.recent",
+                () -> rankSnapshotMapper.selectRecentByUser(userId, 6),
+                Collections.emptyList()
+        );
+        List<LearningCockpitOverviewResponse.RankTrendPoint> trend = new ArrayList<>();
+        if (recent != null && !recent.isEmpty()) {
+            List<LearningCockpitRankSnapshot> ordered = recent.stream()
+                    .sorted(Comparator.comparing(LearningCockpitRankSnapshot::getWeekStart))
+                    .toList();
+            for (LearningCockpitRankSnapshot item : ordered) {
+                LearningCockpitOverviewResponse.RankTrendPoint point = new LearningCockpitOverviewResponse.RankTrendPoint();
+                point.setWeekStart(item.getWeekStart() == null ? "" : item.getWeekStart().format(DATE_FORMAT));
+                point.setWeeklyRank(item.getWeeklyRank());
+                point.setAllRank(item.getAllRank());
+                trend.add(point);
+            }
+        }
+        ranking.setTrend(trend);
     }
 
     private List<LearningCockpitOverviewResponse.TrendPoint> buildTrend(
@@ -250,47 +328,123 @@ public class LearningCockpitService {
     private List<LearningCockpitOverviewResponse.NextAction> buildNextActions(
             List<LearningCockpitOverviewResponse.ModuleGoal> modules,
             ReviewStatsResponse reviewStats,
-            PointsBalanceResponse pointsBalance
+            PointsBalanceResponse pointsBalance,
+            LearningCockpitOverviewResponse.RankingInsight ranking
     ) {
-        List<LearningCockpitOverviewResponse.NextAction> actions = new ArrayList<>();
-        int priority = 1;
+        record ActionCandidate(
+                int score,
+                String title,
+                String description,
+                String reason,
+                int expectedGain,
+                String routePath,
+                String moduleKey
+        ) {}
 
-        if (nvl(reviewStats.getOverdueCount()) > 0) {
-            actions.add(buildAction(
-                    priority++,
+        List<ActionCandidate> candidates = new ArrayList<>();
+
+        int overdueCount = nvl(reviewStats.getOverdueCount());
+        if (overdueCount > 0) {
+            candidates.add(new ActionCandidate(
+                    140 + Math.min(overdueCount * 3, 40),
                     "先清理逾期复习题",
-                    "当前有 " + nvl(reviewStats.getOverdueCount()) + " 道逾期题，优先恢复记忆曲线。",
+                    "当前有 " + overdueCount + " 道逾期题，优先恢复记忆曲线。",
+                    "复习逾期会显著拉低题库模块完成率",
+                    Math.min(overdueCount, 6),
                     "/interview/review?type=overdue",
                     "interview"
             ));
         }
 
         if (!Boolean.TRUE.equals(pointsBalance.getTodayCheckedIn())) {
-            actions.add(buildAction(
-                    priority++,
+            int todayPoints = nvl(pointsBalance.getTodayPoints());
+            candidates.add(new ActionCandidate(
+                    120 + Math.min(todayPoints, 20),
                     "完成今日积分打卡",
-                    "今日打卡可获得 +" + nvl(pointsBalance.getTodayPoints()) + " 积分，先拿基础收益。",
+                    "今日打卡可获得 +" + todayPoints + " 积分，先拿稳定收益。",
+                    "积分模块是最容易立即达成的模块",
+                    Math.max(todayPoints, 1),
                     "/points",
                     "points"
             ));
         }
 
-        List<LearningCockpitOverviewResponse.ModuleGoal> sortedModules = modules.stream()
-                .sorted(Comparator.comparingInt(item -> nvl(item.getCompletionRate())))
-                .limit(3)
-                .toList();
-        for (LearningCockpitOverviewResponse.ModuleGoal item : sortedModules) {
-            actions.add(buildAction(
-                    priority++,
+        Integer rankTrendDelta = ranking == null ? null : ranking.getWeeklyVsLastWeekDelta();
+        if (rankTrendDelta != null && rankTrendDelta < 0) {
+            candidates.add(new ActionCandidate(
+                    138 + Math.min(Math.abs(rankTrendDelta) * 4, 30),
+                    "恢复 OJ 周榜位次",
+                    "当前较上周下降 " + Math.abs(rankTrendDelta) + " 位，建议补 1-2 道中等题。",
+                    "排名下滑说明本周 OJ 题量不足",
+                    Math.min(Math.abs(rankTrendDelta), 5),
+                    "/oj",
+                    "oj"
+            ));
+        } else if (ranking != null && ranking.getWeeklyRank() == null) {
+            candidates.add(new ActionCandidate(
+                    132,
+                    "优先进入 OJ 周榜",
+                    "本周尚未上榜，先完成 1 道基础题 + 1 道中等题。",
+                    "先入榜再冲名次，收益更稳定",
+                    3,
+                    "/oj",
+                    "oj"
+            ));
+        }
+
+        for (LearningCockpitOverviewResponse.ModuleGoal item : modules) {
+            int target = Math.max(1, nvl(item.getTarget()));
+            int actual = nvl(item.getActual());
+            int completionRate = nvl(item.getCompletionRate());
+            int gap = Math.max(0, target - actual);
+            if (gap <= 0) {
+                continue;
+            }
+            int gapRate = (int) Math.round(gap * 100.0 / target);
+            int score = gapRate
+                    + ("behind".equals(item.getStatus()) ? 45 : 0)
+                    + ("warning".equals(item.getStatus()) ? 20 : 0)
+                    + Math.min(gap, 10) * 3;
+            candidates.add(new ActionCandidate(
+                    score,
                     "补齐「" + item.getModuleName() + "」周进度",
-                    "当前完成率 " + nvl(item.getCompletionRate()) + "%，建议优先完成最小可执行任务。",
+                    "当前完成率 " + completionRate + "%，还差 " + gap + item.getUnit() + " 达标。",
+                    "该模块缺口较大，优先补齐能最快拉升总完成率",
+                    Math.max(1, Math.min(gap, target / 2 + 1)),
                     item.getRoutePath(),
                     item.getModuleKey()
             ));
         }
 
-        if (actions.size() > 3) {
-            return actions.subList(0, 3);
+        if (candidates.isEmpty()) {
+            candidates.add(new ActionCandidate(
+                    100,
+                    "进入自动驾驶模式微调计划",
+                    "当前模块整体达标，可通过自动驾驶继续冲刺高价值任务。",
+                    "执行重排可提升后半周任务质量",
+                    1,
+                    "/growth-autopilot",
+                    "plan"
+            ));
+        }
+
+        List<ActionCandidate> selected = candidates.stream()
+                .sorted(Comparator.comparingInt(ActionCandidate::score).reversed())
+                .limit(4)
+                .toList();
+
+        AtomicInteger prioritySeed = new AtomicInteger(1);
+        List<LearningCockpitOverviewResponse.NextAction> actions = new ArrayList<>();
+        for (ActionCandidate item : selected) {
+            actions.add(buildAction(
+                    prioritySeed.getAndIncrement(),
+                    item.title(),
+                    item.description(),
+                    item.reason(),
+                    item.expectedGain(),
+                    item.routePath(),
+                    item.moduleKey()
+            ));
         }
         return actions;
     }
@@ -299,6 +453,8 @@ public class LearningCockpitService {
             int priority,
             String title,
             String description,
+            String reason,
+            Integer expectedGain,
             String routePath,
             String moduleKey
     ) {
@@ -306,6 +462,8 @@ public class LearningCockpitService {
         action.setPriority(priority);
         action.setTitle(title);
         action.setDescription(description);
+        action.setReason(reason);
+        action.setExpectedGain(nvl(expectedGain));
         action.setRoutePath(routePath);
         action.setModuleKey(moduleKey);
         return action;
