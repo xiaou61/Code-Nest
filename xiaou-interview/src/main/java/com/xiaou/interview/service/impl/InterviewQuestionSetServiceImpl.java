@@ -4,7 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.exception.BusinessException;
-import com.xiaou.common.satoken.StpUserUtil;
+import com.xiaou.common.satoken.SaTokenUserUtil;
 import com.xiaou.common.utils.PageHelper;
 import com.xiaou.interview.domain.InterviewQuestion;
 import com.xiaou.interview.domain.InterviewQuestionSet;
@@ -49,6 +49,20 @@ public class InterviewQuestionSetServiceImpl implements InterviewQuestionSetServ
             throw new BusinessException("分类不存在");
         }
 
+        // 创建人优先取管理员登录态（管理端创建），兼容普通用户登录态（后续开放用户创建时可复用）
+        Long creatorId = SaTokenUserUtil.getCurrentAdminId();
+        String creatorName = SaTokenUserUtil.getCurrentAdminUsername();
+        if (creatorId == null) {
+            creatorId = SaTokenUserUtil.getCurrentUserId();
+            creatorName = SaTokenUserUtil.getCurrentUserUsername();
+        }
+        if (creatorId == null) {
+            throw new BusinessException("请先登录");
+        }
+        if (StrUtil.isBlank(creatorName)) {
+            creatorName = "系统";
+        }
+
         // 创建题单对象
         InterviewQuestionSet questionSet = new InterviewQuestionSet()
                 .setTitle(request.getTitle())
@@ -60,8 +74,8 @@ public class InterviewQuestionSetServiceImpl implements InterviewQuestionSetServ
                 .setViewCount(0)
                 .setFavoriteCount(0)
                 .setStatus(request.getStatus() != null ? request.getStatus() : 0) // 默认草稿
-                .setCreatorId(StpUserUtil.getLoginIdAsLong())
-                .setCreatorName("系统")
+                .setCreatorId(creatorId)
+                .setCreatorName(creatorName)
                 .setCreateTime(LocalDateTime.now())
                 .setUpdateTime(LocalDateTime.now());
 
