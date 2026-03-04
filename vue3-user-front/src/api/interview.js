@@ -17,7 +17,7 @@ export const interviewApi = {
   
   // 获取公开题单列表
   getPublicQuestionSets(params) {
-    return request.get('/interview/question-sets', { params })
+    return request.get('/interview/question-sets', params)
   },
   
   // 获取题单详情
@@ -159,18 +159,18 @@ export const interviewApi = {
 
   // 获取待复习题目列表
   getReviewList(type = 'all') {
-    return request.get('/interview/mastery/review/list', { params: { type } })
+    return request.get('/interview/mastery/review/list', { type })
   },
 
   // ============ 热力图相关 ============
 
   // 获取学习热力图数据
   getHeatmap(year) {
-    return request.get('/interview/mastery/heatmap', { params: { year } })
+    return request.get('/interview/mastery/heatmap', { year })
   },
 
   // 获取某日学习详情
   getHeatmapDetail(date) {
-    return request.get('/interview/mastery/heatmap/detail', { params: { date } })
+    return request.get('/interview/mastery/heatmap/detail', { date })
   }
 }

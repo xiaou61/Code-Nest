@@ -205,7 +205,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { 
@@ -218,7 +218,7 @@ import LearningHeatmap from './components/LearningHeatmap.vue'
 
 const router = useRouter()
 const interviewStore = useInterviewStore()
-useRevealMotion('.interview-index .cn-learn-reveal')
+const { refreshReveal } = useRevealMotion('.interview-index .cn-learn-reveal')
 
 // 响应式数据
 const searchKeyword = ref('')
@@ -273,8 +273,20 @@ const fetchQuestionSets = async (forceRefresh = false) => {
     }
   } catch (error) {
     ElMessage.error('获取题单列表失败')
+    return
   }
+
+  await nextTick()
+  refreshReveal()
 }
+
+watch(
+  () => questionSetList.value.length,
+  async () => {
+    await nextTick()
+    refreshReveal()
+  }
+)
 
 // 选择分类
 const selectCategory = (categoryId) => {
