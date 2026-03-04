@@ -9,29 +9,28 @@ import org.springframework.context.annotation.Configuration;
  * <p>配置说明：</p>
  * <ul>
  *   <li>默认使用 Redisson Spring Boot Starter 自动配置</li>
- *   <li>配置参数在 application.yml 中的 spring.data.redis.redisson 部分</li>
+ *   <li>配置参数在 application.yml 中的 spring.redis.redisson 部分</li>
  *   <li>如需自定义配置，可在此类中添加 @Bean 方法</li>
  * </ul>
  * 
  * <p>配置示例：</p>
  * <pre>
  * spring:
- *   data:
- *     redis:
- *       redisson:
- *         config: |
- *           singleServerConfig:
- *             address: "redis://localhost:6379"
- *             database: 0
- *             connectionMinimumIdleSize: 10
- *             connectionPoolSize: 64
- *             idleConnectionTimeout: 10000
- *             connectTimeout: 10000
- *             timeout: 3000
- *             retryAttempts: 3
- *             retryInterval: 1500
- *           threads: 16
- *           nettyThreads: 32
+ *   redis:
+ *     redisson:
+ *       config: |
+ *         singleServerConfig:
+ *           address: "redis://localhost:6379"
+ *           database: 0
+ *           connectionMinimumIdleSize: 10
+ *           connectionPoolSize: 64
+ *           idleConnectionTimeout: 10000
+ *           connectTimeout: 10000
+ *           timeout: 3000
+ *           retryAttempts: 3
+ *           retryInterval: 1500
+ *         threads: 16
+ *         nettyThreads: 32
  * </pre>
  *
  * @author xiaou

@@ -1,0 +1,63 @@
+server:
+  port: 9999
+  servlet:
+    context-path: /api
+
+spring:
+  datasource:
+    # 生产环境建议使用 MySQL 官方驱动，避免 P6Spy 代理带来的额外开销
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://113.44.190.45:3306/codenest?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true
+    username: codenest
+    password: codenest
+
+  redis:
+    redisson:
+      config: |
+        singleServerConfig:
+          address: "redis://113.44.190.45:6379"
+          password: "123456"
+          database: 3
+          connectionMinimumIdleSize: 10
+          connectionPoolSize: 64
+          idleConnectionTimeout: 10000
+          connectTimeout: 10000
+          timeout: 3000
+          retryAttempts: 3
+          retryInterval: 1500
+        threads: 16
+        nettyThreads: 32
+
+  security:
+    user:
+      name: disabled
+      password: disabled
+      roles: disabled
+
+sa-token:
+  alone-redis:
+    host: 113.44.190.45
+    port: 6379
+    password: 123456
+    database: 4
+    timeout: 10000
+    jedis:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: 3000
+
+coze:
+  auth:
+    # 如无 Coze Key，可保持为空
+    api-key: pat_RwIvNAD4Gke8bXaGJPvzpeifRCzNbkxkny2gY4DxWXeHXxx4RZX5i1Cy2q2RNAIE
+
+community:
+  ai:
+    enabled: true
+
+oj:
+  judge:
+    # go-judge 已部署在同机时，可直接使用本地地址
+    go-judge-url: http://127.0.0.1:5050

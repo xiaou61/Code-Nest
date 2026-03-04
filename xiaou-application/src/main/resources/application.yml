@@ -10,7 +10,7 @@ spring:
     #这里里面放着一些私密的不能开源的配置
     import: "optional:application-sec.yml"
   profiles:
-    active: dev
+    active: prod
   application:
     name: Code-Nest
   servlet:

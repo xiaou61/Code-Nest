@@ -7,24 +7,23 @@ spring:
     username: root
     password: 1234
   
-  # Redis配置（适用于Redisson）
-  data:
-    redis:
-      # 使用Redisson配置（业务数据使用 database 3）
-      redisson:
-        config: |
-          singleServerConfig:
-            address: "redis://127.0.0.1:6379"
-            database: 3
-            connectionMinimumIdleSize: 10
-            connectionPoolSize: 64
-            idleConnectionTimeout: 10000
-            connectTimeout: 10000
-            timeout: 3000
-            retryAttempts: 3
-            retryInterval: 1500
-          threads: 16
-          nettyThreads: 32
+  # Redis配置（Redisson Starter 使用 spring.redis.redisson）
+  redis:
+    # 使用Redisson配置（业务数据使用 database 3）
+    redisson:
+      config: |
+        singleServerConfig:
+          address: "redis://127.0.0.1:6379"
+          database: 3
+          connectionMinimumIdleSize: 10
+          connectionPoolSize: 64
+          idleConnectionTimeout: 10000
+          connectTimeout: 10000
+          timeout: 3000
+          retryAttempts: 3
+          retryInterval: 1500
+        threads: 16
+        nettyThreads: 32
   
   # Spring Security 配置
   security:

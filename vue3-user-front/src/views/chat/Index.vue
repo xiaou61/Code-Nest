@@ -436,7 +436,9 @@ let reconnectTimer = null
 let heartbeatTimer = null
 let pongTimer = null
 const connectionStatus = ref('disconnected')
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:9999/api'
+const defaultWsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+const defaultWsBase = `${defaultWsProtocol}://${window.location.host}/api`
+const WS_URL = import.meta.env.VITE_WS_URL || defaultWsBase
 
 // 重连配置 - 指数退避
 const reconnectConfig = {
