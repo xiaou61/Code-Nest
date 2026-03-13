@@ -274,6 +274,16 @@ const routes = [
     }
   },
   {
+    path: '/learning-assets',
+    name: 'LearningAssets',
+    component: () => import('@/views/learning-assets/Index.vue'),
+    meta: {
+      title: '我的学习资产',
+      requiresAuth: true,
+      keepAlive: true
+    }
+  },
+  {
     path: '/growth-autopilot',
     name: 'GrowthAutopilot',
     redirect: (to) => ({

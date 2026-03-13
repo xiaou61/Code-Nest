@@ -239,11 +239,23 @@
         <el-button size="large" @click="goToHistory">
           查看历史记录
         </el-button>
+        <el-button size="large" type="warning" plain @click="openTransformDialog">
+          转为学习资产
+        </el-button>
         <el-button type="primary" size="large" @click="startNew">
           再来一次
         </el-button>
       </div>
     </div>
+
+    <TransformDialog
+      v-model="transformDialogVisible"
+      source-type="mock_interview"
+      :source-id="report.sessionId || Number(route.query.sessionId)"
+      :source-title="report.directionName || '模拟面试报告'"
+      :default-tags="report.weakPoints || []"
+      @success="handleTransformSuccess"
+    />
   </div>
 </template>
 
@@ -255,13 +267,17 @@ import {
   ArrowLeft, DataAnalysis, ChatDotRound, Aim, Document, Right, MagicStick 
 } from '@element-plus/icons-vue'
 import { mockInterviewApi } from '@/api/mockInterview'
+import { useUserStore } from '@/stores/user'
+import TransformDialog from '@/components/learning-assets/TransformDialog.vue'
 
 const router = useRouter()
 const route = useRoute()
+const userStore = useUserStore()
 
 const loading = ref(false)
 const generatingSummary = ref(false)
 const activeQa = ref([0])
+const transformDialogVisible = ref(false)
 
 const report = reactive({
   sessionId: null,
@@ -281,6 +297,7 @@ const report = reactive({
   },
   aiSummary: '',
   aiSuggestion: [],
+  weakPoints: [],
   qaList: []
 })
 
@@ -365,6 +382,19 @@ const handleGenerateSummary = async () => {
   } finally {
     generatingSummary.value = false
   }
+}
+
+const openTransformDialog = () => {
+  if (!userStore.isLogin()) {
+    ElMessage.warning('请先登录后再转化学习资产')
+    router.push('/login')
+    return
+  }
+  transformDialogVisible.value = true
+}
+
+const handleTransformSuccess = (record) => {
+  router.push(`/learning-assets?recordId=${record.recordId}`)
 }
 
 onMounted(() => {

@@ -181,6 +181,26 @@ const routes = [
     ]
   },
   {
+    path: '/learning-assets',
+    component: Layout,
+    redirect: '/learning-assets/review',
+    meta: { title: '学习资产管理' },
+    children: [
+      {
+        path: 'review',
+        name: 'LearningAssetsReview',
+        component: () => import('@/views/learning-assets/review/index.vue'),
+          meta: { title: '学习资产审核台' }
+      },
+      {
+        path: 'statistics',
+        name: 'LearningAssetsStatistics',
+        component: () => import('@/views/learning-assets/statistics/index.vue'),
+        meta: { title: '学习资产统计' }
+      }
+    ]
+  },
+  {
     path: '/community',
     component: Layout,
     redirect: '/community/categories',

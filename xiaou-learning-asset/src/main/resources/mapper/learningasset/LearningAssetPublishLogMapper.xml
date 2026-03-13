@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.learningasset.mapper.LearningAssetPublishLogMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO learning_asset_publish_log (
+            candidate_id, publish_type, target_module, target_id, operator_id, publish_result, message, create_time
+        ) VALUES (
+            #{candidateId}, #{publishType}, #{targetModule}, #{targetId}, #{operatorId}, #{publishResult}, #{message}, #{createTime}
+        )
+    </insert>
+
+</mapper>

@@ -15,12 +15,18 @@
               </div>
             </div>
           </div>
-          <div class="article-tags">
-            <el-tag type="primary">{{ article.categoryName }}</el-tag>
-            <el-tag v-for="tag in article.tags" :key="tag" type="info">{{ tag }}</el-tag>
-            <el-tag v-if="article.isOriginal === 1" type="success">原创</el-tag>
-          </div>
+        <div class="article-tags">
+          <el-tag type="primary">{{ article.categoryName }}</el-tag>
+          <el-tag v-for="tag in article.tags" :key="tag" type="info">{{ tag }}</el-tag>
+          <el-tag v-if="article.isOriginal === 1" type="success">原创</el-tag>
         </div>
+
+        <div class="transform-entry">
+          <el-button type="success" plain @click="openTransformDialog">
+            转为学习资产
+          </el-button>
+        </div>
+      </div>
 
         <!-- 文章内容 -->
         <div class="article-body">
@@ -53,6 +59,15 @@
     </div>
 
     <el-empty v-else description="文章不存在或已删除" />
+
+    <TransformDialog
+      v-model="transformDialogVisible"
+      source-type="blog"
+      :source-id="article?.id || Number(route.params.articleId)"
+      :source-title="article?.title || ''"
+      :default-tags="article?.tags || []"
+      @success="handleTransformSuccess"
+    />
   </div>
 </template>
 
@@ -61,11 +76,15 @@ import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getArticleDetail, deleteArticle as deleteArticleApi } from '@/api/blog'
+import TransformDialog from '@/components/learning-assets/TransformDialog.vue'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
 const route = useRoute()
+const userStore = useUserStore()
 
 const article = ref(null)
+const transformDialogVisible = ref(false)
 
 const loadArticle = async () => {
   try {
@@ -108,6 +127,19 @@ const deleteArticle = async () => {
 const viewRelated = (id) => {
   router.push(`/blog/${route.params.userId}/article/${id}`)
   loadArticle()
+}
+
+const openTransformDialog = () => {
+  if (!userStore.isLogin()) {
+    ElMessage.warning('请先登录后再转化学习资产')
+    router.push('/login')
+    return
+  }
+  transformDialogVisible.value = true
+}
+
+const handleTransformSuccess = (record) => {
+  router.push(`/learning-assets?recordId=${record.recordId}`)
 }
 
 onMounted(() => {
@@ -161,6 +193,10 @@ onMounted(() => {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.transform-entry {
+  margin-top: 20px;
 }
 
 .article-body {

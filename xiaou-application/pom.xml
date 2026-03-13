@@ -164,6 +164,13 @@
             <version>${revision}</version>
         </dependency>
 
+        <!-- 引入learning-asset模块 -->
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-learning-asset</artifactId>
+            <version>${revision}</version>
+        </dependency>
+
         <!-- 引入ai模块 -->
         <dependency>
             <groupId>com.xiaou</groupId>
