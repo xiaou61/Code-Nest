@@ -23,6 +23,11 @@ public class CareerLoopSession {
 
     private String targetCompanyType;
 
+    /**
+     * 每周投入时长（小时）
+     */
+    private Integer weeklyHours;
+
     private String currentStage;
 
     private Integer healthScore;

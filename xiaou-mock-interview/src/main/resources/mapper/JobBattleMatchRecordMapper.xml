@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.mockinterview.mapper.JobBattleMatchRecordMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.mockinterview.domain.JobBattleMatchRecord">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="analysis_name" property="analysisName"/>
+        <result column="target_count" property="targetCount"/>
+        <result column="best_score" property="bestScore"/>
+        <result column="average_score" property="averageScore"/>
+        <result column="fallback_count" property="fallbackCount"/>
+        <result column="best_target_role" property="bestTargetRole"/>
+        <result column="resume_text" property="resumeText"/>
+        <result column="project_highlights" property="projectHighlights"/>
+        <result column="target_company_type" property="targetCompanyType"/>
+        <result column="result_json" property="resultJson"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, user_id, analysis_name, target_count, best_score, average_score, fallback_count,
+        best_target_role, resume_text, project_highlights, target_company_type, result_json,
+        create_time, update_time
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO job_battle_match_record (
+            user_id, analysis_name, target_count, best_score, average_score, fallback_count,
+            best_target_role, resume_text, project_highlights, target_company_type, result_json,
+            create_time, update_time
+        ) VALUES (
+            #{userId}, #{analysisName}, #{targetCount}, #{bestScore}, #{averageScore}, #{fallbackCount},
+            #{bestTargetRole}, #{resumeText}, #{projectHighlights}, #{targetCompanyType}, #{resultJson},
+            NOW(), NOW()
+        )
+    </insert>
+
+    <select id="selectPageByUserId" resultMap="BaseResultMap">
+        SELECT
+            id, user_id, analysis_name, target_count, best_score, average_score, fallback_count,
+            best_target_role, create_time, update_time
+        FROM job_battle_match_record
+        <where>
+            user_id = #{userId}
+            <if test="request != null and request.keyword != null and request.keyword != ''">
+                AND (
+                    analysis_name LIKE CONCAT('%', #{request.keyword}, '%')
+                    OR best_target_role LIKE CONCAT('%', #{request.keyword}, '%')
+                )
+            </if>
+        </where>
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByIdAndUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM job_battle_match_record
+        WHERE id = #{id} AND user_id = #{userId}
+        LIMIT 1
+    </select>
+
+    <select id="selectLatestByUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM job_battle_match_record
+        WHERE user_id = #{userId}
+        ORDER BY create_time DESC
+        LIMIT 1
+    </select>
+
+</mapper>
+

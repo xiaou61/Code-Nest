@@ -244,11 +244,67 @@ const routes = [
     }
   },
   {
+    path: '/job-match-engine',
+    name: 'JobMatchEngine',
+    component: () => import('@/views/job-battle/MatchEngine.vue'),
+    meta: {
+      title: '岗位匹配引擎 2.0',
+      requiresAuth: true,
+      keepAlive: true
+    }
+  },
+  {
     path: '/career-loop',
     name: 'CareerLoop',
     component: () => import('@/views/career-loop/Index.vue'),
     meta: {
       title: '求职闭环中台',
+      requiresAuth: true,
+      keepAlive: true
+    }
+  },
+  {
+    path: '/learning-cockpit',
+    name: 'LearningCockpit',
+    component: () => import('@/views/learning-cockpit/Index.vue'),
+    meta: {
+      title: '学习成长驾驶舱 2.0',
+      requiresAuth: true,
+      keepAlive: true
+    }
+  },
+  {
+    path: '/learning-assets',
+    name: 'LearningAssets',
+    component: () => import('@/views/learning-assets/Index.vue'),
+    meta: {
+      title: '我的学习资产',
+      requiresAuth: true,
+      keepAlive: true
+    }
+  },
+  {
+    path: '/sql-optimizer/workbench',
+    name: 'SqlOptimizerWorkbench',
+    component: () => import('@/views/sql-optimizer/Workbench.vue'),
+    meta: {
+      title: 'SQL优化工作台 2.0',
+      requiresAuth: true,
+      keepAlive: true
+    }
+  },
+  {
+    path: '/growth-autopilot',
+    name: 'GrowthAutopilot',
+    redirect: (to) => ({
+      path: '/learning-cockpit',
+      query: {
+        ...to.query,
+        tab: 'autopilot'
+      }
+    }),
+    meta: {
+      title: '成长闭环自动驾驶',
       requiresAuth: true,
       keepAlive: true
     }

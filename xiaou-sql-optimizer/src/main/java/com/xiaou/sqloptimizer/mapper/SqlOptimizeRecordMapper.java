@@ -39,6 +39,12 @@ public interface SqlOptimizeRecordMapper {
                                             @Param("limit") int limit);
 
     /**
+     * 查询用户全部记录（按时间倒序）
+     */
+    @Select("SELECT * FROM sql_optimize_record WHERE user_id = #{userId} AND deleted = 0 ORDER BY create_time DESC")
+    List<SqlOptimizeRecord> selectAllByUserId(@Param("userId") Long userId);
+
+    /**
      * 统计用户记录数
      */
     @Select("SELECT COUNT(*) FROM sql_optimize_record WHERE user_id = #{userId} AND deleted = 0")
@@ -50,6 +56,13 @@ public interface SqlOptimizeRecordMapper {
     @Update("UPDATE sql_optimize_record SET is_favorite = #{isFavorite}, update_time = NOW() " +
             "WHERE id = #{id} AND user_id = #{userId}")
     int updateFavorite(@Param("id") Long id, @Param("userId") Long userId, @Param("isFavorite") Integer isFavorite);
+
+    /**
+     * 更新分析结果JSON
+     */
+    @Update("UPDATE sql_optimize_record SET analysis_result = #{analysisResult}, update_time = NOW() " +
+            "WHERE id = #{id} AND user_id = #{userId} AND deleted = 0")
+    int updateAnalysisResult(@Param("id") Long id, @Param("userId") Long userId, @Param("analysisResult") String analysisResult);
 
     /**
      * 逻辑删除

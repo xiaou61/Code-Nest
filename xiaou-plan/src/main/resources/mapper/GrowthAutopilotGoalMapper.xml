@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.plan.mapper.GrowthAutopilotGoalMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.plan.domain.GrowthAutopilotGoal">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="user_id" property="userId" jdbcType="BIGINT"/>
+        <result column="week_start" property="weekStart" jdbcType="DATE"/>
+        <result column="week_end" property="weekEnd" jdbcType="DATE"/>
+        <result column="target_role" property="targetRole" jdbcType="VARCHAR"/>
+        <result column="weekly_hours" property="weeklyHours" jdbcType="INTEGER"/>
+        <result column="total_score_target" property="totalScoreTarget" jdbcType="INTEGER"/>
+        <result column="total_score_completed" property="totalScoreCompleted" jdbcType="INTEGER"/>
+        <result column="total_tasks" property="totalTasks" jdbcType="INTEGER"/>
+        <result column="completed_tasks" property="completedTasks" jdbcType="INTEGER"/>
+        <result column="completion_rate" property="completionRate" jdbcType="INTEGER"/>
+        <result column="risk_level" property="riskLevel" jdbcType="VARCHAR"/>
+        <result column="status" property="status" jdbcType="VARCHAR"/>
+        <result column="generated_at" property="generatedAt" jdbcType="TIMESTAMP"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, user_id, week_start, week_end, target_role, weekly_hours,
+        total_score_target, total_score_completed, total_tasks, completed_tasks, completion_rate,
+        risk_level, status, generated_at, create_time, update_time
+    </sql>
+
+    <select id="selectByUserAndWeek" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM growth_autopilot_goal
+        WHERE user_id = #{userId}
+          AND week_start = #{weekStart}
+        LIMIT 1
+    </select>
+
+    <select id="selectLatestByUser" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM growth_autopilot_goal
+        WHERE user_id = #{userId}
+        ORDER BY week_start DESC, id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM growth_autopilot_goal
+        WHERE id = #{id}
+        LIMIT 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO growth_autopilot_goal (
+            user_id, week_start, week_end, target_role, weekly_hours,
+            total_score_target, total_score_completed, total_tasks, completed_tasks, completion_rate,
+            risk_level, status, generated_at, create_time, update_time
+        ) VALUES (
+            #{userId}, #{weekStart}, #{weekEnd}, #{targetRole}, #{weeklyHours},
+            #{totalScoreTarget}, #{totalScoreCompleted}, #{totalTasks}, #{completedTasks}, #{completionRate},
+            #{riskLevel}, #{status}, #{generatedAt}, NOW(), NOW()
+        )
+    </insert>
+
+    <update id="updateById">
+        UPDATE growth_autopilot_goal
+        SET
+            target_role = #{targetRole},
+            weekly_hours = #{weeklyHours},
+            total_score_target = #{totalScoreTarget},
+            total_score_completed = #{totalScoreCompleted},
+            total_tasks = #{totalTasks},
+            completed_tasks = #{completedTasks},
+            completion_rate = #{completionRate},
+            risk_level = #{riskLevel},
+            status = #{status},
+            generated_at = #{generatedAt},
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+</mapper>
+

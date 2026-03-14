@@ -15,6 +15,14 @@
         </div>
 
         <div class="header-right">
+          <el-button
+            type="warning"
+            plain
+            @click="openTransformDialog"
+          >
+            转为学习资产
+          </el-button>
+
           <!-- 编辑按钮（仅作者可见） -->
           <el-button 
             v-if="penData.canEdit"
@@ -244,6 +252,15 @@
         </el-input>
       </div>
     </el-dialog>
+
+    <TransformDialog
+      v-model="transformDialogVisible"
+      source-type="codepen"
+      :source-id="penData?.id || Number(route.params.id)"
+      :source-title="penData?.title || ''"
+      :default-tags="penData?.tags || []"
+      @success="handleTransformSuccess"
+    />
   </div>
 </template>
 
@@ -252,6 +269,8 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { codepenApi } from '@/api/codepen'
+import { useUserStore } from '@/stores/user'
+import TransformDialog from '@/components/learning-assets/TransformDialog.vue'
 import {
   Back, Edit, CopyDocument, Share, View, ChatDotRound,
   Star, StarFilled, Collection, Lock, FullScreen
@@ -259,6 +278,7 @@ import {
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 
 // 页面数据
 const loading = ref(true)
@@ -268,6 +288,7 @@ const previewFrame = ref(null)
 const fullscreenFrame = ref(null)
 const fullscreenPreview = ref(false)
 const showShareDialog = ref(false)
+const transformDialogVisible = ref(false)
 
 // 评论相关
 const comments = ref([])
@@ -377,6 +398,19 @@ const toggleCollect = async () => {
 const copyShareUrl = () => {
   navigator.clipboard.writeText(shareUrl.value)
   ElMessage.success('链接已复制')
+}
+
+const openTransformDialog = () => {
+  if (!userStore.isLogin()) {
+    ElMessage.warning('请先登录后再转化学习资产')
+    router.push('/login')
+    return
+  }
+  transformDialogVisible.value = true
+}
+
+const handleTransformSuccess = (record) => {
+  router.push(`/learning-assets?recordId=${record.recordId}`)
 }
 
 // 发表评论

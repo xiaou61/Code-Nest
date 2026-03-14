@@ -167,6 +167,9 @@
             <el-button plain @click="openPlanHistory">
               查看历史计划
             </el-button>
+            <el-button plain type="primary" @click="goMatchEngine">
+              岗位匹配引擎 2.0
+            </el-button>
             <el-button
               type="warning"
               plain
@@ -864,6 +867,10 @@ const syncToCareerLoop = async () => {
 
 const goCareerLoop = () => {
   router.push('/career-loop')
+}
+
+const goMatchEngine = () => {
+  router.push('/job-match-engine')
 }
 
 const openPlanHistory = async () => {

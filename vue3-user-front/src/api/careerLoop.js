@@ -29,6 +29,11 @@ export const careerLoopApi = {
     return request.post(`/user/career-loop/actions/${actionId}/done`)
   },
 
+  // 更新会话目标配置
+  updateProfile(data = {}) {
+    return request.post('/user/career-loop/profile', data)
+  },
+
   // 手动同步
   sync(data = {}) {
     return request.post('/user/career-loop/sync', data)

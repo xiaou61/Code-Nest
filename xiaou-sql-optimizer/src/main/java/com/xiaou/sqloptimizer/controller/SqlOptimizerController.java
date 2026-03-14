@@ -6,6 +6,13 @@ import com.xiaou.common.core.domain.Result;
 import com.xiaou.common.satoken.StpUserUtil;
 import com.xiaou.sqloptimizer.domain.SqlOptimizeRecord;
 import com.xiaou.sqloptimizer.dto.SqlAnalyzeRequest;
+import com.xiaou.sqloptimizer.dto.SqlWorkbenchBatchAnalyzeRequest;
+import com.xiaou.sqloptimizer.dto.SqlWorkbenchBatchAnalyzeResponse;
+import com.xiaou.sqloptimizer.dto.SqlWorkbenchAnalyzeResponse;
+import com.xiaou.sqloptimizer.dto.SqlWorkbenchCaseDetailResponse;
+import com.xiaou.sqloptimizer.dto.SqlWorkbenchCaseSummary;
+import com.xiaou.sqloptimizer.dto.SqlWorkbenchCompareRequest;
+import com.xiaou.sqloptimizer.dto.SqlWorkbenchCompareResponse;
 import com.xiaou.sqloptimizer.service.SqlOptimizerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,6 +39,72 @@ public class SqlOptimizerController {
         Long userId = StpUserUtil.getLoginIdAsLong();
         SqlAnalyzeResult result = sqlOptimizerService.analyze(userId, request);
         return Result.success("分析完成", result);
+    }
+
+    @Operation(summary = "工作台2.0分析")
+    @PostMapping("/workbench/analyze")
+    public Result<SqlWorkbenchAnalyzeResponse> analyzeWorkbench(@Validated @RequestBody SqlAnalyzeRequest request) {
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        SqlWorkbenchAnalyzeResponse response = sqlOptimizerService.analyzeWorkbench(userId, request);
+        return Result.success("工作台分析完成", response);
+    }
+
+    @Operation(summary = "工作台2.0重写建议")
+    @PostMapping("/workbench/rewrite")
+    public Result<SqlWorkbenchAnalyzeResponse> rewriteWorkbench(@Validated @RequestBody SqlAnalyzeRequest request) {
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        SqlWorkbenchAnalyzeResponse response = sqlOptimizerService.rewriteWorkbench(userId, request);
+        return Result.success("重写建议生成完成", response);
+    }
+
+    @Operation(summary = "工作台2.0批量分析")
+    @PostMapping("/workbench/batch-analyze")
+    public Result<SqlWorkbenchBatchAnalyzeResponse> batchAnalyzeWorkbench(@Validated @RequestBody SqlWorkbenchBatchAnalyzeRequest request) {
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        SqlWorkbenchBatchAnalyzeResponse response = sqlOptimizerService.batchAnalyzeWorkbench(userId, request.getItems());
+        return Result.success("批量分析完成", response);
+    }
+
+    @Operation(summary = "工作台2.0收益对比")
+    @PostMapping("/workbench/compare")
+    public Result<SqlWorkbenchCompareResponse> compareWorkbench(@Validated @RequestBody SqlWorkbenchCompareRequest request) {
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        SqlWorkbenchCompareResponse response = sqlOptimizerService.compareWorkbench(userId, request);
+        return Result.success("收益对比完成", response);
+    }
+
+    @Operation(summary = "工作台2.0案例列表")
+    @GetMapping("/workbench/cases")
+    public Result<PageResult<SqlWorkbenchCaseSummary>> getWorkbenchCases(
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(required = false) Boolean favorite,
+            @RequestParam(required = false) Boolean hasRewrite,
+            @RequestParam(required = false) Boolean hasCompare,
+            @RequestParam(required = false) String highestSeverity,
+            @RequestParam(defaultValue = "createTime") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortOrder) {
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        PageResult<SqlWorkbenchCaseSummary> result = sqlOptimizerService.getWorkbenchCases(
+                userId,
+                pageNum,
+                pageSize,
+                favorite,
+                hasRewrite,
+                hasCompare,
+                highestSeverity,
+                sortBy,
+                sortOrder
+        );
+        return Result.success(result);
+    }
+
+    @Operation(summary = "工作台2.0案例详情")
+    @GetMapping("/workbench/cases/{id}")
+    public Result<SqlWorkbenchCaseDetailResponse> getWorkbenchCaseById(@PathVariable Long id) {
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        SqlWorkbenchCaseDetailResponse result = sqlOptimizerService.getWorkbenchCaseById(userId, id);
+        return Result.success(result);
     }
 
     @Operation(summary = "获取分析历史")

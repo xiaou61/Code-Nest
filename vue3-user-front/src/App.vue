@@ -116,7 +116,7 @@
         
         <!-- 用户操作区域 -->
         <div class="user-actions">
-          <div class="action-item" @click="goToNotification">
+          <div class="header-action-item" @click="goToNotification">
             <el-badge :value="unreadCount" :hidden="unreadCount === 0">
               <el-icon><Bell /></el-icon>
             </el-badge>
@@ -132,6 +132,10 @@
                 <el-dropdown-item command="profile">
                   <el-icon><User /></el-icon>
                   个人中心
+                </el-dropdown-item>
+                <el-dropdown-item command="learningAssets">
+                  <el-icon><Postcard /></el-icon>
+                  我的学习资产
                 </el-dropdown-item>
                 <el-dropdown-item command="mypens">
                   <el-icon><Promotion /></el-icon>
@@ -189,7 +193,11 @@ const learningMenuGroups = [
       { path: '/interview', label: '面试题库', desc: '题单学习与进度追踪', icon: Document },
       { path: '/mock-interview', label: 'AI 模拟面试', desc: '真实问答与评分反馈', icon: Mic },
       { path: '/job-battle', label: '求职作战台', desc: 'JD解析到复盘的闭环训练', icon: Trophy },
+      { path: '/job-match-engine', label: '岗位匹配引擎 2.0', desc: '多岗位并行评估与优先级排序', icon: Trophy },
       { path: '/career-loop', label: '求职闭环中台', desc: '统一追踪求职阶段与动作清单', icon: DataAnalysis },
+      { path: '/learning-cockpit', label: '学习成长驾驶舱 2.0', desc: '统一周目标、完成率与排名变化', icon: DataAnalysis },
+      { path: '/learning-assets', label: '我的学习资产', desc: '管理内容转化后的闪卡、计划和候选资产', icon: Postcard },
+      { path: '/sql-optimizer/workbench', label: 'SQL优化工作台 2.0', desc: '执行计划诊断与优化收益对比', icon: Cpu },
       { path: '/knowledge', label: '知识图谱', desc: '可视化构建知识体系', icon: DataAnalysis },
       { path: '/plan', label: '计划打卡', desc: '每日计划执行与复盘', icon: Calendar }
     ]
@@ -259,6 +267,9 @@ const handleUserAction = async (command) => {
   switch (command) {
     case 'profile':
       router.push('/profile')
+      break
+    case 'learningAssets':
+      router.push('/learning-assets')
       break
     case 'mypens':
       router.push('/codepen/my')
@@ -598,7 +609,7 @@ onUnmounted(() => {
   gap: 12px;
 }
 
-.action-item {
+.header-action-item {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -610,17 +621,17 @@ onUnmounted(() => {
   transition: var(--cn-transition);
 }
 
-.action-item:hover {
+.header-action-item:hover {
   border-color: #d6e3f8;
   background: #eef4ff;
 }
 
-.action-item .el-icon {
+.header-action-item .el-icon {
   font-size: 18px;
   color: var(--cn-text-secondary);
 }
 
-.action-item:hover .el-icon {
+.header-action-item:hover .el-icon {
   color: var(--cn-primary);
 }
 
@@ -734,7 +745,7 @@ onUnmounted(() => {
     font-size: 20px;
   }
 
-  .action-item {
+  .header-action-item {
     width: 34px;
     height: 34px;
   }

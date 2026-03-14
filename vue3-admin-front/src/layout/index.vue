@@ -170,6 +170,21 @@
               <span>图谱管理</span>
             </el-menu-item>
           </el-sub-menu>
+
+          <el-sub-menu index="/learning-assets">
+            <template #title>
+              <el-icon><Collection /></el-icon>
+              <span>学习资产管理</span>
+            </template>
+            <el-menu-item index="/learning-assets/review">
+              <el-icon><Edit /></el-icon>
+              <span>审核台</span>
+            </el-menu-item>
+            <el-menu-item index="/learning-assets/statistics">
+              <el-icon><DataAnalysis /></el-icon>
+              <span>统计分析</span>
+            </el-menu-item>
+          </el-sub-menu>
           
           <el-sub-menu index="/community">
             <template #title>
@@ -715,6 +730,7 @@ const generateBreadcrumb = (path, title) => {
     'interview': '面试题目管理',
     'mock-interview': '模拟面试运营',
     'knowledge': '知识图谱管理', 
+    'learning-assets': '学习资产管理',
     'community': '社区管理',
     'moments': '朋友圈管理',
     'chat': '聊天室管理',

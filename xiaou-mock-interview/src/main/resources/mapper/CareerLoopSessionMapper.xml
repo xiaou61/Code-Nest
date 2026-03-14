@@ -7,6 +7,7 @@
         <result column="user_id" property="userId"/>
         <result column="target_role" property="targetRole"/>
         <result column="target_company_type" property="targetCompanyType"/>
+        <result column="weekly_hours" property="weeklyHours"/>
         <result column="current_stage" property="currentStage"/>
         <result column="health_score" property="healthScore"/>
         <result column="status" property="status"/>
@@ -16,9 +17,9 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO career_loop_session(
-            user_id, target_role, target_company_type, current_stage, health_score, status, create_time, update_time
+            user_id, target_role, target_company_type, weekly_hours, current_stage, health_score, status, create_time, update_time
         ) VALUES (
-            #{userId}, #{targetRole}, #{targetCompanyType}, #{currentStage}, #{healthScore}, #{status}, NOW(), NOW()
+            #{userId}, #{targetRole}, #{targetCompanyType}, #{weeklyHours}, #{currentStage}, #{healthScore}, #{status}, NOW(), NOW()
         )
     </insert>
 
@@ -27,6 +28,7 @@
         SET
             target_role = #{targetRole},
             target_company_type = #{targetCompanyType},
+            weekly_hours = #{weeklyHours},
             current_stage = #{currentStage},
             health_score = #{healthScore},
             status = #{status},
@@ -36,7 +38,7 @@
 
     <select id="selectActiveByUserId" resultMap="BaseResultMap">
         SELECT
-            id, user_id, target_role, target_company_type, current_stage, health_score, status, create_time, update_time
+            id, user_id, target_role, target_company_type, weekly_hours, current_stage, health_score, status, create_time, update_time
         FROM career_loop_session
         WHERE user_id = #{userId} AND status = 'active'
         ORDER BY id DESC

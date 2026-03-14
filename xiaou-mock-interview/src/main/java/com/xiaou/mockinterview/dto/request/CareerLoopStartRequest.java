@@ -21,5 +21,10 @@ public class CareerLoopStartRequest {
      * 目标公司类型
      */
     private String targetCompanyType;
+
+    /**
+     * 每周投入时长（小时）
+     */
+    private Integer weeklyHours;
 }
 

@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.learningasset.mapper.LearningAssetRecordMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.learningasset.domain.LearningAssetRecord">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="source_type" property="sourceType"/>
+        <result column="source_id" property="sourceId"/>
+        <result column="source_title" property="sourceTitle"/>
+        <result column="source_author_id" property="sourceAuthorId"/>
+        <result column="source_snapshot" property="sourceSnapshot"/>
+        <result column="transform_mode" property="transformMode"/>
+        <result column="target_types" property="targetTypes"/>
+        <result column="status" property="status"/>
+        <result column="source_hash" property="sourceHash"/>
+        <result column="summary_text" property="summaryText"/>
+        <result column="fail_reason" property="failReason"/>
+        <result column="total_candidates" property="totalCandidates"/>
+        <result column="published_candidates" property="publishedCandidates"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, user_id, source_type, source_id, source_title, source_author_id, source_snapshot,
+        transform_mode, target_types, status, source_hash, summary_text, fail_reason,
+        total_candidates, published_candidates, create_time, update_time
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO learning_asset_record (
+            user_id, source_type, source_id, source_title, source_author_id, source_snapshot,
+            transform_mode, target_types, status, source_hash, summary_text, fail_reason,
+            total_candidates, published_candidates, create_time, update_time
+        ) VALUES (
+            #{userId}, #{sourceType}, #{sourceId}, #{sourceTitle}, #{sourceAuthorId}, #{sourceSnapshot},
+            #{transformMode}, #{targetTypes}, #{status}, #{sourceHash}, #{summaryText}, #{failReason},
+            #{totalCandidates}, #{publishedCandidates}, #{createTime}, #{updateTime}
+        )
+    </insert>
+
+    <update id="update">
+        UPDATE learning_asset_record
+        SET status = #{status},
+            summary_text = #{summaryText},
+            fail_reason = #{failReason},
+            total_candidates = #{totalCandidates},
+            published_candidates = #{publishedCandidates},
+            update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM learning_asset_record
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByUserIdAndId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM learning_asset_record
+        WHERE user_id = #{userId} AND id = #{id}
+    </select>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM learning_asset_record
+        WHERE user_id = #{userId}
+        <if test="sourceType != null and sourceType != ''">
+            AND source_type = #{sourceType}
+        </if>
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="countAll" resultType="java.lang.Long">
+        SELECT COUNT(1) FROM learning_asset_record
+    </select>
+
+    <select id="countSuccess" resultType="java.lang.Long">
+        SELECT COUNT(1)
+        FROM learning_asset_record
+        WHERE status != 'FAILED'
+    </select>
+
+    <select id="countStatus" resultType="java.lang.Long">
+        SELECT COUNT(1)
+        FROM learning_asset_record
+        WHERE status = #{status}
+    </select>
+
+    <select id="selectSourceStatistics" resultType="com.xiaou.learningasset.dto.response.LearningAssetStatisticsResponse$SourceStat">
+        SELECT source_type AS sourceType,
+               COUNT(1) AS totalCount,
+               SUM(CASE WHEN status != 'FAILED' THEN 1 ELSE 0 END) AS successCount
+        FROM learning_asset_record
+        GROUP BY source_type
+        ORDER BY totalCount DESC, source_type ASC
+    </select>
+
+    <select id="selectFailReasonStatistics" resultType="com.xiaou.learningasset.dto.response.LearningAssetStatisticsResponse$FailReasonStat">
+        SELECT fail_reason AS failReason,
+               COUNT(1) AS count
+        FROM learning_asset_record
+        WHERE fail_reason IS NOT NULL
+          AND fail_reason != ''
+        GROUP BY fail_reason
+        ORDER BY count DESC, fail_reason ASC
+        LIMIT 10
+    </select>
+
+    <select id="selectTopSourceStatistics" resultType="com.xiaou.learningasset.dto.response.LearningAssetStatisticsResponse$TopSourceStat">
+        SELECT source_type AS sourceType,
+               source_id AS sourceId,
+               source_title AS sourceTitle,
+               SUM(published_candidates) AS publishedCount
+        FROM learning_asset_record
+        GROUP BY source_type, source_id, source_title
+        HAVING SUM(published_candidates) > 0
+        ORDER BY publishedCount DESC, source_id DESC
+        LIMIT 10
+    </select>
+
+</mapper>

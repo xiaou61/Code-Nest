@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS `career_loop_session` (
   `user_id` bigint NOT NULL COMMENT '用户ID',
   `target_role` varchar(128) DEFAULT NULL COMMENT '目标岗位',
   `target_company_type` varchar(64) DEFAULT NULL COMMENT '目标公司类型',
+  `weekly_hours` int DEFAULT 8 COMMENT '每周投入时长(小时)',
   `current_stage` varchar(32) NOT NULL COMMENT '当前阶段',
   `health_score` int NOT NULL DEFAULT 60 COMMENT '健康分(0-100)',
   `status` varchar(16) NOT NULL DEFAULT 'active' COMMENT '状态:active/completed/archived',

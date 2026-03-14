@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.plan.mapper.GrowthAutopilotTaskMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.plan.domain.GrowthAutopilotTask">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="goal_id" property="goalId" jdbcType="BIGINT"/>
+        <result column="user_id" property="userId" jdbcType="BIGINT"/>
+        <result column="module_key" property="moduleKey" jdbcType="VARCHAR"/>
+        <result column="module_name" property="moduleName" jdbcType="VARCHAR"/>
+        <result column="task_date" property="taskDate" jdbcType="DATE"/>
+        <result column="title" property="title" jdbcType="VARCHAR"/>
+        <result column="description" property="description" jdbcType="VARCHAR"/>
+        <result column="planned_minutes" property="plannedMinutes" jdbcType="INTEGER"/>
+        <result column="task_score" property="taskScore" jdbcType="INTEGER"/>
+        <result column="priority" property="priority" jdbcType="VARCHAR"/>
+        <result column="status" property="status" jdbcType="VARCHAR"/>
+        <result column="source" property="source" jdbcType="VARCHAR"/>
+        <result column="route_path" property="routePath" jdbcType="VARCHAR"/>
+        <result column="complete_time" property="completeTime" jdbcType="TIMESTAMP"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, goal_id, user_id, module_key, module_name, task_date, title, description,
+        planned_minutes, task_score, priority, status, source, route_path,
+        complete_time, create_time, update_time
+    </sql>
+
+    <insert id="batchInsert">
+        INSERT INTO growth_autopilot_task (
+            goal_id, user_id, module_key, module_name, task_date, title, description,
+            planned_minutes, task_score, priority, status, source, route_path,
+            complete_time, create_time, update_time
+        )
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.goalId}, #{item.userId}, #{item.moduleKey}, #{item.moduleName},
+                #{item.taskDate}, #{item.title}, #{item.description},
+                #{item.plannedMinutes}, #{item.taskScore}, #{item.priority}, #{item.status},
+                #{item.source}, #{item.routePath}, #{item.completeTime}, NOW(), NOW()
+            )
+        </foreach>
+    </insert>
+
+    <select id="selectByGoalId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM growth_autopilot_task
+        WHERE goal_id = #{goalId}
+        ORDER BY task_date ASC, priority ASC, id ASC
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM growth_autopilot_task
+        WHERE id = #{id}
+        LIMIT 1
+    </select>
+
+    <update id="markDone">
+        UPDATE growth_autopilot_task
+        SET
+            status = 'done',
+            complete_time = #{completeTime},
+            update_time = NOW()
+        WHERE id = #{id}
+          AND goal_id = #{goalId}
+          AND user_id = #{userId}
+          AND status != 'done'
+    </update>
+
+    <update id="markDoneByDate">
+        UPDATE growth_autopilot_task
+        SET
+            status = 'done',
+            complete_time = #{completeTime},
+            update_time = NOW()
+        WHERE goal_id = #{goalId}
+          AND user_id = #{userId}
+          AND status = 'todo'
+          AND task_date = #{date}
+    </update>
+
+    <update id="postponeTask">
+        UPDATE growth_autopilot_task
+        SET
+            task_date = #{newDate},
+            update_time = NOW()
+        WHERE id = #{id}
+          AND goal_id = #{goalId}
+          AND user_id = #{userId}
+          AND status = 'todo'
+    </update>
+
+    <update id="markMissedBeforeDate">
+        UPDATE growth_autopilot_task
+        SET
+            status = 'missed',
+            update_time = NOW()
+        WHERE goal_id = #{goalId}
+          AND user_id = #{userId}
+          AND status = 'todo'
+          AND task_date &lt; #{date}
+    </update>
+
+    <delete id="deleteTodoFromDate">
+        DELETE FROM growth_autopilot_task
+        WHERE goal_id = #{goalId}
+          AND user_id = #{userId}
+          AND status = 'todo'
+          AND task_date &gt;= #{date}
+    </delete>
+
+    <delete id="deleteByGoalId">
+        DELETE FROM growth_autopilot_task
+        WHERE goal_id = #{goalId}
+    </delete>
+
+</mapper>

@@ -36,6 +36,10 @@
               </div>
             </div>
             <div class="action-buttons">
+              <button class="action-btn action-asset-btn" @click="openTransformDialog">
+                <el-icon><MagicStick /></el-icon>
+                <span>转学习资产</span>
+              </button>
               <button 
                 class="action-btn" 
                 :class="{ active: postDetail.isLiked }"
@@ -351,6 +355,15 @@
         </div>
       </aside>
     </div>
+
+    <TransformDialog
+      v-model="transformDialogVisible"
+      source-type="community"
+      :source-id="postDetail?.id || Number(route.params.id)"
+      :source-title="postDetail?.title || ''"
+      :default-tags="(postDetail?.tags || []).map(tag => tag.name)"
+      @success="handleTransformSuccess"
+    />
   </div>
 </template>
 
@@ -364,10 +377,12 @@ import {
 import { communityApi } from '@/api/community'
 import { renderMarkdown } from '@/utils/markdown'
 import { useUserStore } from '@/stores/user'
+import TransformDialog from '@/components/learning-assets/TransformDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const transformDialogVisible = ref(false)
 
 // 当前用户头像首字母
 const currentUserInitial = computed(() => {
@@ -707,6 +722,19 @@ const goToUserProfile = (userId) => {
   }
 }
 
+const openTransformDialog = () => {
+  if (!userStore.isLogin()) {
+    ElMessage.warning('请先登录后再转化学习资产')
+    router.push('/login')
+    return
+  }
+  transformDialogVisible.value = true
+}
+
+const handleTransformSuccess = (record) => {
+  router.push(`/learning-assets?recordId=${record.recordId}`)
+}
+
 // 初始化
 onMounted(async () => {
   await fetchPostDetail()
@@ -868,6 +896,11 @@ onMounted(async () => {
 .action-btn:hover {
   border-color: #00b894;
   color: #00b894;
+}
+
+.action-asset-btn {
+  border-color: #cdecdc;
+  color: #0f8d61;
 }
 
 .action-btn.active {
