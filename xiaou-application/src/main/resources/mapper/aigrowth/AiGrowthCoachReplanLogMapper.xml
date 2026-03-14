@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.aigrowth.mapper.AiGrowthCoachReplanLogMapper">
+
+    <resultMap id="AiGrowthCoachReplanLogResultMap" type="com.xiaou.aigrowth.domain.AiGrowthCoachReplanLog">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="snapshotId" column="snapshot_id"/>
+        <result property="sceneScope" column="scene_scope"/>
+        <result property="availableMinutes" column="available_minutes"/>
+        <result property="originalTotalMinutes" column="original_total_minutes"/>
+        <result property="selectedCount" column="selected_count"/>
+        <result property="deferredCount" column="deferred_count"/>
+        <result property="fallbackOnly" column="fallback_only"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.xiaou.aigrowth.domain.AiGrowthCoachReplanLog" useGeneratedKeys="true" keyProperty="id">
+        insert into ai_growth_coach_replan_log (
+            user_id, snapshot_id, scene_scope, available_minutes, original_total_minutes,
+            selected_count, deferred_count, fallback_only
+        ) values (
+            #{userId}, #{snapshotId}, #{sceneScope}, #{availableMinutes}, #{originalTotalMinutes},
+            #{selectedCount}, #{deferredCount}, #{fallbackOnly}
+        )
+    </insert>
+
+    <select id="countAll" resultType="long">
+        select count(1) from ai_growth_coach_replan_log
+    </select>
+
+    <select id="countToday" resultType="long">
+        select count(1) from ai_growth_coach_replan_log where date(create_time) = current_date()
+    </select>
+
+    <select id="countFallback" resultType="long">
+        select count(1) from ai_growth_coach_replan_log where fallback_only = 1
+    </select>
+
+    <select id="avgCompressionRate" resultType="java.lang.Double">
+        select avg(
+            case
+                when original_total_minutes <= 0 then 0
+                when available_minutes >= original_total_minutes then 0
+                else (original_total_minutes - available_minutes) * 100.0 / original_total_minutes
+            end
+        )
+        from ai_growth_coach_replan_log
+    </select>
+</mapper>

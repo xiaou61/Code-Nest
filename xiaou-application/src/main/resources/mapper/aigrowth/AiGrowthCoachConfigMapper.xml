@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.aigrowth.mapper.AiGrowthCoachConfigMapper">
+
+    <resultMap id="AiGrowthCoachConfigResultMap" type="com.xiaou.aigrowth.domain.AiGrowthCoachConfig">
+        <id property="id" column="id"/>
+        <result property="configKey" column="config_key"/>
+        <result property="configValue" column="config_value"/>
+        <result property="remark" column="remark"/>
+        <result property="status" column="status"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, config_key, config_value, remark, status, update_time
+    </sql>
+
+    <select id="selectAll" resultMap="AiGrowthCoachConfigResultMap">
+        select <include refid="BaseColumns"/>
+        from ai_growth_coach_config
+        order by id asc
+    </select>
+
+    <select id="selectByKey" resultMap="AiGrowthCoachConfigResultMap">
+        select <include refid="BaseColumns"/>
+        from ai_growth_coach_config
+        where config_key = #{configKey}
+        limit 1
+    </select>
+
+    <insert id="insert" parameterType="com.xiaou.aigrowth.domain.AiGrowthCoachConfig" useGeneratedKeys="true" keyProperty="id">
+        insert into ai_growth_coach_config (
+            config_key, config_value, remark, status
+        ) values (
+            #{configKey}, #{configValue}, #{remark}, #{status}
+        )
+    </insert>
+
+    <update id="updateByKey">
+        update ai_growth_coach_config
+        set config_value = #{configValue},
+            remark = #{remark},
+            status = #{status}
+        where config_key = #{configKey}
+    </update>
+</mapper>

@@ -202,6 +202,12 @@
               <GrowthAutopilotPanel />
             </div>
           </el-tab-pane>
+
+          <el-tab-pane label="AI成长教练" name="coach" lazy>
+            <div class="coach-tab-wrap">
+              <CoachWorkspace scene="hybrid" />
+            </div>
+          </el-tab-pane>
         </el-tabs>
       </section>
 
@@ -259,13 +265,14 @@ import { ElMessage } from 'element-plus'
 import { Calendar, Clock, Compass, DataAnalysis, Refresh, Setting } from '@element-plus/icons-vue'
 import { learningCockpitApi } from '@/api/learningCockpit'
 import GrowthAutopilotPanel from '@/views/growth-autopilot/GrowthAutopilotPanel.vue'
+import CoachWorkspace from '@/components/ai-growth-coach/CoachWorkspace.vue'
 
 const router = useRouter()
 const route = useRoute()
 const loading = ref(false)
 const savingProfile = ref(false)
 const settingVisible = ref(false)
-const allowedTabs = ['overview', 'autopilot']
+const allowedTabs = ['overview', 'autopilot', 'coach']
 const normalizeTab = (tabName) => (allowedTabs.includes(tabName) ? tabName : 'overview')
 const activeTab = ref(normalizeTab(route.query.tab))
 const settingsStorageKey = 'cn_learning_cockpit_target_settings_v2'
@@ -496,6 +503,10 @@ watch(
 }
 
 .autopilot-tab-wrap {
+  padding-top: 4px;
+}
+
+.coach-tab-wrap {
   padding-top: 4px;
 }
 

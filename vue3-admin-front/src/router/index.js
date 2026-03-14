@@ -201,6 +201,32 @@ const routes = [
     ]
   },
   {
+    path: '/ai-growth-coach',
+    component: Layout,
+    redirect: '/ai-growth-coach/statistics',
+    meta: { title: 'AI成长教练' },
+    children: [
+      {
+        path: 'statistics',
+        name: 'AiGrowthCoachStatistics',
+        component: () => import('@/views/ai-growth-coach/statistics/index.vue'),
+        meta: { title: '教练统计' }
+      },
+      {
+        path: 'failures',
+        name: 'AiGrowthCoachFailures',
+        component: () => import('@/views/ai-growth-coach/failures/index.vue'),
+        meta: { title: '失败案例' }
+      },
+      {
+        path: 'config',
+        name: 'AiGrowthCoachConfig',
+        component: () => import('@/views/ai-growth-coach/config/index.vue'),
+        meta: { title: '策略配置' }
+      }
+    ]
+  },
+  {
     path: '/community',
     component: Layout,
     redirect: '/community/categories',

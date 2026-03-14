@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.aigrowth.mapper.AiGrowthCoachActionMapper">
+
+    <resultMap id="AiGrowthCoachActionResultMap" type="com.xiaou.aigrowth.domain.AiGrowthCoachAction">
+        <id property="id" column="id"/>
+        <result property="snapshotId" column="snapshot_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="title" column="title"/>
+        <result property="description" column="description"/>
+        <result property="priority" column="priority"/>
+        <result property="actionType" column="action_type"/>
+        <result property="targetRoute" column="target_route"/>
+        <result property="reason" column="reason"/>
+        <result property="expectedGain" column="expected_gain"/>
+        <result property="estimatedMinutes" column="estimated_minutes"/>
+        <result property="status" column="status"/>
+        <result property="sortOrder" column="sort_order"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, snapshot_id, user_id, title, description, priority, action_type, target_route,
+        reason, expected_gain, estimated_minutes, status, sort_order, create_time, update_time
+    </sql>
+
+    <select id="selectBySnapshotId" resultMap="AiGrowthCoachActionResultMap">
+        select <include refid="BaseColumns"/>
+        from ai_growth_coach_action
+        where snapshot_id = #{snapshotId}
+        order by sort_order asc, id asc
+    </select>
+
+    <select id="selectById" resultMap="AiGrowthCoachActionResultMap">
+        select <include refid="BaseColumns"/>
+        from ai_growth_coach_action
+        where id = #{id}
+        limit 1
+    </select>
+
+    <insert id="insert" parameterType="com.xiaou.aigrowth.domain.AiGrowthCoachAction" useGeneratedKeys="true" keyProperty="id">
+        insert into ai_growth_coach_action (
+            snapshot_id, user_id, title, description, priority, action_type, target_route,
+            reason, expected_gain, estimated_minutes, status, sort_order
+        ) values (
+            #{snapshotId}, #{userId}, #{title}, #{description}, #{priority}, #{actionType}, #{targetRoute},
+            #{reason}, #{expectedGain}, #{estimatedMinutes}, #{status}, #{sortOrder}
+        )
+    </insert>
+
+    <delete id="deleteBySnapshotId">
+        delete from ai_growth_coach_action where snapshot_id = #{snapshotId}
+    </delete>
+
+    <update id="updateStatus">
+        update ai_growth_coach_action
+        set status = #{status}
+        where id = #{id}
+          and user_id = #{userId}
+    </update>
+
+    <select id="countAll" resultType="long">
+        select count(1) from ai_growth_coach_action
+    </select>
+
+    <select id="countDone" resultType="long">
+        select count(1) from ai_growth_coach_action where status = 'DONE'
+    </select>
+</mapper>

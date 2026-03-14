@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.aigrowth.mapper.AiGrowthCoachSnapshotMapper">
+
+    <resultMap id="AiGrowthCoachSnapshotResultMap" type="com.xiaou.aigrowth.domain.AiGrowthCoachSnapshot">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="sceneScope" column="scene_scope"/>
+        <result property="snapshotDate" column="snapshot_date"/>
+        <result property="learningScore" column="learning_score"/>
+        <result property="careerScore" column="career_score"/>
+        <result property="executionScore" column="execution_score"/>
+        <result property="overallScore" column="overall_score"/>
+        <result property="riskLevel" column="risk_level"/>
+        <result property="headline" column="headline"/>
+        <result property="summaryJson" column="summary_json"/>
+        <result property="sourceDigestJson" column="source_digest_json"/>
+        <result property="fallbackOnly" column="fallback_only"/>
+        <result property="status" column="status"/>
+        <result property="failReason" column="fail_reason"/>
+        <result property="generatedAt" column="generated_at"/>
+        <result property="expireAt" column="expire_at"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, user_id, scene_scope, snapshot_date, learning_score, career_score, execution_score, overall_score,
+        risk_level, headline, summary_json, source_digest_json, fallback_only, status, fail_reason,
+        generated_at, expire_at, create_time, update_time
+    </sql>
+
+    <select id="selectLatestReady" resultMap="AiGrowthCoachSnapshotResultMap">
+        select <include refid="BaseColumns"/>
+        from ai_growth_coach_snapshot
+        where user_id = #{userId}
+          and scene_scope = #{sceneScope}
+          and status = 'READY'
+        order by generated_at desc, id desc
+        limit 1
+    </select>
+
+    <select id="selectById" resultMap="AiGrowthCoachSnapshotResultMap">
+        select <include refid="BaseColumns"/>
+        from ai_growth_coach_snapshot
+        where id = #{id}
+        limit 1
+    </select>
+
+    <insert id="insert" parameterType="com.xiaou.aigrowth.domain.AiGrowthCoachSnapshot" useGeneratedKeys="true" keyProperty="id">
+        insert into ai_growth_coach_snapshot (
+            user_id, scene_scope, snapshot_date, learning_score, career_score, execution_score, overall_score,
+            risk_level, headline, summary_json, source_digest_json, fallback_only, status, fail_reason,
+            generated_at, expire_at
+        ) values (
+            #{userId}, #{sceneScope}, #{snapshotDate}, #{learningScore}, #{careerScore}, #{executionScore}, #{overallScore},
+            #{riskLevel}, #{headline}, #{summaryJson}, #{sourceDigestJson}, #{fallbackOnly}, #{status}, #{failReason},
+            #{generatedAt}, #{expireAt}
+        )
+    </insert>
+
+    <select id="countAll" resultType="long">
+        select count(1) from ai_growth_coach_snapshot
+    </select>
+
+    <select id="countToday" resultType="long">
+        select count(1) from ai_growth_coach_snapshot where date(create_time) = current_date()
+    </select>
+
+    <select id="countFailed" resultType="long">
+        select count(1) from ai_growth_coach_snapshot where status = 'FAILED'
+    </select>
+
+    <select id="countFallback" resultType="long">
+        select count(1) from ai_growth_coach_snapshot where fallback_only = 1
+    </select>
+
+    <select id="countBySceneScope" resultType="long">
+        select count(1) from ai_growth_coach_snapshot where scene_scope = #{sceneScope}
+    </select>
+
+    <select id="selectFailures" resultMap="AiGrowthCoachSnapshotResultMap">
+        select <include refid="BaseColumns"/>
+        from ai_growth_coach_snapshot
+        where status = 'FAILED'
+           or fallback_only = 1
+        order by generated_at desc, id desc
+        limit #{limit}
+    </select>
+</mapper>

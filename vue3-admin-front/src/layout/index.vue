@@ -185,6 +185,25 @@
               <span>统计分析</span>
             </el-menu-item>
           </el-sub-menu>
+
+          <el-sub-menu index="/ai-growth-coach">
+            <template #title>
+              <el-icon><DataAnalysis /></el-icon>
+              <span>AI成长教练</span>
+            </template>
+            <el-menu-item index="/ai-growth-coach/statistics">
+              <el-icon><DataAnalysis /></el-icon>
+              <span>教练统计</span>
+            </el-menu-item>
+            <el-menu-item index="/ai-growth-coach/failures">
+              <el-icon><Warning /></el-icon>
+              <span>失败案例</span>
+            </el-menu-item>
+            <el-menu-item index="/ai-growth-coach/config">
+              <el-icon><SetUp /></el-icon>
+              <span>策略配置</span>
+            </el-menu-item>
+          </el-sub-menu>
           
           <el-sub-menu index="/community">
             <template #title>
@@ -612,6 +631,8 @@ const getIconByPath = (path, title = '') => {
     'questions': 'Edit',
     'knowledge': 'DataAnalysis',
     'maps': 'Share',
+    'ai-growth-coach': 'DataAnalysis',
+    'failures': 'Warning',
     'community': 'ChatDotRound',
     'posts': 'Document',
     'comments': 'ChatLineRound',
@@ -666,6 +687,8 @@ const getIconByPath = (path, title = '') => {
     '题单': 'Collection',
     '知识': 'DataAnalysis',
     '图谱': 'Share',
+    '教练': 'DataAnalysis',
+    '失败': 'Warning',
     '社区': 'ChatDotRound',
     '帖子': 'Document',
     '评论': 'ChatLineRound',
@@ -731,6 +754,7 @@ const generateBreadcrumb = (path, title) => {
     'mock-interview': '模拟面试运营',
     'knowledge': '知识图谱管理', 
     'learning-assets': '学习资产管理',
+    'ai-growth-coach': 'AI成长教练',
     'community': '社区管理',
     'moments': '朋友圈管理',
     'chat': '聊天室管理',

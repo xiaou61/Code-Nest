@@ -188,6 +188,13 @@
         </el-col>
       </el-row>
 
+      <el-card shadow="never" class="panel-card coach-card">
+        <template #header>
+          <div class="panel-title">AI教练摘要</div>
+        </template>
+        <CoachWorkspace compact scene="career" />
+      </el-card>
+
       <el-card shadow="never" class="panel-card">
         <template #header>
           <div class="panel-title">动作清单</div>
@@ -230,6 +237,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Connection } from '@element-plus/icons-vue'
 import { careerLoopApi } from '@/api/careerLoop'
+import CoachWorkspace from '@/components/ai-growth-coach/CoachWorkspace.vue'
 import {
   adaptCareerLoopCurrent,
   mapActionStatusLabel,
@@ -505,6 +513,10 @@ onMounted(async () => {
 .summary-card,
 .panel-card {
   border-radius: 12px;
+}
+
+.coach-card {
+  margin-bottom: 12px;
 }
 
 .summary-label {

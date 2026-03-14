@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.aigrowth.mapper.AiGrowthCoachChatSessionMapper">
+
+    <resultMap id="AiGrowthCoachChatSessionResultMap" type="com.xiaou.aigrowth.domain.AiGrowthCoachChatSession">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="snapshotId" column="snapshot_id"/>
+        <result property="sceneScope" column="scene_scope"/>
+        <result property="title" column="title"/>
+        <result property="status" column="status"/>
+        <result property="lastMessageAt" column="last_message_at"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, user_id, snapshot_id, scene_scope, title, status, last_message_at, create_time, update_time
+    </sql>
+
+    <select id="selectByIdAndUserId" resultMap="AiGrowthCoachChatSessionResultMap">
+        select <include refid="BaseColumns"/>
+        from ai_growth_coach_chat_session
+        where id = #{id}
+          and user_id = #{userId}
+        limit 1
+    </select>
+
+    <select id="selectLatestBySnapshotId" resultMap="AiGrowthCoachChatSessionResultMap">
+        select <include refid="BaseColumns"/>
+        from ai_growth_coach_chat_session
+        where user_id = #{userId}
+          and snapshot_id = #{snapshotId}
+          and status = 'ACTIVE'
+        order by last_message_at desc, id desc
+        limit 1
+    </select>
+
+    <insert id="insert" parameterType="com.xiaou.aigrowth.domain.AiGrowthCoachChatSession" useGeneratedKeys="true" keyProperty="id">
+        insert into ai_growth_coach_chat_session (
+            user_id, snapshot_id, scene_scope, title, status, last_message_at
+        ) values (
+            #{userId}, #{snapshotId}, #{sceneScope}, #{title}, #{status}, #{lastMessageAt}
+        )
+    </insert>
+
+    <update id="updateTitle">
+        update ai_growth_coach_chat_session
+        set title = #{title}
+        where id = #{id}
+    </update>
+
+    <update id="updateLastMessageAt">
+        update ai_growth_coach_chat_session
+        set last_message_at = #{lastMessageAt}
+        where id = #{id}
+    </update>
+
+    <select id="countAll" resultType="long">
+        select count(1) from ai_growth_coach_chat_session
+    </select>
+</mapper>
