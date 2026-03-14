@@ -8,9 +8,9 @@
     <version>1.8.1</version>
   </parent>
   <groupId>com.xiaou</groupId>
-  <artifactId>xiaou-sql-optimizer</artifactId>
+  <artifactId>xiaou-learning-asset</artifactId>
   <version>1.8.1</version>
-  <description>慢SQL智能优化模块</description>
+  <description>学习资产转化引擎模块</description>
   <dependencies>
     <dependency>
       <groupId>com.xiaou</groupId>
@@ -19,7 +19,42 @@
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
-      <artifactId>xiaou-ai</artifactId>
+      <artifactId>xiaou-blog</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-community</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-codepen</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-mock-interview</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-flashcard</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-knowledge</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-plan</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-interview</artifactId>
       <version>${revision}</version>
     </dependency>
     <dependency>
@@ -27,9 +62,8 @@
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.mysql</groupId>
-      <artifactId>mysql-connector-j</artifactId>
-      <scope>runtime</scope>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
     <dependency>
       <groupId>org.projectlombok</groupId>
@@ -46,11 +80,4 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
-  <build>
-    <plugins>
-      <plugin>
-        <artifactId>maven-compiler-plugin</artifactId>
-      </plugin>
-    </plugins>
-  </build>
 </project>

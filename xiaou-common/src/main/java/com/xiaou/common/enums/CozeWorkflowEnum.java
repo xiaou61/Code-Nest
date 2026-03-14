@@ -61,7 +61,22 @@ public enum CozeWorkflowEnum {
     /**
      * 慢SQL优化分析
      */
-    SQL_OPTIMIZE_ANALYZE("PLACEHOLDER_SQL_OPTIMIZE", "慢SQL优化分析", "分析SQL执行计划并给出优化建议");
+    SQL_OPTIMIZE_ANALYZE("7613589259505352738", "慢SQL优化分析", "分析SQL执行计划并给出优化建议"),
+
+    /**
+     * 慢SQL优化分析 2.0
+     */
+    SQL_OPTIMIZE_ANALYZE_V2("7613589861928435755", "慢SQL优化分析2.0", "分析SQL执行计划并输出结构化诊断结果"),
+
+    /**
+     * 慢SQL重写建议 2.0
+     */
+    SQL_OPTIMIZE_REWRITE_V2("7613590170381697058", "慢SQL重写建议2.0", "生成优化SQL和索引建议"),
+
+    /**
+     * 慢SQL收益对比 2.0
+     */
+    SQL_OPTIMIZE_COMPARE_V2("7613590435751329801", "慢SQL收益对比2.0", "对比优化前后收益并输出评估");
 
     /**
      * 工作流ID

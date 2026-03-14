@@ -284,6 +284,16 @@ const routes = [
     }
   },
   {
+    path: '/sql-optimizer/workbench',
+    name: 'SqlOptimizerWorkbench',
+    component: () => import('@/views/sql-optimizer/Workbench.vue'),
+    meta: {
+      title: 'SQL优化工作台 2.0',
+      requiresAuth: true,
+      keepAlive: true
+    }
+  },
+  {
     path: '/growth-autopilot',
     name: 'GrowthAutopilot',
     redirect: (to) => ({

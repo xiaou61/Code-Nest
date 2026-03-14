@@ -32,6 +32,7 @@
     <module>xiaou-team</module>
     <module>xiaou-flashcard</module>
     <module>xiaou-ai</module>
+    <module>xiaou-learning-asset</module>
     <module>xiaou-sql-optimizer</module>
     <module>xiaou-oj</module>
   </modules>
