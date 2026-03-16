@@ -7,9 +7,9 @@ spring:
   datasource:
     # 生产环境建议使用 MySQL 官方驱动，避免 P6Spy 代理带来的额外开销
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://113.44.190.45:3306/codenest?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true
-    username: codenest
-    password: codenest
+    url: jdbc:mysql://113.44.190.45:3306/code_nest?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true
+    username: lizifan
+    password: 123456
 
   redis:
     redisson:
