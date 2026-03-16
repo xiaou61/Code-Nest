@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.techbriefing.mapper.TechBriefingSourceMapper">
+
+    <resultMap id="TechBriefingSourceResultMap" type="com.xiaou.techbriefing.domain.TechBriefingSource">
+        <id property="id" column="id"/>
+        <result property="sourceName" column="source_name"/>
+        <result property="sourceType" column="source_type"/>
+        <result property="fetchType" column="fetch_type"/>
+        <result property="baseUrl" column="base_url"/>
+        <result property="rssUrl" column="rss_url"/>
+        <result property="status" column="status"/>
+        <result property="weight" column="weight"/>
+        <result property="cronExpr" column="cron_expr"/>
+        <result property="remark" column="remark"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, source_name, source_type, fetch_type, base_url, rss_url, status, weight, cron_expr, remark, create_time, update_time
+    </sql>
+
+    <select id="selectEnabledSources" resultMap="TechBriefingSourceResultMap">
+        select <include refid="BaseColumns"/>
+        from tech_briefing_source
+        where status = 'ENABLED'
+        order by weight desc, id asc
+    </select>
+
+    <select id="selectAll" resultMap="TechBriefingSourceResultMap">
+        select <include refid="BaseColumns"/>
+        from tech_briefing_source
+        order by weight desc, id asc
+    </select>
+
+    <select id="selectById" resultMap="TechBriefingSourceResultMap">
+        select <include refid="BaseColumns"/>
+        from tech_briefing_source
+        where id = #{id}
+        limit 1
+    </select>
+
+    <insert id="insert" parameterType="com.xiaou.techbriefing.domain.TechBriefingSource" useGeneratedKeys="true" keyProperty="id">
+        insert into tech_briefing_source (
+            source_name, source_type, fetch_type, base_url, rss_url, status, weight, cron_expr, remark
+        ) values (
+            #{sourceName}, #{sourceType}, #{fetchType}, #{baseUrl}, #{rssUrl}, #{status}, #{weight}, #{cronExpr}, #{remark}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.xiaou.techbriefing.domain.TechBriefingSource">
+        update tech_briefing_source
+        set source_name = #{sourceName},
+            source_type = #{sourceType},
+            fetch_type = #{fetchType},
+            base_url = #{baseUrl},
+            rss_url = #{rssUrl},
+            status = #{status},
+            weight = #{weight},
+            cron_expr = #{cronExpr},
+            remark = #{remark}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        delete from tech_briefing_source where id = #{id}
+    </delete>
+</mapper>

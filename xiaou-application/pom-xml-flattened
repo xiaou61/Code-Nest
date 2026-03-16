@@ -5,11 +5,11 @@
   <parent>
     <groupId>com.xiaou</groupId>
     <artifactId>Code-Nest</artifactId>
-    <version>1.8.1</version>
+    <version>1.8.2</version>
   </parent>
   <groupId>com.xiaou</groupId>
   <artifactId>xiaou-application</artifactId>
-  <version>1.8.1</version>
+  <version>1.8.2</version>
   <name>xiaou-application</name>
   <dependencies>
     <dependency>
@@ -150,6 +150,11 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-test</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.mysql</groupId>

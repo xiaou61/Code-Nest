@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.techbriefing.mapper.TechBriefingSubscriptionMapper">
+
+    <resultMap id="TechBriefingSubscriptionResultMap" type="com.xiaou.techbriefing.domain.TechBriefingSubscription">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="channelType" column="channel_type"/>
+        <result property="webhookUrl" column="webhook_url"/>
+        <result property="webhookSecret" column="webhook_secret"/>
+        <result property="targetName" column="target_name"/>
+        <result property="configHash" column="config_hash"/>
+        <result property="topicPreferences" column="topic_preferences"/>
+        <result property="frequency" column="frequency"/>
+        <result property="status" column="status"/>
+        <result property="source" column="source"/>
+        <result property="lastPushAt" column="last_push_at"/>
+        <result property="lastTestAt" column="last_test_at"/>
+        <result property="lastPushStatus" column="last_push_status"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, user_id, channel_type, webhook_url, webhook_secret, target_name, config_hash, topic_preferences,
+        frequency, status, source, last_push_at, last_test_at, last_push_status, create_time, update_time
+    </sql>
+
+    <select id="selectById" resultMap="TechBriefingSubscriptionResultMap">
+        select <include refid="BaseColumns"/>
+        from tech_briefing_subscription
+        where id = #{id}
+        limit 1
+    </select>
+
+    <select id="selectActiveByChannelAndWebhook" resultMap="TechBriefingSubscriptionResultMap">
+        select <include refid="BaseColumns"/>
+        from tech_briefing_subscription
+        where channel_type = #{channelType}
+          and webhook_url = #{webhookUrl}
+          and status = 'ENABLED'
+        limit 1
+    </select>
+
+    <select id="selectAll" resultMap="TechBriefingSubscriptionResultMap">
+        select <include refid="BaseColumns"/>
+        from tech_briefing_subscription
+        order by create_time desc, id desc
+    </select>
+
+    <select id="countAll" resultType="long">
+        select count(1) from tech_briefing_subscription
+    </select>
+
+    <insert id="insert" parameterType="com.xiaou.techbriefing.domain.TechBriefingSubscription" useGeneratedKeys="true" keyProperty="id">
+        insert into tech_briefing_subscription (
+            user_id, channel_type, webhook_url, webhook_secret, target_name, config_hash, topic_preferences,
+            frequency, status, source, last_push_at, last_test_at, last_push_status
+        ) values (
+            #{userId}, #{channelType}, #{webhookUrl}, #{webhookSecret}, #{targetName}, #{configHash}, #{topicPreferences},
+            #{frequency}, #{status}, #{source}, #{lastPushAt}, #{lastTestAt}, #{lastPushStatus}
+        )
+    </insert>
+
+    <update id="updateStatusById">
+        update tech_briefing_subscription
+        set status = #{status}
+        where id = #{id}
+    </update>
+
+    <update id="updateTestResult">
+        update tech_briefing_subscription
+        set last_test_at = #{lastTestAt},
+            last_push_status = #{lastPushStatus}
+        where id = #{id}
+    </update>
+</mapper>

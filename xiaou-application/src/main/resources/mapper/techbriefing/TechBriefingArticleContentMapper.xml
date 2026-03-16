@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.techbriefing.mapper.TechBriefingArticleContentMapper">
+
+    <resultMap id="TechBriefingArticleContentResultMap" type="com.xiaou.techbriefing.domain.TechBriefingArticleContent">
+        <id property="id" column="id"/>
+        <result property="articleId" column="article_id"/>
+        <result property="rawContent" column="raw_content"/>
+        <result property="translatedContentZh" column="translated_content_zh"/>
+        <result property="contentExtractStatus" column="content_extract_status"/>
+        <result property="translationStatus" column="translation_status"/>
+        <result property="tokenUsage" column="token_usage"/>
+        <result property="copyrightMode" column="copyright_mode"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <select id="selectByArticleId" resultMap="TechBriefingArticleContentResultMap">
+        select id, article_id, raw_content, translated_content_zh, content_extract_status, translation_status,
+               token_usage, copyright_mode, create_time, update_time
+        from tech_briefing_article_content
+        where article_id = #{articleId}
+        limit 1
+    </select>
+
+    <insert id="insert" parameterType="com.xiaou.techbriefing.domain.TechBriefingArticleContent" useGeneratedKeys="true" keyProperty="id">
+        insert into tech_briefing_article_content (
+            article_id, raw_content, translated_content_zh, content_extract_status, translation_status, token_usage, copyright_mode
+        ) values (
+            #{articleId}, #{rawContent}, #{translatedContentZh}, #{contentExtractStatus}, #{translationStatus}, #{tokenUsage}, #{copyrightMode}
+        )
+    </insert>
+
+    <update id="updateByArticleId" parameterType="com.xiaou.techbriefing.domain.TechBriefingArticleContent">
+        update tech_briefing_article_content
+        set raw_content = #{rawContent},
+            translated_content_zh = #{translatedContentZh},
+            content_extract_status = #{contentExtractStatus},
+            translation_status = #{translationStatus},
+            token_usage = #{tokenUsage},
+            copyright_mode = #{copyrightMode}
+        where article_id = #{articleId}
+    </update>
+</mapper>

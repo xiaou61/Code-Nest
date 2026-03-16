@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.techbriefing.mapper.TechBriefingArticleAiMapper">
+
+    <resultMap id="TechBriefingArticleAiResultMap" type="com.xiaou.techbriefing.domain.TechBriefingArticleAi">
+        <id property="id" column="id"/>
+        <result property="articleId" column="article_id"/>
+        <result property="summaryJson" column="summary_json"/>
+        <result property="keywordsJson" column="keywords_json"/>
+        <result property="whyImportant" column="why_important"/>
+        <result property="impactScope" column="impact_scope"/>
+        <result property="modelName" column="model_name"/>
+        <result property="status" column="status"/>
+        <result property="failReason" column="fail_reason"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <select id="selectByArticleId" resultMap="TechBriefingArticleAiResultMap">
+        select id, article_id, summary_json, keywords_json, why_important, impact_scope, model_name, status, fail_reason, create_time, update_time
+        from tech_briefing_article_ai
+        where article_id = #{articleId}
+        limit 1
+    </select>
+
+    <select id="selectByArticleIds" resultMap="TechBriefingArticleAiResultMap">
+        select id, article_id, summary_json, keywords_json, why_important, impact_scope, model_name, status, fail_reason, create_time, update_time
+        from tech_briefing_article_ai
+        where article_id in
+        <foreach collection="articleIds" item="articleId" open="(" separator="," close=")">
+            #{articleId}
+        </foreach>
+    </select>
+
+    <insert id="insert" parameterType="com.xiaou.techbriefing.domain.TechBriefingArticleAi" useGeneratedKeys="true" keyProperty="id">
+        insert into tech_briefing_article_ai (
+            article_id, summary_json, keywords_json, why_important, impact_scope, model_name, status, fail_reason
+        ) values (
+            #{articleId}, #{summaryJson}, #{keywordsJson}, #{whyImportant}, #{impactScope}, #{modelName}, #{status}, #{failReason}
+        )
+    </insert>
+
+    <update id="updateByArticleId" parameterType="com.xiaou.techbriefing.domain.TechBriefingArticleAi">
+        update tech_briefing_article_ai
+        set summary_json = #{summaryJson},
+            keywords_json = #{keywordsJson},
+            why_important = #{whyImportant},
+            impact_scope = #{impactScope},
+            model_name = #{modelName},
+            status = #{status},
+            fail_reason = #{failReason}
+        where article_id = #{articleId}
+    </update>
+</mapper>

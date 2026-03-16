@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.techbriefing.mapper.TechBriefingArticleMapper">
+
+    <resultMap id="TechBriefingArticleResultMap" type="com.xiaou.techbriefing.domain.TechBriefingArticle">
+        <id property="id" column="id"/>
+        <result property="sourceId" column="source_id"/>
+        <result property="sourceName" column="source_name"/>
+        <result property="title" column="title"/>
+        <result property="titleZh" column="title_zh"/>
+        <result property="summary" column="summary"/>
+        <result property="summaryZh" column="summary_zh"/>
+        <result property="sourceUrl" column="source_url"/>
+        <result property="coverImage" column="cover_image"/>
+        <result property="language" column="language"/>
+        <result property="regionType" column="region_type"/>
+        <result property="category" column="category"/>
+        <result property="tagsJson" column="tags_json"/>
+        <result property="hotScore" column="hot_score"/>
+        <result property="publishTime" column="publish_time"/>
+        <result property="status" column="status"/>
+        <result property="isPinned" column="is_pinned"/>
+        <result property="translationStatus" column="translation_status"/>
+        <result property="aiSummaryStatus" column="ai_summary_status"/>
+        <result property="deleted" column="deleted"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, source_id, source_name, title, title_zh, summary, summary_zh, source_url, cover_image, language,
+        region_type, category, tags_json, hot_score, publish_time, status, is_pinned, translation_status,
+        ai_summary_status, deleted, create_time, update_time
+    </sql>
+
+    <sql id="PublicWhere">
+        where deleted = 0
+          and status = 'READY'
+        <if test="scope != null and scope != '' and scope != 'all'">
+            <choose>
+                <when test="scope == 'domestic'">
+                    and region_type = 'DOMESTIC'
+                </when>
+                <when test="scope == 'global'">
+                    and region_type = 'GLOBAL'
+                </when>
+            </choose>
+        </if>
+        <if test="category != null and category != ''">
+            and category = #{category}
+        </if>
+        <if test="sourceId != null">
+            and source_id = #{sourceId}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            and (title like concat('%', #{keyword}, '%')
+                or title_zh like concat('%', #{keyword}, '%')
+                or summary like concat('%', #{keyword}, '%')
+                or summary_zh like concat('%', #{keyword}, '%'))
+        </if>
+    </sql>
+
+    <select id="countPublic" parameterType="com.xiaou.techbriefing.dto.request.TechBriefingArticleQueryRequest" resultType="long">
+        select count(1)
+        from tech_briefing_article
+        <include refid="PublicWhere"/>
+    </select>
+
+    <select id="selectPublicList" resultMap="TechBriefingArticleResultMap">
+        select <include refid="BaseColumns"/>
+        from tech_briefing_article
+        <include refid="PublicWhere"/>
+        <choose>
+            <when test="query.sortBy == 'hot'">
+                order by is_pinned desc, hot_score desc, publish_time desc
+            </when>
+            <otherwise>
+                order by is_pinned desc, publish_time desc, id desc
+            </otherwise>
+        </choose>
+        limit #{offset}, #{limit}
+    </select>
+
+    <select id="selectHighlights" resultMap="TechBriefingArticleResultMap">
+        select <include refid="BaseColumns"/>
+        from tech_briefing_article
+        where deleted = 0
+          and status = 'READY'
+        order by is_pinned desc, hot_score desc, publish_time desc
+        limit #{limit}
+    </select>
+
+    <select id="selectDistinctCategories" resultType="string">
+        select distinct category
+        from tech_briefing_article
+        where deleted = 0
+          and status = 'READY'
+          and category is not null
+          and category != ''
+        order by category asc
+    </select>
+
+    <select id="selectById" resultMap="TechBriefingArticleResultMap">
+        select <include refid="BaseColumns"/>
+        from tech_briefing_article
+        where id = #{id}
+        limit 1
+    </select>
+
+    <select id="selectBySourceUrl" resultMap="TechBriefingArticleResultMap">
+        select <include refid="BaseColumns"/>
+        from tech_briefing_article
+        where source_url = #{sourceUrl}
+        limit 1
+    </select>
+
+    <insert id="insert" parameterType="com.xiaou.techbriefing.domain.TechBriefingArticle" useGeneratedKeys="true" keyProperty="id">
+        insert into tech_briefing_article (
+            source_id, source_name, title, title_zh, summary, summary_zh, source_url, cover_image, language,
+            region_type, category, tags_json, hot_score, publish_time, status, is_pinned, translation_status,
+            ai_summary_status, deleted
+        ) values (
+            #{sourceId}, #{sourceName}, #{title}, #{titleZh}, #{summary}, #{summaryZh}, #{sourceUrl}, #{coverImage}, #{language},
+            #{regionType}, #{category}, #{tagsJson}, #{hotScore}, #{publishTime}, #{status}, #{isPinned}, #{translationStatus},
+            #{aiSummaryStatus}, #{deleted}
+        )
+    </insert>
+
+    <update id="updateById" parameterType="com.xiaou.techbriefing.domain.TechBriefingArticle">
+        update tech_briefing_article
+        set source_id = #{sourceId},
+            source_name = #{sourceName},
+            title = #{title},
+            title_zh = #{titleZh},
+            summary = #{summary},
+            summary_zh = #{summaryZh},
+            source_url = #{sourceUrl},
+            cover_image = #{coverImage},
+            language = #{language},
+            region_type = #{regionType},
+            category = #{category},
+            tags_json = #{tagsJson},
+            hot_score = #{hotScore},
+            publish_time = #{publishTime},
+            status = #{status},
+            is_pinned = #{isPinned},
+            translation_status = #{translationStatus},
+            ai_summary_status = #{aiSummaryStatus},
+            deleted = #{deleted}
+        where id = #{id}
+    </update>
+
+    <update id="updatePinStatus">
+        update tech_briefing_article
+        set is_pinned = #{isPinned}
+        where id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        update tech_briefing_article
+        set status = #{status}
+        where id = #{id}
+    </update>
+
+    <select id="selectAdminList" resultMap="TechBriefingArticleResultMap">
+        select <include refid="BaseColumns"/>
+        from tech_briefing_article
+        where deleted = 0
+        order by is_pinned desc, publish_time desc, id desc
+    </select>
+</mapper>
