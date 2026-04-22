@@ -25,9 +25,11 @@ import com.xiaou.system.dto.AiConfigTestResponse;
 import com.xiaou.system.dto.AiPromptDebugRequest;
 import com.xiaou.system.dto.AiPromptDebugResponse;
 import com.xiaou.system.dto.AiRegressionCaseCatalogResponse;
+import com.xiaou.system.dto.AiRegressionCaseResultResponse;
 import com.xiaou.system.dto.AiRegressionRunHistoryResponse;
 import com.xiaou.system.dto.AiRegressionRunRequest;
 import com.xiaou.system.dto.AiRegressionRunResponse;
+import com.xiaou.system.dto.AiRegressionScenarioHealthResponse;
 import com.xiaou.system.dto.AiRagDocumentBatchDeleteRequest;
 import com.xiaou.system.dto.AiRagDocumentBatchDeleteResponse;
 import com.xiaou.system.dto.AiRagDocumentDeleteResponse;
@@ -290,6 +292,80 @@ class SysAiConfigServiceImplTest {
         assertEquals("community-summary-success", response.getRuns().get(0).getCaseId());
         assertEquals("sql-analyze-success", response.getRuns().get(1).getCaseId());
         verify(aiRegressionRunStateRepository).loadHistory(5);
+    }
+
+    @Test
+    void shouldReturnRegressionScenarioHealth() {
+        AiRegressionCaseResultResponse communityFailed = new AiRegressionCaseResultResponse();
+        communityFailed.setCaseId("community-summary-failed");
+        communityFailed.setScenario("community_summary");
+        communityFailed.setPassed(false);
+        communityFailed.setFailureReasons(java.util.List.of("摘要为空"));
+
+        AiRegressionCaseResultResponse communityPassed = new AiRegressionCaseResultResponse();
+        communityPassed.setCaseId("community-summary-success");
+        communityPassed.setScenario("community_summary");
+        communityPassed.setPassed(true);
+
+        AiRegressionCaseResultResponse sqlPassed = new AiRegressionCaseResultResponse();
+        sqlPassed.setCaseId("sql-analyze-success");
+        sqlPassed.setScenario("sql_optimize_analyze");
+        sqlPassed.setPassed(true);
+
+        AiRegressionRunResponse latest = new AiRegressionRunResponse();
+        latest.setExecutedAt(1713740800000L);
+        latest.setCaseResults(java.util.List.of(communityFailed, communityPassed, sqlPassed));
+
+        AiRegressionCaseResultResponse communityHistoricalPassed = new AiRegressionCaseResultResponse();
+        communityHistoricalPassed.setCaseId("community-summary-success");
+        communityHistoricalPassed.setScenario("community_summary");
+        communityHistoricalPassed.setPassed(true);
+
+        AiRegressionCaseResultResponse communityHistoricalFailed = new AiRegressionCaseResultResponse();
+        communityHistoricalFailed.setCaseId("community-summary-failed");
+        communityHistoricalFailed.setScenario("community_summary");
+        communityHistoricalFailed.setPassed(false);
+        communityHistoricalFailed.setFailureReasons(java.util.List.of("摘要为空", "标题未命中"));
+
+        AiRegressionCaseResultResponse sqlHistoricalFailed = new AiRegressionCaseResultResponse();
+        sqlHistoricalFailed.setCaseId("sql-analyze-failed");
+        sqlHistoricalFailed.setScenario("sql_optimize_analyze");
+        sqlHistoricalFailed.setPassed(false);
+        sqlHistoricalFailed.setFailureReasons(java.util.List.of("未命中索引建议"));
+
+        AiRegressionRunResponse previous = new AiRegressionRunResponse();
+        previous.setExecutedAt(1713654400000L);
+        previous.setCaseResults(java.util.List.of(communityHistoricalPassed, communityHistoricalFailed, sqlHistoricalFailed));
+
+        when(aiRegressionRunStateRepository.loadHistory(10)).thenReturn(java.util.List.of(latest, previous));
+
+        AiRegressionScenarioHealthResponse response = service.getRegressionScenarioHealth(10);
+
+        assertNotNull(response);
+        assertEquals(10, response.getLimit());
+        assertEquals(2, response.getTotalCount());
+        assertEquals("community_summary", response.getScenarios().get(0).getScenario());
+        assertFalse(Boolean.TRUE.equals(response.getScenarios().get(0).getLatestPassed()));
+        assertEquals(2, response.getScenarios().get(0).getRunCount());
+        assertEquals(2, response.getScenarios().get(0).getFailedRunCount());
+        assertEquals(4, response.getScenarios().get(0).getTotalCaseCount());
+        assertEquals(2, response.getScenarios().get(0).getPassedCaseCount());
+        assertEquals(2, response.getScenarios().get(0).getFailedCaseCount());
+        assertEquals(1, response.getScenarios().get(0).getLatestFailedCaseCount());
+        assertTrue(response.getScenarios().get(0).getLatestFailedCaseIds().contains("community-summary-failed"));
+        assertEquals("community-summary-failed", response.getScenarios().get(0).getTopFailedCases().get(0).getLabel());
+        assertEquals(2, response.getScenarios().get(0).getTopFailedCases().get(0).getCount());
+        assertEquals("摘要为空", response.getScenarios().get(0).getTopFailureReasons().get(0).getLabel());
+        assertEquals(2, response.getScenarios().get(0).getTopFailureReasons().get(0).getCount());
+        assertEquals("标题未命中", response.getScenarios().get(0).getTopFailureReasons().get(1).getLabel());
+        assertEquals(1, response.getScenarios().get(0).getTopFailureReasons().get(1).getCount());
+
+        assertEquals("sql_optimize_analyze", response.getScenarios().get(1).getScenario());
+        assertTrue(Boolean.TRUE.equals(response.getScenarios().get(1).getLatestPassed()));
+        assertEquals(1713654400000L, response.getScenarios().get(1).getLastFailedAt());
+        assertEquals("sql-analyze-failed", response.getScenarios().get(1).getTopFailedCases().get(0).getLabel());
+        assertEquals(1, response.getScenarios().get(1).getTopFailureReasons().get(0).getCount());
+        verify(aiRegressionRunStateRepository).loadHistory(10);
     }
 
     @Test

@@ -8,6 +8,7 @@ import com.xiaou.system.dto.AiRegressionCaseCatalogResponse;
 import com.xiaou.system.dto.AiRegressionRunHistoryResponse;
 import com.xiaou.system.dto.AiRegressionRunRequest;
 import com.xiaou.system.dto.AiRegressionRunResponse;
+import com.xiaou.system.dto.AiRegressionScenarioHealthResponse;
 import com.xiaou.system.dto.AiRagDocumentBatchDeleteRequest;
 import com.xiaou.system.dto.AiRagDocumentBatchDeleteResponse;
 import com.xiaou.system.dto.AiRagDocumentImportRequest;
@@ -60,6 +61,11 @@ public interface SysAiConfigService {
      * 获取 AI 回归执行历史。
      */
     AiRegressionRunHistoryResponse getRegressionRunHistory(Integer limit);
+
+    /**
+     * 获取 AI 回归场景健康聚合。
+     */
+    AiRegressionScenarioHealthResponse getRegressionScenarioHealth(Integer limit);
 
     /**
      * Prompt 在线调试。

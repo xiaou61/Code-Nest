@@ -31,6 +31,8 @@
 - 若 Redis 可用且 AI 运行观测持久化已启用，则会额外写入 Redis
 - 管理后台刷新后仍可恢复最近一次执行时间、通过/失败数量和单用例结果
 - 管理后台支持直接查看最近历史中的任意一次执行详情，便于比对不同模型、Prompt 或编排改动后的回归表现
+- 管理后台会按最近窗口聚合场景健康状态，优先展示最近状态退化的场景，帮助快速定位哪条链路开始不稳定
+- 场景健康展开区会继续给出“高频失败用例 Top5”和“高频失败原因 Top5”，便于快速判断是单点 case 退化，还是同类错误在多个 case 上反复出现
 
 当前已覆盖：
 
@@ -74,6 +76,7 @@
 - 拉取用例目录：`GET /admin/ai/config/regression/cases`
 - 拉取最近一次结果：`GET /admin/ai/config/regression/latest`
 - 拉取最近历史结果：`GET /admin/ai/config/regression/history?limit=10`
+- 拉取场景健康聚合：`GET /admin/ai/config/regression/scenario-health?limit=10`
 - 执行回归：`POST /admin/ai/config/regression/run`
 - 管理后台入口：`系统管理 -> AI 配置与观测 -> AI 黄金样例回归`
 
@@ -106,7 +109,7 @@ CI 工作流：
 
 下一阶段可以继续补：
 
-1. 在后台补场景维度的失败聚合，方便快速定位哪条链路退化
-2. 把评测结果继续接入 CI，变成合并前必跑回归项
-3. 若后续新增多节点图，优先沿用 `responses + fallbackSequence` 机制补 fixture
-4. 视需要把历史记录从“最近 20 次”继续扩展成可检索、可筛选的长期留存方案
+1. 把评测结果继续接入 CI，变成合并前必跑回归项
+2. 若后续新增多节点图，优先沿用 `responses + fallbackSequence` 机制补 fixture
+3. 视需要把历史记录从“最近 20 次”继续扩展成可检索、可筛选的长期留存方案
+4. 进一步按模型、Prompt 版本或图编排版本切分失败热点，支持更细粒度定位质量回退来源

@@ -24,6 +24,10 @@ export function getAiRegressionHistory(params = {}) {
   return request.get('/admin/ai/config/regression/history', params)
 }
 
+export function getAiRegressionScenarioHealth(params = {}) {
+  return request.get('/admin/ai/config/regression/scenario-health', params)
+}
+
 export function runAiRegression(data = {}) {
   return request.post('/admin/ai/config/regression/run', data)
 }
@@ -82,6 +86,7 @@ export const aiConfigApi = {
   getAiRegressionCases,
   getAiRegressionLatestRun,
   getAiRegressionHistory,
+  getAiRegressionScenarioHealth,
   runAiRegression,
   debugAiPrompt,
   debugAiRag,

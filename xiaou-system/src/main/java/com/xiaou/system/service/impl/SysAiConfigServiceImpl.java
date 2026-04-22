@@ -45,9 +45,12 @@ import com.xiaou.system.dto.AiPromptDebugResponse;
 import com.xiaou.system.dto.AiRegressionCaseCatalogItemResponse;
 import com.xiaou.system.dto.AiRegressionCaseCatalogResponse;
 import com.xiaou.system.dto.AiRegressionCaseResultResponse;
+import com.xiaou.system.dto.AiRegressionInsightItemResponse;
 import com.xiaou.system.dto.AiRegressionRunHistoryResponse;
 import com.xiaou.system.dto.AiRegressionRunRequest;
 import com.xiaou.system.dto.AiRegressionRunResponse;
+import com.xiaou.system.dto.AiRegressionScenarioHealthItemResponse;
+import com.xiaou.system.dto.AiRegressionScenarioHealthResponse;
 import com.xiaou.system.dto.AiRagDocumentBatchDeleteRequest;
 import com.xiaou.system.dto.AiRagDocumentBatchDeleteResponse;
 import com.xiaou.system.dto.AiRagDocumentDeleteResponse;
@@ -91,6 +94,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -126,9 +130,11 @@ public class SysAiConfigServiceImpl implements SysAiConfigService {
     private static final int MAX_RECENT_LIMIT = 50;
     private static final int DEFAULT_REGRESSION_HISTORY_LIMIT = 10;
     private static final int MAX_REGRESSION_HISTORY_LIMIT = 20;
+    private static final int SCENARIO_HEALTH_INSIGHT_LIMIT = 5;
     private static final int DEFAULT_RAG_DOCUMENT_LIMIT = 20;
     private static final int MAX_RAG_DOCUMENT_LIMIT = 200;
     private static final String SAMPLE_RAG_DOCUMENTS_RESOURCE = "ai/rag/sample-documents.json";
+    private static final String DEFAULT_FAILURE_REASON_LABEL = "未提供失败原因";
     private static final Pattern BEARER_TOKEN_PATTERN = Pattern.compile("(?i)bearer\\s+[A-Za-z0-9._\\-]+");
     private static final Set<String> SUPPORTED_OUTCOMES = Set.of("success", "error");
 
@@ -219,6 +225,17 @@ public class SysAiConfigServiceImpl implements SysAiConfigService {
         response.setLimit(resolvedLimit);
         response.setTotalCount(runs.size());
         response.setRuns(runs);
+        return response;
+    }
+
+    @Override
+    public AiRegressionScenarioHealthResponse getRegressionScenarioHealth(Integer limit) {
+        int resolvedLimit = resolveRegressionHistoryLimit(limit);
+        List<AiRegressionRunResponse> runs = aiRegressionRunStateRepository.loadHistory(resolvedLimit);
+        AiRegressionScenarioHealthResponse response = new AiRegressionScenarioHealthResponse();
+        response.setLimit(resolvedLimit);
+        response.setScenarios(mapRegressionScenarioHealth(runs));
+        response.setTotalCount(response.getScenarios().size());
         return response;
     }
 
@@ -1123,6 +1140,51 @@ public class SysAiConfigServiceImpl implements SysAiConfigService {
         return response;
     }
 
+    private ArrayList<AiRegressionScenarioHealthItemResponse> mapRegressionScenarioHealth(List<AiRegressionRunResponse> runs) {
+        LinkedHashMap<String, RegressionScenarioHealthAccumulator> accumulators = new LinkedHashMap<>();
+        if (runs == null) {
+            return new ArrayList<>();
+        }
+        ArrayList<AiRegressionRunResponse> sortedRuns = new ArrayList<>(runs);
+        sortedRuns.sort(Comparator.comparing(AiRegressionRunResponse::getExecutedAt,
+                Comparator.nullsLast(Comparator.reverseOrder())));
+        for (AiRegressionRunResponse run : sortedRuns) {
+            if (run == null) {
+                continue;
+            }
+            LinkedHashMap<String, List<AiRegressionCaseResultResponse>> grouped = new LinkedHashMap<>();
+            for (AiRegressionCaseResultResponse item : run.getCaseResults() == null ? List.<AiRegressionCaseResultResponse>of() : run.getCaseResults()) {
+                if (item == null) {
+                    continue;
+                }
+                String scenario = firstNonBlank(item.getScenario(), run.getScenario());
+                if (!StringUtils.hasText(scenario)) {
+                    continue;
+                }
+                grouped.computeIfAbsent(scenario, key -> new ArrayList<>()).add(item);
+            }
+            if (grouped.isEmpty() && StringUtils.hasText(run.getScenario())) {
+                grouped.put(run.getScenario().trim(), new ArrayList<>());
+            }
+            for (Map.Entry<String, List<AiRegressionCaseResultResponse>> entry : grouped.entrySet()) {
+                accumulators.computeIfAbsent(entry.getKey(), RegressionScenarioHealthAccumulator::new)
+                        .accept(run, entry.getValue());
+            }
+        }
+        ArrayList<AiRegressionScenarioHealthItemResponse> responses = new ArrayList<>();
+        for (RegressionScenarioHealthAccumulator accumulator : accumulators.values()) {
+            responses.add(accumulator.toResponse());
+        }
+        responses.sort(Comparator
+                .comparing((AiRegressionScenarioHealthItemResponse item) -> Boolean.TRUE.equals(item.getLatestPassed()))
+                .thenComparing(AiRegressionScenarioHealthItemResponse::getLastFailedAt,
+                        Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(AiRegressionScenarioHealthItemResponse::getLatestExecutedAt,
+                        Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(item -> item.getScenario() == null ? "" : item.getScenario()));
+        return responses;
+    }
+
     private ResolvedAiTestConfig resolveConfig(AiConfigTestRequest request) {
         AiConfigTestRequest safeRequest = request == null ? new AiConfigTestRequest() : request;
 
@@ -1212,6 +1274,10 @@ public class SysAiConfigServiceImpl implements SysAiConfigService {
             }
         }
         return null;
+    }
+
+    private int safeInteger(Integer value) {
+        return value == null ? 0 : value;
     }
 
     private int resolveReadTimeoutMs() {
@@ -1392,6 +1458,172 @@ public class SysAiConfigServiceImpl implements SysAiConfigService {
 
     private BigDecimal decimal(Double value) {
         return value == null ? BigDecimal.ZERO : BigDecimal.valueOf(value);
+    }
+
+    private ArrayList<AiRegressionInsightItemResponse> mapRegressionInsightItems(Map<String, Integer> counters) {
+        ArrayList<AiRegressionInsightItemResponse> responses = new ArrayList<>();
+        if (counters == null || counters.isEmpty()) {
+            return responses;
+        }
+        counters.entrySet().stream()
+                .filter(entry -> StringUtils.hasText(entry.getKey()) && entry.getValue() != null && entry.getValue() > 0)
+                .sorted(Comparator
+                        .comparingInt((Map.Entry<String, Integer> entry) -> entry.getValue())
+                        .reversed()
+                        .thenComparing(Map.Entry::getKey))
+                .limit(SCENARIO_HEALTH_INSIGHT_LIMIT)
+                .forEach(entry -> {
+                    AiRegressionInsightItemResponse response = new AiRegressionInsightItemResponse();
+                    response.setLabel(entry.getKey());
+                    response.setCount(entry.getValue());
+                    responses.add(response);
+                });
+        return responses;
+    }
+
+    private void incrementCounter(Map<String, Integer> counters, String label) {
+        if (!StringUtils.hasText(label)) {
+            return;
+        }
+        counters.merge(label.trim(), 1, Integer::sum);
+    }
+
+    private LinkedHashSet<String> normalizeFailureReasons(List<String> failureReasons) {
+        LinkedHashSet<String> normalizedReasons = new LinkedHashSet<>();
+        if (failureReasons == null || failureReasons.isEmpty()) {
+            normalizedReasons.add(DEFAULT_FAILURE_REASON_LABEL);
+            return normalizedReasons;
+        }
+        for (String failureReason : failureReasons) {
+            if (!StringUtils.hasText(failureReason)) {
+                continue;
+            }
+            String normalized = failureReason.trim().replaceAll("\\s+", " ");
+            if (StringUtils.hasText(normalized)) {
+                normalizedReasons.add(normalized);
+            }
+        }
+        if (normalizedReasons.isEmpty()) {
+            normalizedReasons.add(DEFAULT_FAILURE_REASON_LABEL);
+        }
+        return normalizedReasons;
+    }
+
+    private final class RegressionScenarioHealthAccumulator {
+
+        private final String scenario;
+        private int runCount;
+        private int failedRunCount;
+        private int totalCaseCount;
+        private int passedCaseCount;
+        private int failedCaseCount;
+        private Long latestExecutedAt;
+        private Boolean latestPassed;
+        private Long lastFailedAt;
+        private int latestFailedCaseCount;
+        private final LinkedHashSet<String> latestFailedCaseIds = new LinkedHashSet<>();
+        private final LinkedHashMap<String, Integer> failedCaseCounters = new LinkedHashMap<>();
+        private final LinkedHashMap<String, Integer> failureReasonCounters = new LinkedHashMap<>();
+
+        private RegressionScenarioHealthAccumulator(String scenario) {
+            this.scenario = scenario;
+        }
+
+        private void accept(AiRegressionRunResponse run, List<AiRegressionCaseResultResponse> results) {
+            List<AiRegressionCaseResultResponse> safeResults = results == null ? List.of() : results;
+            int currentTotalCaseCount = safeResults.isEmpty() ? safeInteger(run.getTotalCount()) : safeResults.size();
+            int currentPassedCaseCount = safeResults.isEmpty()
+                    ? safeInteger(run.getPassedCount())
+                    : (int) safeResults.stream().filter(AiRegressionCaseResultResponse::isPassed).count();
+            int currentFailedCaseCount = safeResults.isEmpty()
+                    ? safeInteger(run.getFailedCount())
+                    : (int) safeResults.stream().filter(item -> !item.isPassed()).count();
+            boolean currentPassed = currentFailedCaseCount == 0;
+
+            runCount += 1;
+            totalCaseCount += currentTotalCaseCount;
+            passedCaseCount += currentPassedCaseCount;
+            failedCaseCount += currentFailedCaseCount;
+            if (!currentPassed) {
+                failedRunCount += 1;
+                if (lastFailedAt == null || compareTimestamp(run.getExecutedAt(), lastFailedAt) > 0) {
+                    lastFailedAt = run.getExecutedAt();
+                }
+            }
+            boolean latestRun = latestExecutedAt == null || compareTimestamp(run.getExecutedAt(), latestExecutedAt) > 0;
+            if (latestRun) {
+                latestExecutedAt = run.getExecutedAt();
+                latestPassed = currentPassed;
+                latestFailedCaseCount = currentFailedCaseCount;
+                latestFailedCaseIds.clear();
+                if (safeResults.isEmpty()) {
+                    if (!currentPassed && StringUtils.hasText(run.getCaseId())) {
+                        String normalizedCaseId = run.getCaseId().trim();
+                        latestFailedCaseIds.add(normalizedCaseId);
+                        incrementCounter(failedCaseCounters, normalizedCaseId);
+                    }
+                    if (!currentPassed) {
+                        incrementCounter(failureReasonCounters, DEFAULT_FAILURE_REASON_LABEL);
+                    }
+                    return;
+                }
+            }
+            if (safeResults.isEmpty()) {
+                if (!currentPassed && StringUtils.hasText(run.getCaseId())) {
+                    incrementCounter(failedCaseCounters, run.getCaseId().trim());
+                }
+                if (!currentPassed) {
+                    incrementCounter(failureReasonCounters, DEFAULT_FAILURE_REASON_LABEL);
+                }
+                return;
+            }
+            for (AiRegressionCaseResultResponse item : safeResults) {
+                if (item == null || item.isPassed()) {
+                    continue;
+                }
+                if (StringUtils.hasText(item.getCaseId())) {
+                    String caseId = item.getCaseId().trim();
+                    incrementCounter(failedCaseCounters, caseId);
+                    if (latestRun) {
+                        latestFailedCaseIds.add(caseId);
+                    }
+                }
+                for (String failureReason : normalizeFailureReasons(item.getFailureReasons())) {
+                    incrementCounter(failureReasonCounters, failureReason);
+                }
+            }
+        }
+
+        private AiRegressionScenarioHealthItemResponse toResponse() {
+            AiRegressionScenarioHealthItemResponse response = new AiRegressionScenarioHealthItemResponse();
+            response.setScenario(scenario);
+            response.setRunCount(runCount);
+            response.setFailedRunCount(failedRunCount);
+            response.setTotalCaseCount(totalCaseCount);
+            response.setPassedCaseCount(passedCaseCount);
+            response.setFailedCaseCount(failedCaseCount);
+            response.setLatestExecutedAt(latestExecutedAt);
+            response.setLatestPassed(latestPassed);
+            response.setLastFailedAt(lastFailedAt);
+            response.setLatestFailedCaseCount(latestFailedCaseCount);
+            response.setLatestFailedCaseIds(new ArrayList<>(latestFailedCaseIds));
+            response.setTopFailedCases(mapRegressionInsightItems(failedCaseCounters));
+            response.setTopFailureReasons(mapRegressionInsightItems(failureReasonCounters));
+            return response;
+        }
+
+        private int compareTimestamp(Long left, Long right) {
+            if (left == null && right == null) {
+                return 0;
+            }
+            if (left == null) {
+                return -1;
+            }
+            if (right == null) {
+                return 1;
+            }
+            return Long.compare(left, right);
+        }
     }
 
     record ResolvedAiTestConfig(

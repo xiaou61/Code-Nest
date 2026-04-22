@@ -11,6 +11,7 @@ import com.xiaou.system.dto.AiRegressionCaseCatalogResponse;
 import com.xiaou.system.dto.AiRegressionRunHistoryResponse;
 import com.xiaou.system.dto.AiRegressionRunRequest;
 import com.xiaou.system.dto.AiRegressionRunResponse;
+import com.xiaou.system.dto.AiRegressionScenarioHealthResponse;
 import com.xiaou.system.dto.AiRagDocumentBatchDeleteRequest;
 import com.xiaou.system.dto.AiRagDocumentBatchDeleteResponse;
 import com.xiaou.system.dto.AiRagDocumentImportRequest;
@@ -105,6 +106,17 @@ public class AiConfigController {
     @GetMapping("/regression/history")
     public Result<AiRegressionRunHistoryResponse> getRegressionRunHistory(@RequestParam(required = false) Integer limit) {
         return Result.success("获取 AI 回归执行历史成功", aiConfigService.getRegressionRunHistory(limit));
+    }
+
+    /**
+     * 获取 AI 回归场景健康聚合。
+     */
+    @Operation(summary = "获取 AI 回归场景健康聚合")
+    @SecurityRequirement(name = "Bearer Token")
+    @RequireAdmin(message = "查看 AI 回归场景健康需要管理员权限")
+    @GetMapping("/regression/scenario-health")
+    public Result<AiRegressionScenarioHealthResponse> getRegressionScenarioHealth(@RequestParam(required = false) Integer limit) {
+        return Result.success("获取 AI 回归场景健康成功", aiConfigService.getRegressionScenarioHealth(limit));
     }
 
     /**

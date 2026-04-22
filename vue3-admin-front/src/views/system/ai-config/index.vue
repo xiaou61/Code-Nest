@@ -1029,6 +1029,137 @@
         description="当前还没有可回看的回归历史记录"
       />
 
+      <div class="section-header">
+        <div class="title-group">
+          <span class="section-title">场景健康聚合</span>
+          <el-tag type="warning">聚合最近 {{ formatNumber(regressionScenarioHealth.limit) }} 次回归</el-tag>
+        </div>
+        <span class="empty-text">优先把最近状态异常的场景排到前面，便于快速定位退化链路</span>
+      </div>
+
+      <el-table
+        v-if="regressionScenarioHealth.scenarios.length"
+        v-loading="regressionScenarioHealthLoading"
+        :data="regressionScenarioHealth.scenarios"
+        stripe
+        size="small"
+      >
+        <el-table-column type="expand">
+          <template #default="{ row }">
+            <div class="expand-panel">
+              <div class="debug-summary-grid">
+                <div class="result-item">
+                  <span class="label">最近运行次数</span>
+                  <span class="value">{{ formatNumber(row.runCount) }}</span>
+                </div>
+                <div class="result-item">
+                  <span class="label">失败运行次数</span>
+                  <span class="value">{{ formatNumber(row.failedRunCount) }}</span>
+                </div>
+                <div class="result-item">
+                  <span class="label">累计通过用例</span>
+                  <span class="value">{{ formatNumber(row.passedCaseCount) }}</span>
+                </div>
+                <div class="result-item">
+                  <span class="label">累计失败用例</span>
+                  <span class="value">{{ formatNumber(row.failedCaseCount) }}</span>
+                </div>
+              </div>
+              <div>
+                <div class="expand-label">最近一次失败用例</div>
+                <div v-if="row.latestFailedCaseIds?.length" class="tag-list">
+                  <el-tag
+                    v-for="item in row.latestFailedCaseIds"
+                    :key="`${row.scenario}-${item}`"
+                    size="small"
+                    type="danger"
+                  >
+                    {{ item }}
+                  </el-tag>
+                </div>
+                <span v-else class="empty-text">最近一次运行没有失败用例</span>
+              </div>
+              <div>
+                <div class="expand-label">高频失败用例 Top5</div>
+                <div v-if="row.topFailedCases?.length" class="insight-list">
+                  <div
+                    v-for="item in row.topFailedCases"
+                    :key="`${row.scenario}-failed-case-${item.label}`"
+                    class="insight-item"
+                  >
+                    <span class="insight-label">{{ item.label }}</span>
+                    <el-tag size="small" type="danger">
+                      {{ formatNumber(item.count) }} 次
+                    </el-tag>
+                  </div>
+                </div>
+                <span v-else class="empty-text">最近窗口没有失败用例热点</span>
+              </div>
+              <div>
+                <div class="expand-label">高频失败原因 Top5</div>
+                <div v-if="row.topFailureReasons?.length" class="insight-list">
+                  <div
+                    v-for="item in row.topFailureReasons"
+                    :key="`${row.scenario}-failure-reason-${item.label}`"
+                    class="insight-item insight-item--reason"
+                  >
+                    <span class="insight-label">{{ item.label }}</span>
+                    <el-tag size="small" type="warning">
+                      {{ formatNumber(item.count) }} 次
+                    </el-tag>
+                  </div>
+                </div>
+                <span v-else class="empty-text">最近窗口没有可聚类的失败原因</span>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="scenario" label="Scene" min-width="180" />
+        <el-table-column label="最近状态" width="110">
+          <template #default="{ row }">
+            <el-tag :type="row.latestPassed ? 'success' : 'danger'" size="small">
+              {{ row.latestPassed ? '稳定' : '退化' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="窗口通过率" width="120">
+          <template #default="{ row }">
+            {{ formatRate(row.passedCaseCount, row.totalCaseCount) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="失败运行" width="100">
+          <template #default="{ row }">
+            {{ formatNumber(row.failedRunCount) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="最近失败时间" min-width="180">
+          <template #default="{ row }">
+            {{ formatTime(row.lastFailedAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="最近失败用例" width="120">
+          <template #default="{ row }">
+            {{ formatNumber(row.latestFailedCaseCount) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="140" fixed="right">
+          <template #default="{ row }">
+            <el-button
+              type="primary"
+              text
+              @click="handleViewRegressionScenario(row)"
+            >
+              查看最近结果
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <el-empty
+        v-else-if="!regressionScenarioHealthLoading"
+        description="当前还没有可聚合的场景健康数据"
+      />
+
       <el-form :inline="true" :model="regressionFilters" class="catalog-filter-form">
         <el-form-item label="Scene">
           <el-select
@@ -1618,6 +1749,7 @@ import {
   getAiRegressionCases,
   getAiRegressionHistory,
   getAiRegressionLatestRun,
+  getAiRegressionScenarioHealth,
   getAiRagServiceDocuments,
   getAiRagServiceHealth,
   getAiRuntimeConfig,
@@ -1633,6 +1765,7 @@ const runtimeLoading = ref(false)
 const catalogLoading = ref(false)
 const regressionCasesLoading = ref(false)
 const regressionHistoryLoading = ref(false)
+const regressionScenarioHealthLoading = ref(false)
 const regressionRunning = ref(false)
 const regressionRunTarget = ref('')
 const debugLoading = ref(false)
@@ -1722,6 +1855,12 @@ const regressionHistory = reactive({
   limit: 10,
   totalCount: 0,
   runs: []
+})
+
+const regressionScenarioHealth = reactive({
+  limit: 10,
+  totalCount: 0,
+  scenarios: []
 })
 
 const catalogFilters = reactive({
@@ -1931,6 +2070,7 @@ onMounted(() => {
   loadRegressionCases()
   loadLatestRegressionRun({ silent: true })
   loadRegressionHistory({ silent: true })
+  loadRegressionScenarioHealth({ silent: true })
   loadRuntimeMetrics()
   loadRagServiceHealth()
   loadRagServiceDocuments()
@@ -2021,11 +2161,29 @@ const loadRegressionHistory = async (options = {}) => {
   }
 }
 
+const loadRegressionScenarioHealth = async (options = {}) => {
+  regressionScenarioHealthLoading.value = true
+  try {
+    const data = await getAiRegressionScenarioHealth({
+      limit: regressionScenarioHealth.limit || regressionHistory.limit || 10
+    })
+    applyRegressionScenarioHealth(data)
+  } catch (error) {
+    if (options.silent) {
+      return
+    }
+    ElMessage.error('获取 AI 回归场景健康聚合失败：' + error.message)
+  } finally {
+    regressionScenarioHealthLoading.value = false
+  }
+}
+
 const refreshRegressionPanel = async () => {
   await Promise.all([
     loadRegressionCases(),
     loadLatestRegressionRun({ silent: true }),
-    loadRegressionHistory({ silent: true })
+    loadRegressionHistory({ silent: true }),
+    loadRegressionScenarioHealth({ silent: true })
   ])
 }
 
@@ -2136,6 +2294,17 @@ const applyRegressionHistory = (data) => {
   regressionHistory.limit = data?.limit || regressionHistory.limit || 10
   regressionHistory.totalCount = data?.totalCount || 0
   regressionHistory.runs = data?.runs || []
+}
+
+const applyRegressionScenarioHealth = (data) => {
+  regressionScenarioHealth.limit = data?.limit || regressionScenarioHealth.limit || 10
+  regressionScenarioHealth.totalCount = data?.totalCount || 0
+  regressionScenarioHealth.scenarios = (data?.scenarios || []).map((item) => ({
+    ...item,
+    latestFailedCaseIds: item?.latestFailedCaseIds || [],
+    topFailedCases: item?.topFailedCases || [],
+    topFailureReasons: item?.topFailureReasons || []
+  }))
 }
 
 const handleSearchMetrics = () => {
@@ -2308,6 +2477,7 @@ const handleRunRegression = async (options = {}) => {
       ElMessage.success(`全量回归执行完成，共 ${result?.totalCount || 0} 条，全部通过`)
     }
     loadRegressionHistory({ silent: true })
+    loadRegressionScenarioHealth({ silent: true })
     loadRuntimeMetrics()
   } catch (error) {
     ElMessage.error('执行 AI 黄金样例回归失败：' + error.message)
@@ -2330,6 +2500,19 @@ const handleViewRegressionHistory = (row) => {
     return
   }
   regressionRunResult.value = row
+}
+
+const handleViewRegressionScenario = (row) => {
+  const scenario = row?.scenario
+  if (!scenario) {
+    return
+  }
+  const targetRun = findLatestRegressionRunByScenario(scenario)
+  if (!targetRun) {
+    ElMessage.warning('当前场景暂时没有可回看的最近结果')
+    return
+  }
+  regressionRunResult.value = targetRun
 }
 
 const handleImportRagSample = async () => {
@@ -2747,6 +2930,18 @@ const resolveRegressionRunTarget = (row) => {
   return row?.caseId || row?.scenario || '全量回归'
 }
 
+const findLatestRegressionRunByScenario = (scenario) => {
+  if (!scenario) {
+    return null
+  }
+  return (regressionHistory.runs || []).find((run) => {
+    if (run?.scenario === scenario) {
+      return true
+    }
+    return (run?.caseResults || []).some((item) => item?.scenario === scenario)
+  }) || null
+}
+
 const buildRagExportFileName = (scene) => {
   const normalizedScene = String(scene || '').trim() || 'all-scenes'
   return `rag-documents-${normalizedScene}-${formatFileTimestamp(new Date())}.json`
@@ -3045,6 +3240,31 @@ const resolveRegressionFallbackText = (value) => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.insight-list {
+  display: grid;
+  gap: 10px;
+}
+
+.insight-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f7f9fc;
+}
+
+.insight-item--reason {
+  background: #fff9eb;
+}
+
+.insight-label {
+  color: #303133;
+  line-height: 1.6;
+  word-break: break-word;
 }
 
 .regression-result-cell {
