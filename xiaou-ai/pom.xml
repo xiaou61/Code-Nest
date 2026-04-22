@@ -11,14 +11,32 @@
 
     <artifactId>xiaou-ai</artifactId>
     <packaging>jar</packaging>
-    <description>统一AI服务模块 - 集中管理所有Coze工作流调用</description>
+    <description>统一AI服务模块 - 基于 LangChain4j 和 LangGraph4j 的 AI 场景门面</description>
 
     <dependencies>
-        <!-- 公共模块（包含CozeUtils） -->
+        <!-- 公共模块 -->
         <dependency>
             <groupId>com.xiaou</groupId>
             <artifactId>xiaou-common</artifactId>
             <version>${revision}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j</artifactId>
+            <version>${langchain4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-open-ai</artifactId>
+            <version>${langchain4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.bsc.langgraph4j</groupId>
+            <artifactId>langgraph4j-core</artifactId>
+            <version>${langgraph4j.version}</version>
         </dependency>
 
         <!-- Spring Boot Starter Web -->
@@ -38,6 +56,13 @@
         <dependency>
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-all</artifactId>
+        </dependency>
+
+        <!-- 测试 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

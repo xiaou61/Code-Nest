@@ -37,6 +37,7 @@ build/
 /vue3-admin-front/node_modules/
 /vue3-user-front/node_modules/
 /logs/
+/.tmp/
 /.cursor/
 /.idea/
 /vue3-admin-front/dist/
@@ -45,3 +46,8 @@ build/
 /.agents/
 /.worktrees/
 xiaou-application/src/main/resources/application-sec.yml
+llamaindex-service/.venv/
+llamaindex-service/data/knowledge-base.json
+docker/ai/.env
+__pycache__/
+*.pyc

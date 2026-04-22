@@ -184,13 +184,6 @@
             <version>${revision}</version>
         </dependency>
 
-        <!-- Coze Java SDK -->
-        <dependency>
-            <groupId>com.coze</groupId>
-            <artifactId>coze-api</artifactId>
-            <version>0.4.2</version>
-        </dependency>
-
         <!-- FastJson2 -->
         <dependency>
             <groupId>com.alibaba.fastjson2</groupId>

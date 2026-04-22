@@ -1,5 +1,7 @@
 # 慢SQL智能优化模块 PRD v1.0.0
 
+> 历史说明：本文档中的 Coze 调用描述对应项目早期 AI 架构。当前主干已经迁移到 `LangChain4j + LangGraph4j + LlamaIndex` 统一 AI Runtime，现行实现请以 `docs/plans/2026-04-20-ai-runtime-replatform-design.md` 为准。
+
 ## 📋 项目概述
 
 ### 🎯 项目背景

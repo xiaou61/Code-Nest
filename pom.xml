@@ -52,6 +52,8 @@
         <lombok.version>1.18.36</lombok.version>
         <jjwt.version>0.11.5</jjwt.version>
         <pagehelper.version>6.1</pagehelper.version>
+        <langchain4j.version>1.13.0</langchain4j.version>
+        <langgraph4j.version>1.8.13</langgraph4j.version>
 
         <!-- 插件版本 -->
         <maven-jar-plugin.version>3.2.2</maven-jar-plugin.version>

@@ -6,6 +6,7 @@ import com.xiaou.ai.dto.jobbattle.JobBattleInterviewReviewResult;
 import com.xiaou.ai.dto.jobbattle.JobBattleJdParseResult;
 import com.xiaou.ai.dto.jobbattle.JobBattlePlanResult;
 import com.xiaou.ai.dto.jobbattle.JobBattleResumeMatchResult;
+import com.xiaou.ai.dto.jobbattle.JobBattleTargetAnalysisResult;
 import com.xiaou.ai.service.AiJobBattleService;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.exception.BusinessException;
@@ -124,19 +125,17 @@ public class JobBattleServiceImpl implements JobBattleService {
 
         List<JobBattleMatchEngineResult.TargetScore> ranking = new ArrayList<>();
         for (JobBattleMatchEngineRunRequest.TargetJob target : request.getTargets()) {
-            JobBattleJdParseResult jdResult = aiJobBattleService.parseJd(
+            JobBattleTargetAnalysisResult analysisResult = aiJobBattleService.analyzeTarget(
                     target.getJdText(),
                     target.getTargetRole(),
                     target.getTargetLevel(),
-                    target.getCity()
-            );
-            String parsedJdJson = jdResult == null ? "{}" : JSONUtil.toJsonStr(jdResult);
-            JobBattleResumeMatchResult matchResult = aiJobBattleService.matchResume(
-                    parsedJdJson,
+                    target.getCity(),
                     request.getResumeText(),
                     request.getProjectHighlights(),
                     request.getTargetCompanyType()
             );
+            JobBattleJdParseResult jdResult = analysisResult == null ? null : analysisResult.getJdParse();
+            JobBattleResumeMatchResult matchResult = analysisResult == null ? null : analysisResult.getResumeMatch();
             ranking.add(buildTargetScore(target, jdResult, matchResult));
         }
 
@@ -147,8 +146,10 @@ public class JobBattleServiceImpl implements JobBattleService {
         ranking.sort(
                 Comparator.comparing(JobBattleMatchEngineResult.TargetScore::getEngineScore, Comparator.nullsLast(Integer::compareTo))
                         .reversed()
-                        .thenComparing(JobBattleMatchEngineResult.TargetScore::getEstimatedPassRate, Comparator.nullsLast(Integer::compareTo))
-                        .reversed()
+                        .thenComparing(Comparator.comparing(
+                                JobBattleMatchEngineResult.TargetScore::getEstimatedPassRate,
+                                Comparator.nullsLast(Integer::compareTo)
+                        ).reversed())
         );
         for (int i = 0; i < ranking.size(); i++) {
             ranking.get(i).setRank(i + 1);

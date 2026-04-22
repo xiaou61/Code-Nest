@@ -199,35 +199,34 @@ management:
       sla:
         http.server.requests: 10ms, 50ms, 100ms, 200ms, 500ms, 1s, 2s, 5s
 
-# ==================== Coze工作流配置 ====================
-coze:
-  # API相关配置
-  api:
-    # Coze API基础URL
-    base-url: https://api.coze.cn
-    # 请求超时时间（毫秒）
-    timeout: 30000
-    # 重试次数
-    retry-count: 3
-    # 连接超时时间（毫秒）
-    connect-timeout: 10000
-    # 读取超时时间（毫秒）
-    read-timeout: 60000
-  
-  # 认证相关配置
-  auth:
-    # API密钥 - 建议通过环境变量或application-sec.yml配置
-    # 是否启用认证
+xiaou:
+  ai:
     enabled: true
-  
-  # 缓存相关配置
-  cache:
-    # 是否启用缓存
-    enabled: true
-    # 缓存TTL（秒）
-    ttl: 3600
-    # 缓存Key前缀
-    key-prefix: "coze:"
+    provider: ${XIAOU_AI_PROVIDER:openai-compatible}
+    base-url: ${XIAOU_AI_BASE_URL:}
+    api-key: ${XIAOU_AI_API_KEY:}
+    model:
+      chat: ${XIAOU_AI_CHAT_MODEL:gpt-5.4}
+      embedding: ${XIAOU_AI_EMBEDDING_MODEL:text-embedding-3-small}
+    pricing:
+      currency: ${XIAOU_AI_PRICING_CURRENCY:USD}
+      input-per-million: ${XIAOU_AI_INPUT_PRICE_PER_MILLION:0}
+      output-per-million: ${XIAOU_AI_OUTPUT_PRICE_PER_MILLION:0}
+    metrics:
+      persistence:
+        enabled: ${XIAOU_AI_METRICS_PERSIST_ENABLED:true}
+        redis-key: ${XIAOU_AI_METRICS_REDIS_KEY:xiaou:ai:runtime:metrics}
+    timeout:
+      connect-ms: 10000
+      read-ms: 60000
+    retry:
+      max-attempts: 2
+      backoff-ms: 1000
+    rag:
+      enabled: ${XIAOU_AI_RAG_ENABLED:false}
+      endpoint: ${XIAOU_AI_RAG_ENDPOINT:http://localhost:18080}
+      api-key: ${XIAOU_AI_RAG_API_KEY:}
+      default-top-k: 5
 
 # ==================== 社区模块配置 ====================
 community:
@@ -257,8 +256,6 @@ community:
   ai:
     # 是否启用AI摘要功能
     enabled: true
-    # Coze工作流ID
-    coze-workflow-id: 7556892077167673394
     # 自动生成摘要的最小字数
     min-content-length: 500
     # 摘要缓存时间（秒），默认30天

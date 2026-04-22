@@ -1,0 +1,53 @@
+name: AI Regression
+
+on:
+  pull_request:
+    paths:
+      - "pom.xml"
+      - "xiaou-common/**"
+      - "xiaou-ai/**"
+      - ".github/workflows/ai-regression.yml"
+  push:
+    paths:
+      - "pom.xml"
+      - "xiaou-common/**"
+      - "xiaou-ai/**"
+      - ".github/workflows/ai-regression.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ai-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  xiaou-ai-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Run AI regression suite
+        run: >
+          mvn -pl xiaou-ai -am
+          "-Dtest=AiSceneRegressionEvalTest,InterviewGraphTest,JobBattleGraphTest,SqlOptimizeGraphTest,AiSqlOptimizeServiceImplTest,AiPromptSpecTest,AiStructuredOutputValidatorTest,LlamaIndexClientTest"
+          "-Dsurefire.failIfNoSpecifiedTests=false"
+          test
+
+      - name: Upload Surefire Reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xiaou-ai-surefire-reports
+          path: |
+            **/target/surefire-reports/**
+            **/target/*.dump
+            **/target/*.dumpstream

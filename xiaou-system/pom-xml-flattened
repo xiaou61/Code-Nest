@@ -5,17 +5,22 @@
   <parent>
     <groupId>com.xiaou</groupId>
     <artifactId>Code-Nest</artifactId>
-    <version>1.8.1</version>
+    <version>1.8.2</version>
   </parent>
   <groupId>com.xiaou</groupId>
   <artifactId>xiaou-system</artifactId>
-  <version>1.8.1</version>
+  <version>1.8.2</version>
   <name>xiaou-system</name>
   <description>系统管理模块</description>
   <dependencies>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-common</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-ai</artifactId>
       <version>${revision}</version>
     </dependency>
     <dependency>
@@ -63,8 +68,18 @@
       <artifactId>aspectjrt</artifactId>
     </dependency>
     <dependency>
+      <groupId>dev.langchain4j</groupId>
+      <artifactId>langchain4j-open-ai</artifactId>
+      <version>${langchain4j.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

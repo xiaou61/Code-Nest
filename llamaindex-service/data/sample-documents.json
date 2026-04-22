@@ -1,0 +1,42 @@
+[
+  {
+    "id": "mock-interview-cache-consistency",
+    "scene": "mock_interview",
+    "text": "缓存一致性常见方案包括旁路缓存、延迟双删和基于消息队列的最终一致性。回答时可以先讲读写路径，再补充删除时机、幂等处理和异常恢复。",
+    "metadata": {
+      "source": "interview-handbook",
+      "level": "senior",
+      "topic": "cache"
+    }
+  },
+  {
+    "id": "mock-interview-thread-pool",
+    "scene": "mock_interview",
+    "text": "线程池参数要结合任务类型来设置。CPU 密集场景通常让核心线程数接近 CPU 核数，IO 密集场景可以适当放大线程数，但必须配合队列容量和拒绝策略一起评估。",
+    "metadata": {
+      "source": "interview-handbook",
+      "level": "senior",
+      "topic": "concurrency"
+    }
+  },
+  {
+    "id": "sql-optimize-filesort",
+    "scene": "sql_optimize",
+    "text": "Using filesort 往往意味着排序阶段没有完全命中索引。优化时优先检查过滤列和排序列是否可以组成联合索引，并结合 limit、覆盖索引和回表成本一起分析。",
+    "metadata": {
+      "source": "mysql-manual",
+      "level": "senior",
+      "topic": "index"
+    }
+  },
+  {
+    "id": "job-battle-backend-plan",
+    "scene": "job_battle",
+    "text": "后端求职冲刺计划通常分为三层：基础知识复盘、项目表达打磨和真题模拟训练。第一周先补 Java、MySQL、Redis、并发和 JVM，第二周开始强化项目亮点与面试表达。",
+    "metadata": {
+      "source": "career-playbook",
+      "level": "mid",
+      "topic": "plan"
+    }
+  }
+]

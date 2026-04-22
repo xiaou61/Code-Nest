@@ -56,7 +56,7 @@ public class SqlCompareResult {
                 .setDeltaType("待评估")
                 .setDeltaExtra("待评估")
                 .setSummary("当前为降级对比结果，请稍后重试获取完整收益评估")
-                .setAttention(List.of("Coze对比工作流不可用，未生成完整对比结论"))
+                .setAttention(List.of("AI 对比能力暂不可用，未生成完整对比结论"))
                 .setFallback(true);
     }
 }
