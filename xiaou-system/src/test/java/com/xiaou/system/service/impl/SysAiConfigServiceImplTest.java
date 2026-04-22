@@ -224,6 +224,9 @@ class SysAiConfigServiceImplTest {
                                         .setPassed(true)
                                         .setExpectedFallback(false)
                                         .setActualFallback(false)
+                                        .setModelName("gpt-5.4")
+                                        .setGraphName("community_summary")
+                                        .setPromptIds(java.util.List.of("community.post_summary:v1"))
                                         .setDurationMs(128L)
                         ))
         );
@@ -242,6 +245,9 @@ class SysAiConfigServiceImplTest {
         assertEquals(1, response.getCaseResults().size());
         assertEquals(1713740800000L, response.getExecutedAt());
         assertTrue(response.getCaseResults().get(0).isPassed());
+        assertEquals("gpt-5.4", response.getCaseResults().get(0).getModelName());
+        assertEquals("community_summary", response.getCaseResults().get(0).getGraphName());
+        assertEquals(java.util.List.of("community.post_summary:v1"), response.getCaseResults().get(0).getPromptIds());
         verify(aiRegressionService).run("community_summary", "community-summary-success");
         verify(aiRegressionRunStateRepository).saveLatest(any(AiRegressionRunResponse.class));
     }
@@ -300,17 +306,26 @@ class SysAiConfigServiceImplTest {
         communityFailed.setCaseId("community-summary-failed");
         communityFailed.setScenario("community_summary");
         communityFailed.setPassed(false);
+        communityFailed.setModelName("gpt-5.4");
+        communityFailed.setGraphName("community_summary");
+        communityFailed.setPromptIds(java.util.List.of("community.post_summary:v1"));
         communityFailed.setFailureReasons(java.util.List.of("摘要为空"));
 
         AiRegressionCaseResultResponse communityPassed = new AiRegressionCaseResultResponse();
         communityPassed.setCaseId("community-summary-success");
         communityPassed.setScenario("community_summary");
         communityPassed.setPassed(true);
+        communityPassed.setModelName("gpt-5.4");
+        communityPassed.setGraphName("community_summary");
+        communityPassed.setPromptIds(java.util.List.of("community.post_summary:v1"));
 
         AiRegressionCaseResultResponse sqlPassed = new AiRegressionCaseResultResponse();
         sqlPassed.setCaseId("sql-analyze-success");
         sqlPassed.setScenario("sql_optimize_analyze");
         sqlPassed.setPassed(true);
+        sqlPassed.setModelName("gpt-5.4");
+        sqlPassed.setGraphName("sql_analyze_graph");
+        sqlPassed.setPromptIds(java.util.List.of("sql_optimize.analyze:v2"));
 
         AiRegressionRunResponse latest = new AiRegressionRunResponse();
         latest.setExecutedAt(1713740800000L);
@@ -320,17 +335,26 @@ class SysAiConfigServiceImplTest {
         communityHistoricalPassed.setCaseId("community-summary-success");
         communityHistoricalPassed.setScenario("community_summary");
         communityHistoricalPassed.setPassed(true);
+        communityHistoricalPassed.setModelName("gpt-5.4");
+        communityHistoricalPassed.setGraphName("community_summary");
+        communityHistoricalPassed.setPromptIds(java.util.List.of("community.post_summary:v1"));
 
         AiRegressionCaseResultResponse communityHistoricalFailed = new AiRegressionCaseResultResponse();
         communityHistoricalFailed.setCaseId("community-summary-failed");
         communityHistoricalFailed.setScenario("community_summary");
         communityHistoricalFailed.setPassed(false);
+        communityHistoricalFailed.setModelName("gpt-5.4");
+        communityHistoricalFailed.setGraphName("community_summary");
+        communityHistoricalFailed.setPromptIds(java.util.List.of("community.post_summary:v1"));
         communityHistoricalFailed.setFailureReasons(java.util.List.of("摘要为空", "标题未命中"));
 
         AiRegressionCaseResultResponse sqlHistoricalFailed = new AiRegressionCaseResultResponse();
         sqlHistoricalFailed.setCaseId("sql-analyze-failed");
         sqlHistoricalFailed.setScenario("sql_optimize_analyze");
         sqlHistoricalFailed.setPassed(false);
+        sqlHistoricalFailed.setModelName("gpt-5.4");
+        sqlHistoricalFailed.setGraphName("sql_analyze_graph");
+        sqlHistoricalFailed.setPromptIds(java.util.List.of("sql_optimize.analyze:v2"));
         sqlHistoricalFailed.setFailureReasons(java.util.List.of("未命中索引建议"));
 
         AiRegressionRunResponse previous = new AiRegressionRunResponse();
@@ -359,12 +383,18 @@ class SysAiConfigServiceImplTest {
         assertEquals(2, response.getScenarios().get(0).getTopFailureReasons().get(0).getCount());
         assertEquals("标题未命中", response.getScenarios().get(0).getTopFailureReasons().get(1).getLabel());
         assertEquals(1, response.getScenarios().get(0).getTopFailureReasons().get(1).getCount());
+        assertEquals("gpt-5.4", response.getScenarios().get(0).getTopModelNames().get(0).getLabel());
+        assertEquals(2, response.getScenarios().get(0).getTopModelNames().get(0).getCount());
+        assertEquals("community_summary", response.getScenarios().get(0).getTopGraphNames().get(0).getLabel());
+        assertEquals("community.post_summary:v1", response.getScenarios().get(0).getTopPromptIds().get(0).getLabel());
 
         assertEquals("sql_optimize_analyze", response.getScenarios().get(1).getScenario());
         assertTrue(Boolean.TRUE.equals(response.getScenarios().get(1).getLatestPassed()));
         assertEquals(1713654400000L, response.getScenarios().get(1).getLastFailedAt());
         assertEquals("sql-analyze-failed", response.getScenarios().get(1).getTopFailedCases().get(0).getLabel());
         assertEquals(1, response.getScenarios().get(1).getTopFailureReasons().get(0).getCount());
+        assertEquals("sql_analyze_graph", response.getScenarios().get(1).getTopGraphNames().get(0).getLabel());
+        assertEquals("sql_optimize.analyze:v2", response.getScenarios().get(1).getTopPromptIds().get(0).getLabel());
         verify(aiRegressionRunStateRepository).loadHistory(10);
     }
 

@@ -1139,6 +1139,54 @@
                 </div>
                 <span v-else class="empty-text">最近窗口没有可聚类的失败原因</span>
               </div>
+              <div>
+                <div class="expand-label">退化模型 Top5</div>
+                <div v-if="row.topModelNames?.length" class="insight-list">
+                  <div
+                    v-for="item in row.topModelNames"
+                    :key="`${row.scenario}-model-${item.label}`"
+                    class="insight-item"
+                  >
+                    <span class="insight-label">{{ item.label }}</span>
+                    <el-tag size="small" type="primary">
+                      {{ formatNumber(item.count) }} 次
+                    </el-tag>
+                  </div>
+                </div>
+                <span v-else class="empty-text">最近窗口没有模型维度的失败热点</span>
+              </div>
+              <div>
+                <div class="expand-label">高影响图编排 Top5</div>
+                <div v-if="row.topGraphNames?.length" class="insight-list">
+                  <div
+                    v-for="item in row.topGraphNames"
+                    :key="`${row.scenario}-graph-${item.label}`"
+                    class="insight-item"
+                  >
+                    <span class="insight-label">{{ item.label }}</span>
+                    <el-tag size="small" type="success">
+                      {{ formatNumber(item.count) }} 次
+                    </el-tag>
+                  </div>
+                </div>
+                <span v-else class="empty-text">最近窗口没有图编排维度的失败热点</span>
+              </div>
+              <div>
+                <div class="expand-label">高影响 Prompt Top5</div>
+                <div v-if="row.topPromptIds?.length" class="insight-list">
+                  <div
+                    v-for="item in row.topPromptIds"
+                    :key="`${row.scenario}-prompt-${item.label}`"
+                    class="insight-item insight-item--prompt"
+                  >
+                    <span class="insight-label">{{ item.label }}</span>
+                    <el-tag size="small" type="info">
+                      {{ formatNumber(item.count) }} 次
+                    </el-tag>
+                  </div>
+                </div>
+                <span v-else class="empty-text">最近窗口没有 Prompt 维度的失败热点</span>
+              </div>
             </div>
           </template>
         </el-table-column>
@@ -1268,6 +1316,32 @@
                   {{ regressionResultMap[row.caseId] ? '最近一次执行没有失败原因' : '当前用例还没有执行结果' }}
                 </span>
               </div>
+
+              <div>
+                <div class="expand-label">执行链路</div>
+                <div v-if="regressionResultMap[row.caseId]" class="expand-panel">
+                  <div class="tag-list">
+                    <el-tag v-if="regressionResultMap[row.caseId].modelName" size="small" type="primary">
+                      模型：{{ regressionResultMap[row.caseId].modelName }}
+                    </el-tag>
+                    <el-tag v-if="regressionResultMap[row.caseId].graphName" size="small" type="success">
+                      图编排：{{ regressionResultMap[row.caseId].graphName }}
+                    </el-tag>
+                  </div>
+                  <div v-if="regressionResultMap[row.caseId].promptIds?.length" class="tag-list">
+                    <el-tag
+                      v-for="item in regressionResultMap[row.caseId].promptIds"
+                      :key="`${row.caseId}-prompt-${item}`"
+                      size="small"
+                      type="info"
+                    >
+                      {{ item }}
+                    </el-tag>
+                  </div>
+                  <span v-else class="empty-text">当前用例未记录 Prompt 元信息</span>
+                </div>
+                <span v-else class="empty-text">当前用例还没有执行结果</span>
+              </div>
             </div>
           </template>
         </el-table-column>
@@ -1328,6 +1402,12 @@
                 class="muted-text"
               >
                 {{ previewText(regressionResultMap[row.caseId].failureReasons.join('；'), 72) }}
+              </span>
+              <span
+                v-if="regressionResultMap[row.caseId].modelName || regressionResultMap[row.caseId].graphName"
+                class="muted-text"
+              >
+                {{ previewText([regressionResultMap[row.caseId].modelName, regressionResultMap[row.caseId].graphName].filter((item) => item).join(' / '), 72) }}
               </span>
             </div>
             <span v-else class="empty-text">尚未执行</span>
@@ -2060,7 +2140,10 @@ const filteredRegressionScenarioHealth = computed(() => {
       item.scenario,
       item.latestFailedCaseIds,
       (item.topFailedCases || []).map((entry) => entry?.label),
-      (item.topFailureReasons || []).map((entry) => entry?.label)
+      (item.topFailureReasons || []).map((entry) => entry?.label),
+      (item.topModelNames || []).map((entry) => entry?.label),
+      (item.topGraphNames || []).map((entry) => entry?.label),
+      (item.topPromptIds || []).map((entry) => entry?.label)
     ]).some((field) => field.toLowerCase().includes(keyword))
   })
 })
@@ -2362,7 +2445,10 @@ const applyRegressionScenarioHealth = (data) => {
     ...item,
     latestFailedCaseIds: item?.latestFailedCaseIds || [],
     topFailedCases: item?.topFailedCases || [],
-    topFailureReasons: item?.topFailureReasons || []
+    topFailureReasons: item?.topFailureReasons || [],
+    topModelNames: item?.topModelNames || [],
+    topGraphNames: item?.topGraphNames || [],
+    topPromptIds: item?.topPromptIds || []
   }))
 }
 
@@ -3318,6 +3404,10 @@ const resolveRegressionFallbackText = (value) => {
 
 .insight-item--reason {
   background: #fff9eb;
+}
+
+.insight-item--prompt {
+  background: #eef6ff;
 }
 
 .insight-label {

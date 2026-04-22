@@ -1116,6 +1116,11 @@ public class SysAiConfigServiceImpl implements SysAiConfigService {
             response.setExpectedFallback(item.getExpectedFallback());
             response.setActualFallback(item.getActualFallback());
             response.setDurationMs(item.getDurationMs());
+            response.setModelName(item.getModelName());
+            response.setGraphName(item.getGraphName());
+            response.setPromptIds(item.getPromptIds() == null
+                    ? new ArrayList<>()
+                    : new ArrayList<>(item.getPromptIds()));
             response.setFailureReasons(item.getFailureReasons() == null
                     ? new ArrayList<>()
                     : new ArrayList<>(item.getFailureReasons()));
@@ -1524,6 +1529,9 @@ public class SysAiConfigServiceImpl implements SysAiConfigService {
         private final LinkedHashSet<String> latestFailedCaseIds = new LinkedHashSet<>();
         private final LinkedHashMap<String, Integer> failedCaseCounters = new LinkedHashMap<>();
         private final LinkedHashMap<String, Integer> failureReasonCounters = new LinkedHashMap<>();
+        private final LinkedHashMap<String, Integer> modelCounters = new LinkedHashMap<>();
+        private final LinkedHashMap<String, Integer> graphCounters = new LinkedHashMap<>();
+        private final LinkedHashMap<String, Integer> promptCounters = new LinkedHashMap<>();
 
         private RegressionScenarioHealthAccumulator(String scenario) {
             this.scenario = scenario;
@@ -1591,6 +1599,11 @@ public class SysAiConfigServiceImpl implements SysAiConfigService {
                 for (String failureReason : normalizeFailureReasons(item.getFailureReasons())) {
                     incrementCounter(failureReasonCounters, failureReason);
                 }
+                incrementCounter(modelCounters, item.getModelName());
+                incrementCounter(graphCounters, item.getGraphName());
+                for (String promptId : item.getPromptIds() == null ? List.<String>of() : item.getPromptIds()) {
+                    incrementCounter(promptCounters, promptId);
+                }
             }
         }
 
@@ -1609,6 +1622,9 @@ public class SysAiConfigServiceImpl implements SysAiConfigService {
             response.setLatestFailedCaseIds(new ArrayList<>(latestFailedCaseIds));
             response.setTopFailedCases(mapRegressionInsightItems(failedCaseCounters));
             response.setTopFailureReasons(mapRegressionInsightItems(failureReasonCounters));
+            response.setTopModelNames(mapRegressionInsightItems(modelCounters));
+            response.setTopGraphNames(mapRegressionInsightItems(graphCounters));
+            response.setTopPromptIds(mapRegressionInsightItems(promptCounters));
             return response;
         }
 

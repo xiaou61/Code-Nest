@@ -20,6 +20,10 @@ import com.xiaou.ai.graph.sql.SqlOptimizeGraphRunner;
 import com.xiaou.ai.metrics.AiMetricsRecorder;
 import com.xiaou.ai.metrics.AiRuntimeMetricsCollector;
 import com.xiaou.ai.prompt.AiPromptSpec;
+import com.xiaou.ai.prompt.community.CommunityPromptSpecs;
+import com.xiaou.ai.prompt.interview.InterviewPromptSpecs;
+import com.xiaou.ai.prompt.jobbattle.JobBattlePromptSpecs;
+import com.xiaou.ai.prompt.sql.SqlOptimizePromptSpecs;
 import com.xiaou.ai.rag.LlamaIndexClient;
 import com.xiaou.ai.scene.interview.InterviewSceneSupport;
 import com.xiaou.ai.scene.jobbattle.JobBattleSceneSupport;
@@ -56,6 +60,12 @@ import java.util.function.Supplier;
 @Slf4j
 @Service
 public class AiRegressionServiceImpl implements AiRegressionService {
+
+    private final AiProperties aiProperties;
+
+    public AiRegressionServiceImpl(AiProperties aiProperties) {
+        this.aiProperties = aiProperties == null ? new AiProperties() : aiProperties;
+    }
 
     @Override
     public List<AiRegressionCaseCatalogItem> listCases() {
@@ -111,10 +121,14 @@ public class AiRegressionServiceImpl implements AiRegressionService {
 
     private AiRegressionCaseResult runSingleCase(AiRegressionCase testCase) {
         long startNanos = System.nanoTime();
+        RegressionCaseDiagnostics diagnostics = resolveDiagnostics(testCase);
         AiRegressionCaseResult caseResult = new AiRegressionCaseResult()
                 .setCaseId(testCase.getId())
                 .setScenario(testCase.getScenario())
                 .setDescription(testCase.getDescription())
+                .setModelName(resolveRuntimeModelName())
+                .setGraphName(diagnostics.graphName())
+                .setPromptIds(new ArrayList<>(diagnostics.promptIds()))
                 .setExpectedFallback(testCase.getExpect() == null ? null : testCase.getExpect().getFallback());
 
         try {
@@ -421,6 +435,58 @@ public class AiRegressionServiceImpl implements AiRegressionService {
         return e.getClass().getSimpleName() + ": " + message.trim();
     }
 
+    private String resolveRuntimeModelName() {
+        if (aiProperties.getModel() == null || !StringUtils.hasText(aiProperties.getModel().getChat())) {
+            return "unknown-model";
+        }
+        return aiProperties.getModel().getChat().trim();
+    }
+
+    private RegressionCaseDiagnostics resolveDiagnostics(AiRegressionCase testCase) {
+        String scenario = normalizeRequiredText(testCase.getScenario(), "scenario");
+        return switch (scenario) {
+            case "community_summary" -> diagnostics("community_summary", CommunityPromptSpecs.POST_SUMMARY);
+            case "mock_interview_evaluate" -> diagnostics("interview_evaluate_answer_graph", InterviewPromptSpecs.EVALUATE_ANSWER);
+            case "mock_interview_generate_questions" -> diagnostics("interview_generate_questions_graph", InterviewPromptSpecs.GENERATE_QUESTIONS);
+            case "mock_interview_generate_follow_up" -> diagnostics("interview_generate_follow_up_graph", InterviewPromptSpecs.GENERATE_FOLLOW_UP);
+            case "mock_interview_summary" -> diagnostics("interview_generate_summary_graph", InterviewPromptSpecs.GENERATE_SUMMARY);
+            case "job_battle_jd_parse" -> diagnostics("job_battle_parse_jd_graph", JobBattlePromptSpecs.JD_PARSE);
+            case "job_battle_resume_match" -> diagnostics("job_battle_match_resume_graph", JobBattlePromptSpecs.RESUME_MATCH);
+            case "job_battle_plan_generate" -> diagnostics("job_battle_generate_plan_graph", JobBattlePromptSpecs.PLAN_GENERATE);
+            case "job_battle_interview_review" -> diagnostics("job_battle_review_interview_graph", JobBattlePromptSpecs.INTERVIEW_REVIEW);
+            case "job_battle_target_analyze" -> diagnostics("job_battle_analyze_target_graph",
+                    JobBattlePromptSpecs.JD_PARSE,
+                    JobBattlePromptSpecs.RESUME_MATCH);
+            case "sql_optimize_analyze" -> diagnostics("sql_analyze_graph", resolveSqlAnalyzePrompt(testCase));
+            case "sql_optimize_analyze_rewrite" -> diagnostics("sql_analyze_rewrite_graph",
+                    resolveSqlAnalyzePrompt(testCase),
+                    SqlOptimizePromptSpecs.REWRITE);
+            case "sql_optimize_rewrite" -> diagnostics("sql_rewrite_graph", SqlOptimizePromptSpecs.REWRITE);
+            case "sql_optimize_compare" -> diagnostics("sql_compare_graph", SqlOptimizePromptSpecs.COMPARE);
+            default -> new RegressionCaseDiagnostics("unknown-graph", List.of());
+        };
+    }
+
+    private AiPromptSpec resolveSqlAnalyzePrompt(AiRegressionCase testCase) {
+        SqlAnalyzeMode mode = parseSqlAnalyzeMode(testCase, "mode");
+        return mode == SqlAnalyzeMode.WORKBENCH_V2
+                ? SqlOptimizePromptSpecs.ANALYZE_V2
+                : SqlOptimizePromptSpecs.ANALYZE;
+    }
+
+    private RegressionCaseDiagnostics diagnostics(String graphName, AiPromptSpec... promptSpecs) {
+        ArrayList<String> promptIds = new ArrayList<>();
+        if (promptSpecs != null) {
+            for (AiPromptSpec promptSpec : promptSpecs) {
+                if (promptSpec == null) {
+                    continue;
+                }
+                promptIds.add(promptSpec.promptId());
+            }
+        }
+        return new RegressionCaseDiagnostics(graphName, promptIds);
+    }
+
     /**
      * AI 回归专用执行支撑。
      */
@@ -475,5 +541,8 @@ public class AiRegressionServiceImpl implements AiRegressionService {
             String response = responses.isEmpty() ? testCase.getResponse() : responses.removeFirst();
             return parser.apply(response);
         }
+    }
+
+    private record RegressionCaseDiagnostics(String graphName, List<String> promptIds) {
     }
 }

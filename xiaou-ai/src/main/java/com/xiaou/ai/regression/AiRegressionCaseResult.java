@@ -51,6 +51,21 @@ public class AiRegressionCaseResult {
     private Long durationMs;
 
     /**
+     * 本次回归使用的模型名称。
+     */
+    private String modelName;
+
+    /**
+     * 当前用例命中的图编排名称。
+     */
+    private String graphName;
+
+    /**
+     * 当前用例涉及的 Prompt 标识列表。
+     */
+    private List<String> promptIds = new ArrayList<>();
+
+    /**
      * 失败原因列表。
      */
     private List<String> failureReasons = new ArrayList<>();

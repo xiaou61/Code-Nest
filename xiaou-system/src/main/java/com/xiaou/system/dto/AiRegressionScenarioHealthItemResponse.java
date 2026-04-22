@@ -77,4 +77,19 @@ public class AiRegressionScenarioHealthItemResponse {
      * 最近窗口内高频失败原因。
      */
     private List<AiRegressionInsightItemResponse> topFailureReasons = new ArrayList<>();
+
+    /**
+     * 最近窗口内高频退化模型。
+     */
+    private List<AiRegressionInsightItemResponse> topModelNames = new ArrayList<>();
+
+    /**
+     * 最近窗口内高影响图编排。
+     */
+    private List<AiRegressionInsightItemResponse> topGraphNames = new ArrayList<>();
+
+    /**
+     * 最近窗口内高影响 Prompt。
+     */
+    private List<AiRegressionInsightItemResponse> topPromptIds = new ArrayList<>();
 }
