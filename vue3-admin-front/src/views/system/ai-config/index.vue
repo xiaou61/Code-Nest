@@ -1037,10 +1037,38 @@
         <span class="empty-text">优先把最近状态异常的场景排到前面，便于快速定位退化链路</span>
       </div>
 
+      <el-form :inline="true" :model="regressionScenarioFilters" class="catalog-filter-form">
+        <el-form-item label="状态">
+          <el-select
+            v-model="regressionScenarioFilters.status"
+            placeholder="请选择状态"
+            clearable
+            style="width: 140px"
+          >
+            <el-option label="全部" value="all" />
+            <el-option label="仅退化" value="degraded" />
+            <el-option label="仅稳定" value="stable" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="关键词">
+          <el-input
+            v-model="regressionScenarioFilters.keyword"
+            clearable
+            placeholder="支持搜索场景、失败用例、失败原因"
+            style="width: 300px"
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-tag type="info">
+            当前命中 {{ formatNumber(filteredRegressionScenarioHealth.length) }} / {{ formatNumber(regressionScenarioHealth.totalCount) }}
+          </el-tag>
+        </el-form-item>
+      </el-form>
+
       <el-table
-        v-if="regressionScenarioHealth.scenarios.length"
+        v-if="filteredRegressionScenarioHealth.length"
         v-loading="regressionScenarioHealthLoading"
-        :data="regressionScenarioHealth.scenarios"
+        :data="filteredRegressionScenarioHealth"
         stripe
         size="small"
       >
@@ -1154,6 +1182,11 @@
           </template>
         </el-table-column>
       </el-table>
+
+      <el-empty
+        v-else-if="!regressionScenarioHealthLoading && regressionScenarioHealth.scenarios.length"
+        description="当前筛选条件下没有命中的场景健康数据"
+      />
 
       <el-empty
         v-else-if="!regressionScenarioHealthLoading"
@@ -1874,6 +1907,11 @@ const regressionFilters = reactive({
   keyword: ''
 })
 
+const regressionScenarioFilters = reactive({
+  status: 'all',
+  keyword: ''
+})
+
 const metricsFilters = reactive({
   scene: '',
   model: '',
@@ -2004,6 +2042,27 @@ const regressionResultMap = computed(() => {
     }
     return accumulator
   }, {})
+})
+
+const filteredRegressionScenarioHealth = computed(() => {
+  const keyword = regressionScenarioFilters.keyword?.trim().toLowerCase()
+  return [...(regressionScenarioHealth.scenarios || [])].filter((item) => {
+    if (regressionScenarioFilters.status === 'degraded' && item.latestPassed !== false) {
+      return false
+    }
+    if (regressionScenarioFilters.status === 'stable' && item.latestPassed !== true) {
+      return false
+    }
+    if (!keyword) {
+      return true
+    }
+    return flattenSearchFields([
+      item.scenario,
+      item.latestFailedCaseIds,
+      (item.topFailedCases || []).map((entry) => entry?.label),
+      (item.topFailureReasons || []).map((entry) => entry?.label)
+    ]).some((field) => field.toLowerCase().includes(keyword))
+  })
 })
 
 const filteredRagServiceDocuments = computed(() => {
