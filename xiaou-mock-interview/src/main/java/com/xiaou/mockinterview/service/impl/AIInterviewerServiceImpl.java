@@ -1,8 +1,6 @@
 package com.xiaou.mockinterview.service.impl;
 
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONArray;
-import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.xiaou.ai.dto.interview.AnswerEvaluationResult;
 import com.xiaou.ai.dto.interview.InterviewSummaryResult;
@@ -214,8 +212,30 @@ public class AIInterviewerServiceImpl implements AIInterviewerService {
     }
 
     @Override
-    public String generateFollowUpQuestion(MockInterviewSession session, String question, String answer) {
-        // 直接使用本地生成追问问题（追问逻辑已在评价阶段由AI处理）
+    public String generateFollowUpQuestion(MockInterviewSession session, String question, String answer, int followUpCount) {
+        InterviewStyleEnum style = InterviewStyleEnum.getByCode(session.getStyle());
+        InterviewLevelEnum level = InterviewLevelEnum.getByCode(session.getLevel());
+
+        String levelName = level != null ? level.getName() : "中级";
+        String styleName = style != null ? style.getName() : "标准型";
+
+        try {
+            String followUpQuestion = aiInterviewService.generateFollowUpQuestion(
+                    session.getDirection(),
+                    levelName,
+                    styleName,
+                    question,
+                    answer,
+                    followUpCount
+            );
+            if (StrUtil.isNotBlank(followUpQuestion)) {
+                return followUpQuestion;
+            }
+            log.warn("AI 追问生成返回空结果，使用本地追问逻辑");
+        } catch (Exception e) {
+            log.error("AI 生成追问失败，使用本地追问逻辑", e);
+        }
+
         return generateLocalFollowUpQuestion(question, answer);
     }
 

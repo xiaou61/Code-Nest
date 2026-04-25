@@ -1,0 +1,99 @@
+name: code-nest-ai-stack
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: code-nest-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-code_nest}
+      MYSQL_ROOT_HOST: "%"
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../../sql/MySql/code_nest.sql:/docker-entrypoint-initdb.d/01-code_nest.sql:ro
+      - ../../sql/MySql/code_nest_data.sql:/docker-entrypoint-initdb.d/02-code_nest_data.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: code-nest-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  llamaindex-service:
+    build:
+      context: ../../llamaindex-service
+      dockerfile: Dockerfile
+    container_name: code-nest-llamaindex
+    restart: unless-stopped
+    environment:
+      LLAMAINDEX_SERVICE_API_KEY: ${XIAOU_AI_RAG_API_KEY:-}
+      LLAMAINDEX_DATA_FILE: /app/data/knowledge-base.json
+    ports:
+      - "18080:18080"
+    volumes:
+      - rag_data:/app/data
+      - ../../llamaindex-service/data/sample-documents.json:/app/data/sample-documents.json:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18080/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  code-nest:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+    container_name: code-nest-app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      llamaindex-service:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      XIAOU_MYSQL_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-code_nest}?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8
+      XIAOU_MYSQL_USERNAME: root
+      XIAOU_MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
+      XIAOU_REDIS_ADDRESS: redis://redis:6379
+      XIAOU_REDIS_DATABASE: 3
+      XIAOU_SA_TOKEN_REDIS_HOST: redis
+      XIAOU_SA_TOKEN_REDIS_PORT: 6379
+      XIAOU_SA_TOKEN_REDIS_DATABASE: 4
+      XIAOU_AI_PROVIDER: ${XIAOU_AI_PROVIDER:-openai-compatible}
+      XIAOU_AI_BASE_URL: ${XIAOU_AI_BASE_URL:-}
+      XIAOU_AI_API_KEY: ${XIAOU_AI_API_KEY:-}
+      XIAOU_AI_CHAT_MODEL: ${XIAOU_AI_CHAT_MODEL:-gpt-5.4}
+      XIAOU_AI_RAG_ENABLED: ${XIAOU_AI_RAG_ENABLED:-true}
+      XIAOU_AI_RAG_ENDPOINT: http://llamaindex-service:18080
+      XIAOU_AI_RAG_API_KEY: ${XIAOU_AI_RAG_API_KEY:-}
+    ports:
+      - "9999:9999"
+
+volumes:
+  mysql_data:
+  redis_data:
+  rag_data:

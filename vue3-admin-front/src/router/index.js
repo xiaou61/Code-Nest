@@ -405,6 +405,12 @@ const routes = [
     meta: { title: '系统管理' },
     children: [
       {
+        path: 'ai-config',
+        name: 'AiConfig',
+        component: () => import('@/views/system/ai-config/index.vue'),
+        meta: { title: 'AI 配置与观测' }
+      },
+      {
         path: 'version',
         name: 'VersionManagement',
         component: () => import('@/views/system/version/index.vue'),

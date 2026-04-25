@@ -65,7 +65,7 @@ description: Code-Nest 多模块全栈项目协作规范与落点导航。Use wh
 | `xiaou-flashcard` | 闪卡学习 |
 | `xiaou-oj` | 在线判题、提交、题解、评论、排行 |
 | `xiaou-sql-optimizer` | 慢 SQL 分析与历史记录 |
-| `xiaou-ai` | 统一 AI 服务（Coze 工作流调用） |
+| `xiaou-ai` | 统一 AI 服务（LangChain4j + LangGraph4j + LlamaIndex） |
 | `xiaou-user-api` | 用户跨模块 API 契约（接口与 DTO） |
 | `xiaou-sensitive-api` | 敏感词跨模块 API 契约（接口与 DTO） |
 
@@ -148,7 +148,7 @@ description: Code-Nest 多模块全栈项目协作规范与落点导航。Use wh
 
 1. 主配置在 `xiaou-application/src/main/resources/application*.yml`。
 2. 私密配置放 `application-sec.yml`，不要把真实密钥写入公开文档。
-3. Coze 工作流 ID 统一在 `CozeWorkflowEnum` 管理。
+3. AI 相关配置统一走 `xiaou.ai.*` 配置树，Prompt 规范与运行时设计参考 `docs/plans/2026-04-20-ai-prompt-governance.md`。
 4. 监控相关配置与文档：
 1. `management.*` 在 `application.yml`
 2. `docs/Prometheus监控部署指南.md`
@@ -212,6 +212,6 @@ cd vue3-user-front && npm run lint
 1. `README.md`（整体能力、启动方式、版本历史）。
 2. `docs/PRD/*.md`（模块级产品规则）。
 3. `docs/upgrade/**`（专项升级方案）。
-4. `docs/coze/*.md`（AI 工作流配置）。
+4. `docs/archive/coze/*.md`（历史 AI 工作流配置归档）。
 
 优先复用现有模块与路径约定，避免“新建平行体系”。

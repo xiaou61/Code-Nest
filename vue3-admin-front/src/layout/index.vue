@@ -427,6 +427,10 @@
               <el-icon><Document /></el-icon>
               <span>版本管理</span>
             </el-menu-item>
+            <el-menu-item index="/system/ai-config">
+              <el-icon><SetUp /></el-icon>
+              <span>AI 配置与观测</span>
+            </el-menu-item>
             <el-sub-menu index="/system/monitor">
               <template #title>
                 <el-icon><Monitor /></el-icon>
@@ -591,6 +595,7 @@ const getIconByPath = (path, title = '') => {
     '/user': 'Avatar',
     '/notification': 'Bell',
     '/system/version': 'Document',
+    '/system/ai-config': 'SetUp',
     '/system/monitor/sql': 'DataAnalysis'
   }
   
@@ -637,6 +642,8 @@ const getIconByPath = (path, title = '') => {
     'grant': 'Plus',
     'lottery': 'Trophy',
     'system': 'Setting',
+    'ai-config': 'SetUp',
+    'ai': 'SetUp',
     'version': 'Document',
     'monitor': 'Monitor',
     'sql': 'DataAnalysis',
@@ -692,6 +699,7 @@ const getIconByPath = (path, title = '') => {
     '概览': 'DataAnalysis',
     '抽奖': 'Trophy',
     '系统': 'Setting',
+    'AI': 'SetUp',
     '版本': 'Document',
     '监控': 'Monitor',
     'SQL': 'DataAnalysis',

@@ -1,0 +1,35 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${XIAOU_MYSQL_URL:jdbc:mysql://mysql:3306/code_nest?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8}
+    username: ${XIAOU_MYSQL_USERNAME:root}
+    password: ${XIAOU_MYSQL_PASSWORD:123456}
+  data:
+    redis:
+      redisson:
+        config: |
+          singleServerConfig:
+            address: "${XIAOU_REDIS_ADDRESS:redis://redis:6379}"
+            database: ${XIAOU_REDIS_DATABASE:3}
+            connectionMinimumIdleSize: 10
+            connectionPoolSize: 64
+            idleConnectionTimeout: 10000
+            connectTimeout: 10000
+            timeout: 3000
+            retryAttempts: 3
+            retryInterval: 1500
+          threads: 16
+          nettyThreads: 32
+
+sa-token:
+  alone-redis:
+    host: ${XIAOU_SA_TOKEN_REDIS_HOST:redis}
+    port: ${XIAOU_SA_TOKEN_REDIS_PORT:6379}
+    database: ${XIAOU_SA_TOKEN_REDIS_DATABASE:4}
+    timeout: ${XIAOU_SA_TOKEN_REDIS_TIMEOUT:10000}
+    jedis:
+      pool:
+        max-active: ${XIAOU_SA_TOKEN_REDIS_POOL_MAX_ACTIVE:8}
+        max-idle: ${XIAOU_SA_TOKEN_REDIS_POOL_MAX_IDLE:8}
+        min-idle: ${XIAOU_SA_TOKEN_REDIS_POOL_MIN_IDLE:0}
+        max-wait: ${XIAOU_SA_TOKEN_REDIS_POOL_MAX_WAIT:3000}

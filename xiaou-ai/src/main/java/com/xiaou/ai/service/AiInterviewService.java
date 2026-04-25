@@ -52,4 +52,18 @@ public interface AiInterviewService {
      * @return 生成的题目列表
      */
     List<GeneratedQuestion> generateQuestions(String direction, String level, int count);
+
+    /**
+     * 生成追问问题
+     *
+     * @param direction     面试方向
+     * @param level         难度级别
+     * @param style         面试风格
+     * @param question      原始问题
+     * @param answer        用户回答
+     * @param followUpCount 当前追问次数
+     * @return 追问内容
+     */
+    String generateFollowUpQuestion(String direction, String level, String style,
+                                    String question, String answer, int followUpCount);
 }

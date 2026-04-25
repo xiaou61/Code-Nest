@@ -81,12 +81,7 @@ public class CommunityProperties {
          * 是否启用AI摘要功能
          */
         private Boolean enabled = false;
-        
-        /**
-         * Coze工作流ID
-         */
-        private String cozeWorkflowId;
-        
+
         /**
          * 自动生成摘要的最小字数
          */

@@ -1,0 +1,870 @@
+[
+  {
+    "id": "community-summary-success",
+    "scenario": "community_summary",
+    "description": "社区摘要成功提取主题和关键词",
+    "input": {
+      "title": "Redis 延迟双删导致缓存不一致的一次线上复盘",
+      "content": "这篇帖子复盘了一次 Redis 延迟双删失效的问题。作者描述了用户修改资料后缓存仍然读取旧值，最后通过消息重试、热点 Key 保护和回源兜底解决缓存一致性问题。"
+    },
+    "response": "{\"summary\":\"帖子复盘了 Redis 延迟双删导致缓存不一致的线上事故，并给出了消息重试与回源兜底方案。\",\"keywords\":[\"Redis\",\"延迟双删\",\"缓存一致性\",\"消息重试\"]}",
+    "expect": {
+      "fallback": false,
+      "textContains": {
+        "summary": [
+          "Redis",
+          "回源兜底"
+        ]
+      },
+      "minListSize": {
+        "keywords": 3
+      },
+      "listContains": {
+        "keywords": [
+          "Redis",
+          "延迟双删"
+        ]
+      }
+    }
+  },
+  {
+    "id": "community-summary-provider-fallback",
+    "scenario": "community_summary",
+    "description": "社区摘要在模型不可用时走统一降级结果",
+    "input": {
+      "title": "分布式事务为什么难",
+      "content": "帖子讨论了分布式事务中的一致性与可用性权衡。"
+    },
+    "useFallback": true,
+    "response": "",
+    "expect": {
+      "fallback": true,
+      "exactStrings": {
+        "summary": "暂无AI摘要"
+      }
+    }
+  },
+  {
+    "id": "interview-evaluate-followup-success",
+    "scenario": "mock_interview_evaluate",
+    "description": "模拟面试评价应给出追问动作和知识点",
+    "input": {
+      "direction": "Java",
+      "level": "中高级",
+      "style": "压力型",
+      "question": "请解释一下 volatile 和 synchronized 的区别。",
+      "answer": "volatile 主要保证可见性和一定程度上的有序性，适合状态标记；synchronized 通过监视器锁保证互斥和可见性，适合临界区保护。",
+      "followUpCount": 1,
+      "ragContext": "JMM 中的可见性、有序性与原子性要区分说明。"
+    },
+    "response": "{\"score\":8,\"feedback\":{\"strengths\":[\"能够区分可见性与互斥语义\"],\"improvements\":[\"可以补充 volatile 不保证复合操作原子性\"]},\"nextAction\":\"followUp\",\"followUpQuestion\":\"如果多个线程同时执行 count++，为什么 volatile 仍然不够？\",\"referencePoints\":[\"JMM\",\"可见性\",\"原子性\"]}",
+    "expect": {
+      "fallback": false,
+      "exactStrings": {
+        "nextAction": "followUp"
+      },
+      "intRanges": {
+        "score": {
+          "min": 7,
+          "max": 10
+        }
+      },
+      "textContains": {
+        "followUpQuestion": [
+          "volatile",
+          "count++"
+        ]
+      },
+      "minListSize": {
+        "feedback.strengths": 1,
+        "feedback.improvements": 1,
+        "referencePoints": 3
+      },
+      "listContains": {
+        "referencePoints": [
+          "JMM",
+          "原子性"
+        ]
+      }
+    }
+  },
+  {
+    "id": "interview-generate-questions-success",
+    "scenario": "mock_interview_generate_questions",
+    "description": "模拟面试题生成应输出结构化题目列表",
+    "input": {
+      "direction": "Java后端",
+      "level": "中高级",
+      "count": 2,
+      "ragContext": "优先覆盖缓存一致性、并发容器和线程池参数。"
+    },
+    "response": "[{\"question\":\"请你讲一下缓存一致性常见的处理方案以及各自适用场景。\",\"answer\":\"可以从旁路缓存、延迟双删、消息最终一致性三个层面展开，并结合业务写多读多场景选择方案。\",\"knowledgePoints\":\"缓存一致性,延迟双删,最终一致性\"},{\"question\":\"线程池核心参数该如何结合 CPU 密集和 IO 密集场景来设置？\",\"answer\":\"先区分任务类型，再结合核心线程数、队列容量、拒绝策略和监控指标做配置与调优。\",\"knowledgePoints\":\"线程池,CPU密集,IO密集\"}]",
+    "expect": {
+      "fallback": false,
+      "exactIntegers": {
+        "questionCount": 2
+      },
+      "textContains": {
+        "questions[0].question": [
+          "缓存一致性"
+        ],
+        "questions[1].knowledgePoints": [
+          "线程池",
+          "IO密集"
+        ]
+      },
+      "minListSize": {
+        "questions": 2
+      }
+    }
+  },
+  {
+    "id": "interview-generate-questions-invalid-payload-fallback",
+    "scenario": "mock_interview_generate_questions",
+    "description": "模拟面试题生成在异常载荷下应降级为空列表",
+    "input": {
+      "direction": "Java后端",
+      "level": "初级",
+      "count": 2,
+      "ragContext": ""
+    },
+    "response": "{\"oops\":\"bad-format\"}",
+    "expect": {
+      "fallback": true,
+      "exactIntegers": {
+        "questionCount": 0
+      },
+      "minListSize": {
+        "questions": 0
+      }
+    }
+  },
+  {
+    "id": "interview-generate-followup-success",
+    "scenario": "mock_interview_generate_follow_up",
+    "description": "模拟面试追问应围绕原题和回答继续深挖",
+    "input": {
+      "direction": "Java后端",
+      "level": "中高级",
+      "style": "压力型",
+      "question": "请解释一下 Redis 缓存一致性为什么难。",
+      "answer": "缓存一致性难在于数据库和缓存是两个系统，更新顺序、并发写和删除失败都会导致脏数据，需要结合旁路缓存、延迟双删和异步重试一起看。",
+      "followUpCount": 1,
+      "ragContext": "继续追问并发写、删除失败和消息补偿。"
+    },
+    "response": "{\"followUpQuestion\":\"如果延迟双删中的第二次删除失败了，你会如何设计补偿和幂等机制？\"}",
+    "expect": {
+      "fallback": false,
+      "textContains": {
+        "followUpQuestion": [
+          "第二次删除失败",
+          "补偿"
+        ]
+      }
+    }
+  },
+  {
+    "id": "interview-generate-followup-invalid-json-fallback",
+    "scenario": "mock_interview_generate_follow_up",
+    "description": "模拟面试追问在非法 JSON 下应使用本地兜底追问",
+    "input": {
+      "direction": "Java后端",
+      "level": "初级",
+      "style": "引导型",
+      "question": "什么是线程池？",
+      "answer": "线程池可以复用线程。",
+      "followUpCount": 0,
+      "ragContext": ""
+    },
+    "response": "not-json",
+    "expect": {
+      "fallback": true,
+      "exactStrings": {
+        "followUpQuestion": "你的回答比较简短，能否展开说说具体的实现方式或应用场景？"
+      }
+    }
+  },
+  {
+    "id": "job-battle-plan-success",
+    "scenario": "job_battle_plan_generate",
+    "description": "求职作战台计划生成应输出行动计划骨架",
+    "input": {
+      "gapsJson": "[{\"skill\":\"系统设计\",\"priority\":\"P0\",\"why\":\"缺少大规模缓存架构经验\",\"suggestedAction\":\"补系统设计案例\"}]",
+      "targetDays": 14,
+      "weeklyHours": 10,
+      "preferredLearningMode": "项目驱动",
+      "nextInterviewDate": "2026-05-02",
+      "ragContext": "优先围绕缓存、消息队列、限流与稳定性建设制定计划。"
+    },
+    "response": "{\"planName\":\"两周后端面试冲刺计划\",\"totalDays\":14,\"weeklyGoals\":[\"第1周完成系统设计知识梳理\",\"第2周完成项目表达与模拟面试\"],\"dailyTasks\":[{\"day\":1,\"task\":\"梳理缓存架构案例\",\"durationMinutes\":90,\"taskType\":\"learn\",\"deliverable\":\"1份缓存架构脑图\"},{\"day\":2,\"task\":\"输出消息队列削峰方案\",\"durationMinutes\":80,\"taskType\":\"practice\",\"deliverable\":\"1份削峰场景讲稿\"}],\"milestones\":[{\"day\":7,\"goal\":\"完成系统设计专题首轮整理\"},{\"day\":14,\"goal\":\"完成两轮模拟面试\"}],\"riskAndFallback\":[\"若工作繁忙，优先保留 P0 任务并压缩 P1 输出\"]}",
+    "expect": {
+      "fallback": false,
+      "exactStrings": {
+        "planName": "两周后端面试冲刺计划"
+      },
+      "exactIntegers": {
+        "totalDays": 14
+      },
+      "minListSize": {
+        "weeklyGoals": 2,
+        "dailyTasks": 2,
+        "milestones": 2,
+        "riskAndFallback": 1
+      },
+      "listContains": {
+        "weeklyGoals": [
+          "第1周完成系统设计知识梳理"
+        ]
+      }
+    }
+  },
+  {
+    "id": "interview-summary-success",
+    "scenario": "mock_interview_summary",
+    "description": "模拟面试总结应输出评级、总结和建议",
+    "input": {
+      "direction": "Java后端",
+      "level": "高级",
+      "questionCount": 5,
+      "answeredCount": 4,
+      "skippedCount": 1,
+      "totalScore": 76,
+      "qaListJson": "[{\"question\":\"如何保证缓存与数据库一致性？\",\"answer\":\"延迟双删配合消息重试\"},{\"question\":\"线程池参数如何设置？\",\"answer\":\"根据CPU密集和IO密集场景区分\"}]",
+      "ragContext": "总结时关注并发、缓存一致性和表达结构。"
+    },
+    "response": "{\"summary\":\"候选人在并发与缓存一致性方面基础较好，但系统设计表达还可以更结构化，回答时建议先讲思路再补权衡。\",\"overallLevel\":\"良好\",\"suggestions\":[\"补充系统设计题中的容量估算过程\",\"回答时采用先总后分的表达结构\",\"多举一个线上故障复盘案例增强说服力\"]}",
+    "expect": {
+      "fallback": false,
+      "exactStrings": {
+        "overallLevel": "良好"
+      },
+      "textContains": {
+        "summary": [
+          "并发",
+          "结构化"
+        ]
+      },
+      "minListSize": {
+        "suggestions": 3
+      },
+      "listContains": {
+        "suggestions": [
+          "补充系统设计题中的容量估算过程"
+        ]
+      }
+    }
+  },
+  {
+    "id": "interview-summary-invalid-json-fallback",
+    "scenario": "mock_interview_summary",
+    "description": "模拟面试总结在非法 JSON 下应回退到本地总结",
+    "input": {
+      "direction": "Java后端",
+      "level": "初中级",
+      "questionCount": 4,
+      "answeredCount": 2,
+      "skippedCount": 2,
+      "totalScore": 32,
+      "qaListJson": "[]",
+      "ragContext": ""
+    },
+    "response": "not-json",
+    "expect": {
+      "fallback": true,
+      "exactStrings": {
+        "overallLevel": "需加强"
+      },
+      "textContains": {
+        "summary": [
+          "提升空间"
+        ]
+      },
+      "minListSize": {
+        "suggestions": 3
+      }
+    }
+  },
+  {
+    "id": "job-battle-jd-parse-success",
+    "scenario": "job_battle_jd_parse",
+    "description": "JD 解析应支持嵌套与别名字段映射",
+    "input": {
+      "jdText": "我们正在招聘高级 Java 后端工程师，负责交易链路、稳定性建设和性能优化，需要熟悉 Java、Spring Boot、MySQL、Redis。",
+      "targetRole": "",
+      "targetLevel": "",
+      "city": "上海",
+      "ragContext": "关注交易链路、稳定性建设和高并发关键词。"
+    },
+    "response": "{\"data\":{\"positionName\":\"高级Java后端开发\",\"seniority\":\"P6\",\"requiredSkills\":[\"Java\",\"Spring Boot\",\"MySQL\",\"Redis\"],\"preferredSkills\":[\"Kafka\"],\"jobResponsibilities\":[\"负责核心交易链路设计\",\"参与稳定性与性能优化\"],\"experienceYears\":\"5年以上\",\"tags\":[\"高并发\",\"分布式\"],\"risk_points\":[\"需要参与线上值班\"],\"overview\":\"岗位重点围绕交易链路和稳定性建设展开\"}}",
+    "expect": {
+      "fallback": false,
+      "exactStrings": {
+        "jobTitle": "高级Java后端开发",
+        "level": "P6",
+        "seniorityYears": "5年以上"
+      },
+      "textContains": {
+        "summary": [
+          "交易链路",
+          "稳定性"
+        ]
+      },
+      "minListSize": {
+        "mustSkills": 4,
+        "responsibilities": 2,
+        "keywords": 2,
+        "riskPoints": 1
+      },
+      "listContains": {
+        "mustSkills": [
+          "Java",
+          "Redis"
+        ],
+        "keywords": [
+          "高并发"
+        ]
+      }
+    }
+  },
+  {
+    "id": "job-battle-jd-parse-invalid-json-fallback",
+    "scenario": "job_battle_jd_parse",
+    "description": "JD 解析在非法 JSON 时应退回本地规则结果",
+    "input": {
+      "jdText": "高级 Java 后端工程师，负责分布式系统建设和高并发链路优化，需要熟悉 Java、Redis、MySQL。",
+      "targetRole": "",
+      "targetLevel": "高级",
+      "city": "深圳",
+      "ragContext": ""
+    },
+    "response": "not-json",
+    "expect": {
+      "fallback": true,
+      "exactStrings": {
+        "jobTitle": "Java后端开发",
+        "level": "高级",
+        "seniorityYears": "未识别"
+      },
+      "textContains": {
+        "summary": [
+          "本地规则"
+        ]
+      },
+      "listContains": {
+        "mustSkills": [
+          "java",
+          "redis"
+        ],
+        "keywords": [
+          "高并发",
+          "分布式"
+        ],
+        "riskPoints": [
+          "当前为本地规则兜底结果"
+        ]
+      }
+    }
+  },
+  {
+    "id": "job-battle-resume-match-success",
+    "scenario": "job_battle_resume_match",
+    "description": "简历匹配应输出分维度评分、差距和改写建议",
+    "input": {
+      "parsedJdJson": "{\"jobTitle\":\"高级Java后端开发\",\"mustSkills\":[\"Java\",\"Spring Boot\",\"Redis\",\"MySQL\"],\"keywords\":[\"高并发\",\"分布式\"]}",
+      "resumeText": "5年 Java 后端经验，主导过 Spring Boot + Redis + MySQL 的交易系统，负责缓存一致性和分布式链路治理。",
+      "projectHighlights": "负责过秒杀链路优化，P99 从 800ms 降到 180ms。",
+      "targetCompanyType": "中大厂",
+      "ragContext": "强调项目证据、架构深度和量化指标。"
+    },
+    "response": "{\"overallScore\":84,\"dimensionScores\":{\"skillMatch\":88,\"projectDepth\":82,\"architectureAbility\":80,\"communicationClarity\":85},\"strengths\":[\"核心技术栈与 JD 高度匹配\",\"具备缓存一致性与高并发项目经验\"],\"missingKeywords\":[\"消息队列\"],\"estimatedPassRate\":76,\"gaps\":[{\"skill\":\"消息队列\",\"priority\":\"P1\",\"why\":\"简历中缺少削峰解耦相关证据\",\"suggestedAction\":\"补充 Kafka 或 RocketMQ 场景与指标\"}],\"resumeRewriteSuggestions\":[{\"section\":\"项目经历\",\"advice\":\"补充秒杀链路中的流量规模、瓶颈和优化收益\"},{\"section\":\"个人亮点\",\"advice\":\"增加架构设计决策和权衡表达\"}]}",
+    "expect": {
+      "fallback": false,
+      "intRanges": {
+        "overallScore": {
+          "min": 80,
+          "max": 90
+        },
+        "estimatedPassRate": {
+          "min": 70,
+          "max": 85
+        },
+        "dimensionScores[skillMatch]": {
+          "min": 85,
+          "max": 90
+        }
+      },
+      "exactStrings": {
+        "gaps[0].priority": "P1",
+        "resumeRewriteSuggestions[0].section": "项目经历"
+      },
+      "minListSize": {
+        "strengths": 2,
+        "missingKeywords": 1,
+        "gaps": 1,
+        "resumeRewriteSuggestions": 2
+      },
+      "listContains": {
+        "strengths": [
+          "核心技术栈与 JD 高度匹配"
+        ],
+        "missingKeywords": [
+          "消息队列"
+        ]
+      }
+    }
+  },
+  {
+    "id": "job-battle-interview-review-success",
+    "scenario": "job_battle_interview_review",
+    "description": "面试复盘应输出根因、高影响修复动作和 7 天计划",
+    "input": {
+      "interviewNotes": "一面问了缓存一致性、系统设计和项目亮点，回答在项目指标和容量估算上偏弱。",
+      "qaTranscriptJson": "[{\"question\":\"如何设计库存扣减？\",\"answer\":\"用了 Redis 预扣\"}]",
+      "interviewResult": "pending",
+      "targetRole": "高级Java后端开发",
+      "nextInterviewDate": "2026-04-28",
+      "ragContext": "重点复盘系统设计表达、项目指标量化和高频追问。"
+    },
+    "response": "{\"overallConclusion\":\"候选人的项目基础尚可，但在系统设计表达和项目指标量化上存在短板，需要围绕下一轮面试做针对性补强。\",\"rootCauses\":[\"系统设计回答缺少容量估算与权衡\",\"项目亮点缺少量化指标支撑\"],\"highImpactFixes\":[{\"issue\":\"系统设计题表达不成体系\",\"action\":\"用固定框架重写 3 道高频系统设计题\",\"deadline\":\"D+3\",\"metric\":\"每题 5 分钟内讲清目标、方案、瓶颈与权衡\"},{\"issue\":\"项目案例缺少业务结果\",\"action\":\"为两个核心项目补齐指标与故障复盘\",\"deadline\":\"D+5\",\"metric\":\"每个项目至少补充 3 个量化结果\"}],\"questionTypeWeakness\":[{\"type\":\"系统设计\",\"suggestion\":\"回答时按容量估算、核心链路、扩展性和容灾顺序展开\"},{\"type\":\"项目追问\",\"suggestion\":\"先讲业务背景，再讲技术动作和结果指标\"}],\"next7DayPlan\":[\"Day1：整理系统设计答题模板\",\"Day2-3：补齐两个项目的指标与复盘\",\"Day4-5：做两轮系统设计口述演练\",\"Day6：针对追问题做录音复盘\",\"Day7：完成一次完整模拟面试\"],\"confidenceScore\":82}",
+    "expect": {
+      "fallback": false,
+      "intRanges": {
+        "confidenceScore": {
+          "min": 75,
+          "max": 90
+        }
+      },
+      "exactStrings": {
+        "highImpactFixes[0].deadline": "D+3",
+        "questionTypeWeakness[0].type": "系统设计"
+      },
+      "textContains": {
+        "overallConclusion": [
+          "系统设计",
+          "量化"
+        ]
+      },
+      "minListSize": {
+        "rootCauses": 2,
+        "highImpactFixes": 2,
+        "questionTypeWeakness": 2,
+        "next7DayPlan": 5
+      },
+      "listContains": {
+        "rootCauses": [
+          "系统设计回答缺少容量估算与权衡"
+        ]
+      }
+    }
+  },
+  {
+    "id": "job-battle-target-analyze-success",
+    "scenario": "job_battle_target_analyze",
+    "description": "单岗位综合分析应串联 JD 解析和简历匹配结果",
+    "input": {
+      "jdText": "高级 Java 后端工程师，负责核心交易链路、稳定性建设和性能优化，需要熟悉 Java、Spring Boot、Redis、MySQL。",
+      "targetRole": "高级Java后端开发",
+      "targetLevel": "P6",
+      "city": "杭州",
+      "resumeText": "5年 Java 后端经验，主导过 Spring Boot + Redis + MySQL 的交易系统，做过缓存一致性和高并发优化。",
+      "projectHighlights": "负责秒杀链路优化，P99 从 800ms 降到 180ms。",
+      "targetCompanyType": "独角兽"
+    },
+    "responses": [
+      "{\"jobTitle\":\"高级Java后端开发\",\"level\":\"P6\",\"mustSkills\":[\"Java\",\"Spring Boot\",\"Redis\",\"MySQL\"],\"niceSkills\":[\"Kafka\"],\"responsibilities\":[\"负责核心交易链路设计\",\"参与稳定性建设\"],\"seniorityYears\":\"5年以上\",\"keywords\":[\"高并发\",\"稳定性\"],\"riskPoints\":[\"需要承担线上稳定性治理责任\"],\"summary\":\"岗位重点在交易链路和稳定性建设\"}",
+      "{\"overallScore\":86,\"dimensionScores\":{\"skillMatch\":88,\"projectDepth\":84,\"architectureAbility\":82,\"communicationClarity\":85},\"strengths\":[\"核心技术栈与 JD 高度一致\",\"具备缓存一致性和高并发项目经验\"],\"missingKeywords\":[\"Kafka\"],\"estimatedPassRate\":78,\"gaps\":[{\"skill\":\"Kafka\",\"priority\":\"P1\",\"why\":\"简历缺少消息削峰与异步链路证据\",\"suggestedAction\":\"补充 MQ 选型、削峰和重试机制案例\"}],\"resumeRewriteSuggestions\":[{\"section\":\"项目经历\",\"advice\":\"补充交易链路峰值流量、瓶颈定位和优化收益\"},{\"section\":\"个人亮点\",\"advice\":\"增加稳定性治理指标和事故复盘结果\"}]}"
+    ],
+    "expect": {
+      "fallback": false,
+      "exactStrings": {
+        "jdParse.jobTitle": "高级Java后端开发",
+        "resumeMatch.gaps[0].priority": "P1"
+      },
+      "intRanges": {
+        "resumeMatch.overallScore": {
+          "min": 80,
+          "max": 90
+        }
+      },
+      "textContains": {
+        "jdParse.summary": [
+          "交易链路",
+          "稳定性"
+        ],
+        "resumeMatch.resumeRewriteSuggestions[0].advice": [
+          "峰值流量",
+          "优化收益"
+        ]
+      },
+      "minListSize": {
+        "jdParse.mustSkills": 4,
+        "resumeMatch.strengths": 2,
+        "resumeMatch.gaps": 1
+      },
+      "listContains": {
+        "jdParse.mustSkills": [
+          "Java",
+          "Redis"
+        ],
+        "resumeMatch.missingKeywords": [
+          "Kafka"
+        ]
+      }
+    }
+  },
+  {
+    "id": "job-battle-target-analyze-resume-fallback",
+    "scenario": "job_battle_target_analyze",
+    "description": "单岗位综合分析在第二步匹配异常时应保留 JD 结果并标记整体降级",
+    "input": {
+      "jdText": "高级 Java 后端工程师，负责分布式系统和高并发链路治理，需要 Java、Redis、MySQL。",
+      "targetRole": "高级Java后端开发",
+      "targetLevel": "P6",
+      "city": "上海",
+      "resumeText": "4年 Java 后端经验，熟悉 Redis 和 MySQL。",
+      "projectHighlights": "",
+      "targetCompanyType": "大厂"
+    },
+    "responses": [
+      "{\"jobTitle\":\"高级Java后端开发\",\"level\":\"P6\",\"mustSkills\":[\"Java\",\"Redis\",\"Spring Boot\"],\"niceSkills\":[],\"responsibilities\":[\"负责分布式系统治理\"],\"seniorityYears\":\"4年以上\",\"keywords\":[\"高并发\"],\"riskPoints\":[\"需要较强稳定性经验\"],\"summary\":\"岗位侧重高并发与分布式治理\"}",
+      "not-json"
+    ],
+    "expect": {
+      "fallback": true,
+      "exactStrings": {
+        "jdParse.jobTitle": "高级Java后端开发"
+      },
+      "textContains": {
+        "jdParse.summary": [
+          "高并发"
+        ]
+      },
+      "minListSize": {
+        "resumeMatch.gaps": 1,
+        "resumeMatch.resumeRewriteSuggestions": 2
+      },
+      "listContains": {
+        "resumeMatch.missingKeywords": [
+          "Spring Boot"
+        ]
+      }
+    }
+  },
+  {
+    "id": "job-battle-resume-match-invalid-json-fallback",
+    "scenario": "job_battle_resume_match",
+    "description": "简历匹配在非法 JSON 下应退回本地匹配规则",
+    "input": {
+      "parsedJdJson": "{\"jobTitle\":\"高级Java后端开发\",\"mustSkills\":[\"Java\",\"Spring Boot\",\"Redis\",\"MySQL\"]}",
+      "resumeText": "5年 Java 后端经验，熟悉 Spring Boot 和 MySQL，负责过缓存链路优化。",
+      "projectHighlights": "",
+      "targetCompanyType": "大厂",
+      "ragContext": ""
+    },
+    "response": "not-json",
+    "expect": {
+      "fallback": true,
+      "intRanges": {
+        "overallScore": {
+          "min": 70,
+          "max": 90
+        }
+      },
+      "minListSize": {
+        "gaps": 1,
+        "resumeRewriteSuggestions": 2,
+        "missingKeywords": 1
+      },
+      "listContains": {
+        "missingKeywords": [
+          "Redis"
+        ]
+      }
+    }
+  },
+  {
+    "id": "sql-analyze-success",
+    "scenario": "sql_optimize_analyze",
+    "description": "SQL 分析应识别问题、建议与优化 SQL",
+    "input": {
+      "mode": "WORKBENCH_V2",
+      "sql": "SELECT * FROM orders WHERE user_id = 100 ORDER BY create_time DESC LIMIT 20",
+      "explainResult": "type=ALL; rows=500000; Extra=Using where; Using filesort",
+      "explainFormat": "TABLE",
+      "tableStructures": "CREATE TABLE orders(id bigint,user_id bigint,create_time datetime,status tinyint);",
+      "mysqlVersion": "8.0",
+      "ragContext": "联合索引应优先覆盖过滤列和排序列。"
+    },
+    "response": "{\"score\":42,\"optimizedSql\":\"SELECT id, user_id, create_time, status FROM orders WHERE user_id = 100 ORDER BY create_time DESC LIMIT 20\",\"knowledgePoints\":[\"联合索引\",\"避免回表\",\"Using filesort\"],\"problems\":[{\"type\":\"FULL_TABLE_SCAN\",\"severity\":\"HIGH\",\"description\":\"未命中 user_id 过滤索引\",\"location\":\"orders\"}],\"explainAnalysis\":[{\"table\":\"orders\",\"type\":\"ALL\",\"typeExplain\":\"全表扫描\",\"key\":\"NULL\",\"keyExplain\":\"未命中索引\",\"rows\":500000,\"extra\":\"Using filesort\",\"extraExplain\":\"需要额外排序\",\"issue\":\"扫描和排序成本都偏高\"}],\"suggestions\":[{\"type\":\"ADD_INDEX\",\"title\":\"补充 user_id + create_time 联合索引\",\"ddl\":\"ALTER TABLE orders ADD INDEX idx_user_ctime(user_id, create_time DESC);\",\"sql\":\"\",\"reason\":\"让过滤与排序都命中索引\",\"expectedImprovement\":\"显著减少扫描行数与排序开销\"}]}",
+    "expect": {
+      "fallback": false,
+      "intRanges": {
+        "score": {
+          "min": 30,
+          "max": 60
+        }
+      },
+      "textContains": {
+        "optimizedSql": [
+          "ORDER BY create_time DESC",
+          "user_id = 100"
+        ]
+      },
+      "minListSize": {
+        "knowledgePoints": 3,
+        "problems": 1,
+        "explainAnalysis": 1,
+        "suggestions": 1
+      },
+      "listContains": {
+        "knowledgePoints": [
+          "联合索引",
+          "Using filesort"
+        ]
+      }
+    }
+  },
+  {
+    "id": "sql-analyze-invalid-json-fallback",
+    "scenario": "sql_optimize_analyze",
+    "description": "SQL 分析在返回非法 JSON 时应走本地规则兜底",
+    "input": {
+      "mode": "STANDARD",
+      "sql": "SELECT * FROM orders ORDER BY create_time DESC",
+      "explainResult": "type=ALL; Extra=Using filesort; Using temporary",
+      "explainFormat": "TABLE",
+      "tableStructures": "CREATE TABLE orders(id bigint,create_time datetime);",
+      "mysqlVersion": "8.0",
+      "ragContext": ""
+    },
+    "response": "not-json",
+    "expect": {
+      "fallback": true,
+      "exactIntegers": {
+        "score": 10
+      },
+      "minListSize": {
+        "problems": 3,
+        "suggestions": 1,
+        "knowledgePoints": 2
+      },
+      "listContains": {
+        "knowledgePoints": [
+          "索引优化",
+          "EXPLAIN分析"
+        ]
+      }
+    }
+  },
+  {
+    "id": "sql-rewrite-success",
+    "scenario": "sql_optimize_rewrite",
+    "description": "SQL 重写应输出覆盖索引方案、风险提示和预期收益",
+    "input": {
+      "originalSql": "SELECT * FROM orders WHERE user_id = 100 ORDER BY create_time DESC LIMIT 20",
+      "diagnoseJson": "{\"score\":42,\"problems\":[{\"type\":\"FULL_TABLE_SCAN\",\"severity\":\"HIGH\",\"description\":\"未命中 user_id 过滤索引\",\"location\":\"orders\"}],\"suggestions\":[{\"type\":\"ADD_INDEX\",\"title\":\"补充 user_id + create_time 联合索引\",\"ddl\":\"ALTER TABLE orders ADD INDEX idx_user_ctime(user_id, create_time DESC);\",\"sql\":\"SELECT id, user_id, create_time, status FROM orders WHERE user_id = 100 ORDER BY create_time DESC LIMIT 20\",\"reason\":\"让过滤与排序都命中索引\",\"expectedImprovement\":\"减少扫描和排序开销\"}]}",
+      "tableStructures": "CREATE TABLE orders(id bigint,user_id bigint,create_time datetime,status tinyint);",
+      "mysqlVersion": "8.0",
+      "ragContext": "优先避免 select *，并兼顾覆盖索引和排序效率。"
+    },
+    "response": "{\"optimizedSql\":\"SELECT id, user_id, create_time, status FROM orders WHERE user_id = 100 ORDER BY create_time DESC LIMIT 20\",\"indexDdls\":[\"ALTER TABLE orders ADD INDEX idx_user_ctime(user_id, create_time DESC);\"],\"rewriteReason\":\"通过覆盖索引避免 SELECT * 带来的回表成本，同时让过滤和排序都尽量命中同一索引。\",\"riskWarnings\":[\"需要评估新增联合索引带来的写入成本\",\"如果查询字段继续增加，覆盖索引收益会下降\"],\"expectedImprovement\":\"减少回表与 filesort，预期能显著降低扫描行数和响应时间\"}",
+    "expect": {
+      "fallback": false,
+      "textContains": {
+        "optimizedSql": [
+          "SELECT id, user_id, create_time, status",
+          "LIMIT 20"
+        ],
+        "rewriteReason": [
+          "覆盖索引",
+          "排序"
+        ],
+        "expectedImprovement": [
+          "减少回表"
+        ]
+      },
+      "minListSize": {
+        "indexDdls": 1,
+        "riskWarnings": 2
+      },
+      "listContains": {
+        "indexDdls": [
+          "ALTER TABLE orders ADD INDEX idx_user_ctime(user_id, create_time DESC);"
+        ]
+      }
+    }
+  },
+  {
+    "id": "sql-compare-success",
+    "scenario": "sql_optimize_compare",
+    "description": "SQL 收益对比应输出扫描行、访问类型和整体收益总结",
+    "input": {
+      "beforeSql": "SELECT * FROM orders WHERE user_id = 100 ORDER BY create_time DESC LIMIT 20",
+      "afterSql": "SELECT id, user_id, create_time, status FROM orders WHERE user_id = 100 ORDER BY create_time DESC LIMIT 20",
+      "beforeExplain": "type=ALL; rows=500000; Extra=Using where; Using filesort",
+      "afterExplain": "type=range; rows=20; Extra=Using index condition",
+      "explainFormat": "TABLE"
+    },
+    "response": "{\"improvementScore\":88,\"deltaRows\":\"扫描行数由 500000 降至 20\",\"deltaType\":\"访问类型从 ALL 优化到 range\",\"deltaExtra\":\"Extra 从 Using filesort 优化为 Using index condition\",\"summary\":\"优化后基本消除了全表扫描和额外排序，索引命中明显改善。\",\"attention\":[\"仍需确认新增索引对写入放大的影响\",\"上线前建议对比真实流量下的执行计划\"]}",
+    "expect": {
+      "fallback": false,
+      "intRanges": {
+        "improvementScore": {
+          "min": 80,
+          "max": 95
+        }
+      },
+      "textContains": {
+        "deltaRows": [
+          "500000",
+          "20"
+        ],
+        "summary": [
+          "全表扫描",
+          "索引"
+        ]
+      },
+      "minListSize": {
+        "attention": 2
+      },
+      "listContains": {
+        "attention": [
+          "仍需确认新增索引对写入放大的影响"
+        ]
+      }
+    }
+  },
+  {
+    "id": "sql-analyze-rewrite-success",
+    "scenario": "sql_optimize_analyze_rewrite",
+    "description": "SQL 分析加重写组合流程应同时输出诊断与重写结果",
+    "input": {
+      "mode": "WORKBENCH_V2",
+      "sql": "SELECT * FROM orders WHERE user_id = 100 ORDER BY create_time DESC LIMIT 20",
+      "explainResult": "type=ALL; rows=500000; Extra=Using where; Using filesort",
+      "explainFormat": "TABLE",
+      "tableStructures": "CREATE TABLE orders(id bigint,user_id bigint,create_time datetime,status tinyint);",
+      "mysqlVersion": "8.0"
+    },
+    "responses": [
+      "{\"score\":42,\"optimizedSql\":\"SELECT id, user_id, create_time, status FROM orders WHERE user_id = 100 ORDER BY create_time DESC LIMIT 20\",\"knowledgePoints\":[\"联合索引\",\"避免回表\",\"Using filesort\"],\"problems\":[{\"type\":\"FULL_TABLE_SCAN\",\"severity\":\"HIGH\",\"description\":\"未命中 user_id 过滤索引\",\"location\":\"orders\"}],\"explainAnalysis\":[{\"table\":\"orders\",\"type\":\"ALL\",\"typeExplain\":\"全表扫描\",\"key\":\"NULL\",\"keyExplain\":\"未命中索引\",\"rows\":500000,\"extra\":\"Using filesort\",\"extraExplain\":\"需要额外排序\",\"issue\":\"扫描和排序成本都偏高\"}],\"suggestions\":[{\"type\":\"ADD_INDEX\",\"title\":\"补充 user_id + create_time 联合索引\",\"ddl\":\"ALTER TABLE orders ADD INDEX idx_user_ctime(user_id, create_time DESC);\",\"sql\":\"\",\"reason\":\"让过滤与排序都命中索引\",\"expectedImprovement\":\"显著减少扫描行数与排序开销\"}]}",
+      "{\"optimizedSql\":\"SELECT id, user_id, create_time, status FROM orders WHERE user_id = 100 ORDER BY create_time DESC LIMIT 20\",\"indexDdls\":[\"ALTER TABLE orders ADD INDEX idx_user_ctime(user_id, create_time DESC);\"],\"rewriteReason\":\"通过覆盖索引减少回表，同时让过滤和排序尽量命中同一索引。\",\"riskWarnings\":[\"需要评估新增联合索引带来的写入成本\"],\"expectedImprovement\":\"减少回表与 filesort，预期显著降低扫描行数\"}"
+    ],
+    "expect": {
+      "fallback": false,
+      "intRanges": {
+        "analysis.score": {
+          "min": 35,
+          "max": 50
+        }
+      },
+      "textContains": {
+        "analysis.optimizedSql": [
+          "ORDER BY create_time DESC"
+        ],
+        "rewrite.rewriteReason": [
+          "覆盖索引",
+          "排序"
+        ],
+        "rewrite.expectedImprovement": [
+          "减少回表"
+        ]
+      },
+      "minListSize": {
+        "analysis.suggestions": 1,
+        "rewrite.indexDdls": 1,
+        "rewrite.riskWarnings": 1
+      },
+      "listContains": {
+        "analysis.knowledgePoints": [
+          "联合索引"
+        ]
+      }
+    }
+  },
+  {
+    "id": "sql-analyze-rewrite-rewrite-fallback",
+    "scenario": "sql_optimize_analyze_rewrite",
+    "description": "SQL 分析加重写组合流程在第二步异常时应保留分析结果并标记整体降级",
+    "input": {
+      "mode": "WORKBENCH_V2",
+      "sql": "SELECT * FROM orders WHERE user_id = 100 ORDER BY create_time DESC LIMIT 20",
+      "explainResult": "type=ALL; rows=500000; Extra=Using where; Using filesort",
+      "explainFormat": "TABLE",
+      "tableStructures": "CREATE TABLE orders(id bigint,user_id bigint,create_time datetime,status tinyint);",
+      "mysqlVersion": "8.0"
+    },
+    "responses": [
+      "{\"score\":42,\"optimizedSql\":\"SELECT id, user_id, create_time, status FROM orders WHERE user_id = 100 ORDER BY create_time DESC LIMIT 20\",\"knowledgePoints\":[\"联合索引\",\"Using filesort\"],\"problems\":[{\"type\":\"FULL_TABLE_SCAN\",\"severity\":\"HIGH\",\"description\":\"未命中 user_id 过滤索引\",\"location\":\"orders\"}],\"explainAnalysis\":[{\"table\":\"orders\",\"type\":\"ALL\",\"typeExplain\":\"全表扫描\",\"key\":\"NULL\",\"keyExplain\":\"未命中索引\",\"rows\":500000,\"extra\":\"Using filesort\",\"extraExplain\":\"需要额外排序\",\"issue\":\"扫描和排序成本都偏高\"}],\"suggestions\":[{\"type\":\"ADD_INDEX\",\"title\":\"补充 user_id + create_time 联合索引\",\"ddl\":\"ALTER TABLE orders ADD INDEX idx_user_ctime(user_id, create_time DESC);\",\"sql\":\"\",\"reason\":\"让过滤与排序都命中索引\",\"expectedImprovement\":\"显著减少扫描行数与排序开销\"}]}",
+      "not-json"
+    ],
+    "expect": {
+      "fallback": true,
+      "exactStrings": {
+        "rewrite.optimizedSql": "SELECT * FROM orders WHERE user_id = 100 ORDER BY create_time DESC LIMIT 20"
+      },
+      "intRanges": {
+        "analysis.score": {
+          "min": 35,
+          "max": 50
+        }
+      },
+      "textContains": {
+        "rewrite.rewriteReason": [
+          "降级"
+        ]
+      },
+      "minListSize": {
+        "analysis.suggestions": 1,
+        "rewrite.riskWarnings": 1
+      }
+    }
+  },
+  {
+    "id": "sql-rewrite-invalid-json-fallback",
+    "scenario": "sql_optimize_rewrite",
+    "description": "SQL 重写在非法 JSON 下应退回降级结果",
+    "input": {
+      "originalSql": "SELECT * FROM orders WHERE user_id = 100 ORDER BY create_time DESC LIMIT 20",
+      "diagnoseJson": "{\"score\":42}",
+      "tableStructures": "CREATE TABLE orders(id bigint,user_id bigint,create_time datetime,status tinyint);",
+      "mysqlVersion": "8.0",
+      "ragContext": ""
+    },
+    "response": "not-json",
+    "expect": {
+      "fallback": true,
+      "exactStrings": {
+        "optimizedSql": "SELECT * FROM orders WHERE user_id = 100 ORDER BY create_time DESC LIMIT 20"
+      },
+      "minListSize": {
+        "riskWarnings": 1
+      }
+    }
+  },
+  {
+    "id": "sql-compare-invalid-json-fallback",
+    "scenario": "sql_optimize_compare",
+    "description": "SQL 收益对比在非法 JSON 下应走降级结果",
+    "input": {
+      "beforeSql": "SELECT * FROM orders",
+      "afterSql": "SELECT id FROM orders",
+      "beforeExplain": "type=ALL",
+      "afterExplain": "type=index",
+      "explainFormat": "TABLE"
+    },
+    "response": "not-json",
+    "expect": {
+      "fallback": true,
+      "exactIntegers": {
+        "improvementScore": 0
+      },
+      "exactStrings": {
+        "deltaRows": "待评估"
+      },
+      "minListSize": {
+        "attention": 1
+      }
+    }
+  }
+]

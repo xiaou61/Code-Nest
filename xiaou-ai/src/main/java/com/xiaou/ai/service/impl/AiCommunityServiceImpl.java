@@ -2,17 +2,18 @@ package com.xiaou.ai.service.impl;
 
 import cn.hutool.json.JSONObject;
 import com.xiaou.ai.dto.community.PostSummaryResult;
+import com.xiaou.ai.metrics.AiMetricsRecorder;
+import com.xiaou.ai.prompt.community.CommunityPromptSpecs;
 import com.xiaou.ai.service.AiCommunityService;
-import com.xiaou.ai.util.CozeResponseParser;
-import com.xiaou.common.core.domain.Result;
-import com.xiaou.common.enums.CozeWorkflowEnum;
-import com.xiaou.common.utils.CozeUtils;
+import com.xiaou.ai.structured.community.CommunityStructuredOutputSpecs;
+import com.xiaou.ai.support.AiExecutionSupport;
+import com.xiaou.ai.util.AiJsonResponseParser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,52 +26,18 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class AiCommunityServiceImpl implements AiCommunityService {
-
-    private final CozeUtils cozeUtils;
+    private final AiExecutionSupport aiExecutionSupport;
+    private final AiMetricsRecorder aiMetricsRecorder;
 
     @Override
     public PostSummaryResult generatePostSummary(String title, String content) {
-        try {
-            if (!cozeUtils.isClientAvailable()) {
-                log.warn("Coze客户端不可用，使用降级结果");
-                return PostSummaryResult.fallbackResult(title);
-            }
-
-            // 构建参数
-            Map<String, Object> params = new HashMap<>();
-            params.put("title", title);
-            params.put("content", content);
-
-            // 调用工作流
-            Result<String> result = cozeUtils.runWorkflow(
-                    CozeWorkflowEnum.COMMUNITY_POST_SUMMARY, params);
-
-            if (!result.isSuccess() || CozeResponseParser.isErrorResponse(result.getData())) {
-                log.warn("Coze工作流调用失败: {}", result.getMessage());
-                return PostSummaryResult.fallbackResult(title);
-            }
-
-            // 解析结果
-            JSONObject json = CozeResponseParser.parse(result.getData());
-            if (json == null) {
-                return PostSummaryResult.fallbackResult(title);
-            }
-
-            // 解析摘要
-            String summary = CozeResponseParser.getString(json, "summary", "暂无摘要");
-
-            // 解析关键词
-            List<String> keywords = parseKeywords(json.get("keywords"));
-
-            return new PostSummaryResult()
-                    .setSummary(summary)
-                    .setKeywords(keywords)
-                    .setFallback(false);
-
-        } catch (Exception e) {
-            log.error("生成帖子摘要失败", e);
-            return PostSummaryResult.fallbackResult(title);
-        }
+        return aiExecutionSupport.chatWithFallback(
+                "community_summary",
+                CommunityPromptSpecs.POST_SUMMARY,
+                buildPromptVariables(title, content),
+                this::parseSummaryResult,
+                () -> PostSummaryResult.fallbackResult(title)
+        );
     }
 
     /**
@@ -99,5 +66,34 @@ public class AiCommunityServiceImpl implements AiCommunityService {
             }
         }
         return keywords;
+    }
+
+    private Map<String, Object> buildPromptVariables(String title, String content) {
+        Map<String, Object> variables = new LinkedHashMap<>();
+        variables.put("title", title == null ? "" : title.trim());
+        variables.put("content", content == null ? "" : content.trim());
+        return variables;
+    }
+
+    private PostSummaryResult parseSummaryResult(String response) {
+        JSONObject json = AiJsonResponseParser.parse(response);
+        if (json == null || AiJsonResponseParser.isErrorResponse(response)) {
+            aiMetricsRecorder.recordStructuredParseFailure("community_summary", CommunityPromptSpecs.POST_SUMMARY, "invalid_json");
+            return PostSummaryResult.fallbackResult(null);
+        }
+
+        var validation = CommunityStructuredOutputSpecs.POST_SUMMARY.validateObject(json);
+        if (!validation.valid()) {
+            aiMetricsRecorder.recordStructuredParseFailure("community_summary", CommunityPromptSpecs.POST_SUMMARY, validation.reason());
+            return PostSummaryResult.fallbackResult(null);
+        }
+
+        String summary = AiJsonResponseParser.getString(json, "summary", "暂无摘要");
+        List<String> keywords = parseKeywords(json.get("keywords"));
+
+        return new PostSummaryResult()
+                .setSummary(summary)
+                .setKeywords(keywords)
+                .setFallback(false);
     }
 }

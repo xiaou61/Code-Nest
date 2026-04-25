@@ -39,9 +39,10 @@ public interface AIInterviewerService {
      * @param session  面试会话
      * @param question 原问题
      * @param answer   用户回答
+     * @param followUpCount 当前追问次数
      * @return 追问问题内容
      */
-    String generateFollowUpQuestion(MockInterviewSession session, String question, String answer);
+    String generateFollowUpQuestion(MockInterviewSession session, String question, String answer, int followUpCount);
 
     /**
      * 总结结果

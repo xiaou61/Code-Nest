@@ -50,8 +50,8 @@ public class SqlRewriteResult {
                 .setOptimizedSql(originalSql)
                 .setIndexDdls(new ArrayList<>())
                 .setRewriteReason("当前为降级重写结果，建议稍后重试获取完整AI重写建议")
-                .setRiskWarnings(List.of("Coze重写工作流不可用，未生成高置信索引建议"))
-                .setExpectedImprovement("请在工作流恢复后重新生成预计收益")
+                .setRiskWarnings(List.of("AI 重写能力暂不可用，未生成高置信索引建议"))
+                .setExpectedImprovement("请在 AI 运行时恢复后重新生成预计收益")
                 .setFallback(true);
     }
 }

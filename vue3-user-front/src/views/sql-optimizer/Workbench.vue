@@ -235,7 +235,7 @@
           type="warning"
           show-icon
           :closable="false"
-          title="当前为降级结果（Coze 工作流不可用或返回异常），后续配置 workflowId 后可获得完整结果。"
+          title="当前为降级结果（统一 AI 运行时不可用或返回异常），后续完成模型配置后可获得完整结果。"
         />
 
         <h4 class="section-title">问题清单</h4>
@@ -993,7 +993,7 @@ const runAnalyze = async () => {
     syncCompareWithCurrentInput()
 
     if (analysisResult.value?.fallback) {
-      ElMessage.warning('分析已完成：当前为降级结果，待你配置 V2 工作流 ID 后会输出完整结果')
+      ElMessage.warning('分析已完成：当前为降级结果，待统一 AI 运行时配置完成后会输出完整结果')
     } else {
       ElMessage.success('分析完成')
     }
@@ -1021,7 +1021,7 @@ const runRewrite = async () => {
     syncCompareWithCurrentInput()
 
     if (data?.fallback) {
-      ElMessage.warning('重写建议已生成：当前包含降级结果，可在配置 workflowId 后重试')
+      ElMessage.warning('重写建议已生成：当前包含降级结果，可在统一 AI 运行时配置完成后重试')
     } else {
       ElMessage.success('重写建议生成完成')
     }
@@ -1226,7 +1226,7 @@ const runCompare = async () => {
     })
     compareResult.value = data?.compare || null
     if (data?.fallback) {
-      ElMessage.warning('收益对比已完成：当前为降级结果，可在配置 workflowId 后重试')
+      ElMessage.warning('收益对比已完成：当前为降级结果，可在统一 AI 运行时配置完成后重试')
     } else {
       ElMessage.success('收益对比完成')
     }
