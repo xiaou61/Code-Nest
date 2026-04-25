@@ -231,7 +231,7 @@ mvn clean package -DskipTests
 mvn -pl xiaou-application -am spring-boot:run
 
 # 或直接运行打包后的 jar
-java -jar xiaou-application/target/xiaou-application-1.8.2.jar --spring.profiles.active=prod
+java -jar xiaou-application/target/xiaou-application-v2.0.0.jar --spring.profiles.active=prod
 ```
 
 - API 根地址：`http://localhost:9999/api`
@@ -399,7 +399,7 @@ management:
 
 ```bash
 # 构建镜像
-docker build -t code-nest:1.8.2 -f docker/Dockerfile .
+docker build -t code-nest:v2.0.0 -f docker/Dockerfile .
 
 # 运行容器
 docker run -d \
@@ -407,7 +407,7 @@ docker run -d \
   -p 9999:9999 \
   -e SPRING_PROFILES_ACTIVE=prod \
   --env-file docker/env/example.env \
-  code-nest:1.8.2
+  code-nest:v2.0.0
 ```
 
 如果要把 MySQL / Redis / Java 主服务 / `llamaindex-service` 一起编排起来，推荐使用：
