@@ -28,6 +28,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class OjContestRankingServiceImpl implements OjContestRankingService {
 
+    private static final int DEFAULT_CONTEST_RATING = 1500;
+    private static final int MIN_RATING_CHANGE = -80;
+    private static final int MAX_RATING_CHANGE = 120;
+
     private final OjContestMapper contestMapper;
     private final OjSubmissionMapper submissionMapper;
     private final OjContestParticipantMapper participantMapper;
@@ -45,6 +49,7 @@ public class OjContestRankingServiceImpl implements OjContestRankingService {
         List<OjContestParticipant> participants = participantMapper.selectByContestId(contestId);
         List<ContestRankingItem> ranking = calculator.calculate(contest, submissions, participants);
         enrichUserInfo(ranking);
+        enrichRatingEstimates(ranking);
         return ranking;
     }
 
@@ -63,5 +68,42 @@ public class OjContestRankingServiceImpl implements OjContestRankingService {
                 item.setNickname("用户" + item.getUserId());
             }
         }
+    }
+
+    private void enrichRatingEstimates(List<ContestRankingItem> ranking) {
+        if (ranking == null || ranking.isEmpty()) {
+            return;
+        }
+
+        int total = ranking.size();
+        int maxSolvedCount = ranking.stream()
+                .map(ContestRankingItem::getSolvedCount)
+                .filter(count -> count != null && count > 0)
+                .max(Integer::compareTo)
+                .orElse(1);
+
+        for (ContestRankingItem item : ranking) {
+            int rank = item.getRank() == null ? total : item.getRank();
+            int solvedCount = item.getSolvedCount() == null ? 0 : item.getSolvedCount();
+            long penalty = item.getPenalty() == null ? 0L : item.getPenalty();
+
+            int rankScore = Math.round((total - rank + 1) * 100.0F / total);
+            int solveScore = Math.round(solvedCount * 100.0F / maxSolvedCount);
+            int speedScore = solvedCount <= 0 ? 0 : Math.max(0, 100 - (int) Math.min(100L, penalty / 10L));
+            int performanceScore = Math.round(solveScore * 0.55F + rankScore * 0.3F + speedScore * 0.15F);
+
+            int rankDelta = Math.round((total + 1 - 2 * rank) * 60.0F / total);
+            int solveDelta = solvedCount <= 0 ? -20 : Math.min(40, solvedCount * 10);
+            int penaltyDelta = solvedCount <= 0 ? 0 : -(int) Math.min(25L, penalty / 120L);
+            int ratingChange = clamp(rankDelta + solveDelta + penaltyDelta, MIN_RATING_CHANGE, MAX_RATING_CHANGE);
+
+            item.setPerformanceScore(performanceScore);
+            item.setRatingChange(ratingChange);
+            item.setRatingAfter(DEFAULT_CONTEST_RATING + ratingChange);
+        }
+    }
+
+    private int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
     }
 }

@@ -103,6 +103,15 @@
             <el-table-column prop="nickname" label="选手" min-width="160" />
             <el-table-column prop="solvedText" label="解题数" width="100" align="center" />
             <el-table-column prop="penaltyText" label="罚时" width="110" align="center" />
+            <el-table-column prop="performanceText" label="表现分" width="100" align="center" />
+            <el-table-column label="评分变化" width="110" align="center">
+              <template #default="{ row }">
+                <el-tag size="small" effect="light" :type="row.ratingChangeType">
+                  {{ row.ratingChangeText }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="ratingAfterText" label="预估评分" width="100" align="center" />
             <el-table-column prop="lastAcText" label="最后 AC 时间" min-width="180" />
           </el-table>
           <el-empty v-if="!loading && !rankingLoading && rankingRows.length === 0" description="暂无榜单数据" :image-size="90" />

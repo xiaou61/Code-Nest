@@ -313,7 +313,15 @@
         </div>
         
         <!-- 文本预览 -->
-        <div v-else-if="isTextFile(currentPreviewFile?.contentType)" class="text-preview">
+        <div v-else-if="isTextFile(currentPreviewFile?.contentType)" v-loading="previewLoading" class="text-preview">
+          <el-alert
+            v-if="previewError"
+            :title="previewError"
+            type="warning"
+            show-icon
+            :closable="false"
+            class="preview-alert"
+          />
           <el-input
             v-model="previewContent"
             type="textarea"
@@ -379,6 +387,8 @@ const currentMoveFile = ref(null)
 const currentPreviewFile = ref(null)
 const currentUrlFile = ref(null)
 const previewContent = ref('')
+const previewError = ref('')
+const previewLoading = ref(false)
 const currentFileUrl = ref('')
 const currentUrlTime = ref('')
 const uploading = ref(false)
@@ -397,6 +407,7 @@ const uploadForm = reactive({
 
 // URL相关
 const urlExpireHours = ref(24)
+const TEXT_PREVIEW_MAX_SIZE = 1024 * 1024
 
 // 查询参数
 const queryParams = reactive({
@@ -502,19 +513,28 @@ const handleCurrentChange = (page) => {
 const previewFile = async (file) => {
   currentPreviewFile.value = file
   previewContent.value = ''
+  previewError.value = ''
+  previewLoading.value = false
+  previewDialogVisible.value = true
   
   // 如果是文本文件，尝试加载内容
   if (isTextFile(file.contentType)) {
+    if ((file.fileSize || 0) > TEXT_PREVIEW_MAX_SIZE) {
+      previewError.value = '文件超过 1MB，已停止在线预览，请下载后查看。'
+      previewDialogVisible.value = true
+      return
+    }
+
+    previewLoading.value = true
     try {
-      // 这里应该调用获取文件内容的API
-      // previewContent.value = await fileAPI.getFileContent(file.id)
-      previewContent.value = '文本内容预览功能待实现...'
+      const blob = await fileAPI.downloadFile(file.id)
+      previewContent.value = await readBlobAsText(blob)
     } catch (error) {
-      previewContent.value = '无法加载文件内容'
+      previewError.value = `无法加载文件内容：${error.message || '未知错误'}`
+    } finally {
+      previewLoading.value = false
     }
   }
-  
-  previewDialogVisible.value = true
 }
 
 const showMoveDialog = (file) => {
@@ -583,6 +603,19 @@ const downloadFile = async (file) => {
 }
 
 // === 新增功能方法 ===
+
+const readBlobAsText = async (blob) => {
+  if (blob && typeof blob.text === 'function') {
+    return blob.text()
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result || '')
+    reader.onerror = () => reject(new Error('文本读取失败'))
+    reader.readAsText(blob, 'UTF-8')
+  })
+}
 
 // 显示上传对话框
 const showUploadDialog = () => {
@@ -907,6 +940,10 @@ const isTextFile = (contentType) => {
   margin-top: 15px;
 }
 
+.preview-alert {
+  margin-bottom: 12px;
+}
+
 .other-preview {
   text-align: center;
   padding: 40px 20px;
@@ -955,4 +992,4 @@ const isTextFile = (contentType) => {
   margin-left: 10px;
   color: #909399;
 }
-</style> 
+</style>

@@ -5,11 +5,11 @@
   <parent>
     <groupId>com.xiaou</groupId>
     <artifactId>Code-Nest</artifactId>
-    <version>1.8.2</version>
+    <version>v2.0.1</version>
   </parent>
   <groupId>com.xiaou</groupId>
   <artifactId>xiaou-ai</artifactId>
-  <version>1.8.2</version>
+  <version>v2.0.1</version>
   <description>统一AI服务模块 - 基于 LangChain4j 和 LangGraph4j 的 AI 场景门面</description>
   <dependencies>
     <dependency>

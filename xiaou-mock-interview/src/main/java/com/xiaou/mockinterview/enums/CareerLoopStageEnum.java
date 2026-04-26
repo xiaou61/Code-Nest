@@ -15,7 +15,8 @@ public enum CareerLoopStageEnum {
     PLAN_READY(3, "计划已生成"),
     PLAN_EXECUTING(4, "计划执行中"),
     INTERVIEW_DONE(5, "面试已完成"),
-    REVIEWED(6, "复盘已完成");
+    REVIEWED(6, "复盘已完成"),
+    OFFER_TRACKING(7, "投递与Offer跟踪");
 
     private final int order;
     private final String label;
