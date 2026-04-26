@@ -113,7 +113,7 @@ export const fileAPI = {
 
   // 下载文件
   downloadFile(id) {
-    return request.get(`/file/download/${id}`, {
+    return request.get(`/file/download/${id}`, {}, {
       responseType: 'blob'
     })
   },
@@ -219,4 +219,4 @@ export const systemAPI = {
   getSystemSummary() {
     return request.get('/admin/system/summary')
   }
-} 
+}

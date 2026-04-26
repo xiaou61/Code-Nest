@@ -71,9 +71,9 @@
             <el-icon><Refresh /></el-icon>
             重置
           </el-button>
-          <el-button type="success" @click="handleExport">
+          <el-button type="success" :loading="exporting" @click="handleExport">
             <el-icon><Download /></el-icon>
-            导出
+            {{ exporting ? '导出中...' : '导出' }}
           </el-button>
         </el-form-item>
       </el-form>
@@ -270,6 +270,8 @@ const loading = ref(false)
 const tableData = ref([])
 const showDetailDialog = ref(false)
 const selectedDetail = ref(null)
+const exporting = ref(false)
+const MAX_EXPORT_ROWS = 5000
 
 // 搜索表单
 const searchForm = reactive({
@@ -364,8 +366,33 @@ const handleReset = () => {
 }
 
 // 导出数据
-const handleExport = () => {
-  ElMessage.info('导出功能开发中...')
+const handleExport = async () => {
+  exporting.value = true
+
+  try {
+    const params = buildQueryParams({
+      pageNum: 1,
+      pageSize: MAX_EXPORT_ROWS,
+      ...searchForm
+    })
+
+    const result = await pointsApi.getAllPointsDetailList(params)
+    const rows = result.records || []
+
+    if (!rows.length) {
+      ElMessage.warning('当前筛选条件下暂无可导出的积分明细')
+      return
+    }
+
+    downloadCsv(rows)
+    const extraTip = (result.total || 0) > MAX_EXPORT_ROWS ? `，已导出前 ${MAX_EXPORT_ROWS} 条` : ''
+    ElMessage.success(`积分明细导出成功，共 ${rows.length} 条${extraTip}`)
+  } catch (error) {
+    console.error('导出积分明细失败:', error)
+    ElMessage.error('导出积分明细失败')
+  } finally {
+    exporting.value = false
+  }
 }
 
 // 分页大小改变
@@ -391,6 +418,62 @@ const handleViewDetail = (row) => {
 onMounted(() => {
   loadData()
 })
+
+const buildQueryParams = (source) => {
+  const params = { ...source }
+  Object.keys(params).forEach(key => {
+    if (params[key] === '' || params[key] === null || params[key] === undefined) {
+      delete params[key]
+    }
+  })
+  return params
+}
+
+const downloadCsv = (rows) => {
+  const headers = [
+    ['id', '明细ID'],
+    ['userId', '用户ID'],
+    ['userName', '用户名'],
+    ['pointsChange', '积分变动'],
+    ['pointsTypeDesc', '积分类型'],
+    ['description', '变动描述'],
+    ['balanceAfter', '变动后余额'],
+    ['continuousDays', '连续打卡天数'],
+    ['adminId', '管理员ID'],
+    ['adminName', '管理员名称'],
+    ['createTime', '创建时间']
+  ]
+
+  const csvRows = [
+    headers.map(([, title]) => escapeCsv(title)).join(','),
+    ...rows.map(row => headers
+      .map(([key]) => escapeCsv(row[key] ?? ''))
+      .join(','))
+  ]
+
+  const blob = new Blob([`\uFEFF${csvRows.join('\n')}`], { type: 'text/csv;charset=utf-8;' })
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `积分明细_${formatExportTime(new Date())}.csv`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(url)
+}
+
+const escapeCsv = (value) => {
+  const text = String(value).replace(/\r?\n/g, ' ')
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`
+  }
+  return text
+}
+
+const formatExportTime = (date) => {
+  const pad = (num) => String(num).padStart(2, '0')
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
+}
 </script>
 
 <style scoped>

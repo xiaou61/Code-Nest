@@ -207,7 +207,9 @@
           </el-table-column>
           <el-table-column label="操作" width="200" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" @click="goByActionType(row.actionType)">去执行</el-button>
+              <el-button link type="primary" @click="goByActionType(row.actionType)">
+                {{ row.actionType === 'offer' ? '记录跟踪' : '去执行' }}
+              </el-button>
               <el-button
                 link
                 type="success"
@@ -313,7 +315,27 @@ const handleDoneAction = async (row) => {
   }
 }
 
-const goByActionType = (actionType) => {
+const goByActionType = async (actionType) => {
+  if (actionType === 'offer') {
+    try {
+      await careerLoopApi.event({
+        targetStage: 'OFFER_TRACKING',
+        source: 'manual',
+        note: '记录投递与Offer跟踪',
+        nextSuggestions: [
+          '维护投递公司、岗位、轮次和下一次跟进时间',
+          '将面试反馈同步回复盘清单，持续更新项目表达'
+        ]
+      })
+      ElMessage.success('已进入投递与Offer跟踪阶段')
+      await fetchAll()
+    } catch (e) {
+      console.error('记录投递与Offer跟踪失败', e)
+      ElMessage.error('记录投递与Offer跟踪失败')
+    }
+    return
+  }
+
   const routeMap = {
     setup: { path: '/job-battle', query: { step: '0', from: 'career-loop', action: 'setup' } },
     resume: { path: '/job-battle', query: { step: '1', from: 'career-loop', action: 'resume' } },

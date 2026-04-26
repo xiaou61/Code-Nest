@@ -5,8 +5,11 @@ const STAGE_ORDER = {
   PLAN_READY: 3,
   PLAN_EXECUTING: 4,
   INTERVIEW_DONE: 5,
-  REVIEWED: 6
+  REVIEWED: 6,
+  OFFER_TRACKING: 7
 }
+
+const MAX_STAGE_ORDER = Math.max(...Object.values(STAGE_ORDER))
 
 const STAGE_LABEL = {
   INIT: '初始化',
@@ -15,7 +18,8 @@ const STAGE_LABEL = {
   PLAN_READY: '计划已生成',
   PLAN_EXECUTING: '计划执行中',
   INTERVIEW_DONE: '面试已完成',
-  REVIEWED: '复盘已完成'
+  REVIEWED: '复盘已完成',
+  OFFER_TRACKING: '投递与 Offer 跟踪'
 }
 
 const ACTION_STATUS_TAG = {
@@ -45,7 +49,7 @@ export function mapStageOrder(stage) {
 
 export function mapStagePercent(stage) {
   const order = mapStageOrder(stage)
-  return Math.min(100, Math.round((order / 6) * 100))
+  return Math.min(100, Math.round((order / MAX_STAGE_ORDER) * 100))
 }
 
 export function mapActionStatusTag(status) {

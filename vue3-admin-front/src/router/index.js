@@ -409,6 +409,12 @@ const routes = [
         name: 'VersionManagement',
         component: () => import('@/views/system/version/index.vue'),
         meta: { title: '版本管理' }
+      },
+      {
+        path: 'ai-governance',
+        name: 'AiGovernance',
+        component: () => import('@/views/system/ai-governance/index.vue'),
+        meta: { title: 'AI治理' }
       }
     ]
   },

@@ -113,6 +113,9 @@ export function adaptContestRanking(rows = [], options = {}) {
     avatar: item.avatar || '',
     solvedCount: toNumber(item.solvedCount),
     penalty: toNumber(item.penalty),
+    performanceScore: toNumber(item.performanceScore),
+    ratingChange: toNumber(item.ratingChange),
+    ratingAfter: toNumber(item.ratingAfter, 1500),
     lastAcTime: normalizeDateTime(item.lastAcTime)
   }))
 
@@ -138,6 +141,10 @@ export function adaptContestRanking(rows = [], options = {}) {
       rank,
       solvedText: `${item.solvedCount} 题`,
       penaltyText: `${item.penalty} 分钟`,
+      performanceText: `${item.performanceScore} 分`,
+      ratingChangeText: item.ratingChange > 0 ? `+${item.ratingChange}` : String(item.ratingChange),
+      ratingChangeType: item.ratingChange > 0 ? 'success' : item.ratingChange < 0 ? 'danger' : 'info',
+      ratingAfterText: item.ratingAfter || '--',
       lastAcText: item.lastAcTime || '--',
       isCurrentUser: currentUserId != null && item.userId === currentUserId
     }

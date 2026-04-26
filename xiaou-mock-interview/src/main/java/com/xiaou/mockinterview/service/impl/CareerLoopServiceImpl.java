@@ -238,6 +238,7 @@ public class CareerLoopServiceImpl implements CareerLoopService {
             case PLAN_READY -> 6;
             case PLAN_EXECUTING, INTERVIEW_DONE -> 8;
             case REVIEWED -> 10;
+            case OFFER_TRACKING -> 12;
             default -> 0;
         };
         return Math.max(0, Math.min(100, base + gain));
@@ -310,7 +311,11 @@ public class CareerLoopServiceImpl implements CareerLoopService {
                 actions.add(newAction(sessionId, stage, "mock", "完成1次模拟面试", "进入真实问答评估环节"));
             }
             case INTERVIEW_DONE -> actions.add(newAction(sessionId, stage, "review", "完成面试复盘总结", "输出高影响修复动作并落地"));
-            case REVIEWED -> actions.add(newAction(sessionId, stage, "resume", "更新简历并准备投递", "把复盘动作反映到简历与项目表达"));
+            case REVIEWED -> actions.add(newAction(sessionId, stage, "offer", "记录投递与Offer跟踪", "把复盘动作转化为投递记录和Offer推进计划"));
+            case OFFER_TRACKING -> {
+                actions.add(newAction(sessionId, stage, "offer", "维护本周投递看板", "记录投递公司、面试状态、下一次跟进时间"));
+                actions.add(newAction(sessionId, stage, "review", "沉淀Offer阶段反馈", "整理面试反馈、薪资信息和下一轮准备动作"));
+            }
         }
         return actions;
     }

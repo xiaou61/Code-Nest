@@ -427,6 +427,10 @@
               <el-icon><Document /></el-icon>
               <span>版本管理</span>
             </el-menu-item>
+            <el-menu-item index="/system/ai-governance">
+              <el-icon><DataAnalysis /></el-icon>
+              <span>AI治理</span>
+            </el-menu-item>
             <el-sub-menu index="/system/monitor">
               <template #title>
                 <el-icon><Monitor /></el-icon>
@@ -591,6 +595,7 @@ const getIconByPath = (path, title = '') => {
     '/user': 'Avatar',
     '/notification': 'Bell',
     '/system/version': 'Document',
+    '/system/ai-governance': 'DataAnalysis',
     '/system/monitor/sql': 'DataAnalysis'
   }
   
@@ -638,6 +643,7 @@ const getIconByPath = (path, title = '') => {
     'lottery': 'Trophy',
     'system': 'Setting',
     'version': 'Document',
+    'ai-governance': 'DataAnalysis',
     'monitor': 'Monitor',
     'sql': 'DataAnalysis',
     'profile': 'User',
@@ -693,6 +699,8 @@ const getIconByPath = (path, title = '') => {
     '抽奖': 'Trophy',
     '系统': 'Setting',
     '版本': 'Document',
+    'AI': 'DataAnalysis',
+    '治理': 'DataAnalysis',
     '监控': 'Monitor',
     'SQL': 'DataAnalysis',
     '个人': 'User',

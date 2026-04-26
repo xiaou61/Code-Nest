@@ -32,6 +32,21 @@ public class ContestRankingItem {
     private Long penalty;
 
     /**
+     * 赛后预估表现分
+     */
+    private Integer performanceScore;
+
+    /**
+     * 赛后预估评分变化
+     */
+    private Integer ratingChange;
+
+    /**
+     * 赛后预估评分
+     */
+    private Integer ratingAfter;
+
+    /**
      * 最后一次 AC 时间
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
