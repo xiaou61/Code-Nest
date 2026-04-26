@@ -1,6 +1,6 @@
 # Code Nest
 
-![Version](https://img.shields.io/badge/version-1.8.2-blue.svg)
+![Version](https://img.shields.io/badge/version-v2.0.1-blue.svg)
 ![Java](https://img.shields.io/badge/java-17-orange.svg)
 ![Spring Boot](https://img.shields.io/badge/spring%20boot-3.4.4-brightgreen.svg)
 ![Vue](https://img.shields.io/badge/vue-3.x-4fc08d.svg)
@@ -208,7 +208,7 @@ mvn clean package -DskipTests
 mvn -pl xiaou-application -am spring-boot:run
 
 # 或直接运行打包后的 jar
-java -jar xiaou-application/target/xiaou-application-1.8.2.jar --spring.profiles.active=prod
+java -jar xiaou-application/target/xiaou-application-v2.0.1.jar --spring.profiles.active=prod
 ```
 
 - API 根地址：`http://localhost:9999/api`
@@ -317,7 +317,7 @@ management:
 
 ```bash
 # 构建镜像
-docker build -t code-nest:1.8.2 -f docker/Dockerfile .
+docker build -t code-nest:v2.0.1 -f docker/Dockerfile .
 
 # 运行容器
 docker run -d \
@@ -325,7 +325,7 @@ docker run -d \
   -p 9999:9999 \
   -e SPRING_PROFILES_ACTIVE=prod \
   --env-file docker/env/example.env \
-  code-nest:1.8.2
+  code-nest:v2.0.1
 ```
 
 可与 MySQL/Redis 容器组合，或使用 `docker-compose`.
@@ -374,6 +374,12 @@ server {
 ## 📝 更新日志
 
 仅列出最近版本，更多历史可查看 `git log`。
+
+### v2.0.1 🔖 版本升级基线
+
+- 🚀 **发布版本升级**：后端 Maven 版本、管理端前端与用户端前端统一升级到 `v2.0.1`。
+- 📦 **构建示例同步**：后端 Jar 运行命令与 Docker 镜像标签同步更新为 `v2.0.1`。
+- 🧭 **升级分支准备**：从 `master` 开出 `v2.0.1` 分支，作为后续小版本功能增强与发布验证基线。
 
 ### v1.8.2 🧠 学习资产转化引擎
 

@@ -5,11 +5,11 @@
   <parent>
     <groupId>com.xiaou</groupId>
     <artifactId>Code-Nest</artifactId>
-    <version>1.8.1</version>
+    <version>v2.0.1</version>
   </parent>
   <groupId>com.xiaou</groupId>
   <artifactId>xiaou-codepen</artifactId>
-  <version>1.8.1</version>
+  <version>v2.0.1</version>
   <name>xiaou-codepen</name>
   <description>代码共享器模块 - 在线代码编辑、分享和知识变现</description>
   <dependencies>
