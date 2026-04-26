@@ -84,13 +84,13 @@
           </el-button>
         </el-form-item>
       </el-form>
-      
+
       <div class="operation-buttons">
         <el-button type="primary" @click="handleAdd" :icon="Plus">
           添加用户
         </el-button>
-        <el-button 
-          type="danger" 
+        <el-button
+          type="danger"
           :disabled="!multipleSelection.length"
           @click="handleBatchDelete"
           :icon="Delete"
@@ -286,13 +286,13 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  Search, 
-  Refresh, 
-  Plus, 
-  Delete, 
-  Edit, 
-  View, 
+import {
+  Search,
+  Refresh,
+  Plus,
+  Delete,
+  Edit,
+  View,
   ArrowDown,
   User
 } from '@element-plus/icons-vue'
@@ -383,7 +383,7 @@ const loadUserList = async () => {
       pageSize: pagination.pageSize,
       ...searchForm
     }
-    
+
     const result = await userApi.getUserList(params)
     userList.value = result.records || []
     pagination.total = result.total || 0
@@ -448,10 +448,10 @@ const handleSubmit = async () => {
   try {
     await userFormRef.value.validate()
     submitLoading.value = true
-    
+
     if (isEdit.value) {
       // 编辑用户
-      const { password, confirmPassword, ...updateData } = userForm
+      const { password: _password, confirmPassword: _confirmPassword, ...updateData } = userForm
       await userApi.updateUser(currentUser.value.id, updateData)
       ElMessage.success('用户更新成功')
     } else {
@@ -459,7 +459,7 @@ const handleSubmit = async () => {
       await userApi.createUser(userForm)
       ElMessage.success('用户创建成功')
     }
-    
+
     dialogVisible.value = false
     loadUserList()
     loadStatistics()
@@ -485,7 +485,7 @@ const handleBatchDelete = async () => {
         type: 'warning'
       }
     )
-    
+
     const userIds = multipleSelection.value.map(user => user.id)
     await userApi.deleteUsers(userIds)
     ElMessage.success('批量删除成功')
@@ -499,8 +499,8 @@ const handleBatchDelete = async () => {
 }
 
 const handleDropdownCommand = async (command, row) => {
-  const [action, userId] = command.split('_')
-  
+  const [action] = command.split('_')
+
   switch (action) {
     case 'status':
       await handleToggleStatus(row)
@@ -517,7 +517,7 @@ const handleDropdownCommand = async (command, row) => {
 const handleToggleStatus = async (row) => {
   const newStatus = row.status === 0 ? 1 : 0
   const action = newStatus === 0 ? '启用' : '禁用'
-  
+
   try {
     await ElMessageBox.confirm(
       `确定${action}用户 "${row.username}" 吗？`,
@@ -528,7 +528,7 @@ const handleToggleStatus = async (row) => {
         type: 'warning'
       }
     )
-    
+
     await userApi.updateUserStatus(row.id, newStatus)
     ElMessage.success(`${action}成功`)
     loadUserList()
@@ -553,7 +553,7 @@ const handleResetPassword = async (row) => {
         inputErrorMessage: '密码长度在 6 到 20 个字符'
       }
     )
-    
+
     await userApi.resetPassword(row.id, newPassword)
     ElMessage.success('密码重置成功')
   } catch (error) {
@@ -574,7 +574,7 @@ const handleDelete = async (row) => {
         type: 'warning'
       }
     )
-    
+
     await userApi.deleteUser(row.id)
     ElMessage.success('删除成功')
     loadUserList()
@@ -714,4 +714,4 @@ onMounted(() => {
 .dialog-footer {
   text-align: right;
 }
-</style> 
+</style>

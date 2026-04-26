@@ -71,8 +71,8 @@
       <el-table-column label="进度" width="200">
         <template #default="{ row }">
           <div class="progress-info">
-            <el-progress 
-              :percentage="getProgressPercentage(row)" 
+            <el-progress
+              :percentage="getProgressPercentage(row)"
               :status="getProgressStatus(row.status)"
               :stroke-width="8"
             />
@@ -96,26 +96,26 @@
           <el-button type="info" size="small" @click="viewTaskDetail(row)">
             详情
           </el-button>
-          <el-button 
+          <el-button
             v-if="row.status === 'PENDING'"
-            type="success" 
-            size="small" 
+            type="success"
+            size="small"
             @click="executeTask(row)"
           >
             执行
           </el-button>
-          <el-button 
+          <el-button
             v-if="row.status === 'RUNNING'"
-            type="warning" 
-            size="small" 
+            type="warning"
+            size="small"
             @click="stopTask(row)"
           >
             停止
           </el-button>
-          <el-button 
+          <el-button
             v-if="['COMPLETED', 'FAILED', 'STOPPED'].includes(row.status)"
-            type="danger" 
-            size="small" 
+            type="danger"
+            size="small"
             @click="deleteTask(row)"
           >
             删除
@@ -257,7 +257,7 @@
         <div v-if="taskDetail.filterParams" class="filter-params-display">
           <h4>筛选参数</h4>
           <el-descriptions :column="1" border>
-            <el-descriptions-item 
+            <el-descriptions-item
               v-for="(value, key) in JSON.parse(taskDetail.filterParams)"
               :key="key"
               :label="key"
@@ -281,8 +281,8 @@
         <!-- 实时进度 -->
         <div v-if="taskDetail.status === 'RUNNING'" class="real-time-progress">
           <h4>实时进度</h4>
-          <el-progress 
-            :percentage="getProgressPercentage(taskDetail)" 
+          <el-progress
+            :percentage="getProgressPercentage(taskDetail)"
             :stroke-width="12"
             text-inside
           />
@@ -297,7 +297,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh } from '@element-plus/icons-vue'
 import { migrationAPI, storageAPI } from '@/api/filestorage'
@@ -396,7 +396,7 @@ const loadStorageConfigs = async () => {
   try {
     const data = await storageAPI.getStorageConfigs({ isEnabled: 1 })
     storageConfigs.value = data
-    
+
     // 构建存储配置映射
     const configMap = {}
     data.forEach(config => {
@@ -440,7 +440,7 @@ const resetCreateForm = () => {
 const handleMigrationTypeChange = () => {
   // 清空筛选参数
   Object.keys(filterParams).forEach(key => delete filterParams[key])
-  
+
   // 根据迁移类型初始化参数
   if (createForm.migrationType === 'FILE_TYPE') {
     filterParams.contentTypes = []
@@ -450,12 +450,12 @@ const handleMigrationTypeChange = () => {
 const handleCreateTask = async () => {
   try {
     await createFormRef.value.validate()
-    
+
     const taskData = {
       ...createForm,
       filterParams: filterParams
     }
-    
+
     await migrationAPI.createMigrationTask(taskData)
     ElMessage.success('创建迁移任务成功')
     createDialogVisible.value = false
@@ -472,7 +472,7 @@ const viewTaskDetail = async (task) => {
     const data = await migrationAPI.getMigrationTask(task.id)
     taskDetail.value = data
     detailDialogVisible.value = true
-    
+
     // 如果任务正在运行，定时刷新进度
     if (data.status === 'RUNNING') {
       refreshTaskProgress(task.id)
@@ -489,7 +489,7 @@ const executeTask = async (task) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    
+
     await migrationAPI.executeMigration(task.id)
     ElMessage.success('迁移任务已开始执行')
     loadMigrationList()
@@ -507,7 +507,7 @@ const stopTask = async (task) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    
+
     await migrationAPI.stopMigration(task.id)
     ElMessage.success('迁移任务已停止')
     loadMigrationList()
@@ -525,7 +525,7 @@ const deleteTask = async (task) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    
+
     await migrationAPI.deleteMigrationTask(task.id)
     ElMessage.success('删除迁移任务成功')
     loadMigrationList()
@@ -541,7 +541,7 @@ const refreshTaskProgress = async (taskId) => {
     const progress = await migrationAPI.getMigrationProgress(taskId)
     if (taskDetail.value && taskDetail.value.id === taskId) {
       Object.assign(taskDetail.value, progress)
-      
+
       // 如果任务还在运行，3秒后再次刷新
       if (progress.status === 'RUNNING') {
         setTimeout(() => refreshTaskProgress(taskId), 3000)
@@ -666,4 +666,4 @@ const getProgressStatus = (status) => {
 .dialog-footer {
   text-align: right;
 }
-</style> 
+</style>

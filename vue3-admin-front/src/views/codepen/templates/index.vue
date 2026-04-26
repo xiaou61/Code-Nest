@@ -335,6 +335,7 @@ const runPreview = () => {
   const html = formData.value.htmlCode || ''
   const css = formData.value.cssCode || ''
   const js = formData.value.jsCode || ''
+  const scriptCloseTag = '</scr' + 'ipt>'
 
   const content = `
     <!DOCTYPE html>
@@ -344,7 +345,7 @@ const runPreview = () => {
       </head>
       <body>
         ${html}
-        <script>${js}<\/script>
+        <script>${js}${scriptCloseTag}
       </body>
     </html>
   `
@@ -359,6 +360,7 @@ const runViewPreview = () => {
   const html = viewData.value.htmlCode || ''
   const css = viewData.value.cssCode || ''
   const js = viewData.value.jsCode || ''
+  const scriptCloseTag = '</scr' + 'ipt>'
 
   const content = `
     <!DOCTYPE html>
@@ -368,7 +370,7 @@ const runViewPreview = () => {
       </head>
       <body>
         ${html}
-        <script>${js}<\/script>
+        <script>${js}${scriptCloseTag}
       </body>
     </html>
   `

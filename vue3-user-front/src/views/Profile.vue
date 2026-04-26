@@ -38,7 +38,7 @@
                   <span class="balance-number">{{ pointsBalance?.totalPoints || 0 }}</span>
                   <span class="balance-label">总积分</span>
                 </div>
-                
+
                 <div class="checkin-info">
                   <div class="checkin-stats">
                     <div class="stat-item">
@@ -50,9 +50,9 @@
                       <span class="stat-label">明日可得</span>
                     </div>
                   </div>
-                  
-                  <button 
-                    class="checkin-btn" 
+
+                  <button
+                    class="checkin-btn"
                     :class="{ 'checked': pointsBalance?.hasCheckedToday }"
                     :disabled="pointsBalance?.hasCheckedToday || checkinLoading"
                     @click="handleQuickCheckin"
@@ -67,7 +67,7 @@
             </div>
           </div>
         </el-card>
-        
+
         <el-card class="profile-card">
           <template #header>
             <div class="card-header">
@@ -92,9 +92,9 @@
                   <el-form-item label="头像">
                     <div class="avatar-section">
                       <div class="avatar-display">
-                        <el-avatar 
-                          :size="100" 
-                          :src="profileForm.avatar" 
+                        <el-avatar
+                          :size="100"
+                          :src="profileForm.avatar"
                           :alt="profileForm.nickname || profileForm.username"
                         >
                           <el-icon><User /></el-icon>
@@ -245,7 +245,7 @@ import { useUserStore } from '@/stores/user'
 import { userApi } from '@/api/user'
 import { captchaApi } from '@/api/captcha'
 import pointsApi from '@/api/points'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { House, User, Plus, Picture, Trophy } from '@element-plus/icons-vue'
 
 // 图标别名（避免和变量冲突）
@@ -369,7 +369,7 @@ const handleSave = async () => {
 
     const result = await userApi.updateUserInfo(updateData)
     userStore.setUserInfo(result)
-    
+
     ElMessage.success('个人资料更新成功')
     editMode.value = false
   } catch (error) {
@@ -392,15 +392,15 @@ const handleChangePassword = async () => {
       captcha: passwordForm.captcha,
       captchaKey: passwordForm.captchaKey
     })
-    
+
     ElMessage.success('密码修改成功，请重新登录')
-    
+
     // 修改密码成功后自动登出
     setTimeout(() => {
       userStore.logout()
       router.push('/login')
     }, 1500)
-    
+
   } catch (error) {
     console.error('修改密码失败:', error)
     loadPasswordCaptcha() // 修改密码失败时刷新验证码
@@ -452,21 +452,21 @@ const beforeAvatarUpload = (rawFile) => {
 // 头像文件选择变化
 const handleAvatarChange = async (uploadFile) => {
   if (!uploadFile.raw) return
-  
+
   try {
     avatarUploading.value = true
     const avatarUrl = await userApi.uploadAvatar(uploadFile.raw)
-    
+
     // 更新头像显示
     profileForm.avatar = avatarUrl
-    
+
     // 更新用户存储信息
     const currentUserInfo = userStore.userInfo
     if (currentUserInfo) {
       currentUserInfo.avatar = avatarUrl
       userStore.setUserInfo(currentUserInfo)
     }
-    
+
     ElMessage.success('头像上传成功')
   } catch (error) {
     console.error('头像上传失败:', error)
@@ -508,18 +508,18 @@ const handleQuickCheckin = async () => {
   }
 
   checkinLoading.value = true
-  
+
   try {
     const response = await pointsApi.checkin()
-    
+
     ElMessage.success({
       message: `打卡成功！获得 ${response.pointsEarned} 积分`,
       duration: 3000
     })
-    
+
     // 刷新积分余额
     await loadPointsBalance()
-    
+
   } catch (error) {
     console.error('打卡失败:', error)
     ElMessage.error(error.message || '打卡失败，请重试')
@@ -546,7 +546,7 @@ onMounted(() => {
   background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
   position: relative;
   overflow-x: hidden;
-  
+
   &::before {
     content: '';
     position: absolute;
@@ -554,7 +554,7 @@ onMounted(() => {
     left: 0;
     right: 0;
     bottom: 0;
-    background: 
+    background:
       radial-gradient(circle at 15% 15%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
       radial-gradient(circle at 85% 85%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
     animation: float 15s ease-in-out infinite;
@@ -583,7 +583,7 @@ onMounted(() => {
 .logo {
   cursor: pointer;
   transition: transform 0.3s ease;
-  
+
   &:hover {
     transform: scale(1.05);
   }
@@ -616,7 +616,7 @@ onMounted(() => {
   border-radius: 12px;
   transition: all 0.3s ease;
   backdrop-filter: blur(10px);
-  
+
   &:hover {
     background: rgba(255, 255, 255, 0.3);
     border-color: rgba(255, 255, 255, 0.5);
@@ -624,7 +624,7 @@ onMounted(() => {
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
   }
-  
+
   /* 确保图标和文字都是白色 */
   .el-icon,
   span {
@@ -645,7 +645,7 @@ onMounted(() => {
   flex-direction: column;
   gap: 32px;
   animation: slide-up 0.8s ease-out;
-  
+
   @keyframes slide-up {
     from {
       opacity: 0;
@@ -664,14 +664,14 @@ onMounted(() => {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
   border-radius: 20px;
-  box-shadow: 
+  box-shadow:
     0 20px 40px rgba(0, 0, 0, 0.15),
     0 8px 16px rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.3);
   transition: all 0.3s ease;
   overflow: hidden;
   position: relative;
-  
+
   &::before {
     content: '';
     position: absolute;
@@ -681,10 +681,10 @@ onMounted(() => {
     height: 3px;
     background: linear-gradient(90deg, #74b9ff, #0984e3);
   }
-  
+
   &:hover {
     transform: translateY(-5px);
-    box-shadow: 
+    box-shadow:
       0 25px 50px rgba(0, 0, 0, 0.2),
       0 12px 24px rgba(0, 0, 0, 0.15);
   }
@@ -714,30 +714,30 @@ onMounted(() => {
 
 .profile-content :deep(.el-form-item) {
   margin-bottom: 24px;
-  
+
   .el-form-item__label {
     font-weight: 600;
     color: #2c3e50;
   }
-  
+
   .el-input__wrapper {
     border-radius: 12px;
     border: 2px solid rgba(116, 185, 255, 0.1);
     background: rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(10px);
     transition: all 0.3s ease;
-    
+
     &:hover {
       border-color: rgba(116, 185, 255, 0.3);
       background: rgba(255, 255, 255, 0.9);
     }
-    
+
     &.is-focus {
       border-color: #74b9ff;
       background: white;
       box-shadow: 0 0 0 3px rgba(116, 185, 255, 0.1);
     }
-    
+
     &.is-disabled {
       background: rgba(245, 247, 250, 0.8);
       border-color: rgba(200, 200, 200, 0.3);
@@ -760,7 +760,7 @@ onMounted(() => {
   height: 40px;
   transition: all 0.3s ease;
   position: relative;
-  
+
   &::before {
     content: '';
     position: absolute;
@@ -772,12 +772,12 @@ onMounted(() => {
     opacity: 0;
     transition: opacity 0.3s ease;
   }
-  
+
   &:hover {
     border-color: #74b9ff;
     transform: scale(1.05);
     box-shadow: 0 4px 12px rgba(116, 185, 255, 0.2);
-    
+
     &::before {
       opacity: 1;
     }
@@ -797,23 +797,23 @@ onMounted(() => {
   border-radius: 12px;
   font-weight: 600;
   transition: all 0.3s ease;
-  
+
   &.el-button--primary {
     background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
     border: none;
-    
+
     &:hover {
       background: linear-gradient(135deg, #0984e3 0%, #2d3436 100%);
       transform: translateY(-2px);
       box-shadow: 0 8px 25px rgba(116, 185, 255, 0.4);
     }
   }
-  
+
   &:not(.el-button--primary) {
     background: rgba(116, 185, 255, 0.1);
     border: 2px solid rgba(116, 185, 255, 0.2);
     color: #74b9ff;
-    
+
     &:hover {
       background: rgba(116, 185, 255, 0.2);
       border-color: #74b9ff;
@@ -827,7 +827,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 24px;
-  
+
   @media (max-width: 768px) {
     flex-direction: column;
     align-items: center;
@@ -837,12 +837,12 @@ onMounted(() => {
 
 .avatar-display {
   position: relative;
-  
+
   :deep(.el-avatar) {
     border: 3px solid rgba(116, 185, 255, 0.2);
     box-shadow: 0 8px 24px rgba(116, 185, 255, 0.15);
     transition: all 0.3s ease;
-    
+
     &:hover {
       border-color: rgba(116, 185, 255, 0.4);
       transform: scale(1.05);
@@ -855,7 +855,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  
+
   @media (max-width: 768px) {
     align-items: center;
     text-align: center;
@@ -866,7 +866,7 @@ onMounted(() => {
   color: #666;
   font-size: 12px;
   line-height: 1.4;
-  
+
   p {
     margin: 0;
   }
@@ -880,7 +880,7 @@ onMounted(() => {
     background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
     border: none;
     transition: all 0.3s ease;
-    
+
     &:hover {
       background: linear-gradient(135deg, #0984e3 0%, #2d3436 100%);
       transform: translateY(-2px);
@@ -899,53 +899,53 @@ onMounted(() => {
     height: 60px;
     padding: 0 16px;
   }
-  
+
   .logo h2 {
     font-size: 24px;
   }
-  
+
   .nav-menu {
     gap: 8px;
   }
-  
+
   .nav-menu :deep(.el-button) {
     padding: 8px 12px;
     font-size: 14px;
     color: white !important;
-    
+
     /* 移动端也确保图标和文字都是白色 */
     .el-icon,
     span {
       color: white !important;
     }
   }
-  
+
   .main-content {
     padding: 20px 16px;
   }
-  
+
   .profile-card,
   .password-card {
     margin: 0 8px;
   }
-  
+
   .card-header {
     flex-direction: column;
     gap: 12px;
     align-items: flex-start;
     padding: 20px 24px 0;
   }
-  
+
   .profile-content {
     padding: 24px;
   }
-  
+
   .captcha-row {
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
   }
-  
+
   .captcha-image {
     width: 100%;
     max-width: 250px;
@@ -957,11 +957,11 @@ onMounted(() => {
 .points-card {
   background: linear-gradient(135deg, rgba(103, 194, 58, 0.95) 0%, rgba(116, 185, 255, 0.95) 100%);
   color: white;
-  
+
   &::before {
     background: linear-gradient(90deg, #67c23a, #74b9ff);
   }
-  
+
   .card-header h3 {
     color: white;
     background: none;
@@ -982,7 +982,7 @@ onMounted(() => {
     justify-content: space-between;
     align-items: center;
     gap: 24px;
-    
+
     @media (max-width: 768px) {
       flex-direction: column;
       gap: 20px;
@@ -995,7 +995,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  
+
   .balance-number {
     font-size: 42px;
     font-weight: 800;
@@ -1006,7 +1006,7 @@ onMounted(() => {
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
-  
+
   .balance-label {
     font-size: 14px;
     opacity: 0.9;
@@ -1019,7 +1019,7 @@ onMounted(() => {
   flex-direction: column;
   gap: 16px;
   align-items: flex-end;
-  
+
   @media (max-width: 768px) {
     align-items: center;
   }
@@ -1028,19 +1028,19 @@ onMounted(() => {
 .checkin-stats {
   display: flex;
   gap: 20px;
-  
+
   .stat-item {
     display: flex;
     flex-direction: column;
     align-items: center;
-    
+
     .stat-number {
       font-size: 24px;
       font-weight: 700;
       margin-bottom: 2px;
       text-shadow: 0 1px 4px rgba(0,0,0,0.2);
     }
-    
+
     .stat-label {
       font-size: 12px;
       opacity: 0.9;
@@ -1063,24 +1063,24 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   backdrop-filter: blur(10px);
-  
+
   &:hover:not(:disabled) {
     background: rgba(255,255,255,0.3);
     border-color: rgba(255,255,255,0.5);
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(0,0,0,0.2);
   }
-  
+
   &:disabled {
     opacity: 0.8;
     cursor: not-allowed;
   }
-  
+
   &.checked {
     background: rgba(76, 175, 80, 0.8);
     border-color: rgba(76, 175, 80, 0.9);
   }
-  
+
   .loading-icon {
     animation: spin 1s linear infinite;
   }
@@ -1090,4 +1090,4 @@ onMounted(() => {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-</style> 
+</style>

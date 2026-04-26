@@ -214,12 +214,6 @@ const getScoreClass = (score) => {
   return 'score-low'
 }
 
-// 格式化时长
-const formatDuration = (minutes) => {
-  if (!minutes) return '-'
-  return `${minutes}分钟`
-}
-
 // 格式化日期
 const formatDate = (dateStr) => {
   if (!dateStr) return '-'
@@ -309,7 +303,7 @@ const deleteInterview = async (item) => {
       type: 'warning'
     })
 
-const res = await mockInterviewApi.deleteInterview(item.id)
+    await mockInterviewApi.deleteInterview(item.id)
     ElMessage.success('删除成功')
     fetchHistory()
   } catch (error) {

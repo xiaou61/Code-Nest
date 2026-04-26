@@ -101,7 +101,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import pointsApi from '@/api/points'
 import PointsDetailDialog from './components/PointsDetailDialog.vue'

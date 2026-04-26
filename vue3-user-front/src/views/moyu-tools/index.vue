@@ -161,7 +161,7 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { 
-  Coffee, TrendCharts, Right, Clock, Money, Calendar, Reading, Notification
+  Coffee, TrendCharts, Right, Money, Calendar, Reading, Notification
 } from '@element-plus/icons-vue'
 
 const router = useRouter()

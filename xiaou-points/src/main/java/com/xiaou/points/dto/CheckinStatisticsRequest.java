@@ -19,5 +19,6 @@ public class CheckinStatisticsRequest {
     /**
      * 查询最近几个月的数据，默认为3个月
      */
+    @Builder.Default
     private Integer months = 3;
 }

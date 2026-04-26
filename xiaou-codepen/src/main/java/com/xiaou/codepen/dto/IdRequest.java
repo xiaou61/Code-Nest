@@ -5,18 +5,17 @@ import jakarta.validation.constraints.Positive;
 import lombok.Data;
 
 /**
- * Fork作品请求
- * 
+ * 通用ID请求
+ *
  * @author xiaou
  */
 @Data
-public class ForkRequest {
-    
-    /**
-     * 作品ID
-     */
-    @NotNull(message = "作品ID不能为空")
-    @Positive(message = "作品ID必须为正数")
-    private Long penId;
-}
+public class IdRequest {
 
+    /**
+     * 主键ID
+     */
+    @NotNull(message = "ID不能为空")
+    @Positive(message = "ID必须为正数")
+    private Long id;
+}

@@ -12,7 +12,7 @@
           </div>
         </div>
       </div>
-      
+
       <div class="header-right">
         <el-input
           v-model="searchKeyword"
@@ -47,13 +47,13 @@
           @node-click="handleNodeClick"
           @node-dblclick="handleNodeDblClick"
         />
-        
+
         <div v-if="!nodeTree.length" class="empty-canvas">
           <el-icon size="64" color="#c0c4cc"><DataAnalysis /></el-icon>
           <p>暂无内容</p>
         </div>
       </div>
-      
+
       <!-- 画布操作提示 -->
       <div class="canvas-tips-container">
         <div class="canvas-tips">
@@ -85,8 +85,8 @@
       <div v-if="selectedNode" class="node-content">
         <!-- 节点类型标识 -->
         <div class="node-header">
-          <el-tag 
-            :type="getNodeTypeTagType(selectedNode.nodeType)" 
+          <el-tag
+            :type="getNodeTypeTagType(selectedNode.nodeType)"
             size="small"
           >
             {{ getNodeTypeText(selectedNode.nodeType) }}
@@ -95,37 +95,37 @@
             <span>查看次数: {{ selectedNode.viewCount || 0 }}</span>
           </div>
         </div>
-        
+
         <!-- 飞书文档内容 -->
         <div v-if="selectedNode.url" class="document-content">
-          <iframe 
-            :src="selectedNode.url" 
-            frameborder="0" 
-            width="100%" 
+          <iframe
+            :src="selectedNode.url"
+            frameborder="0"
+            width="100%"
             :height="isMobile ? '60vh' : '800px'"
             sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
           ></iframe>
         </div>
-        
+
         <!-- 空内容提示 -->
         <div v-else class="empty-content">
           <el-icon size="48" color="#c0c4cc"><Document /></el-icon>
           <p>该节点暂无文档链接</p>
         </div>
       </div>
-      
+
       <template #footer>
         <div class="dialog-footer">
           <div class="navigation-buttons">
-            <el-button 
-              :disabled="!hasPrevNode" 
+            <el-button
+              :disabled="!hasPrevNode"
               @click="navigateToNode('prev')"
             >
               <el-icon><ArrowLeft /></el-icon>
               上一个节点
             </el-button>
-            <el-button 
-              :disabled="!hasNextNode" 
+            <el-button
+              :disabled="!hasNextNode"
               @click="navigateToNode('next')"
             >
               下一个节点
@@ -147,16 +147,16 @@
       direction="rtl"
     >
       <div v-if="searchResults.length" class="search-results">
-        <div 
-          v-for="result in searchResults" 
+        <div
+          v-for="result in searchResults"
           :key="result.id"
           class="search-result-item"
           @click="handleSelectSearchResult(result)"
         >
           <div class="result-header">
             <h4 class="result-title">{{ result.title }}</h4>
-            <el-tag 
-              :type="getNodeTypeTagType(result.nodeType)" 
+            <el-tag
+              :type="getNodeTypeTagType(result.nodeType)"
               size="small"
             >
               {{ getNodeTypeText(result.nodeType) }}
@@ -167,7 +167,7 @@
           </div>
         </div>
       </div>
-      
+
       <div v-else-if="searchKeyword" class="no-search-results">
         <el-icon size="48" color="#c0c4cc"><Search /></el-icon>
         <p>未找到相关节点</p>
@@ -224,145 +224,6 @@ const checkDevice = () => {
 // 组件ref
 const mindMapRef = ref()
 
-// 简单的代码高亮函数
-const highlightCode = (code, language) => {
-  if (!language) return code
-  
-  // 基础关键字高亮
-  const keywords = {
-    javascript: ['function', 'const', 'let', 'var', 'if', 'else', 'for', 'while', 'return', 'import', 'export', 'class', 'extends', 'async', 'await', 'try', 'catch'],
-    java: ['public', 'private', 'protected', 'static', 'final', 'class', 'interface', 'extends', 'implements', 'import', 'package', 'if', 'else', 'for', 'while', 'return', 'new', 'this'],
-    python: ['def', 'class', 'if', 'else', 'elif', 'for', 'while', 'return', 'import', 'from', 'as', 'try', 'except', 'with', 'lambda', 'and', 'or', 'not'],
-    css: ['color', 'background', 'margin', 'padding', 'border', 'width', 'height', 'display', 'position', 'font'],
-    sql: ['SELECT', 'FROM', 'WHERE', 'INSERT', 'UPDATE', 'DELETE', 'JOIN', 'LEFT', 'RIGHT', 'INNER', 'ORDER', 'GROUP', 'BY']
-  }
-  
-  let highlightedCode = code
-  
-  // 高亮字符串
-  highlightedCode = highlightedCode.replace(/(["'`])((?:\\.|(?!\1)[^\\])*?)\1/g, '<span class="string">$1$2$1</span>')
-  
-  // 高亮注释
-  highlightedCode = highlightedCode.replace(/(\/\/.*$|\/\*[\s\S]*?\*\/|#.*$)/gm, '<span class="comment">$1</span>')
-  
-  // 高亮数字
-  highlightedCode = highlightedCode.replace(/\b(\d+\.?\d*)\b/g, '<span class="number">$1</span>')
-  
-  // 高亮关键字
-  const langKeywords = keywords[language] || keywords.javascript
-  langKeywords.forEach(keyword => {
-    const regex = new RegExp(`\\b${keyword}\\b`, 'g')
-    highlightedCode = highlightedCode.replace(regex, `<span class="keyword">${keyword}</span>`)
-  })
-  
-  return highlightedCode
-}
-
-// 增强的Markdown渲染函数
-const renderMarkdown = (text) => {
-  if (!text) return ''
-  
-  const result = text
-    // 标题 - 从最多的#开始匹配，避免冲突
-    .replace(/^###### (.*$)/gim, '<h6>$1</h6>')
-    .replace(/^##### (.*$)/gim, '<h5>$1</h5>')
-    .replace(/^#### (.*$)/gim, '<h4>$1</h4>')
-    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-    
-    // 代码块（在其他处理之前）
-    .replace(/```(\w+)?\n?([\s\S]*?)```/g, (match, lang, code) => {
-      const language = lang ? lang.toLowerCase() : ''
-      const cleanCode = code.trim()
-      const highlightedCode = language ? highlightCode(cleanCode, language) : cleanCode
-      const langClass = language ? ` class="language-${language}"` : ''
-      return `<pre><code${langClass}>${highlightedCode}</code></pre>`
-    })
-    .replace(/`([^`\n]+)`/g, '<code class="inline-code">$1</code>')
-    
-    // 图片（必须在链接之前处理！）
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, src) => {
-      const imgSrc = src.trim()
-      const altText = alt || '图片'
-      return `<div class="image-container"><img src="${imgSrc}" alt="${altText}" class="markdown-image" /></div>`
-    })
-    
-    // 链接（在图片之后处理）
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
-    
-    // 粗体和斜体
-    .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    
-    // 删除线
-    .replace(/~~(.*?)~~/g, '<del>$1</del>')
-    
-    // 有序列表
-    .replace(/^\d+\. (.*$)/gim, '<li class="ordered">$1</li>')
-    
-    // 无序列表
-    .replace(/^[\*\-\+] (.*$)/gim, '<li class="unordered">$1</li>')
-    
-    // 包装列表
-    .replace(/(<li class="ordered">.*?<\/li>)/gs, '<ol>$1</ol>')
-    .replace(/(<li class="unordered">.*?<\/li>)/gs, '<ul>$1</ul>')
-    .replace(/class="(ordered|unordered)"/g, '')
-    
-    // 引用
-    .replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>')
-    
-    // 表格
-    .replace(/(\|.+\|\n?)+/g, (match) => {
-      const lines = match.trim().split('\n').filter(line => line.trim())
-      if (lines.length < 2) return match
-      
-      // 检查是否是有效的表格（第二行应该是分隔符）
-      const separatorLine = lines[1]
-      if (!/^\|[\s\-\|:]+\|$/.test(separatorLine)) return match
-      
-      const tableRows = []
-      
-      // 处理表头
-      const headerCells = lines[0].split('|').slice(1, -1).map(cell => cell.trim())
-      if (headerCells.length > 0) {
-        tableRows.push('<tr>' + headerCells.map(cell => `<th>${cell}</th>`).join('') + '</tr>')
-      }
-      
-      // 处理数据行（跳过分隔符行）
-      for (let i = 2; i < lines.length; i++) {
-        const cells = lines[i].split('|').slice(1, -1).map(cell => cell.trim())
-        if (cells.length > 0) {
-          tableRows.push('<tr>' + cells.map(cell => `<td>${cell}</td>`).join('') + '</tr>')
-        }
-      }
-      
-      return tableRows.length > 0 ? `<table>${tableRows.join('')}</table>` : match
-    })
-    
-    // 分割线
-    .replace(/^(-{3,}|\*{3,}|_{3,})$/gim, '<hr>')
-    
-    // 段落处理
-    .replace(/\n\s*\n/g, '</p><p>')
-    .replace(/\n/g, '<br>')
-    
-    // 包装段落（排除已有标签的内容）
-    .replace(/^(?!<[h1-6ul]|<blockquote|<pre|<hr|<table)(.+)$/gim, '<p>$1</p>')
-    
-    // 清理多余的空段落
-    .replace(/<p><\/p>/g, '')
-    .replace(/<p>\s*<\/p>/g, '')
-  
-  return result
-}
-
-// 计算属性 - 不再需要渲染Markdown，直接处理URL
-const documentUrl = computed(() => {
-  return selectedNode.value?.url || ''
-})
-
 const hasPrevNode = computed(() => {
   return selectedNodeIndex.value > 0
 })
@@ -375,7 +236,7 @@ const hasNextNode = computed(() => {
 const mindMapData = computed(() => {
   const nodes = []
   const edges = []
-  
+
   const processNode = (node, parent = null) => {
     nodes.push({
       id: node.id.toString(),
@@ -383,7 +244,7 @@ const mindMapData = computed(() => {
       description: node.url,
       nodeType: getNodeTypeString(node.nodeType)
     })
-    
+
     if (parent) {
       edges.push({
         id: `edge-${parent.id}-${node.id}`,
@@ -391,14 +252,14 @@ const mindMapData = computed(() => {
         target: node.id.toString()
       })
     }
-    
+
     if (node.children && node.children.length) {
       node.children.forEach(child => processNode(child, node))
     }
   }
-  
+
   nodeTree.value.forEach(rootNode => processNode(rootNode))
-  
+
   return { nodes, edges }
 })
 
@@ -424,10 +285,10 @@ const fetchNodeTree = async () => {
     loading.value = true
     const data = await getKnowledgeNodeTree(mapId.value)
     nodeTree.value = data
-    
+
     // 扁平化节点列表
     flattenNodeTree(data)
-    
+
     // 初始化思维导图
     await nextTick()
     initMindMap()
@@ -454,25 +315,25 @@ const initMindMap = () => {
 
 const handleNodeClick = (nodeData) => {
   console.log('节点点击事件触发:', nodeData) // 添加调试日志
-  
+
   // 如果直接传入了完整节点数据，就直接使用
   let fullNode = nodeData
-  
+
   // 如果传入的是G6格式的数据，需要从扁平化列表中查找
   if (nodeData.id && !nodeData.url) {
     fullNode = flatNodeList.value.find(n => n.id.toString() === nodeData.id.toString())
   }
-  
+
   if (fullNode) {
     selectedNode.value = fullNode
     selectedNodeIndex.value = flatNodeList.value.findIndex(n => n.id === fullNode.id)
-    
+
     // 延迟一帧确保在移动端正确显示
     nextTick(() => {
       showNodeDetail.value = true
       console.log('弹框应该显示了:', showNodeDetail.value) // 添加调试日志
     })
-    
+
     // 处理图片加载
     handleImageLoading()
   }
@@ -496,16 +357,16 @@ const navigateToNode = (direction) => {
   } else {
     newIndex = selectedNodeIndex.value + 1
   }
-  
+
   if (newIndex >= 0 && newIndex < flatNodeList.value.length) {
     const node = flatNodeList.value[newIndex]
     // 直接传递节点数据
     selectedNode.value = node
     selectedNodeIndex.value = newIndex
-    
+
     // 处理图片加载
     handleImageLoading()
-    
+
 
   }
 }
@@ -515,12 +376,12 @@ const handleSearch = async () => {
     ElMessage.warning('请输入搜索关键词')
     return
   }
-  
+
   try {
     const data = await searchKnowledgeNodes(mapId.value, searchKeyword.value)
     searchResults.value = data
     showSearchResults.value = true
-    
+
     if (!data.length) {
       ElMessage.info('未找到相关节点')
     }
@@ -532,10 +393,10 @@ const handleSearch = async () => {
 const handleSelectSearchResult = (result) => {
   showSearchResults.value = false
   searchKeyword.value = ''
-  
+
   // 定位并选中节点
   handleNodeClick(result)
-  
+
   // 节点定位由MindMap组件自动处理
 }
 
@@ -568,7 +429,7 @@ const getNodeTypeTagType = (nodeType) => {
     2: 'danger',   // 重点
     3: 'warning',  // 难点
     'normal': 'info',
-    'important': 'danger', 
+    'important': 'danger',
     'category': 'warning'
   }
   return typeMap[nodeType] || 'info'
@@ -592,10 +453,10 @@ const handleImageLoading = () => {
 onMounted(async () => {
   // 初始化设备检测
   checkDevice()
-  
+
   // 监听窗口大小变化
   window.addEventListener('resize', checkDevice)
-  
+
   await fetchMapInfo()
   await fetchNodeTree()
 })
@@ -627,9 +488,9 @@ onMounted(() => {
       }
     }
   }
-  
+
   document.addEventListener('keydown', handleKeydown)
-  
+
   // 清理事件监听器
   onUnmounted(() => {
     document.removeEventListener('keydown', handleKeydown)
@@ -1147,46 +1008,46 @@ onMounted(() => {
     gap: 12px;
     align-items: stretch;
   }
-  
+
   .header-left,
   .header-right {
     justify-content: space-between;
     width: 100%;
   }
-  
+
   .header-right {
     flex-wrap: wrap;
     gap: 8px;
   }
-  
+
   .canvas-tips {
     display: none;
   }
-  
+
   .dialog-footer {
     flex-direction: column;
     gap: 16px;
   }
-  
+
   .navigation-buttons {
     width: 100%;
     justify-content: space-between;
   }
-  
+
   /* 移动端弹框优化 */
   .node-detail-dialog {
     margin: 0 !important;
   }
-  
+
   .document-content {
     height: auto !important;
     min-height: 60vh;
   }
-  
+
   .node-content {
     padding: 10px !important;
   }
-  
+
   .node-header {
     flex-direction: column;
     align-items: flex-start;
@@ -1212,16 +1073,16 @@ onMounted(() => {
     max-height: 100vh;
     border-radius: 0;
   }
-  
+
   :deep(.el-dialog__body) {
     padding: 10px !important;
     max-height: calc(100vh - 120px);
     overflow-y: auto;
   }
-  
+
   :deep(.el-dialog__footer) {
     padding: 10px !important;
     border-top: 1px solid #f0f0f0;
   }
 }
-</style> 
+</style>

@@ -2,6 +2,43 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
+const buildManualChunks = (id) => {
+  if (!id.includes('node_modules')) {
+    return undefined
+  }
+
+  if (id.includes('@antv') || id.includes('/g6/')) {
+    return 'vendor-graph'
+  }
+
+  if (id.includes('echarts') || id.includes('/d3')) {
+    return 'vendor-charts'
+  }
+
+  if (id.includes('markdown-it') || id.includes('highlight.js')) {
+    return 'vendor-markdown'
+  }
+
+  if (id.includes('element-plus') || id.includes('@element-plus')) {
+    return 'vendor-element'
+  }
+
+  if (id.includes('/vue/') || id.includes('vue-router') || id.includes('pinia')) {
+    return 'vendor-vue'
+  }
+
+  if (
+    id.includes('axios') ||
+    id.includes('lodash') ||
+    id.includes('js-cookie') ||
+    id.includes('nprogress')
+  ) {
+    return 'vendor-utils'
+  }
+
+  return 'vendor'
+}
+
 export default defineConfig({
   plugins: [vue()],
   resolve: {
@@ -21,10 +58,23 @@ export default defineConfig({
       },
     },
   },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        api: 'modern',
+      },
+    },
+  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
     minify: 'esbuild',
     sourcemap: false,
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks: buildManualChunks,
+      },
+    },
   },
-}) 
+})

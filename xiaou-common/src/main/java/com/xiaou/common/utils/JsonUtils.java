@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -166,9 +167,34 @@ public class JsonUtils {
             return null;
         }
         try {
-            return JSON.parseObject(json, Map.class);
+            JSONObject jsonObject = JSON.parseObject(json);
+            return jsonObject == null ? null : new LinkedHashMap<>(jsonObject);
         } catch (Exception e) {
             log.error("JSON转Map失败: {}", json, e);
+            return null;
+        }
+    }
+
+    /**
+     * JSON字符串转字符串Map（使用FastJson2）
+     *
+     * @param json JSON字符串
+     * @return 字符串Map对象
+     */
+    public static Map<String, String> parseStringMap(String json) {
+        if (!StringUtils.hasText(json)) {
+            return null;
+        }
+        try {
+            JSONObject jsonObject = JSON.parseObject(json);
+            if (jsonObject == null) {
+                return null;
+            }
+            Map<String, String> result = new LinkedHashMap<>();
+            jsonObject.forEach((key, value) -> result.put(key, value == null ? null : value.toString()));
+            return result;
+        } catch (Exception e) {
+            log.error("JSON转String Map失败: {}", json, e);
             return null;
         }
     }

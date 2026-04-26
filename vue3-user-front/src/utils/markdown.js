@@ -1,6 +1,35 @@
 import MarkdownIt from 'markdown-it'
-import hljs from 'highlight.js'
+import hljs from 'highlight.js/lib/core'
+import bash from 'highlight.js/lib/languages/bash'
+import css from 'highlight.js/lib/languages/css'
+import java from 'highlight.js/lib/languages/java'
+import javascript from 'highlight.js/lib/languages/javascript'
+import json from 'highlight.js/lib/languages/json'
+import markdown from 'highlight.js/lib/languages/markdown'
+import python from 'highlight.js/lib/languages/python'
+import shell from 'highlight.js/lib/languages/shell'
+import sql from 'highlight.js/lib/languages/sql'
+import typescript from 'highlight.js/lib/languages/typescript'
+import xml from 'highlight.js/lib/languages/xml'
 import 'highlight.js/styles/github.css' // 代码高亮主题
+
+const languages = {
+  bash,
+  css,
+  java,
+  javascript,
+  json,
+  markdown,
+  python,
+  shell,
+  sql,
+  typescript,
+  xml,
+}
+
+Object.entries(languages).forEach(([name, language]) => {
+  hljs.registerLanguage(name, language)
+})
 
 // 配置markdown-it
 const md = new MarkdownIt({
@@ -14,9 +43,12 @@ const md = new MarkdownIt({
       try {
         const result = hljs.highlight(str, { language: lang }).value
         return `<pre class="hljs"><code class="language-${lang}">${result}</code></pre>`
-      } catch (__) {}
+      } catch (__) {
+        const escaped = md.utils.escapeHtml(str)
+        return `<pre class="hljs"><code>${escaped}</code></pre>`
+      }
     }
-    
+
     // 默认处理（没有指定语言或语言不支持）
     const escaped = md.utils.escapeHtml(str)
     return `<pre class="hljs"><code>${escaped}</code></pre>`
@@ -24,7 +56,7 @@ const md = new MarkdownIt({
 })
 
 // 自定义渲染规则
-md.renderer.rules.heading_open = function (tokens, idx, options, env, renderer) {
+md.renderer.rules.heading_open = function (tokens, idx, _options, _env, _renderer) {
   const token = tokens[idx]
   const level = token.tag.slice(1) // h1 -> 1, h2 -> 2, etc.
   return `<${token.tag} class="markdown-heading markdown-h${level}">`
@@ -65,14 +97,14 @@ const defaultLinkRender = md.renderer.rules.link_open || function(tokens, idx, o
 
 md.renderer.rules.link_open = function (tokens, idx, options, env, renderer) {
   const aIndex = tokens[idx].attrIndex('target')
-  
+
   if (aIndex < 0) {
     tokens[idx].attrPush(['target', '_blank'])
     tokens[idx].attrPush(['rel', 'noopener noreferrer'])
   } else {
     tokens[idx].attrs[aIndex][1] = '_blank'
   }
-  
+
   return defaultLinkRender(tokens, idx, options, env, renderer)
 }
 
@@ -85,7 +117,7 @@ export function renderMarkdown(content) {
   if (!content || typeof content !== 'string') {
     return ''
   }
-  
+
   try {
     return md.render(content)
   } catch (error) {
@@ -97,4 +129,4 @@ export function renderMarkdown(content) {
 
 export default {
   renderMarkdown
-} 
+}

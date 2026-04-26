@@ -5,10 +5,10 @@
       <div class="header-section">
         <h1>通知中心</h1>
         <div class="header-actions">
-          <el-button @click="goToMoments" icon="Picture">
+          <el-button @click="goToMoments" :icon="Picture">
             朋友圈
           </el-button>
-          <el-button @click="goToHome" type="default" icon="HomeFilled">
+          <el-button @click="goToHome" type="default" :icon="HomeFilled">
             返回首页
           </el-button>
           <el-button @click="markAllRead" type="primary" :disabled="unreadCount === 0">
@@ -61,8 +61,8 @@
         <el-card shadow="never">
           <el-row :gutter="20" class="filter-row">
             <el-col :span="6">
-              <el-input 
-                v-model="searchForm.title" 
+              <el-input
+                v-model="searchForm.title"
                 placeholder="搜索消息标题"
                 clearable
                 @clear="searchMessages"
@@ -74,9 +74,9 @@
               </el-input>
             </el-col>
             <el-col :span="4">
-              <el-select 
-                v-model="searchForm.status" 
-                placeholder="消息状态" 
+              <el-select
+                v-model="searchForm.status"
+                placeholder="消息状态"
                 clearable
                 @change="searchMessages"
               >
@@ -86,9 +86,9 @@
               </el-select>
             </el-col>
             <el-col :span="4">
-              <el-select 
-                v-model="searchForm.type" 
-                placeholder="消息类型" 
+              <el-select
+                v-model="searchForm.type"
+                placeholder="消息类型"
                 clearable
                 @change="searchMessages"
               >
@@ -126,10 +126,10 @@
             <div v-if="messageList.length === 0 && !loading" class="empty-state">
               <el-empty description="暂无消息" />
             </div>
-            
-            <div 
-              v-for="message in messageList" 
-              :key="message.id" 
+
+            <div
+              v-for="message in messageList"
+              :key="message.id"
               class="message-item"
               :class="{ 'unread': message.status === 'UNREAD' }"
               @click="viewMessageDetail(message)"
@@ -139,20 +139,20 @@
                   <component :is="getMessageIcon(message.type)" />
                 </el-icon>
               </div>
-              
+
               <div class="message-content">
                 <div class="message-header">
                   <div class="message-title">{{ message.title }}</div>
                   <div class="message-meta">
-                    <el-tag 
-                      :type="getTypeTagType(message.type)" 
+                    <el-tag
+                      :type="getTypeTagType(message.type)"
                       size="small"
                     >
                       {{ getTypeText(message.type) }}
                     </el-tag>
-                    <el-tag 
-                      v-if="message.priority && message.priority !== 'LOW'" 
-                      :type="getPriorityTagType(message.priority)" 
+                    <el-tag
+                      v-if="message.priority && message.priority !== 'LOW'"
+                      :type="getPriorityTagType(message.priority)"
                       size="small"
                     >
                       {{ getPriorityText(message.priority) }}
@@ -160,12 +160,12 @@
                     <span class="message-time">{{ formatTime(message.createdTime) }}</span>
                   </div>
                 </div>
-                
+
                 <div class="message-preview">
                   {{ message.content }}
                 </div>
               </div>
-              
+
               <div class="message-actions">
                 <el-dropdown @command="handleMessageAction">
                   <el-button type="text" class="action-btn">
@@ -173,8 +173,8 @@
                   </el-button>
                   <template #dropdown>
                     <el-dropdown-menu>
-                      <el-dropdown-item 
-                        v-if="message.status === 'UNREAD'" 
+                      <el-dropdown-item
+                        v-if="message.status === 'UNREAD'"
                         :command="{action: 'markRead', id: message.id}"
                       >
                         标记已读
@@ -188,7 +188,7 @@
               </div>
             </div>
           </div>
-          
+
           <!-- 分页 -->
           <div class="pagination-container" v-if="totalCount > 0">
             <el-pagination
@@ -207,9 +207,9 @@
     </div>
 
     <!-- 消息详情对话框 -->
-    <el-dialog 
-      v-model="detailDialogVisible" 
-      title="消息详情" 
+    <el-dialog
+      v-model="detailDialogVisible"
+      title="消息详情"
       width="600px"
       :before-close="handleDetailClose"
     >
@@ -217,15 +217,15 @@
         <div class="detail-header">
           <h3>{{ currentMessage.title }}</h3>
           <div class="detail-meta">
-            <el-tag 
-              :type="getTypeTagType(currentMessage.type)" 
+            <el-tag
+              :type="getTypeTagType(currentMessage.type)"
               size="small"
             >
               {{ getTypeText(currentMessage.type) }}
             </el-tag>
-            <el-tag 
-              v-if="currentMessage.priority && currentMessage.priority !== 'LOW'" 
-              :type="getPriorityTagType(currentMessage.priority)" 
+            <el-tag
+              v-if="currentMessage.priority && currentMessage.priority !== 'LOW'"
+              :type="getPriorityTagType(currentMessage.priority)"
               size="small"
             >
               {{ getPriorityText(currentMessage.priority) }}
@@ -233,18 +233,18 @@
             <span class="detail-time">{{ formatTime(currentMessage.createTime) }}</span>
           </div>
         </div>
-        
+
         <div class="detail-content">
           <div v-html="formatContent(currentMessage.content)"></div>
         </div>
       </div>
-      
+
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="detailDialogVisible = false">关闭</el-button>
-          <el-button 
-            v-if="currentMessage && currentMessage.status === 'UNREAD'" 
-            type="primary" 
+          <el-button
+            v-if="currentMessage && currentMessage.status === 'UNREAD'"
+            type="primary"
             @click="markMessageAsRead(currentMessage.id)"
           >
             标记已读
@@ -258,14 +258,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { 
-  Message, 
-  Bell, 
-  CircleCheck, 
-  Search, 
+import {
+  Message,
+  Bell,
+  CircleCheck,
+  Search,
   MoreFilled,
   User,
   Notification,
@@ -273,12 +273,12 @@ import {
   HomeFilled,
   Picture
 } from '@element-plus/icons-vue'
-import { 
-  getMessages, 
-  getUnreadCount, 
-  getMessageDetail, 
-  markAsRead, 
-  deleteMessage, 
+import {
+  getMessages,
+  getUnreadCount,
+  getMessageDetail,
+  markAsRead,
+  deleteMessage,
   markAllAsRead
 } from '@/api/notification'
 
@@ -315,18 +315,18 @@ const currentMessage = ref(null)
 const searchMessages = async () => {
   try {
     loading.value = true
-    
+
     const params = {
       ...searchForm,
       pageNum: pagination.pageNum,
       pageSize: pagination.pageSize
     }
-    
+
     if (searchForm.dateRange && searchForm.dateRange.length === 2) {
       params.startTime = searchForm.dateRange[0]
       params.endTime = searchForm.dateRange[1]
     }
-    
+
     const response = await getMessages(params)
     messageList.value = response.records
     totalCount.value = response.total
@@ -353,7 +353,7 @@ const viewMessageDetail = async (message) => {
     const response = await getMessageDetail(message.id)
     currentMessage.value = response
     detailDialogVisible.value = true
-    
+
     // 如果是未读消息，自动标记为已读
     if (message.status === 'UNREAD') {
       await markMessageAsRead(message.id, false)
@@ -370,18 +370,18 @@ const markMessageAsRead = async (messageId, showMessage = true) => {
     if (showMessage) {
       ElMessage.success('已标记为已读')
     }
-    
+
     // 更新列表中的消息状态
     const messageIndex = messageList.value.findIndex(m => m.id === messageId)
     if (messageIndex !== -1) {
       messageList.value[messageIndex].status = 'READ'
     }
-    
+
     // 更新当前消息状态
     if (currentMessage.value && currentMessage.value.id === messageId) {
       currentMessage.value.status = 'READ'
     }
-    
+
     // 更新未读数量
     getUnreadCountData()
   } catch (error) {
@@ -397,17 +397,17 @@ const deleteMessageById = async (messageId) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    
+
     await deleteMessage({ messageIds: [messageId] })
     ElMessage.success('删除成功')
-    
+
     // 从列表中移除
     const messageIndex = messageList.value.findIndex(m => m.id === messageId)
     if (messageIndex !== -1) {
       messageList.value.splice(messageIndex, 1)
       totalCount.value--
     }
-    
+
     getUnreadCountData()
   } catch (error) {
     if (error === 'cancel') return
@@ -420,12 +420,12 @@ const markAllRead = async () => {
   try {
     await markAllAsRead()
     ElMessage.success('全部消息已标记为已读')
-    
+
     // 更新列表状态
     messageList.value.forEach(message => {
       message.status = 'READ'
     })
-    
+
     getUnreadCountData()
   } catch (error) {
     ElMessage.error('标记全部已读失败：' + error.message)
@@ -511,22 +511,22 @@ const formatTime = (time) => {
   const date = new Date(time)
   const now = new Date()
   const diff = now - date
-  
+
   // 小于1分钟
   if (diff < 60 * 1000) {
     return '刚刚'
   }
-  
+
   // 小于1小时
   if (diff < 60 * 60 * 1000) {
     return Math.floor(diff / (60 * 1000)) + '分钟前'
   }
-  
+
   // 小于1天
   if (diff < 24 * 60 * 60 * 1000) {
     return Math.floor(diff / (60 * 60 * 1000)) + '小时前'
   }
-  
+
   // 大于1天
   return date.toLocaleDateString()
 }
@@ -806,4 +806,4 @@ onMounted(() => {
 .dialog-footer {
   text-align: right;
 }
-</style> 
+</style>

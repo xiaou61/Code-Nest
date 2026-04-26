@@ -313,7 +313,6 @@ import {
   InfoFilled
 } from '@element-plus/icons-vue'
 import { pointsApi } from '@/api/points'
-import { userApi } from '@/api/user'
 
 // 响应式数据
 const selectedUser = ref(null)

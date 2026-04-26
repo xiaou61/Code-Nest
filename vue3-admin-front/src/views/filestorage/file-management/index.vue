@@ -351,7 +351,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Refresh, 
@@ -360,7 +360,6 @@ import {
   Picture, 
   VideoPlay, 
   Microphone, 
-  Folder,
   Download,
   Upload,
   View,
@@ -660,7 +659,7 @@ const handleUploadFiles = async () => {
     
     if (uploadForm.uploadType === 'single') {
       // 单文件上传
-      const result = await fileAPI.uploadSingle(
+      await fileAPI.uploadSingle(
         files[0], 
         uploadForm.moduleName, 
         uploadForm.businessType || 'default'

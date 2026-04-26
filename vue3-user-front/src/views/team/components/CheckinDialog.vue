@@ -98,7 +98,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Calendar, Close, Plus } from '@element-plus/icons-vue'
 import teamApi from '@/api/team'

@@ -3,7 +3,7 @@ package com.xiaou.filestorage.service.impl;
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.DigestUtil;
-import cn.hutool.json.JSONUtil;
+import com.xiaou.common.utils.JsonUtils;
 import com.xiaou.filestorage.domain.FileInfo;
 import com.xiaou.filestorage.domain.StorageConfig;
 import com.xiaou.filestorage.dto.FileUploadResult;
@@ -401,7 +401,7 @@ public class FileStorageServiceImpl implements FileStorageService {
     private FileUploadResult tryUploadWithStorage(StorageConfig storageConfig, MultipartFile file) {
         try {
             // 解析配置参数
-            Map<String, Object> configParams = JSONUtil.toBean(storageConfig.getConfigParams(), Map.class);
+            Map<String, Object> configParams = JsonUtils.parseMap(storageConfig.getConfigParams());
             
             // 获取存储策略
             FileStorageStrategy strategy = strategyFactory.createAndInitialize(
@@ -472,7 +472,7 @@ public class FileStorageServiceImpl implements FileStorageService {
      */
     private InputStream tryDownloadWithStorage(StorageConfig storageConfig, String storagePath) {
         try {
-            Map<String, Object> configParams = JSONUtil.toBean(storageConfig.getConfigParams(), Map.class);
+            Map<String, Object> configParams = JsonUtils.parseMap(storageConfig.getConfigParams());
             FileStorageStrategy strategy = strategyFactory.createAndInitialize(
                 storageConfig.getId(), storageConfig.getStorageType(), configParams);
                 
@@ -528,7 +528,7 @@ public class FileStorageServiceImpl implements FileStorageService {
      */
     private String tryGetUrlWithStorage(StorageConfig storageConfig, String storagePath, Integer expireHours) {
         try {
-            Map<String, Object> configParams = JSONUtil.toBean(storageConfig.getConfigParams(), Map.class);
+            Map<String, Object> configParams = JsonUtils.parseMap(storageConfig.getConfigParams());
             FileStorageStrategy strategy = strategyFactory.createAndInitialize(
                 storageConfig.getId(), storageConfig.getStorageType(), configParams);
                 
@@ -574,4 +574,4 @@ public class FileStorageServiceImpl implements FileStorageService {
             return null;
         }
     }
-} 
+}

@@ -143,8 +143,6 @@ const currentMonthDays = computed(() => {
 const nextMonthDays = computed(() => {
   if (!selectedYearMonth.value) return []
   
-  const [year, month] = selectedYearMonth.value.split('-').map(Number)
-  const lastDay = new Date(year, month, 0)
   const totalCells = 42 // 6行 x 7列
   const usedCells = prevMonthDays.value.length + currentMonthDays.value.length
   const remainingCells = totalCells - usedCells

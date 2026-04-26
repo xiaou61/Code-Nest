@@ -1,6 +1,6 @@
 {
   "name": "code-nest-admin-desktop",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
@@ -9,7 +9,7 @@
     "build": "vite build",
     "build:electron": "electron-vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext .vue,.js,.jsx --fix --ignore-path .gitignore",
+    "lint": "eslint . --ext .vue,.js,.jsx --fix",
     "pack": "electron-builder --dir",
     "dist": "electron-vite build && electron-builder",
     "dist:win": "electron-vite build && electron-builder --win"

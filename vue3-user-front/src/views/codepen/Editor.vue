@@ -377,6 +377,7 @@ const runCode = () => {
   const html = penData.htmlCode || ''
   const css = penData.cssCode || ''
   const js = penData.jsCode || ''
+  const scriptCloseTag = '</scr' + 'ipt>'
 
   const content = `
     <!DOCTYPE html>
@@ -386,7 +387,7 @@ const runCode = () => {
       </head>
       <body>
         ${html}
-        <script>${js}<\/script>
+        <script>${js}${scriptCloseTag}
       </body>
     </html>
   `

@@ -475,7 +475,7 @@ const radarStyle = (item = {}) => ({
 
 const formatDate = (text) => {
   if (!text || text.length < 10) return text || '--'
-  const [year, month, day] = text.split('-')
+  const [, month, day] = text.split('-')
   return `${month}/${day}`
 }
 

@@ -4,9 +4,12 @@ import com.xiaou.oj.judge.config.OjJudgeProperties;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
@@ -116,13 +119,19 @@ public class GoJudgeClient {
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-            List<?> response = restTemplate.postForObject(url, entity, List.class);
+            ResponseEntity<List<Map<String, Object>>> responseEntity = restTemplate.exchange(
+                url,
+                HttpMethod.POST,
+                entity,
+                new ParameterizedTypeReference<List<Map<String, Object>>>() {
+                });
+            List<Map<String, Object>> response = responseEntity.getBody();
             if (response == null || response.isEmpty()) {
                 return ExecuteResult.systemError("go-judge 返回空结果");
             }
 
             log.debug("go-judge response: {}", response.get(0));
-            return parseResult((Map<String, Object>) response.get(0));
+            return parseResult(response.get(0));
         } catch (Exception e) {
             log.error("调用 go-judge 失败", e);
             return ExecuteResult.systemError("调用 go-judge 失败: " + e.getMessage());
@@ -178,14 +187,14 @@ public class GoJudgeClient {
         executeResult.setMemoryUsed(memObj != null ? ((Number) memObj).longValue() / 1024 : 0);
 
         // files (stdout/stderr 内容)
-        Map<String, String> outputFiles = (Map<String, String>) result.get("files");
+        Map<String, String> outputFiles = toStringMap(result.get("files"));
         if (outputFiles != null) {
             executeResult.setStdout(outputFiles.getOrDefault("stdout", ""));
             executeResult.setStderr(outputFiles.getOrDefault("stderr", ""));
         }
 
         // fileIds (copyOutCached 返回的缓存文件ID)
-        Map<String, String> fileIds = (Map<String, String>) result.get("fileIds");
+        Map<String, String> fileIds = toStringMap(result.get("fileIds"));
         if (fileIds != null) {
             executeResult.setFileIds(fileIds);
         }
@@ -197,6 +206,20 @@ public class GoJudgeClient {
         }
 
         return executeResult;
+    }
+
+    private Map<String, String> toStringMap(Object value) {
+        if (!(value instanceof Map<?, ?> rawMap)) {
+            return null;
+        }
+
+        Map<String, String> result = new LinkedHashMap<>();
+        rawMap.forEach((key, mapValue) -> {
+            if (key != null && mapValue != null) {
+                result.put(key.toString(), mapValue.toString());
+            }
+        });
+        return result;
     }
 
     /**

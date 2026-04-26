@@ -57,7 +57,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { interviewApi } from '@/api/interview'
 import dayjs from 'dayjs'

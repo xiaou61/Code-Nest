@@ -114,7 +114,7 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
-  ChatLineSquare, CopyDocument, Delete, Link, InfoFilled, Check, Operation
+  ChatLineSquare, CopyDocument, Delete, Link, InfoFilled, Check
 } from '@element-plus/icons-vue'
 
 // 响应式数据

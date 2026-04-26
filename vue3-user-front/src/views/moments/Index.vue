@@ -125,14 +125,14 @@
               <!-- 动态内容 -->
               <div class="moment-body">
                 <p class="moment-text">{{ moment.content }}</p>
-                
+
                 <!-- 图片展示 -->
-                <div v-if="moment.images && moment.images.length" 
+                <div v-if="moment.images && moment.images.length"
                      class="moment-images"
                      :class="'images-' + Math.min(moment.images.length, 9)">
-                  <div 
-                    v-for="(image, index) in moment.images.slice(0, 9)" 
-                    :key="index" 
+                  <div
+                    v-for="(image, index) in moment.images.slice(0, 9)"
+                    :key="index"
                     class="image-item"
                     @click="previewImage(moment.images, index)"
                   >
@@ -161,7 +161,7 @@
 
                 <!-- 操作按钮 -->
                 <div class="action-bar">
-                  <button 
+                  <button
                     class="action-btn"
                     :class="{ active: moment.isLiked }"
                     @click="toggleLikeMoment(moment)"
@@ -174,7 +174,7 @@
                     <el-icon><ChatDotRound /></el-icon>
                     <span>评论</span>
                   </button>
-                  <button 
+                  <button
                     class="action-btn"
                     :class="{ active: moment.isFavorited, favorited: moment.isFavorited }"
                     @click="toggleFavoriteMoment(moment)"
@@ -190,15 +190,15 @@
                   <div v-for="comment in moment.recentComments" :key="comment.id" class="comment-item">
                     <span class="comment-author">{{ comment.userNickname }}</span>
                     <span class="comment-text">{{ comment.content }}</span>
-                    <button 
-                      v-if="comment.canDelete" 
+                    <button
+                      v-if="comment.canDelete"
                       class="delete-comment"
                       @click="deleteComment(comment, moment)"
                     >
                       删除
                     </button>
                   </div>
-                  <button 
+                  <button
                     v-if="moment.commentCount > moment.recentComments.length"
                     class="view-all-btn"
                     @click="viewAllComments(moment)"
@@ -301,18 +301,18 @@
 <script setup>
 import { ref, computed, onMounted, nextTick, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox, ElImageViewer } from 'element-plus'
-import { 
-  Star, ChatDotRound, MoreFilled, StarFilled, View, Search, Loading, 
+import {
+  Star, ChatDotRound, MoreFilled, Search, Loading,
   Edit, Picture, Location, Pointer, Delete, ChatLineSquare, Folder
 } from '@element-plus/icons-vue'
-import { 
-  getMomentList, 
-  toggleLike, 
-  deleteMoment as deleteMomentApi, 
+import {
+  getMomentList,
+  toggleLike,
+  deleteMoment as deleteMomentApi,
   deleteComment as deleteCommentApi,
   toggleFavorite,
   getHotMoments,
-  searchMoments 
+  searchMoments
 } from '@/api/moment'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
@@ -346,10 +346,6 @@ const searchKeyword = ref('')
 const isSearchMode = ref(false)
 const searching = ref(false)
 
-// 发布相关
-const publishForm = ref({
-  content: ''
-})
 const publishDialogVisible = ref(false)
 
 // 评论相关
@@ -438,7 +434,7 @@ const loadMoreSearch = async () => {
       pageNum: currentPage.value,
       pageSize: pageSize.value
     }
-    
+
     const result = await searchMoments(params)
     const newMoments = result.records.map(moment => ({
       ...moment,
@@ -446,7 +442,7 @@ const loadMoreSearch = async () => {
       liking: false,
       favoriting: false
     }))
-    
+
     momentList.value.push(...newMoments)
     hasMore.value = newMoments.length === pageSize.value
   } catch (error) {
@@ -493,7 +489,7 @@ const deleteMoment = async (moment) => {
 
     await deleteMomentApi(moment.id)
     ElMessage.success('删除成功')
-    
+
     // 从列表中移除
     const index = momentList.value.findIndex(item => item.id === moment.id)
     if (index > -1) {
@@ -539,7 +535,7 @@ const deleteComment = async (comment, moment) => {
 
     await deleteCommentApi(comment.id)
     ElMessage.success('删除成功')
-    
+
     // 从最新评论中移除
     const commentIndex = moment.recentComments.findIndex(item => item.id === comment.id)
     if (commentIndex > -1) {
@@ -604,18 +600,18 @@ const handleSearch = async () => {
     ElMessage.warning('请输入搜索关键词')
     return
   }
-  
+
   searching.value = true
   isSearchMode.value = true
   currentPage.value = 1
-  
+
   try {
     const params = {
       keyword: searchKeyword.value.trim(),
       pageNum: 1,
       pageSize: pageSize.value
     }
-    
+
     const result = await searchMoments(params)
     const newMoments = result.records.map(moment => ({
       ...moment,
@@ -623,7 +619,7 @@ const handleSearch = async () => {
       liking: false,
       favoriting: false
     }))
-    
+
     momentList.value = newMoments
     hasMore.value = newMoments.length === pageSize.value
   } catch (error) {
@@ -654,7 +650,7 @@ const formatTime = (time) => {
 // 初始化无限滚动
 const initInfiniteScroll = () => {
   if (!loadMoreRef.value) return
-  
+
   observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       // 当"加载更多"元素进入视口且有更多数据且不在加载中
@@ -665,14 +661,14 @@ const initInfiniteScroll = () => {
   }, {
     rootMargin: '100px' // 提前100px触发加载
   })
-  
+
   observer.observe(loadMoreRef.value)
 }
 
 onMounted(() => {
   loadHotMoments()
   loadMomentList()
-  
+
   // 延迟初始化无限滚动，等待DOM渲染
   nextTick(() => {
     setTimeout(() => {
@@ -1507,7 +1503,7 @@ onUnmounted(() => {
   .moments-layout {
     grid-template-columns: 1fr;
   }
-  
+
   .left-sidebar,
   .right-sidebar {
     display: none;
@@ -1520,36 +1516,36 @@ onUnmounted(() => {
     gap: 4px;
     padding: 16px;
   }
-  
+
   .page-title {
     font-size: 22px;
   }
-  
+
   .moments-main {
     padding: 12px;
   }
-  
+
   .publish-card {
     padding: 12px;
   }
-  
+
   .publish-actions {
     display: none;
   }
-  
+
   .moment-card {
     padding: 16px;
     border-radius: 12px;
   }
-  
+
   .moment-images {
     max-width: 100% !important;
   }
-  
+
   .action-bar {
     padding: 4px 0;
   }
-  
+
   .action-btn {
     padding: 6px 10px;
     font-size: 13px;

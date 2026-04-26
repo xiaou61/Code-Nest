@@ -433,7 +433,7 @@ const handleSubmit = async () => {
       ElMessage.success('修改成功')
       router.push(`/team/${teamId.value}`)
     } else {
-      const response = await teamApi.createTeam(submitData)
+      await teamApi.createTeam(submitData)
       ElMessage.success('创建成功')
       // 返回小组广场页面
       router.push('/team')

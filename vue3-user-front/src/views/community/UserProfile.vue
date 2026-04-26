@@ -227,9 +227,6 @@ import { communityApi } from '@/api/community'
 const route = useRoute()
 const router = useRouter()
 
-// 默认头像
-const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
-
 // 响应式数据
 const userProfile = ref(null)
 const postsList = ref([])

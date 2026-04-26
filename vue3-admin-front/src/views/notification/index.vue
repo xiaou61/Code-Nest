@@ -127,17 +127,17 @@
               <el-col :span="24">
                 <el-form :model="announcementForm" :rules="announcementRules" ref="announcementFormRef" label-width="120px">
                   <el-form-item label="公告标题" prop="title">
-                    <el-input 
-                      v-model="announcementForm.title" 
+                    <el-input
+                      v-model="announcementForm.title"
                       placeholder="请输入公告标题"
                       maxlength="200"
                       show-word-limit
                     />
                   </el-form-item>
                   <el-form-item label="公告内容" prop="content">
-                    <el-input 
-                      v-model="announcementForm.content" 
-                      type="textarea" 
+                    <el-input
+                      v-model="announcementForm.content"
+                      type="textarea"
                       :rows="8"
                       placeholder="请输入公告内容"
                     />
@@ -169,8 +169,8 @@
               <el-col :span="24">
                 <el-form :model="messageSearchForm" inline>
                   <el-form-item label="标题：">
-                    <el-input 
-                      v-model="messageSearchForm.title" 
+                    <el-input
+                      v-model="messageSearchForm.title"
                       placeholder="输入标题关键词"
                       clearable
                     />
@@ -238,9 +238,9 @@
               <el-table-column prop="createTime" label="创建时间" width="180" />
               <el-table-column label="操作" width="120" fixed="right">
                 <template #default="{ row }">
-                  <el-button 
-                    type="danger" 
-                    size="small" 
+                  <el-button
+                    type="danger"
+                    size="small"
                     @click="deleteMessageById(row.id)"
                   >
                     删除
@@ -270,25 +270,25 @@
           <div class="batch-send-section">
             <el-form :model="batchSendForm" :rules="batchSendRules" ref="batchSendFormRef" label-width="120px">
               <el-form-item label="接收者" prop="receiverIds">
-                <el-input 
-                  v-model="receiverIdsText" 
-                  type="textarea" 
+                <el-input
+                  v-model="receiverIdsText"
+                  type="textarea"
                   :rows="3"
                   placeholder="请输入接收者用户ID，多个ID用逗号分隔，如：1,2,3"
                 />
               </el-form-item>
               <el-form-item label="消息标题" prop="title">
-                <el-input 
-                  v-model="batchSendForm.title" 
+                <el-input
+                  v-model="batchSendForm.title"
                   placeholder="请输入消息标题"
                   maxlength="200"
                   show-word-limit
                 />
               </el-form-item>
               <el-form-item label="消息内容" prop="content">
-                <el-input 
-                  v-model="batchSendForm.content" 
-                  type="textarea" 
+                <el-input
+                  v-model="batchSendForm.content"
+                  type="textarea"
                   :rows="6"
                   placeholder="请输入消息内容"
                 />
@@ -343,9 +343,9 @@
     </el-card>
 
     <!-- 模板创建/编辑对话框 -->
-    <el-dialog 
-      v-model="templateDialogVisible" 
-      :title="templateDialogTitle" 
+    <el-dialog
+      v-model="templateDialogVisible"
+      :title="templateDialogTitle"
       width="600px"
     >
       <el-form :model="templateForm" :rules="templateRules" ref="templateFormRef" label-width="120px">
@@ -364,9 +364,9 @@
           <el-input v-model="templateForm.title" placeholder="请输入标题模板" />
         </el-form-item>
         <el-form-item label="内容模板" prop="content">
-          <el-input 
-            v-model="templateForm.content" 
-            type="textarea" 
+          <el-input
+            v-model="templateForm.content"
+            type="textarea"
             :rows="6"
             placeholder="请输入内容模板"
           />
@@ -385,13 +385,13 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  publishAnnouncement as apiPublishAnnouncement, 
-  getStatistics, 
-  getAllMessages, 
-  batchSendMessage, 
+import {
+  publishAnnouncement as apiPublishAnnouncement,
+  getStatistics,
+  getAllMessages,
+  batchSendMessage,
   deleteMessage,
   getTemplates,
   createTemplate,
@@ -519,12 +519,12 @@ const getStatisticsData = async () => {
     const params = {
       type: statisticsForm.type
     }
-    
+
     if (statisticsForm.dateRange && statisticsForm.dateRange.length === 2) {
       params.startTime = statisticsForm.dateRange[0]
       params.endTime = statisticsForm.dateRange[1]
     }
-    
+
     const response = await getStatistics(params)
     statisticsData.value = response
     ElMessage.success('统计数据获取成功')
@@ -536,10 +536,10 @@ const getStatisticsData = async () => {
 // 发布公告
 const publishAnnouncement = async () => {
   if (!announcementFormRef.value) return
-  
+
   const valid = await announcementFormRef.value.validate().catch(() => false)
   if (!valid) return
-  
+
   try {
     announcementLoading.value = true
     await apiPublishAnnouncement(announcementForm)
@@ -568,18 +568,18 @@ const resetAnnouncementForm = () => {
 const searchMessages = async () => {
   try {
     messageLoading.value = true
-    
+
     const params = {
       ...messageSearchForm,
       pageNum: messagePagination.pageNum,
       pageSize: messagePagination.pageSize
     }
-    
+
     if (messageSearchForm.dateRange && messageSearchForm.dateRange.length === 2) {
       params.startTime = messageSearchForm.dateRange[0]
       params.endTime = messageSearchForm.dateRange[1]
     }
-    
+
     const response = await getAllMessages(params)
     messageList.value = response.records
     messagePagination.total = response.total
@@ -610,7 +610,7 @@ const deleteMessageById = async (id) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    
+
     await deleteMessage(id)
     ElMessage.success('删除成功')
     searchMessages()
@@ -623,15 +623,15 @@ const deleteMessageById = async (id) => {
 // 批量发送消息
 const sendBatchMessage = async () => {
   if (!batchSendFormRef.value) return
-  
+
   const valid = await batchSendFormRef.value.validate().catch(() => false)
   if (!valid) return
-  
+
   if (batchSendForm.receiverIds.length === 0) {
     ElMessage.error('请输入有效的接收者ID')
     return
   }
-  
+
   try {
     batchSendLoading.value = true
     await batchSendMessage(batchSendForm)
@@ -690,13 +690,13 @@ const editTemplate = (template) => {
 // 保存模板
 const saveTemplate = async () => {
   if (!templateFormRef.value) return
-  
+
   const valid = await templateFormRef.value.validate().catch(() => false)
   if (!valid) return
-  
+
   try {
     templateSaveLoading.value = true
-    
+
     if (isEditMode.value) {
       await updateTemplate(templateForm.id, templateForm)
       ElMessage.success('模板更新成功')
@@ -704,7 +704,7 @@ const saveTemplate = async () => {
       await createTemplate(templateForm)
       ElMessage.success('模板创建成功')
     }
-    
+
     templateDialogVisible.value = false
     getTemplateList()
   } catch (error) {
@@ -722,7 +722,7 @@ const deleteTemplateById = async (id) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    
+
     await deleteTemplate(id)
     ElMessage.success('删除成功')
     getTemplateList()
@@ -809,13 +809,6 @@ const getTotalMessages = () => {
   return (announcementCount || 0) + (personalCount || 0) + (communityCount || 0) + (systemCount || 0)
 }
 
-const getReadRatePercent = (readRate) => {
-  if (!readRate || isNaN(readRate)) {
-    return 0
-  }
-  return Math.round(readRate * 100)
-}
-
 // 初始化
 onMounted(() => {
   getStatisticsData()
@@ -894,4 +887,4 @@ onMounted(() => {
 .dialog-footer {
   text-align: right;
 }
-</style> 
+</style>

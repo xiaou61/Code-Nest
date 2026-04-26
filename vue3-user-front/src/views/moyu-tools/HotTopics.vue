@@ -123,7 +123,7 @@ import { ElMessage } from 'element-plus'
 import { 
   TrendCharts, Refresh, Clock, ArrowRight
 } from '@element-plus/icons-vue'
-import { getHotTopicCategories, getAllHotTopicData, refreshHotTopicData } from '@/api/moyu'
+import { getAllHotTopicData, refreshHotTopicData } from '@/api/moyu'
 
 // 响应式数据
 const loading = ref(true)

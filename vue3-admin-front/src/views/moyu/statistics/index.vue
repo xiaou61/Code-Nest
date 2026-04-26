@@ -310,8 +310,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { 
-  Refresh, Calendar, Document, View, Star, DataAnalysis,
-  InfoFilled, EditPen
+  Refresh, Calendar, Document, View, Star, DataAnalysis
 } from '@element-plus/icons-vue'
 import { statisticsApi } from '@/api/moyu'
 

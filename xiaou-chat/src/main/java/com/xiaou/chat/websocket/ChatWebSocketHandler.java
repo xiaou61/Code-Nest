@@ -18,6 +18,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -127,7 +128,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         String deviceInfo = getUserAgent(session);
         
         // 解析消息请求
-        Map<String, Object> dataMap = (Map<String, Object>) wsMessage.getData();
+        Map<String, Object> dataMap = toObjectMap(wsMessage.getData());
         ChatMessageRequest request = BeanUtil.toBean(dataMap, ChatMessageRequest.class);
         
         // 保存消息到数据库
@@ -146,6 +147,20 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         sendMessage(session, ackMsg);
         
         log.info("用户发送消息，用户ID: {}, 消息ID: {}", userId, chatMessage.getId());
+    }
+
+    private Map<String, Object> toObjectMap(Object data) {
+        if (!(data instanceof Map<?, ?> rawMap)) {
+            throw new IllegalArgumentException("消息数据格式不正确");
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        rawMap.forEach((key, value) -> {
+            if (key != null) {
+                result.put(key.toString(), value);
+            }
+        });
+        return result;
     }
     
     /**

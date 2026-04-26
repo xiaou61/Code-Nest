@@ -14,8 +14,8 @@
           </div>
         </div>
         <div class="action-section">
-          <el-button 
-            type="danger" 
+          <el-button
+            type="danger"
             :disabled="selectedQuestions.length === 0"
             @click="handleBatchDelete"
           >
@@ -39,18 +39,18 @@
       <el-row :gutter="20">
         <el-col :span="6">
           <el-select v-model="queryForm.questionSetId" placeholder="请选择题单" clearable @change="handleSearch">
-            <el-option 
-              v-for="questionSet in questionSetList" 
-              :key="questionSet.id" 
-              :label="questionSet.title" 
-              :value="questionSet.id" 
+            <el-option
+              v-for="questionSet in questionSetList"
+              :key="questionSet.id"
+              :label="questionSet.title"
+              :value="questionSet.id"
             />
           </el-select>
         </el-col>
         <el-col :span="6">
-          <el-input 
-            v-model="queryForm.title" 
-            placeholder="请输入题目标题" 
+          <el-input
+            v-model="queryForm.title"
+            placeholder="请输入题目标题"
             clearable
             @clear="handleSearch"
             @keyup.enter="handleSearch"
@@ -61,9 +61,9 @@
           </el-input>
         </el-col>
         <el-col :span="6">
-          <el-input 
-            v-model="queryForm.keyword" 
-            placeholder="关键词搜索（标题、答案）" 
+          <el-input
+            v-model="queryForm.keyword"
+            placeholder="关键词搜索（标题、答案）"
             clearable
             @clear="handleSearch"
             @keyup.enter="handleSearch"
@@ -88,9 +88,9 @@
 
     <!-- 题目表格 -->
     <el-card class="table-card" shadow="never">
-      <el-table 
-        v-loading="loading" 
-        :data="questionList" 
+      <el-table
+        v-loading="loading"
+        :data="questionList"
         style="width: 100%"
         :row-key="row => row.id"
         @selection-change="handleSelectionChange"
@@ -131,8 +131,8 @@
 
       <!-- 分页组件 -->
       <div class="pagination-wrapper">
-        <el-pagination 
-          v-model:current-page="queryForm.pageNum" 
+        <el-pagination
+          v-model:current-page="queryForm.pageNum"
           v-model:page-size="queryForm.pageSize"
           :page-sizes="[10, 20, 50, 100]"
           :total="total"
@@ -144,17 +144,17 @@
     </el-card>
 
     <!-- 添加/编辑对话框 -->
-    <el-dialog 
-      :title="dialogTitle" 
-      v-model="dialogVisible" 
-      width="1200px" 
+    <el-dialog
+      :title="dialogTitle"
+      v-model="dialogVisible"
+      width="1200px"
       @close="resetForm"
       :close-on-click-modal="false"
     >
-      <el-form 
-        ref="formRef" 
-        :model="form" 
-        :rules="rules" 
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
         label-width="100px"
         style="max-height: 70vh; overflow-y: auto;"
       >
@@ -163,34 +163,34 @@
         </el-form-item>
         <el-form-item label="所属题单" prop="questionSetId">
           <el-select v-model="form.questionSetId" placeholder="请选择题单" style="width: 100%">
-            <el-option 
-              v-for="questionSet in questionSetList" 
-              :key="questionSet.id" 
-              :label="questionSet.title" 
-              :value="questionSet.id" 
+            <el-option
+              v-for="questionSet in questionSetList"
+              :key="questionSet.id"
+              :label="questionSet.title"
+              :value="questionSet.id"
             />
           </el-select>
         </el-form-item>
         <el-form-item label="排序序号" prop="sortOrder">
-          <el-input-number 
-            v-model="form.sortOrder" 
-            :min="0" 
-            :max="9999" 
-            placeholder="请输入排序序号" 
+          <el-input-number
+            v-model="form.sortOrder"
+            :min="0"
+            :max="9999"
+            placeholder="请输入排序序号"
           />
         </el-form-item>
-        
+
         <el-form-item label="参考答案" prop="answer">
-          <el-input 
-            v-model="form.answer" 
-            type="textarea" 
-            :rows="12" 
-            placeholder="请输入参考答案，支持Markdown语法" 
+          <el-input
+            v-model="form.answer"
+            type="textarea"
+            :rows="12"
+            placeholder="请输入参考答案，支持Markdown语法"
             style="width: 100%"
           />
         </el-form-item>
       </el-form>
-      
+
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
@@ -202,9 +202,9 @@
     </el-dialog>
 
     <!-- 预览对话框 -->
-    <el-dialog 
-      title="题目预览" 
-      v-model="previewVisible" 
+    <el-dialog
+      title="题目预览"
+      v-model="previewVisible"
       width="1000px"
       :close-on-click-modal="false"
     >
@@ -213,13 +213,13 @@
           <h3>{{ previewData.title }}</h3>
           <el-tag type="info">{{ previewData.questionSetTitle }}</el-tag>
         </div>
-        
+
         <div class="answer-section">
           <h3>参考答案</h3>
           <div class="markdown-content" v-html="renderMarkdown(previewData.answer)"></div>
         </div>
       </div>
-      
+
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="previewVisible = false">关闭</el-button>
@@ -228,37 +228,37 @@
     </el-dialog>
 
     <!-- MD导入对话框 -->
-    <el-dialog 
-      title="Markdown导入" 
-      v-model="importDialogVisible" 
-      width="900px" 
+    <el-dialog
+      title="Markdown导入"
+      v-model="importDialogVisible"
+      width="900px"
       @close="resetImportForm"
       :close-on-click-modal="false"
     >
       <el-form ref="importFormRef" :model="importForm" :rules="importRules" label-width="100px">
         <el-form-item label="目标题单" prop="questionSetId">
           <el-select v-model="importForm.questionSetId" placeholder="请选择题单" style="width: 100%">
-            <el-option 
-              v-for="questionSet in questionSetList" 
-              :key="questionSet.id" 
-              :label="questionSet.title" 
-              :value="questionSet.id" 
+            <el-option
+              v-for="questionSet in questionSetList"
+              :key="questionSet.id"
+              :label="questionSet.title"
+              :value="questionSet.id"
             />
           </el-select>
         </el-form-item>
         <el-form-item label="MD内容" prop="markdownContent">
-                     <el-input 
-             v-model="importForm.markdownContent" 
-             type="textarea" 
-             :rows="15" 
+                     <el-input
+             v-model="importForm.markdownContent"
+             type="textarea"
+             :rows="15"
              placeholder="请输入Markdown格式的题目内容，格式示例：&#10;&#10;## 什么是Java中的多态？&#10;&#10;多态是面向对象编程的一个重要特性，指同一个接口可以有不同的实现方式。&#10;&#10;在Java中，多态主要体现在：&#10;- 方法重载（编译时多态）&#10;- 方法重写（运行时多态）&#10;&#10;运行时多态的实现条件：&#10;1. 继承关系&#10;2. 方法重写&#10;3. 父类引用指向子类对象"
              style="width: 100%"
            />
         </el-form-item>
         <el-form-item>
-                     <el-alert 
-             title="格式说明" 
-             type="info" 
+                     <el-alert
+             title="格式说明"
+             type="info"
              :closable="false"
            >
              <template #default>
@@ -269,7 +269,7 @@
            </el-alert>
         </el-form-item>
       </el-form>
-      
+
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="importDialogVisible = false">取消</el-button>
@@ -284,15 +284,14 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
+import {
   Plus, Search, Refresh, Edit, Delete, View, Collection, Upload
 } from '@element-plus/icons-vue'
 import { interviewApi } from '@/api/interview'
 
 const route = useRoute()
-const router = useRouter()
 
 // 响应式数据
 const loading = ref(false)
@@ -363,7 +362,7 @@ const dialogTitle = computed(() => {
 // 简单的Markdown渲染（基本格式支持）
 const renderMarkdown = (text) => {
   if (!text) return ''
-  
+
   return text
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
@@ -471,7 +470,7 @@ const handleDelete = async (row) => {
         type: 'warning'
       }
     )
-    
+
     await interviewApi.deleteQuestion(row.id)
     ElMessage.success('删除成功')
     await fetchQuestions()
@@ -486,7 +485,7 @@ const handleDelete = async (row) => {
 // 批量删除
 const handleBatchDelete = async () => {
   if (selectedQuestions.value.length === 0) return
-  
+
   try {
     await ElMessageBox.confirm(
       `确定要删除选中的 ${selectedQuestions.value.length} 道题目吗？删除后将无法恢复！`,
@@ -497,7 +496,7 @@ const handleBatchDelete = async () => {
         type: 'warning'
       }
     )
-    
+
     const ids = selectedQuestions.value.map(item => item.id)
     await interviewApi.batchDeleteQuestions(ids)
     ElMessage.success('批量删除成功')
@@ -760,10 +759,10 @@ onMounted(() => {
     align-items: flex-start;
     gap: 15px;
   }
-  
+
   .action-section {
     align-self: stretch;
     justify-content: flex-end;
   }
 }
-</style> 
+</style>

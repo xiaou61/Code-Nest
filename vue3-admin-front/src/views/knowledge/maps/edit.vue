@@ -11,7 +11,7 @@
           </el-tag>
         </div>
       </div>
-      
+
       <div class="header-right">
         <el-button-group>
           <el-button :icon="ZoomOut" @click="handleZoomOut" title="缩小">缩小</el-button>
@@ -28,13 +28,13 @@
       <div class="sidebar" :class="{ collapsed: sidebarCollapsed }">
         <div class="sidebar-header">
           <h3 v-if="!sidebarCollapsed">节点树</h3>
-          <el-button 
-            text 
-            :icon="sidebarCollapsed ? Expand : Fold" 
+          <el-button
+            text
+            :icon="sidebarCollapsed ? Expand : Fold"
             @click="sidebarCollapsed = !sidebarCollapsed"
           />
         </div>
-        
+
         <div v-if="!sidebarCollapsed" class="sidebar-content">
           <!-- 节点树 -->
           <div class="node-tree">
@@ -43,7 +43,7 @@
                 添加根节点
               </el-button>
             </div>
-            
+
             <el-tree
               ref="treeRef"
               :data="nodeTree"
@@ -54,7 +54,7 @@
               @node-click="handleNodeClick"
               @node-contextmenu="handleNodeRightClick"
             >
-              <template #default="{ node, data }">
+              <template #default="{ data }">
                 <div class="tree-node" :class="{ active: selectedNodeId === data.id }">
                   <el-icon class="node-icon" :class="`node-type-${data.nodeType}`">
                     <component :is="getNodeIcon(data.nodeType)" />
@@ -87,7 +87,7 @@
               </template>
             </el-tree>
           </div>
-          
+
           <!-- 节点详情编辑 -->
           <div v-if="selectedNode" class="node-editor">
             <div class="editor-header">
@@ -103,7 +103,7 @@
               <el-form-item label="标题" prop="title">
                 <el-input v-model="nodeForm.title" placeholder="请输入节点标题" />
               </el-form-item>
-              
+
               <el-form-item label="类型" prop="nodeType">
                 <el-select v-model="nodeForm.nodeType" style="width: 100%;">
                   <el-option label="普通" :value="1" />
@@ -111,11 +111,11 @@
                   <el-option label="难点" :value="3" />
                 </el-select>
               </el-form-item>
-              
+
               <el-form-item label="展开" prop="isExpanded">
                 <el-switch v-model="nodeForm.isExpanded" />
               </el-form-item>
-              
+
               <el-form-item label="链接" prop="url">
                 <el-input
                   v-model="nodeForm.url"
@@ -123,7 +123,7 @@
                   clearable
                 />
               </el-form-item>
-              
+
               <el-form-item>
                 <el-button type="primary" size="small" @click="handleSaveNode">
                   保存节点
@@ -145,7 +145,7 @@
             <span style="margin-left: 16px;">已选择: {{ selectedNodeId ? '1' : '0' }} 个节点</span>
           </div>
         </div>
-        
+
         <!-- G6思维导图组件 -->
         <MindMap
           ref="mindMapRef"
@@ -159,7 +159,7 @@
           @node-delete="handleDeleteNodeFromMindMap"
           @node-update="handleUpdateNodeFromMindMap"
         />
-        
+
         <div v-if="!nodeTree.length" class="empty-canvas">
           <el-icon size="64" color="#c0c4cc"><Document /></el-icon>
           <p>暂无节点，点击"添加根节点"开始创建</p>
@@ -179,10 +179,10 @@
         :prefix-icon="Search"
         @keyup.enter="handleSearch"
       />
-      
+
       <div v-if="searchResults.length" class="search-results" style="margin-top: 16px;">
-        <div 
-          v-for="result in searchResults" 
+        <div
+          v-for="result in searchResults"
           :key="result.id"
           class="search-result-item"
           @click="handleSelectSearchResult(result)"
@@ -191,7 +191,7 @@
           <div class="result-content">{{ result.url || '暂无链接' }}</div>
         </div>
       </div>
-      
+
       <template #footer>
         <el-button @click="showSearchDialog = false">关闭</el-button>
         <el-button type="primary" @click="handleSearch">搜索</el-button>
@@ -227,7 +227,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, Check, ZoomIn, ZoomOut, Search, Plus, Edit, Delete,
-  Expand, Fold, Document, Setting, Star, Warning
+  Expand, Fold, Document, Star, Warning
 } from '@element-plus/icons-vue'
 import {
   getKnowledgeMapById,
@@ -311,21 +311,21 @@ const mindMapData = computed(() => {
   if (!nodeTree.value || nodeTree.value.length === 0) {
     return { nodes: [], edges: [] }
   }
-  
+
   // 简单的哈希检查，避免不必要的重计算
   const currentHash = JSON.stringify(nodeTree.value.map(n => ({ id: n.id, title: n.title, children: n.children?.length || 0 })))
-  
+
   if (currentHash === lastNodeTreeHash && cachedMindMapData) {
     console.log('📊 使用缓存的mindMapData')
     return cachedMindMapData
   }
-  
+
   console.log('📊 重新计算mindMapData')
   lastNodeTreeHash = currentHash
-  
+
   const nodes = []
   const edges = []
-  
+
   const processNode = (node, parent = null) => {
     nodes.push({
       id: node.id.toString(),
@@ -333,7 +333,7 @@ const mindMapData = computed(() => {
       description: node.url || '',
       nodeType: getNodeTypeString(node.nodeType)
     })
-    
+
     if (parent) {
       edges.push({
         id: `edge-${parent.id}-${node.id}`,
@@ -341,12 +341,12 @@ const mindMapData = computed(() => {
         target: node.id.toString()
       })
     }
-    
+
     if (node.children && node.children.length) {
       node.children.forEach(child => processNode(child, node))
     }
   }
-  
+
   try {
     nodeTree.value.forEach(rootNode => processNode(rootNode))
     cachedMindMapData = { nodes, edges }
@@ -378,26 +378,21 @@ const fetchNodeTree = async () => {
     loading.value = true
     const data = await getKnowledgeNodeTree(mapId.value)
     nodeTree.value = data
-    
+
     // 清理缓存，确保数据更新
     cachedMindMapData = null
     lastNodeTreeHash = ''
-    
+
     console.log('🔄 nodeTree更新完成', data.length)
-    
+
     // 更新节点Map缓存
     refreshNodeMap()
-    
+
   } catch (error) {
     ElMessage.error('获取节点树失败')
   } finally {
     loading.value = false
   }
-}
-
-const initMindMap = () => {
-  // G6思维导图通过MindMap组件自动初始化
-  // 数据通过mindMapData计算属性自动同步
 }
 
 // 优化节点查找性能 - 使用Map缓存
@@ -425,13 +420,13 @@ const refreshNodeMap = () => {
 
 const handleNodeClick = (data) => {
   console.log('🖱️ 左侧树节点点击:', data.id)
-  
+
   selectedNodeId.value = data.id
   selectedNode.value = { ...data } // 使用副本避免引用问题
-  
+
   // 使用Map快速查找，避免递归遍历
   const fullNodeData = nodeMap.get(data.id.toString())
-  
+
   if (fullNodeData) {
     // 填充编辑表单 - 使用数据副本
     Object.assign(nodeForm, {
@@ -446,16 +441,16 @@ const handleNodeClick = (data) => {
 // 专门处理MindMap组件中节点点击的方法
 const handleMindMapNodeClick = (nodeData) => {
   console.log('🎯 MindMap节点点击:', nodeData.id || nodeData.title)
-  
+
   // 简化处理，只更新选中状态，避免复杂操作
   if (nodeData.id) {
     selectedNodeId.value = nodeData.id.toString()
-    
+
     // 使用Map快速查找完整数据
     const fullNodeData = nodeMap.get(nodeData.id.toString())
     if (fullNodeData) {
       selectedNode.value = { ...fullNodeData } // 使用副本
-      
+
       // 填充编辑表单
       Object.assign(nodeForm, {
         title: fullNodeData.title,
@@ -463,7 +458,7 @@ const handleMindMapNodeClick = (nodeData) => {
         nodeType: fullNodeData.nodeType,
         isExpanded: fullNodeData.isExpanded
       })
-      
+
       // 同步左侧树的选中状态
       nextTick(() => {
         treeRef.value?.setCurrentKey(fullNodeData.id)
@@ -483,13 +478,13 @@ const handleAddNodeFromMindMap = async (nodeData) => {
       sortOrder: 0,
       isExpanded: true
     }
-    
+
     await createKnowledgeNode(mapId.value, createData)
     ElMessage.success('节点创建成功')
-    
+
     // 刷新节点树
     await fetchNodeTree()
-    
+
   } catch (error) {
     ElMessage.error('创建节点失败')
   }
@@ -503,20 +498,20 @@ const handleDeleteNodeFromMindMap = async (nodeData) => {
       cancelButtonText: '取消',
       type: 'error'
     })
-    
+
     await deleteKnowledgeNode(parseInt(nodeData.id))
     ElMessage.success('节点删除成功')
-    
+
     // 清空选中状态
     if (selectedNodeId.value === nodeData.id) {
       selectedNodeId.value = null
       selectedNode.value = null
       resetNodeForm()
     }
-    
+
     // 刷新节点树
     await fetchNodeTree()
-    
+
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error('删除节点失败')
@@ -533,13 +528,13 @@ const handleUpdateNodeFromMindMap = async (nodeData) => {
       nodeType: getNodeTypeNumber(nodeData.nodeType),
       isExpanded: true
     }
-    
+
     await updateKnowledgeNode(parseInt(nodeData.id), updateData)
     ElMessage.success('节点更新成功')
-    
+
     // 刷新节点树
     await fetchNodeTree()
-    
+
   } catch (error) {
     ElMessage.error('更新节点失败')
   }
@@ -570,7 +565,7 @@ const handleAddChildNode = async (parentNode) => {
         return true
       }
     })
-    
+
     const nodeData = {
       parentId: parentNode.id,
       title: title.trim(),
@@ -579,13 +574,13 @@ const handleAddChildNode = async (parentNode) => {
       sortOrder: 0,
       isExpanded: true
     }
-    
+
     await createKnowledgeNode(mapId.value, nodeData)
     ElMessage.success('节点创建成功')
-    
+
     // 刷新节点树
     await fetchNodeTree()
-    
+
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error('创建节点失败')
@@ -604,20 +599,20 @@ const handleDeleteNode = async (data) => {
       cancelButtonText: '取消',
       type: 'error'
     })
-    
+
     await deleteKnowledgeNode(data.id)
     ElMessage.success('节点删除成功')
-    
+
     // 清空选中状态
     if (selectedNodeId.value === data.id) {
       selectedNodeId.value = null
       selectedNode.value = null
       resetNodeForm()
     }
-    
+
     // 刷新节点树
     await fetchNodeTree()
-    
+
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error('删除节点失败')
@@ -627,42 +622,42 @@ const handleDeleteNode = async (data) => {
 
 const handleSaveNode = async () => {
   console.log('💾 handleSaveNode开始执行')
-  
+
   if (!selectedNode.value) {
     console.log('❌ selectedNode.value为空，退出')
     return
   }
-  
+
   console.log('💾 开始保存节点:', selectedNode.value.id)
   console.log('💾 表单数据:', nodeForm)
-  
+
   try {
     // 临时禁用MindMap的watch监听
     console.log('🔒 禁用MindMap监听')
     mindMapRef.value?.disableWatch()
-    
+
     // 临时跳过表单验证，直接保存
     console.log('💾 调用API保存节点...')
     await updateKnowledgeNode(selectedNode.value.id, nodeForm)
-    
+
     console.log('✅ API调用成功')
     ElMessage.success('节点保存成功')
     console.log('✅ 节点保存完成，方法即将退出')
-    
+
     // 重新启用MindMap监听
     setTimeout(() => {
       console.log('🔓 重新启用MindMap监听')
       mindMapRef.value?.enableWatch()
     }, 1000)
-    
+
   } catch (error) {
     console.error('❌ 保存节点失败:', error)
     ElMessage.error('保存节点失败: ' + (error.message || '未知错误'))
-    
+
     // 确保在错误情况下也重新启用监听
     mindMapRef.value?.enableWatch()
   }
-  
+
   console.log('💾 handleSaveNode方法执行完毕')
 }
 
@@ -676,26 +671,18 @@ const handleSave = () => {
   ElMessage.success('图谱保存成功')
 }
 
-// 防抖的刷新函数，避免频繁调用
 let refreshTimer = null
-const debouncedRefresh = () => {
-  if (refreshTimer) clearTimeout(refreshTimer)
-  refreshTimer = setTimeout(() => {
-    console.log('🔄 执行延迟刷新')
-    fetchNodeTree()
-  }, 800) // 800ms防抖
-}
 
 const handleSearch = async () => {
   if (!searchKeyword.value.trim()) {
     ElMessage.warning('请输入搜索关键词')
     return
   }
-  
+
   try {
     const data = await searchKnowledgeNodes(mapId.value, searchKeyword.value)
     searchResults.value = data
-    
+
     if (!data.length) {
       ElMessage.info('未找到相关节点')
     }
@@ -708,10 +695,10 @@ const handleSelectSearchResult = (result) => {
   showSearchDialog.value = false
   searchKeyword.value = ''
   searchResults.value = []
-  
+
   // 选中节点并定位
   handleNodeClick(result)
-  
+
   // 展开树到该节点
   treeRef.value?.setCurrentKey(result.id)
 }
@@ -736,7 +723,7 @@ const handleResetZoom = () => {
 
 const goBack = () => {
   console.log('🔙 准备返回列表，开始清理资源')
-  
+
   try {
     // 主动清理定时器
     if (refreshTimer) {
@@ -744,25 +731,25 @@ const goBack = () => {
       refreshTimer = null
       console.log('🧹 提前清理refreshTimer')
     }
-    
+
     // 禁用MindMap监听
     if (mindMapRef.value) {
       mindMapRef.value.disableWatch?.()
       console.log('🧹 提前禁用MindMap监听')
     }
-    
+
     // 清理缓存
     nodeMap.clear()
     cachedMindMapData = null
     lastNodeTreeHash = ''
     console.log('🧹 提前清理缓存')
-    
+
     // 延迟跳转，确保清理完成
     setTimeout(() => {
       console.log('🔙 执行路由跳转')
       router.push('/knowledge/maps')
     }, 100)
-    
+
   } catch (error) {
     console.error('清理资源时出错:', error)
     // 即使出错也要跳转
@@ -777,11 +764,6 @@ const handleNodeRightClick = (event, data) => {
   showContextMenu(event)
 }
 
-const handleCanvasRightClick = (event) => {
-  // 画布右键菜单逻辑
-  console.log('画布右键', event)
-}
-
 const showContextMenu = (event) => {
   contextMenuVisible.value = true
   contextMenuStyle.value = {
@@ -790,13 +772,13 @@ const showContextMenu = (event) => {
     position: 'fixed',
     zIndex: 9999
   }
-  
+
   // 点击其他地方隐藏菜单
   const hideMenu = () => {
     contextMenuVisible.value = false
     document.removeEventListener('click', hideMenu)
   }
-  
+
   setTimeout(() => {
     document.addEventListener('click', hideMenu)
   }, 100)
@@ -874,14 +856,14 @@ onMounted(async () => {
 // 组件销毁时清理资源
 onUnmounted(() => {
   console.log('🧹 组件卸载，清理所有资源')
-  
+
   // 清理定时器
   if (refreshTimer) {
     clearTimeout(refreshTimer)
     refreshTimer = null
     console.log('🧹 清理refreshTimer')
   }
-  
+
   // 清理MindMap相关资源
   if (mindMapRef.value) {
     try {
@@ -891,17 +873,17 @@ onUnmounted(() => {
       console.warn('清理MindMap时出错:', e)
     }
   }
-  
+
   // 清理缓存
   nodeMap.clear()
   cachedMindMapData = null
   lastNodeTreeHash = ''
-  
+
   // 重置状态
   selectedNodeId.value = null
   selectedNode.value = null
   nodeTree.value = []
-  
+
   console.log('✅ 资源清理完成')
 })
 
@@ -1178,4 +1160,4 @@ watch(() => route.params.id, (newId) => {
 :deep(.el-form-item__label) {
   font-size: 12px;
 }
-</style> 
+</style>

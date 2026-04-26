@@ -297,7 +297,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   Reading, Sunny, Refresh, User, View, Star, Collection, Link,
@@ -319,17 +319,6 @@ const currentContents = ref([])
 const activeTab = ref('1')
 const detailDialogVisible = ref(false)
 const selectedContent = ref(null)
-
-// 计算属性
-const tabContents = computed(() => {
-  return {
-    '1': currentContents.value,
-    '2': currentContents.value,
-    '3': currentContents.value,
-    '4': currentContents.value,
-    'collections': currentContents.value
-  }
-})
 
 // 工具函数
 const getContentTypeName = (type) => {

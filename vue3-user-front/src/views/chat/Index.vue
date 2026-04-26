@@ -427,9 +427,6 @@ const typingUsers = ref([])  // 正在输入的用户列表
 let typingTimer = null       // 发送输入状态的防抖定时器
 let typingClearTimers = {}   // 清除其他用户输入状态的定时器
 
-// 主题切换
-const isDarkMode = ref(false)
-
 // ==================== WebSocket相关 ====================
 let ws = null
 let reconnectTimer = null
@@ -1107,7 +1104,7 @@ const handleScroll = (e) => {
 }
 
 // 处理PONG响应，计算延迟并调整心跳间隔
-const handlePongReceived = (serverTimestamp) => {
+const handlePongReceived = (_serverTimestamp) => {
   heartbeatConfig.missedCount = 0
   if (pongTimer) clearTimeout(pongTimer)
   
