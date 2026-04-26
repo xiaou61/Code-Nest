@@ -51,6 +51,31 @@ public class LearningCockpitOverviewResponse {
      */
     private List<NextAction> nextActions = new ArrayList<>();
 
+    /**
+     * 成长分
+     */
+    private GrowthScore growthScore = new GrowthScore();
+
+    /**
+     * 能力雷达
+     */
+    private List<AbilityRadarItem> abilityRadar = new ArrayList<>();
+
+    /**
+     * 短板诊断
+     */
+    private List<WeaknessInsight> weaknesses = new ArrayList<>();
+
+    /**
+     * 今日任务
+     */
+    private List<TodayTask> todayTasks = new ArrayList<>();
+
+    /**
+     * AI复盘
+     */
+    private AiReview aiReview = new AiReview();
+
     @Data
     public static class Summary {
         private Integer totalTarget = 0;
@@ -147,5 +172,58 @@ public class LearningCockpitOverviewResponse {
         private Integer expectedGain = 0;
         private String routePath = "";
         private String moduleKey = "";
+    }
+
+    @Data
+    public static class GrowthScore {
+        private Integer score = 0;
+        private String level = "";
+        private String levelText = "";
+        private Boolean qualified = false;
+        private String trendText = "";
+        private String advice = "";
+    }
+
+    @Data
+    public static class AbilityRadarItem {
+        private String key = "";
+        private String label = "";
+        private Integer score = 0;
+        private Integer target = 0;
+        private Integer actual = 0;
+        private String status = "";
+        private String color = "";
+        private String description = "";
+    }
+
+    @Data
+    public static class WeaknessInsight {
+        private String severity = "";
+        private String moduleKey = "";
+        private String title = "";
+        private String description = "";
+        private String actionText = "";
+        private String routePath = "";
+        private Integer impactScore = 0;
+    }
+
+    @Data
+    public static class TodayTask {
+        private Integer priority = 0;
+        private String moduleKey = "";
+        private String title = "";
+        private String description = "";
+        private String routePath = "";
+        private Integer estimatedMinutes = 0;
+        private Boolean done = false;
+    }
+
+    @Data
+    public static class AiReview {
+        private String headline = "";
+        private String strength = "";
+        private String risk = "";
+        private String suggestion = "";
+        private String closing = "";
     }
 }

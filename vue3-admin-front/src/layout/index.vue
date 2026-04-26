@@ -429,7 +429,7 @@
             </el-menu-item>
             <el-menu-item index="/system/ai-governance">
               <el-icon><DataAnalysis /></el-icon>
-              <span>AI治理</span>
+              <span>AI质量治理</span>
             </el-menu-item>
             <el-menu-item index="/system/ai-config">
               <el-icon><SetUp /></el-icon>
