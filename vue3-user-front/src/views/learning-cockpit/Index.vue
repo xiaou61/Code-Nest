@@ -5,11 +5,11 @@
         <div class="cn-learn-hero__content">
           <span class="cn-learn-hero__eyebrow">
             <el-icon><DataAnalysis /></el-icon>
-            Learning Cockpit 2.0
+            Learning Cockpit 2.1
           </span>
-          <h1 class="cn-learn-hero__title">学习成长驾驶舱 2.0</h1>
+          <h1 class="cn-learn-hero__title">AI 学习成长驾驶舱 2.1</h1>
           <p class="cn-learn-hero__desc">
-            把 OJ、题库、闪卡、计划打卡、积分统一到一张看板：周目标、完成率、排名变化、推荐下一步。
+            把 OJ、题库、闪卡、计划打卡、积分统一到一张看板：成长分、能力雷达、短板诊断、今日任务和推荐下一步。
           </p>
         </div>
         <div class="cn-learn-hero__meta">
@@ -39,6 +39,112 @@
       <section class="cockpit-tabs cn-learn-panel">
         <el-tabs v-model="activeTab" class="cockpit-tabs-inner" @tab-change="handleTabChange">
           <el-tab-pane label="驾驶舱总览" name="overview">
+            <section class="intelligence-grid">
+              <article class="growth-score-card cn-learn-panel cn-learn-float">
+                <div class="score-ring" :style="{ '--score': growthScore.score || 0 }">
+                  <div class="score-ring-inner">
+                    <strong>{{ growthScore.score || 0 }}</strong>
+                    <span>{{ growthScore.level || '-' }}</span>
+                  </div>
+                </div>
+                <div class="score-content">
+                  <div class="summary-label">本周成长分</div>
+                  <h3>{{ growthScore.levelText || '等待数据' }}</h3>
+                  <p>{{ growthScore.trendText || '暂无成长趋势数据' }}</p>
+                  <el-tag :type="growthScore.qualified ? 'success' : 'warning'" effect="light">
+                    {{ growthScore.qualified ? '节奏健康' : '需要校准' }}
+                  </el-tag>
+                </div>
+              </article>
+
+              <article class="ai-review-card cn-learn-panel cn-learn-float">
+                <header class="mini-panel-head">
+                  <span>AI 学习复盘</span>
+                  <el-tag size="small" type="primary" effect="plain">Growth Intelligence</el-tag>
+                </header>
+                <h3>{{ aiReview.headline || summary.headline || '暂无复盘' }}</h3>
+                <div class="review-lines">
+                  <p><strong>优势</strong>{{ aiReview.strength || '等待更多学习数据生成优势判断。' }}</p>
+                  <p><strong>风险</strong>{{ aiReview.risk || '暂无明显风险。' }}</p>
+                  <p><strong>建议</strong>{{ aiReview.suggestion || growthScore.advice || '先完成一个关键动作。' }}</p>
+                </div>
+              </article>
+
+              <article class="today-task-card cn-learn-panel cn-learn-float">
+                <header class="mini-panel-head">
+                  <span>今日任务闭环</span>
+                  <small>{{ todayTasks.length }} 项</small>
+                </header>
+                <div v-if="todayTasks.length" class="today-task-list">
+                  <button
+                    v-for="task in todayTasks"
+                    :key="`${task.priority}-${task.moduleKey}`"
+                    class="today-task-item"
+                    type="button"
+                    @click="goRoute(task.routePath)"
+                  >
+                    <span class="task-priority">{{ task.priority }}</span>
+                    <span class="task-main">
+                      <strong>{{ task.title }}</strong>
+                      <em>{{ task.estimatedMinutes || 10 }} 分钟 · {{ task.description }}</em>
+                    </span>
+                    <el-tag size="small" :type="task.done ? 'success' : 'info'" effect="light">
+                      {{ task.done ? '已达标' : '待执行' }}
+                    </el-tag>
+                  </button>
+                </div>
+                <el-empty v-else description="暂无今日任务" :image-size="56" />
+              </article>
+            </section>
+
+            <section class="diagnosis-grid">
+              <article class="cn-learn-panel panel-block">
+                <header class="panel-head">
+                  <h3>能力雷达</h3>
+                  <span class="panel-subtitle">五模块完成率结构</span>
+                </header>
+                <div v-if="abilityRadar.length" class="radar-list">
+                  <div
+                    v-for="item in abilityRadar"
+                    :key="item.key"
+                    class="radar-item"
+                    :style="radarStyle(item)"
+                  >
+                    <div class="radar-meta">
+                      <strong>{{ item.label }}</strong>
+                      <span>{{ item.actual }} / {{ item.target }}</span>
+                    </div>
+                    <div class="radar-track">
+                      <span></span>
+                    </div>
+                    <small>{{ item.description }}</small>
+                  </div>
+                </div>
+                <el-empty v-else description="暂无能力雷达数据" :image-size="72" />
+              </article>
+
+              <article class="cn-learn-panel panel-block">
+                <header class="panel-head">
+                  <h3>短板诊断</h3>
+                  <span class="panel-subtitle">按影响程度排序</span>
+                </header>
+                <div v-if="weaknesses.length" class="weakness-list">
+                  <div v-for="item in weaknesses" :key="`${item.moduleKey}-${item.title}`" class="weakness-item">
+                    <div class="weakness-top">
+                      <el-tag size="small" :type="severityTagType(item.severity)" effect="light">
+                        {{ severityText(item.severity) }}
+                      </el-tag>
+                      <strong>{{ item.title }}</strong>
+                      <span>{{ item.impactScore || 0 }}</span>
+                    </div>
+                    <p>{{ item.description }}</p>
+                    <el-button link type="primary" @click="goRoute(item.routePath)">{{ item.actionText }}</el-button>
+                  </div>
+                </div>
+                <el-empty v-else description="暂无短板诊断" :image-size="72" />
+              </article>
+            </section>
+
             <section class="summary-grid">
               <article class="summary-card cn-learn-panel cn-learn-float">
                 <div class="summary-label">本周总完成率</div>
@@ -284,7 +390,12 @@ const overview = ref({
   moduleGoals: [],
   ranking: {},
   trend: [],
-  nextActions: []
+  nextActions: [],
+  growthScore: {},
+  abilityRadar: [],
+  weaknesses: [],
+  todayTasks: [],
+  aiReview: {}
 })
 
 const summary = computed(() => overview.value?.summary || {})
@@ -295,6 +406,11 @@ const rankingTrend = computed(() => ranking.value?.trend || [])
 const trend = computed(() => overview.value?.trend || [])
 const nextActions = computed(() => overview.value?.nextActions || [])
 const topAction = computed(() => nextActions.value[0] || {})
+const growthScore = computed(() => overview.value?.growthScore || {})
+const abilityRadar = computed(() => overview.value?.abilityRadar || [])
+const weaknesses = computed(() => overview.value?.weaknesses || [])
+const todayTasks = computed(() => overview.value?.todayTasks || [])
+const aiReview = computed(() => overview.value?.aiReview || {})
 
 const rankingDisplay = computed(() => {
   const weeklyRank = ranking.value.weeklyRank
@@ -333,6 +449,29 @@ const statusTagType = (status) => {
   }
   return map[status] || 'info'
 }
+
+const severityText = (severity) => {
+  const map = {
+    HIGH: '高风险',
+    MEDIUM: '中风险',
+    LOW: '低风险'
+  }
+  return map[severity] || '待观察'
+}
+
+const severityTagType = (severity) => {
+  const map = {
+    HIGH: 'danger',
+    MEDIUM: 'warning',
+    LOW: 'success'
+  }
+  return map[severity] || 'info'
+}
+
+const radarStyle = (item = {}) => ({
+  '--radar-score': `${Math.max(0, Math.min(100, Number(item.score) || 0))}%`,
+  '--radar-color': item.color || '#2563eb'
+})
 
 const formatDate = (text) => {
   if (!text || text.length < 10) return text || '--'
@@ -436,7 +575,12 @@ const loadOverview = async () => {
       moduleGoals: [],
       ranking: {},
       trend: [],
-      nextActions: []
+      nextActions: [],
+      growthScore: {},
+      abilityRadar: [],
+      weaknesses: [],
+      todayTasks: [],
+      aiReview: {}
     }
     applyProfileToSettings(overview.value?.targetProfile || {})
   } catch (error) {
@@ -497,6 +641,270 @@ watch(
 
 .autopilot-tab-wrap {
   padding-top: 4px;
+}
+
+.intelligence-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.95fr) minmax(300px, 1.15fr) minmax(320px, 1.25fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.growth-score-card {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.score-ring {
+  --score: 0;
+  width: 118px;
+  height: 118px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: conic-gradient(#1f6feb calc(var(--score) * 1%), #e6effc 0);
+  box-shadow: inset 0 0 0 1px #d7e6fb, 0 14px 28px rgba(31, 99, 197, 0.16);
+}
+
+.score-ring-inner {
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  color: #1e4f97;
+}
+
+.score-ring-inner strong {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.score-ring-inner span {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.score-content h3,
+.ai-review-card h3 {
+  margin: 0 0 8px;
+  color: #203a5f;
+  font-size: 18px;
+}
+
+.score-content p {
+  margin: 0 0 10px;
+  color: #60789d;
+  line-height: 1.7;
+  font-size: 13px;
+}
+
+.ai-review-card,
+.today-task-card {
+  padding: 16px;
+}
+
+.mini-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  color: #6f82a2;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mini-panel-head small {
+  color: #8fa1bd;
+  font-size: 12px;
+}
+
+.review-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.review-lines p {
+  margin: 0;
+  color: #516b92;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.review-lines strong {
+  display: inline-flex;
+  min-width: 42px;
+  margin-right: 8px;
+  color: #1f5fb5;
+}
+
+.today-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.today-task-item {
+  width: 100%;
+  border: 1px solid #dce9fb;
+  border-radius: 8px;
+  background: #f8fbff;
+  padding: 9px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.today-task-item:hover {
+  border-color: #9ec5fe;
+  box-shadow: 0 10px 24px rgba(31, 99, 197, 0.12);
+  transform: translateY(-1px);
+}
+
+.task-priority {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  background: linear-gradient(135deg, #1f6feb, #2db0f2);
+}
+
+.task-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.task-main strong {
+  color: #203a5f;
+  font-size: 13px;
+}
+
+.task-main em {
+  color: #6b82a6;
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.45;
+}
+
+.diagnosis-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.radar-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.radar-item {
+  border: 1px solid #dce9fb;
+  border-radius: 10px;
+  background: #f8fbff;
+  padding: 10px;
+  min-width: 0;
+}
+
+.radar-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.radar-meta strong {
+  color: #203a5f;
+  font-size: 13px;
+}
+
+.radar-meta span {
+  color: #6f82a2;
+  font-size: 12px;
+}
+
+.radar-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e7effb;
+}
+
+.radar-track span {
+  display: block;
+  width: var(--radar-score);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--radar-color);
+}
+
+.radar-item small {
+  display: block;
+  margin-top: 8px;
+  color: #687fa5;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.weakness-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.weakness-item {
+  border: 1px solid #dce9fb;
+  border-radius: 10px;
+  background: #f9fcff;
+  padding: 10px;
+}
+
+.weakness-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.weakness-top strong {
+  min-width: 0;
+  flex: 1;
+  color: #203a5f;
+  font-size: 13px;
+}
+
+.weakness-top span {
+  color: #1f5fb5;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.weakness-item p {
+  margin: 8px 0 4px;
+  color: #60789d;
+  font-size: 13px;
+  line-height: 1.65;
 }
 
 .summary-grid {
@@ -814,6 +1222,15 @@ watch(
 }
 
 @media (max-width: 1200px) {
+  .intelligence-grid,
+  .diagnosis-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .radar-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -824,6 +1241,25 @@ watch(
 }
 
 @media (max-width: 768px) {
+  .growth-score-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .today-task-item {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .today-task-item .el-tag {
+    grid-column: 2;
+    justify-self: flex-start;
+  }
+
+  .radar-list,
+  .weakness-list {
+    grid-template-columns: 1fr;
+  }
+
   .summary-grid {
     grid-template-columns: 1fr;
   }

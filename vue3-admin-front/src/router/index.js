@@ -420,7 +420,7 @@ const routes = [
         path: 'ai-governance',
         name: 'AiGovernance',
         component: () => import('@/views/system/ai-governance/index.vue'),
-        meta: { title: 'AI治理' }
+        meta: { title: 'AI质量治理' }
       }
     ]
   },

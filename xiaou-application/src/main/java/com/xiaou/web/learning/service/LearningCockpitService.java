@@ -148,10 +148,338 @@ public class LearningCockpitService {
         LearningCockpitOverviewResponse.RankingInsight ranking = buildRankingInsight(weeklyRanking, allRanking, userId);
         enrichRankingWithHistory(ranking, userId, weekStart, weekEnd);
         response.setRanking(ranking);
-        response.setTrend(buildTrend(interviewHeatmap, flashcardHeatmap, checkinDayMap, weekStart, today));
-        response.setSummary(buildSummary(modules, checkinDayMap, weekStart, today, ranking));
-        response.setNextActions(buildNextActions(modules, reviewStats, pointsBalance, ranking));
+
+        List<LearningCockpitOverviewResponse.TrendPoint> trend = buildTrend(interviewHeatmap, flashcardHeatmap, checkinDayMap, weekStart, today);
+        LearningCockpitOverviewResponse.Summary summary = buildSummary(modules, checkinDayMap, weekStart, today, ranking);
+        List<LearningCockpitOverviewResponse.NextAction> nextActions = buildNextActions(modules, reviewStats, pointsBalance, ranking);
+        List<LearningCockpitOverviewResponse.WeaknessInsight> weaknesses = buildWeaknesses(modules, reviewStats, pointsBalance, ranking);
+        LearningCockpitOverviewResponse.GrowthScore growthScore = buildGrowthScore(summary, modules, trend, ranking, weaknesses);
+        List<LearningCockpitOverviewResponse.TodayTask> todayTasks = buildTodayTasks(nextActions, modules);
+
+        response.setTrend(trend);
+        response.setSummary(summary);
+        response.setNextActions(nextActions);
+        response.setGrowthScore(growthScore);
+        response.setAbilityRadar(buildAbilityRadar(modules));
+        response.setWeaknesses(weaknesses);
+        response.setTodayTasks(todayTasks);
+        response.setAiReview(buildAiReview(summary, growthScore, weaknesses, nextActions));
         return response;
+    }
+
+    private LearningCockpitOverviewResponse.GrowthScore buildGrowthScore(
+            LearningCockpitOverviewResponse.Summary summary,
+            List<LearningCockpitOverviewResponse.ModuleGoal> modules,
+            List<LearningCockpitOverviewResponse.TrendPoint> trend,
+            LearningCockpitOverviewResponse.RankingInsight ranking,
+            List<LearningCockpitOverviewResponse.WeaknessInsight> weaknesses
+    ) {
+        int completionScore = (int) Math.round(nvl(summary.getCompletionRate()) * 0.58);
+        int activeScore = (int) Math.round(Math.min(nvl(summary.getActiveDays()), 7) * 20.0 / 7);
+        int balanceScore = calcBalanceScore(modules);
+        int rankingScore = calcRankingScore(ranking);
+        int trendScore = calcTrendScore(trend);
+        int riskPenalty = weaknesses == null ? 0 : weaknesses.stream()
+                .filter(item -> !"LOW".equals(item.getSeverity()))
+                .mapToInt(item -> Math.min(nvl(item.getImpactScore()) / 12, 5))
+                .sum();
+        int score = clamp(completionScore + activeScore + balanceScore + rankingScore + trendScore - riskPenalty, 0, 100);
+
+        LearningCockpitOverviewResponse.GrowthScore result = new LearningCockpitOverviewResponse.GrowthScore();
+        result.setScore(score);
+        result.setQualified(score >= 70);
+        if (score >= 85) {
+            result.setLevel("A");
+            result.setLevelText("冲刺状态");
+            result.setAdvice("本周成长曲线很稳，可以把高价值任务前置，继续扩大优势。");
+        } else if (score >= 70) {
+            result.setLevel("B");
+            result.setLevelText("健康推进");
+            result.setAdvice("整体节奏健康，建议用 1 个关键动作补齐最低分模块。");
+        } else if (score >= 55) {
+            result.setLevel("C");
+            result.setLevelText("需要校准");
+            result.setAdvice("当前执行有波动，先恢复每日最小闭环，再拉升周目标完成率。");
+        } else {
+            result.setLevel("D");
+            result.setLevelText("优先止跌");
+            result.setAdvice("建议今天只保留 1-2 个必须完成任务，先把学习节奏重新跑起来。");
+        }
+        result.setTrendText(buildGrowthTrendText(summary, ranking, trend));
+        return result;
+    }
+
+    private int calcBalanceScore(List<LearningCockpitOverviewResponse.ModuleGoal> modules) {
+        if (modules == null || modules.isEmpty()) {
+            return 0;
+        }
+        int lowest = modules.stream()
+                .mapToInt(item -> nvl(item.getCompletionRate()))
+                .min()
+                .orElse(0);
+        if (lowest >= 90) {
+            return 12;
+        }
+        if (lowest >= 70) {
+            return 10;
+        }
+        if (lowest >= 50) {
+            return 7;
+        }
+        if (lowest >= 30) {
+            return 4;
+        }
+        return 1;
+    }
+
+    private int calcRankingScore(LearningCockpitOverviewResponse.RankingInsight ranking) {
+        if (ranking == null) {
+            return 0;
+        }
+        Integer delta = ranking.getWeeklyVsLastWeekDelta();
+        if (delta != null && delta > 0) {
+            return 10;
+        }
+        if (delta != null && delta == 0) {
+            return 8;
+        }
+        if (ranking.getWeeklyRank() != null) {
+            return 6;
+        }
+        return 2;
+    }
+
+    private int calcTrendScore(List<LearningCockpitOverviewResponse.TrendPoint> trend) {
+        if (trend == null || trend.isEmpty()) {
+            return 0;
+        }
+        long activeDays = trend.stream().filter(item -> nvl(item.getScore()) > 0).count();
+        return (int) Math.round(Math.min(activeDays, 7) * 10.0 / 7);
+    }
+
+    private String buildGrowthTrendText(
+            LearningCockpitOverviewResponse.Summary summary,
+            LearningCockpitOverviewResponse.RankingInsight ranking,
+            List<LearningCockpitOverviewResponse.TrendPoint> trend
+    ) {
+        long activeDays = trend == null ? 0L : trend.stream().filter(item -> nvl(item.getScore()) > 0).count();
+        String rankText = ranking == null || ranking.getTrendText() == null || ranking.getTrendText().isBlank()
+                ? "暂无排名基线"
+                : ranking.getTrendText();
+        return String.format("本周活跃 %d 天，完成率 %d%%，%s", activeDays, nvl(summary.getCompletionRate()), rankText);
+    }
+
+    private List<LearningCockpitOverviewResponse.AbilityRadarItem> buildAbilityRadar(
+            List<LearningCockpitOverviewResponse.ModuleGoal> modules
+    ) {
+        List<LearningCockpitOverviewResponse.AbilityRadarItem> result = new ArrayList<>();
+        if (modules == null) {
+            return result;
+        }
+        for (LearningCockpitOverviewResponse.ModuleGoal module : modules) {
+            LearningCockpitOverviewResponse.AbilityRadarItem item = new LearningCockpitOverviewResponse.AbilityRadarItem();
+            item.setKey(module.getModuleKey());
+            item.setLabel(module.getModuleName());
+            item.setScore(nvl(module.getCompletionRate()));
+            item.setTarget(nvl(module.getTarget()));
+            item.setActual(nvl(module.getActual()));
+            item.setStatus(module.getStatus());
+            item.setColor(statusColor(module.getStatus()));
+            item.setDescription(String.format("%s完成率 %d%%，%s", module.getModuleName(), nvl(module.getCompletionRate()), module.getHint()));
+            result.add(item);
+        }
+        return result;
+    }
+
+    private List<LearningCockpitOverviewResponse.WeaknessInsight> buildWeaknesses(
+            List<LearningCockpitOverviewResponse.ModuleGoal> modules,
+            ReviewStatsResponse reviewStats,
+            PointsBalanceResponse pointsBalance,
+            LearningCockpitOverviewResponse.RankingInsight ranking
+    ) {
+        List<LearningCockpitOverviewResponse.WeaknessInsight> result = new ArrayList<>();
+        if (modules != null) {
+            for (LearningCockpitOverviewResponse.ModuleGoal module : modules) {
+                int rate = nvl(module.getCompletionRate());
+                int gap = Math.max(0, nvl(module.getTarget()) - nvl(module.getActual()));
+                if (rate >= 70 || gap <= 0) {
+                    continue;
+                }
+                String severity = rate < 40 ? "HIGH" : "MEDIUM";
+                result.add(buildWeakness(
+                        severity,
+                        module.getModuleKey(),
+                        "「" + module.getModuleName() + "」进度偏低",
+                        String.format("当前完成率 %d%%，距离周目标还差 %d%s。", rate, gap, module.getUnit()),
+                        "去补齐" + module.getModuleName(),
+                        module.getRoutePath(),
+                        clamp(100 - rate + gap * 4, 0, 100)
+                ));
+            }
+        }
+
+        int overdueCount = nvl(reviewStats.getOverdueCount());
+        if (overdueCount > 0) {
+            result.add(buildWeakness(
+                    overdueCount >= 8 ? "HIGH" : "MEDIUM",
+                    "interview",
+                    "逾期复习正在累积",
+                    "当前有 " + overdueCount + " 道逾期复习题，记忆曲线需要尽快恢复。",
+                    "清理逾期复习",
+                    "/interview/review?type=overdue",
+                    clamp(60 + overdueCount * 4, 0, 100)
+            ));
+        }
+
+        if (!Boolean.TRUE.equals(pointsBalance.getTodayCheckedIn())) {
+            result.add(buildWeakness(
+                    "MEDIUM",
+                    "points",
+                    "今日稳定收益未领取",
+                    "积分打卡是最低成本的连续性动作，今天还未完成。",
+                    "完成今日打卡",
+                    "/points",
+                    48
+            ));
+        }
+
+        Integer rankDelta = ranking == null ? null : ranking.getWeeklyVsLastWeekDelta();
+        if (rankDelta != null && rankDelta < 0) {
+            result.add(buildWeakness(
+                    Math.abs(rankDelta) >= 5 ? "HIGH" : "MEDIUM",
+                    "oj",
+                    "OJ 周榜位次回落",
+                    "当前较上周下降 " + Math.abs(rankDelta) + " 位，需要用 1-2 道题恢复动能。",
+                    "恢复周榜节奏",
+                    "/oj",
+                    clamp(52 + Math.abs(rankDelta) * 5, 0, 100)
+            ));
+        }
+
+        if (result.isEmpty()) {
+            result.add(buildWeakness(
+                    "LOW",
+                    "overall",
+                    "暂无明显短板",
+                    "当前五模块结构比较均衡，可以继续围绕高价值任务冲刺。",
+                    "进入自动驾驶计划",
+                    "/growth-autopilot",
+                    12
+            ));
+        }
+
+        return result.stream()
+                .sorted(Comparator.comparingInt((LearningCockpitOverviewResponse.WeaknessInsight item) -> nvl(item.getImpactScore())).reversed())
+                .limit(5)
+                .toList();
+    }
+
+    private LearningCockpitOverviewResponse.WeaknessInsight buildWeakness(
+            String severity,
+            String moduleKey,
+            String title,
+            String description,
+            String actionText,
+            String routePath,
+            int impactScore
+    ) {
+        LearningCockpitOverviewResponse.WeaknessInsight item = new LearningCockpitOverviewResponse.WeaknessInsight();
+        item.setSeverity(severity);
+        item.setModuleKey(moduleKey);
+        item.setTitle(title);
+        item.setDescription(description);
+        item.setActionText(actionText);
+        item.setRoutePath(routePath);
+        item.setImpactScore(impactScore);
+        return item;
+    }
+
+    private List<LearningCockpitOverviewResponse.TodayTask> buildTodayTasks(
+            List<LearningCockpitOverviewResponse.NextAction> nextActions,
+            List<LearningCockpitOverviewResponse.ModuleGoal> modules
+    ) {
+        Map<String, LearningCockpitOverviewResponse.ModuleGoal> moduleMap = new HashMap<>();
+        if (modules != null) {
+            for (LearningCockpitOverviewResponse.ModuleGoal module : modules) {
+                moduleMap.put(module.getModuleKey(), module);
+            }
+        }
+
+        List<LearningCockpitOverviewResponse.TodayTask> result = new ArrayList<>();
+        Set<String> selectedKeys = new HashSet<>();
+        if (nextActions != null) {
+            for (LearningCockpitOverviewResponse.NextAction action : nextActions) {
+                if (result.size() >= 3) {
+                    break;
+                }
+                String key = action.getModuleKey() == null ? "custom-" + action.getPriority() : action.getModuleKey();
+                if (!selectedKeys.add(key)) {
+                    continue;
+                }
+                LearningCockpitOverviewResponse.ModuleGoal module = moduleMap.get(action.getModuleKey());
+                result.add(buildTodayTask(
+                        result.size() + 1,
+                        action.getModuleKey(),
+                        action.getTitle(),
+                        action.getDescription(),
+                        action.getRoutePath(),
+                        estimateMinutes(action.getModuleKey()),
+                        module != null && nvl(module.getCompletionRate()) >= 100
+                ));
+            }
+        }
+        if (result.size() < 4) {
+            result.add(buildTodayTask(
+                    result.size() + 1,
+                    "review",
+                    "完成 5 分钟学习复盘",
+                    "记录今天的最高收益动作和一个阻塞点，给明天的计划重排提供依据。",
+                    "/learning-cockpit",
+                    5,
+                    false
+            ));
+        }
+        return result;
+    }
+
+    private LearningCockpitOverviewResponse.TodayTask buildTodayTask(
+            int priority,
+            String moduleKey,
+            String title,
+            String description,
+            String routePath,
+            int estimatedMinutes,
+            boolean done
+    ) {
+        LearningCockpitOverviewResponse.TodayTask task = new LearningCockpitOverviewResponse.TodayTask();
+        task.setPriority(priority);
+        task.setModuleKey(moduleKey);
+        task.setTitle(title);
+        task.setDescription(description);
+        task.setRoutePath(routePath);
+        task.setEstimatedMinutes(estimatedMinutes);
+        task.setDone(done);
+        return task;
+    }
+
+    private LearningCockpitOverviewResponse.AiReview buildAiReview(
+            LearningCockpitOverviewResponse.Summary summary,
+            LearningCockpitOverviewResponse.GrowthScore growthScore,
+            List<LearningCockpitOverviewResponse.WeaknessInsight> weaknesses,
+            List<LearningCockpitOverviewResponse.NextAction> nextActions
+    ) {
+        LearningCockpitOverviewResponse.WeaknessInsight topWeakness = weaknesses == null || weaknesses.isEmpty() ? null : weaknesses.get(0);
+        LearningCockpitOverviewResponse.NextAction topAction = nextActions == null || nextActions.isEmpty() ? null : nextActions.get(0);
+
+        LearningCockpitOverviewResponse.AiReview review = new LearningCockpitOverviewResponse.AiReview();
+        review.setHeadline(String.format("本周成长分 %d，处于%s。", nvl(growthScore.getScore()), growthScore.getLevelText()));
+        review.setStrength(nvl(summary.getCompletionRate()) >= 70
+                ? "周目标推进稳定，已经形成跨模块学习闭环。"
+                : "已经有有效学习数据沉淀，适合从最小任务重新拉起节奏。");
+        review.setRisk(topWeakness == null ? "暂无明显风险。" : topWeakness.getDescription());
+        review.setSuggestion(topAction == null ? growthScore.getAdvice() : topAction.getDescription());
+        review.setClosing("建议今天只盯住最高优先级动作，完成后再进入自动驾驶计划微调。");
+        return review;
     }
 
     private LearningCockpitOverviewResponse.Summary buildSummary(
@@ -601,6 +929,27 @@ public class LearningCockpitService {
             return "warning";
         }
         return "behind";
+    }
+
+    private String statusColor(String status) {
+        return switch (status == null ? "" : status) {
+            case "done" -> "#16a34a";
+            case "on_track" -> "#2563eb";
+            case "warning" -> "#f59e0b";
+            case "behind" -> "#ef4444";
+            default -> "#64748b";
+        };
+    }
+
+    private int estimateMinutes(String moduleKey) {
+        return switch (moduleKey == null ? "" : moduleKey) {
+            case "oj" -> 35;
+            case "interview" -> 25;
+            case "flashcard" -> 18;
+            case "plan" -> 12;
+            case "points" -> 3;
+            default -> 10;
+        };
     }
 
     private int calcRate(Integer actual, Integer target) {

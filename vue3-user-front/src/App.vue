@@ -195,7 +195,7 @@ const learningMenuGroups = [
       { path: '/job-battle', label: '求职作战台', desc: 'JD解析到复盘的闭环训练', icon: Trophy },
       { path: '/job-match-engine', label: '岗位匹配引擎 2.0', desc: '多岗位并行评估与优先级排序', icon: Trophy },
       { path: '/career-loop', label: '求职闭环中台', desc: '统一追踪求职阶段与动作清单', icon: DataAnalysis },
-      { path: '/learning-cockpit', label: '学习成长驾驶舱 2.0', desc: '统一周目标、完成率与排名变化', icon: DataAnalysis },
+      { path: '/learning-cockpit', label: 'AI学习成长驾驶舱 2.1', desc: '成长分、能力雷达与今日任务闭环', icon: DataAnalysis },
       { path: '/learning-assets', label: '我的学习资产', desc: '管理内容转化后的闪卡、计划和候选资产', icon: Postcard },
       { path: '/sql-optimizer/workbench', label: 'SQL优化工作台 2.0', desc: '执行计划诊断与优化收益对比', icon: Cpu },
       { path: '/knowledge', label: '知识图谱', desc: '可视化构建知识体系', icon: DataAnalysis },
