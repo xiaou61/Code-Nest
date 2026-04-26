@@ -822,7 +822,7 @@ public class MockInterviewServiceImpl implements MockInterviewService {
 
         // 生成追问问题
         String followUpQuestion = aiInterviewerService.generateFollowUpQuestion(
-                session, parentQa.getQuestionContent(), parentQa.getUserAnswer());
+                session, parentQa.getQuestionContent(), parentQa.getUserAnswer(), existingFollowUps.size());
 
         // 创建追问记录
         MockInterviewQA followUp = new MockInterviewQA()

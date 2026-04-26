@@ -1,0 +1,4 @@
+fastapi
+uvicorn
+llama-index
+httpx

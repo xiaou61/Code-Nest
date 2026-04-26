@@ -1,6 +1,7 @@
 package com.xiaou.ai.service;
 
 import com.xiaou.ai.dto.sql.SqlAnalyzeResult;
+import com.xiaou.ai.dto.sql.SqlAnalyzeRewriteResult;
 import com.xiaou.ai.dto.sql.SqlCompareResult;
 import com.xiaou.ai.dto.sql.SqlRewriteResult;
 
@@ -26,7 +27,7 @@ public interface AiSqlOptimizeService {
 
     /**
      * SQL优化工作台2.0分析
-     * 优先调用V2工作流，失败时自动回退到V1工作流。
+     * 优先调用V2分析流程，失败时自动回退到V1分析流程。
      *
      * @param sql             待优化的SQL语句
      * @param explainResult   EXPLAIN执行计划结果
@@ -37,6 +38,19 @@ public interface AiSqlOptimizeService {
      */
     SqlAnalyzeResult analyzeSqlV2(String sql, String explainResult, String explainFormat,
                                    String tableStructures, String mysqlVersion);
+
+    /**
+     * SQL优化工作台2.0 分析 + 重写组合流程。
+     *
+     * @param sql             待优化的SQL语句
+     * @param explainResult   EXPLAIN执行计划结果
+     * @param explainFormat   EXPLAIN格式（TABLE/JSON）
+     * @param tableStructures 表结构DDL（JSON数组格式）
+     * @param mysqlVersion    MySQL版本
+     * @return 分析与重写组合结果
+     */
+    SqlAnalyzeRewriteResult analyzeAndRewriteSqlV2(String sql, String explainResult, String explainFormat,
+                                                   String tableStructures, String mysqlVersion);
 
     /**
      * SQL重写建议2.0

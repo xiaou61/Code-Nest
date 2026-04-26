@@ -1,5 +1,7 @@
 # 慢SQL智能优化工作台 PRD v2.0.0
 
+> 历史说明：本文档最初按 Coze 多工作流方案编写。当前主干代码已迁移到 `LangChain4j + LangGraph4j + LlamaIndex` 统一 AI Runtime，现行设计以 `docs/plans/2026-04-20-ai-runtime-replatform-design.md` 和 `docs/plans/2026-04-20-ai-prompt-governance.md` 为准；文中 Coze 相关内容仅保留为演进背景。
+
 ## 1. 项目概述
 
 ### 1.1 背景
@@ -8,7 +10,7 @@
 1. 用户端缺少完整工作台入口，操作路径分散。
 2. 仅支持单次分析，不支持批量诊断。
 3. 缺少优化前后收益对比，结果可解释性不足。
-4. Coze 当前仅单工作流，无法支撑分阶段诊断与重写编排。
+4. 旧版单链路 AI 方案无法支撑分阶段诊断与重写编排。
 
 ### 1.2 目标
 构建 `SQL 智能优化工作台 2.0`，实现一站式闭环：
@@ -88,17 +90,19 @@
 2. 支持收藏与取消收藏。
 3. 支持查看详情回放（输入、诊断结果、建议、对比结果）。
 
-## 4. Coze 工作流要求
+## 4. AI Runtime 编排要求
 
-2.0 采用三工作流编排，详细实现写入：
+2.0 采用统一 AI Runtime 的多阶段编排，详细设计写入：
 
-- `docs/coze/SQL智能优化工作台2.0工作流配置指南.md`
+- `docs/plans/2026-04-20-ai-runtime-replatform-design.md`
+- `docs/plans/2026-04-20-ai-prompt-governance.md`
+- 历史 Coze 配置说明归档于：`docs/archive/coze/SQL智能优化工作台2.0工作流配置指南.md`
 
-工作流列表：
+当前核心阶段：
 
-1. `SQL_OPTIMIZE_ANALYZE_V2`：基础诊断。
-2. `SQL_OPTIMIZE_REWRITE_V2`：优化重写与索引建议。
-3. `SQL_OPTIMIZE_COMPARE_V2`：优化前后收益评估。
+1. `sql_optimize_analyze_v2`：基础诊断。
+2. `sql_optimize_rewrite_v2`：优化重写与索引建议。
+3. `sql_optimize_compare_v2`：优化前后收益评估。
 
 ## 5. 接口需求
 
@@ -131,8 +135,8 @@
 
 ## 7. 非功能需求
 
-1. 性能：单条分析接口 P95 < 5s（不含 Coze 排队抖动）。
-2. 可用性：Coze 超时/失败时必须降级返回。
+1. 性能：单条分析接口 P95 < 5s（不含上游模型服务排队抖动）。
+2. 可用性：统一 AI Runtime 上游超时/失败时必须降级返回。
 3. 安全：限制输入长度、批量条数、请求体大小；禁止执行用户 SQL。
 4. 可观测性：记录调用耗时、失败原因、降级次数。
 
@@ -140,9 +144,9 @@
 
 1. 用户端可完整走通：分析 -> 重写 -> 对比 -> 收藏 -> 历史回看。
 2. 批量分析支持 10 条以上并可部分成功返回。
-3. Coze 不可用时系统仍返回可解释降级结果。
+3. 上游模型或检索不可用时系统仍返回可解释降级结果。
 4. 新接口完成基础单元测试与集成测试。
-5. 文档齐全：PRD、Coze 配置指南、接口字段约定。
+5. 文档齐全：PRD、AI Runtime 设计文档、接口字段约定。
 
 ## 9. 里程碑
 
@@ -150,17 +154,17 @@
 
 1. 工作台页面骨架与路由接入。
 2. 后端 `workbench/analyze` 接口。
-3. Coze A 工作流接入。
+3. AI Runtime analyze 节点接入。
 
 ### M2（能力增强）
 
-1. Coze B 工作流接入。
+1. AI Runtime rewrite 节点接入。
 2. 重写建议与风险提示展示。
 3. 批量分析接口初版。
 
 ### M3（收益闭环）
 
-1. Coze C 工作流接入。
+1. AI Runtime compare 节点接入。
 2. Before/After 对比可视化。
 3. 历史回放与导出能力。
 

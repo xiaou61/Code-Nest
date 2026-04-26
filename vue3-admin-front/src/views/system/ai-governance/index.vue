@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <h2>AI治理</h2>
-        <p>{{ overview.summary || '查看AI工作流治理状态、兜底覆盖与风险分布' }}</p>
+        <p>{{ overview.summary || '查看AI场景治理状态、兜底覆盖与风险分布' }}</p>
       </div>
       <el-button type="primary" :loading="loading" @click="loadOverview">
         <el-icon><Refresh /></el-icon>
@@ -14,13 +14,13 @@
     <el-row :gutter="16" class="stat-row">
       <el-col :xs="24" :sm="12" :md="6">
         <el-card shadow="never" class="stat-card">
-          <div class="stat-label">工作流总数</div>
+          <div class="stat-label">AI场景总数</div>
           <div class="stat-value">{{ overview.totalWorkflows || 0 }}</div>
         </el-card>
       </el-col>
       <el-col :xs="24" :sm="12" :md="6">
         <el-card shadow="never" class="stat-card">
-          <div class="stat-label">已配置工作流</div>
+          <div class="stat-label">已配置场景</div>
           <div class="stat-value">{{ overview.configuredWorkflows || 0 }}</div>
         </el-card>
       </el-col>
@@ -46,12 +46,12 @@
       <el-col :xs="24" :lg="16">
         <el-card shadow="never" class="panel-card">
           <template #header>
-            <div class="panel-title">工作流治理目录</div>
+            <div class="panel-title">AI场景治理目录</div>
           </template>
           <el-table v-loading="loading" :data="overview.workflows || []" stripe>
-            <el-table-column prop="workflowName" label="工作流" min-width="190" show-overflow-tooltip />
+            <el-table-column prop="workflowName" label="场景" min-width="190" show-overflow-tooltip />
             <el-table-column prop="domain" label="域" width="120" />
-            <el-table-column prop="workflowId" label="工作流ID" width="150" />
+            <el-table-column prop="workflowId" label="Prompt ID" width="170" />
             <el-table-column label="配置" width="90" align="center">
               <template #default="{ row }">
                 <el-tag size="small" :type="row.configured ? 'success' : 'danger'">

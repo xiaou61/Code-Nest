@@ -4,6 +4,7 @@ import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.xiaou.ai.dto.sql.SqlAnalyzeResult;
+import com.xiaou.ai.dto.sql.SqlAnalyzeRewriteResult;
 import com.xiaou.ai.dto.sql.SqlCompareResult;
 import com.xiaou.ai.dto.sql.SqlRewriteResult;
 import com.xiaou.ai.service.AiSqlOptimizeService;
@@ -202,23 +203,27 @@ public class SqlOptimizerServiceImpl implements SqlOptimizerService {
     private SqlWorkbenchAnalyzeResponse analyzeWorkbenchInternal(Long userId, SqlAnalyzeRequest request, boolean withRewrite) {
         log.info("用户{}开始SQL优化工作台2.0{}流程", userId, withRewrite ? "重写" : "分析");
         String tableStructuresJson = JSONUtil.toJsonStr(request.getTableStructures());
-        SqlAnalyzeResult result = aiSqlOptimizeService.analyzeSqlV2(
-                request.getSql(),
-                request.getExplainResult(),
-                request.getExplainFormat(),
-                tableStructuresJson,
-                request.getMysqlVersion()
-        );
-
+        SqlAnalyzeResult result;
         SqlRewriteResult rewrite = null;
         if (withRewrite) {
-            rewrite = aiSqlOptimizeService.rewriteSqlV2(
+            SqlAnalyzeRewriteResult bundle = aiSqlOptimizeService.analyzeAndRewriteSqlV2(
                     request.getSql(),
-                    JSONUtil.toJsonStr(result),
+                    request.getExplainResult(),
+                    request.getExplainFormat(),
                     tableStructuresJson,
                     request.getMysqlVersion()
             );
+            result = bundle.getAnalysis();
+            rewrite = bundle.getRewrite();
             applyRewriteToAnalyzeResult(result, rewrite);
+        } else {
+            result = aiSqlOptimizeService.analyzeSqlV2(
+                    request.getSql(),
+                    request.getExplainResult(),
+                    request.getExplainFormat(),
+                    tableStructuresJson,
+                    request.getMysqlVersion()
+            );
         }
 
         boolean fallback = result.isFallback() || (rewrite != null && rewrite.isFallback());
