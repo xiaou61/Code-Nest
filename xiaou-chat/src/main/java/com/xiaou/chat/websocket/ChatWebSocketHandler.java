@@ -9,6 +9,7 @@ import com.xiaou.chat.dto.ChatMessageResponse;
 import com.xiaou.chat.service.ChatMessageService;
 import com.xiaou.chat.service.ChatOnlineUserService;
 import com.xiaou.chat.service.ChatRoomService;
+import com.xiaou.common.utils.JsonUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -18,7 +19,6 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -128,7 +128,10 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         String deviceInfo = getUserAgent(session);
         
         // 解析消息请求
-        Map<String, Object> dataMap = toObjectMap(wsMessage.getData());
+        Map<String, Object> dataMap = JsonUtils.toObjectMap(wsMessage.getData());
+        if (dataMap == null) {
+            throw new IllegalArgumentException("消息数据格式不正确");
+        }
         ChatMessageRequest request = BeanUtil.toBean(dataMap, ChatMessageRequest.class);
         
         // 保存消息到数据库
@@ -147,20 +150,6 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         sendMessage(session, ackMsg);
         
         log.info("用户发送消息，用户ID: {}, 消息ID: {}", userId, chatMessage.getId());
-    }
-
-    private Map<String, Object> toObjectMap(Object data) {
-        if (!(data instanceof Map<?, ?> rawMap)) {
-            throw new IllegalArgumentException("消息数据格式不正确");
-        }
-
-        Map<String, Object> result = new LinkedHashMap<>();
-        rawMap.forEach((key, value) -> {
-            if (key != null) {
-                result.put(key.toString(), value);
-            }
-        });
-        return result;
     }
     
     /**

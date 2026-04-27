@@ -18,6 +18,16 @@
         <result column="create_time" property="createTime"/>
     </resultMap>
 
+    <sql id="BaseColumns">
+        id, problem_id, contest_id, user_id, language, code, status, time_used, memory_used,
+        error_message, pass_count, total_count, create_time
+    </sql>
+
+    <sql id="SubmissionColumns">
+        s.id, s.problem_id, s.contest_id, s.user_id, s.language, s.code, s.status, s.time_used,
+        s.memory_used, s.error_message, s.pass_count, s.total_count, s.create_time
+    </sql>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO oj_submission (problem_id, contest_id, user_id, language, code, status, create_time)
         VALUES (#{problemId}, #{contestId}, #{userId}, #{language}, #{code}, #{status}, NOW())
@@ -37,14 +47,14 @@
     </update>
 
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT s.*, p.title AS problem_title
+        SELECT <include refid="SubmissionColumns"/>, p.title AS problem_title
         FROM oj_submission s
         LEFT JOIN oj_problem p ON s.problem_id = p.id
         WHERE s.id = #{id}
     </select>
 
     <select id="selectPage" resultMap="BaseResultMap">
-        SELECT s.*, p.title AS problem_title
+        SELECT <include refid="SubmissionColumns"/>, p.title AS problem_title
         FROM oj_submission s
         LEFT JOIN oj_problem p ON s.problem_id = p.id
         <where>
@@ -144,7 +154,8 @@
     </select>
 
     <select id="selectByContestId" resultMap="BaseResultMap">
-        SELECT * FROM oj_submission
+        SELECT <include refid="BaseColumns"/>
+        FROM oj_submission
         WHERE contest_id = #{contestId}
         ORDER BY create_time ASC, id ASC
     </select>

@@ -25,6 +25,12 @@
         status, create_time, update_time
     </sql>
 
+    <sql id="Comment_Column_List">
+        c.id, c.post_id, c.parent_id, c.content, c.author_id, c.author_name, c.like_count,
+        c.reply_to_id, c.reply_to_user_id, c.reply_to_user_name, c.reply_count,
+        c.status, c.create_time, c.update_time
+    </sql>
+
     <insert id="insert" parameterType="com.xiaou.community.domain.CommunityComment" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO community_comment (post_id, parent_id, content, author_id, author_name, 
         like_count, reply_to_id, reply_to_user_id, reply_to_user_name, reply_count,
@@ -75,7 +81,7 @@
 
     <!-- 后台查询评论列表 -->
     <select id="selectAdminCommentList" resultMap="BaseResultMap">
-        SELECT c.*, p.title as post_title
+        SELECT <include refid="Comment_Column_List"/>, p.title as post_title
         FROM community_comment c
         LEFT JOIN community_post p ON c.post_id = p.id
         <where>
@@ -162,7 +168,7 @@
 
     <!-- 分页查询用户的评论列表 -->
     <select id="selectUserCommentList" resultMap="BaseResultMap">
-        SELECT c.*, p.title as post_title
+        SELECT <include refid="Comment_Column_List"/>, p.title as post_title
         FROM community_comment c
         LEFT JOIN community_post p ON c.post_id = p.id
         WHERE c.author_id = #{userId} AND c.status = 1
@@ -197,4 +203,4 @@
         WHERE id = #{id}
     </update>
 
-</mapper> 
+</mapper>

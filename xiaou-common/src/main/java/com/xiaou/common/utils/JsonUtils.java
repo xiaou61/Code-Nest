@@ -198,6 +198,46 @@ public class JsonUtils {
             return null;
         }
     }
+
+    /**
+     * 对象转Map，主要用于请求体或第三方响应中的弱类型Map字段。
+     *
+     * @param value 原始对象
+     * @return Map对象，非Map输入返回null
+     */
+    public static Map<String, Object> toObjectMap(Object value) {
+        if (!(value instanceof Map<?, ?> rawMap)) {
+            return null;
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        rawMap.forEach((key, mapValue) -> {
+            if (key != null) {
+                result.put(key.toString(), mapValue);
+            }
+        });
+        return result;
+    }
+
+    /**
+     * 对象转字符串Map，主要用于第三方响应中值类型不稳定的Map字段。
+     *
+     * @param value 原始对象
+     * @return 字符串Map对象，非Map输入返回null
+     */
+    public static Map<String, String> toStringMap(Object value) {
+        if (!(value instanceof Map<?, ?> rawMap)) {
+            return null;
+        }
+
+        Map<String, String> result = new LinkedHashMap<>();
+        rawMap.forEach((key, mapValue) -> {
+            if (key != null && mapValue != null) {
+                result.put(key.toString(), mapValue.toString());
+            }
+        });
+        return result;
+    }
     
     /**
      * 对象转JSONObject（使用FastJson2）

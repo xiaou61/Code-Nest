@@ -17,6 +17,11 @@
         <result column="participant_count" property="participantCount"/>
     </resultMap>
 
+    <sql id="ContestColumns">
+        c.id, c.title, c.description, c.contest_type, c.status, c.start_time, c.end_time,
+        c.created_by, c.create_time, c.update_time
+    </sql>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO oj_contest (title, description, contest_type, status, start_time, end_time, created_by, create_time, update_time)
         VALUES (#{title}, #{description}, #{contestType}, #{status}, #{startTime}, #{endTime}, #{createdBy}, NOW(), NOW())
@@ -41,7 +46,7 @@
     </delete>
 
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT c.*,
+        SELECT <include refid="ContestColumns"/>,
                (SELECT COUNT(*) FROM oj_contest_problem cp WHERE cp.contest_id = c.id) AS problem_count,
                (SELECT COUNT(*) FROM oj_contest_participant p WHERE p.contest_id = c.id) AS participant_count
         FROM oj_contest c
@@ -49,7 +54,7 @@
     </select>
 
     <select id="selectPage" resultMap="BaseResultMap">
-        SELECT c.*,
+        SELECT <include refid="ContestColumns"/>,
                (SELECT COUNT(*) FROM oj_contest_problem cp WHERE cp.contest_id = c.id) AS problem_count,
                (SELECT COUNT(*) FROM oj_contest_participant p WHERE p.contest_id = c.id) AS participant_count
         FROM oj_contest c
@@ -83,7 +88,7 @@
     </select>
 
     <select id="selectPublicPage" resultMap="BaseResultMap">
-        SELECT c.*,
+        SELECT <include refid="ContestColumns"/>,
                (SELECT COUNT(*) FROM oj_contest_problem cp WHERE cp.contest_id = c.id) AS problem_count,
                (SELECT COUNT(*) FROM oj_contest_participant p WHERE p.contest_id = c.id) AS participant_count
         FROM oj_contest c

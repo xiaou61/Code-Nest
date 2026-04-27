@@ -1,5 +1,6 @@
 package com.xiaou.oj.judge.sandbox;
 
+import com.xiaou.common.utils.JsonUtils;
 import com.xiaou.oj.judge.config.OjJudgeProperties;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -187,14 +188,14 @@ public class GoJudgeClient {
         executeResult.setMemoryUsed(memObj != null ? ((Number) memObj).longValue() / 1024 : 0);
 
         // files (stdout/stderr 内容)
-        Map<String, String> outputFiles = toStringMap(result.get("files"));
+        Map<String, String> outputFiles = JsonUtils.toStringMap(result.get("files"));
         if (outputFiles != null) {
             executeResult.setStdout(outputFiles.getOrDefault("stdout", ""));
             executeResult.setStderr(outputFiles.getOrDefault("stderr", ""));
         }
 
         // fileIds (copyOutCached 返回的缓存文件ID)
-        Map<String, String> fileIds = toStringMap(result.get("fileIds"));
+        Map<String, String> fileIds = JsonUtils.toStringMap(result.get("fileIds"));
         if (fileIds != null) {
             executeResult.setFileIds(fileIds);
         }
@@ -206,20 +207,6 @@ public class GoJudgeClient {
         }
 
         return executeResult;
-    }
-
-    private Map<String, String> toStringMap(Object value) {
-        if (!(value instanceof Map<?, ?> rawMap)) {
-            return null;
-        }
-
-        Map<String, String> result = new LinkedHashMap<>();
-        rawMap.forEach((key, mapValue) -> {
-            if (key != null && mapValue != null) {
-                result.put(key.toString(), mapValue.toString());
-            }
-        });
-        return result;
     }
 
     /**

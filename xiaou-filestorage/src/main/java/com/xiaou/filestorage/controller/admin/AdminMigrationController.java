@@ -2,13 +2,13 @@ package com.xiaou.filestorage.controller.admin;
 
 import com.xiaou.common.annotation.RequireAdmin;
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.utils.JsonUtils;
 import com.xiaou.filestorage.domain.FileMigration;
 import com.xiaou.filestorage.service.FileMigrationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -39,7 +39,7 @@ public class AdminMigrationController {
             Long targetStorageId = Long.valueOf(request.get("targetStorageId").toString());
             String migrationType = (String) request.get("migrationType");
             String taskName = (String) request.get("taskName");
-            Map<String, Object> filterParams = toObjectMap(request.get("filterParams"));
+            Map<String, Object> filterParams = JsonUtils.toObjectMap(request.get("filterParams"));
 
             Long migrationId = fileMigrationService.createMigrationTask(
                 sourceStorageId, targetStorageId, migrationType, filterParams, taskName);
@@ -54,20 +54,6 @@ public class AdminMigrationController {
             log.error("创建迁移任务失败: {}", e.getMessage(), e);
             return Result.error("创建迁移任务失败: " + e.getMessage());
         }
-    }
-
-    private Map<String, Object> toObjectMap(Object value) {
-        if (!(value instanceof Map<?, ?> rawMap)) {
-            return null;
-        }
-
-        Map<String, Object> result = new LinkedHashMap<>();
-        rawMap.forEach((key, mapValue) -> {
-            if (key != null) {
-                result.put(key.toString(), mapValue);
-            }
-        });
-        return result;
     }
 
     /**

@@ -11,6 +11,10 @@
         <result column="is_sample" property="isSample"/>
     </resultMap>
 
+    <sql id="BaseColumns">
+        id, problem_id, input, expected_output, sort_order, is_sample
+    </sql>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO oj_test_case (problem_id, input, expected_output, sort_order, is_sample)
         VALUES (#{problemId}, #{input}, #{expectedOutput}, #{sortOrder}, #{isSample})
@@ -36,11 +40,16 @@
     </delete>
 
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT * FROM oj_test_case WHERE id = #{id}
+        SELECT <include refid="BaseColumns"/>
+        FROM oj_test_case
+        WHERE id = #{id}
     </select>
 
     <select id="selectByProblemId" resultMap="BaseResultMap">
-        SELECT * FROM oj_test_case WHERE problem_id = #{problemId} ORDER BY sort_order
+        SELECT <include refid="BaseColumns"/>
+        FROM oj_test_case
+        WHERE problem_id = #{problemId}
+        ORDER BY sort_order
     </select>
 
     <select id="countByProblemId" resultType="int">
@@ -48,6 +57,9 @@
     </select>
 
     <select id="selectSampleByProblemId" resultMap="BaseResultMap">
-        SELECT * FROM oj_test_case WHERE problem_id = #{problemId} AND is_sample = 1 ORDER BY sort_order
+        SELECT <include refid="BaseColumns"/>
+        FROM oj_test_case
+        WHERE problem_id = #{problemId} AND is_sample = 1
+        ORDER BY sort_order
     </select>
 </mapper>

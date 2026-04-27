@@ -12,6 +12,10 @@
         <result column="sort_order" property="sortOrder"/>
     </resultMap>
 
+    <sql id="BaseColumns">
+        id, problem_id, language, title, code, description, sort_order
+    </sql>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO oj_solution (problem_id, language, title, code, description, sort_order)
         VALUES (#{problemId}, #{language}, #{title}, #{code}, #{description}, #{sortOrder})
@@ -38,11 +42,16 @@
     </delete>
 
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT * FROM oj_solution WHERE id = #{id}
+        SELECT <include refid="BaseColumns"/>
+        FROM oj_solution
+        WHERE id = #{id}
     </select>
 
     <select id="selectByProblemId" resultMap="BaseResultMap">
-        SELECT * FROM oj_solution WHERE problem_id = #{problemId} ORDER BY sort_order
+        SELECT <include refid="BaseColumns"/>
+        FROM oj_solution
+        WHERE problem_id = #{problemId}
+        ORDER BY sort_order
     </select>
 
     <select id="countByProblemId" resultType="int">
