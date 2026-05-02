@@ -114,7 +114,7 @@
       <template #header>
         <h3>📋 抽奖规则</h3>
       </template>
-      <div class="rules-content" v-html="rules"></div>
+      <div class="rules-content" v-html="sanitizedRules"></div>
     </el-card>
 
     <!-- 我的记录 -->
@@ -202,6 +202,7 @@ import {
 } from '@element-plus/icons-vue'
 import { lotteryApi } from '@/api/lottery'
 import pointsApi from '@/api/points'
+import { sanitizeHtml } from '@/utils/markdown'
 
 const drawing = ref(false)
 const resultDialog = ref(false)
@@ -215,6 +216,7 @@ const rules = ref('')
 const recordList = ref([])
 const recordTotal = ref(0)
 const pointsBalance = ref(null)
+const sanitizedRules = computed(() => sanitizeHtml(rules.value || ''))
 
 // 九宫格动画相关
 const currentIndex = ref(-1)

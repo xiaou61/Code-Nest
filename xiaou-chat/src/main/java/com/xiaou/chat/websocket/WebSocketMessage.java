@@ -42,6 +42,8 @@ public class WebSocketMessage {
         public static final String MESSAGE_DELETE = "MESSAGE_DELETE"; // 消息删除
         public static final String KICK_OUT = "KICK_OUT";         // 被踢出
         public static final String HEARTBEAT = "HEARTBEAT";       // 心跳包
+        public static final String PONG = "PONG";                 // 心跳响应
+        public static final String TYPING = "TYPING";             // 输入中状态
         public static final String ERROR = "ERROR";               // 错误消息
     }
 }

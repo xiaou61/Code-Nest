@@ -1,6 +1,6 @@
 {
   "name": "code-nest-admin-desktop",
-  "version": "2.1.0",
+  "version": "2.1.2",
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
@@ -19,9 +19,10 @@
     "@element-plus/icons-vue": "^2.3.1",
     "axios": "^1.6.2",
     "d3": "^7.8.5",
+    "dompurify": "^3.4.2",
     "echarts": "^5.6.0",
-    "element-plus": "^2.4.4",
     "electron-store": "^8.1.0",
+    "element-plus": "^2.4.4",
     "highlight.js": "^11.11.1",
     "js-cookie": "^3.0.5",
     "lodash": "^4.17.21",

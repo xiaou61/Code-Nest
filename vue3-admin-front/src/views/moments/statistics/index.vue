@@ -132,7 +132,12 @@ import { ref, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Document, Star, ChatDotRound, User, Search } from '@element-plus/icons-vue'
 import { getMomentStatistics } from '@/api/moment'
-import * as echarts from 'echarts'
+import { use, init } from 'echarts/core'
+import { LineChart } from 'echarts/charts'
+import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+
+use([LineChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent, CanvasRenderer])
 
 // 数据状态
 const loading = ref(false)
@@ -219,7 +224,7 @@ const renderChart = () => {
     chart.value.dispose()
   }
   
-  chart.value = echarts.init(chartDom)
+  chart.value = init(chartDom)
   
   const dates = dailyStats.value.map(item => item.date)
   const moments = dailyStats.value.map(item => item.momentCount || 0)

@@ -50,6 +50,7 @@ export function useHomeData() {
   const loading = ref(true)
   const refreshAt = ref('')
   let refreshTimer = null
+  let visibilityHandlerBound = false
   const rawCache = reactive({
     hotPosts: [],
     hotMoments: [],
@@ -205,6 +206,10 @@ export function useHomeData() {
   }
 
   const refreshRealtimeData = async () => {
+    if (typeof document !== 'undefined' && document.hidden) {
+      return
+    }
+
     const [onlineResult, hotPostsResult, hotMomentsResult, planStatsResult] = await Promise.allSettled([
       getOnlineCount(),
       communityApi.getHotPosts(6),
@@ -253,14 +258,35 @@ export function useHomeData() {
     refreshTimer = setInterval(() => {
       refreshRealtimeData().catch(() => {})
     }, REFRESH_INTERVAL)
+
+    if (!visibilityHandlerBound && typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange)
+      visibilityHandlerBound = true
+    }
   }
 
   const stopAutoRefresh = () => {
     if (!refreshTimer) {
+      if (visibilityHandlerBound && typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
+        visibilityHandlerBound = false
+      }
       return
     }
     clearInterval(refreshTimer)
     refreshTimer = null
+
+    if (visibilityHandlerBound && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      visibilityHandlerBound = false
+    }
+  }
+
+  const handleVisibilityChange = () => {
+    if (document.hidden) {
+      return
+    }
+    refreshRealtimeData().catch(() => {})
   }
 
   onBeforeUnmount(() => {

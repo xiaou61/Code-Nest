@@ -310,6 +310,7 @@ import {
   likeContent,
   collectContent
 } from '@/api/moyu'
+import { sanitizeHtml } from '@/utils/markdown'
 
 // 响应式数据
 const todayLoading = ref(false)
@@ -374,7 +375,7 @@ const formatContent = (content) => {
   if (!content) return ''
   
   // 简单的内容格式化，限制长度并添加语法高亮
-  let formatted = content.replace(/\n/g, '<br>')
+  let formatted = escapeHtml(content).replace(/\n/g, '<br>')
   
   // 如果是代码片段，添加代码样式
   if (content.includes('```') || content.includes('`')) {
@@ -387,19 +388,28 @@ const formatContent = (content) => {
     formatted = formatted.substring(0, 200) + '...'
   }
   
-  return formatted
+  return sanitizeHtml(formatted)
 }
 
 const formatDetailContent = (content) => {
   if (!content) return ''
   
-  let formatted = content.replace(/\n/g, '<br>')
+  let formatted = escapeHtml(content).replace(/\n/g, '<br>')
   
   // 代码格式化
   formatted = formatted.replace(/```([^`]+)```/g, '<pre class="code-block"><code>$1</code></pre>')
   formatted = formatted.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
   
-  return formatted
+  return sanitizeHtml(formatted)
+}
+
+const escapeHtml = (text) => {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 const formatDate = (dateTime) => {
