@@ -1,7 +1,50 @@
 import MarkdownIt from 'markdown-it'
-import hljs from 'highlight.js'
+import hljs from 'highlight.js/lib/core'
+import javascript from 'highlight.js/lib/languages/javascript'
+import typescript from 'highlight.js/lib/languages/typescript'
+import java from 'highlight.js/lib/languages/java'
+import sql from 'highlight.js/lib/languages/sql'
+import xml from 'highlight.js/lib/languages/xml'
+import json from 'highlight.js/lib/languages/json'
+import bash from 'highlight.js/lib/languages/bash'
+import cpp from 'highlight.js/lib/languages/cpp'
+import c from 'highlight.js/lib/languages/c'
+import go from 'highlight.js/lib/languages/go'
+import python from 'highlight.js/lib/languages/python'
+import plaintext from 'highlight.js/lib/languages/plaintext'
 import DOMPurify from 'dompurify'
 import 'highlight.js/styles/github.css' // 代码高亮主题
+
+const supportedLanguages = {
+  javascript,
+  js: javascript,
+  typescript,
+  ts: typescript,
+  java,
+  sql,
+  xml,
+  html: xml,
+  vue: xml,
+  json,
+  bash,
+  shell: bash,
+  sh: bash,
+  cpp,
+  'c++': cpp,
+  c,
+  go,
+  golang: go,
+  python,
+  py: python,
+  text: plaintext,
+  plaintext
+}
+
+Object.entries(supportedLanguages).forEach(([name, language]) => {
+  if (!hljs.getLanguage(name)) {
+    hljs.registerLanguage(name, language)
+  }
+})
 
 // 配置markdown-it
 const md = new MarkdownIt({
@@ -11,10 +54,12 @@ const md = new MarkdownIt({
   breaks: true,      // 将换行符转换为<br>
   highlight: function (str, lang) {
     // 代码高亮处理
-    if (lang && hljs.getLanguage(lang)) {
+    const normalizedLang = lang ? lang.toLowerCase() : ''
+
+    if (normalizedLang && hljs.getLanguage(normalizedLang)) {
       try {
-        const result = hljs.highlight(str, { language: lang }).value
-        return `<pre class="hljs"><code class="language-${lang}">${result}</code></pre>`
+        const result = hljs.highlight(str, { language: normalizedLang }).value
+        return `<pre class="hljs"><code class="language-${normalizedLang}">${result}</code></pre>`
       } catch (__) {}
     }
     

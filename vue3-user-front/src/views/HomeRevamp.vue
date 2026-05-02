@@ -44,6 +44,35 @@
       </div>
     </section>
 
+    <section
+      v-if="recentWorkspaceItems.length"
+      class="content-section section-reveal"
+      data-section="recent"
+      :class="{ 'is-visible': visibleSections.recent }"
+    >
+      <div class="section-head">
+        <h2>最近继续</h2>
+        <p>保留你最近使用过的模块，回到站点可以直接接着干</p>
+      </div>
+      <div class="recent-grid">
+        <article
+          v-for="item in recentWorkspaceItems"
+          :key="item.path"
+          class="recent-card cn-hover-lift"
+          @click="goTo(item.path)"
+        >
+          <div class="recent-icon">
+            <el-icon><component :is="item.icon" /></el-icon>
+          </div>
+          <div class="recent-copy">
+            <h3>{{ item.label }}</h3>
+            <p>{{ item.desc }}</p>
+          </div>
+          <el-icon class="recent-arrow"><ArrowRight /></el-icon>
+        </article>
+      </div>
+    </section>
+
     <section class="content-section section-reveal" data-section="hot" :class="{ 'is-visible': visibleSections.hot }">
       <div class="section-head">
         <h2>今日热门</h2>
@@ -253,6 +282,8 @@ import {
   Ticket,
   Trophy
 } from '@element-plus/icons-vue'
+import { commandSections, flattenCommandItems } from '@/config/navigation'
+import { readCommandHistory } from '@/utils/command-history'
 import { useHomeData } from '@/utils/home-data'
 import { useHomeMotion } from '@/utils/home-motion'
 
@@ -260,6 +291,7 @@ const router = useRouter()
 const refreshingRealtime = ref(false)
 
 const visibleSections = ref({
+  recent: false,
   hot: false,
   growth: false,
   challenge: false,
@@ -267,6 +299,15 @@ const visibleSections = ref({
   features: false,
   quick: false
 })
+
+const commandItems = flattenCommandItems(commandSections)
+
+const recentWorkspaceItems = computed(() =>
+  readCommandHistory()
+    .map((path) => commandItems.find((item) => item.path === path))
+    .filter(Boolean)
+    .slice(0, 4)
+)
 
 const features = [
   { title: '面试题库', desc: '海量真题与题单，覆盖前后端、算法与系统设计。', icon: Reading, path: '/interview', gradient: 'linear-gradient(135deg, #2f7bff 0%, #1f6feb 100%)' },
@@ -601,6 +642,59 @@ onBeforeUnmount(() => {
   gap: 14px;
 }
 
+.recent-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.recent-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #dce8fb;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(245, 250, 255, 0.92) 100%);
+  box-shadow: 0 10px 24px rgba(20, 52, 96, 0.06);
+  cursor: pointer;
+}
+
+.recent-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: linear-gradient(135deg, #2f7bff 0%, #1f6feb 100%);
+  flex-shrink: 0;
+}
+
+.recent-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.recent-copy h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  color: #1f3d65;
+}
+
+.recent-copy p {
+  margin: 0;
+  color: #5f7ca1;
+  line-height: 1.55;
+  font-size: 13px;
+}
+
+.recent-arrow {
+  color: #7e95b9;
+  flex-shrink: 0;
+}
+
 .three-col {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -889,12 +983,17 @@ onBeforeUnmount(() => {
   .quick-grid {
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
+
+  .recent-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 992px) {
   .two-col,
   .three-col,
-  .feature-grid {
+  .feature-grid,
+  .recent-grid {
     grid-template-columns: 1fr;
   }
 }

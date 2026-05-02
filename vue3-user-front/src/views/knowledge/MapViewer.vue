@@ -180,7 +180,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
@@ -192,8 +192,9 @@ import {
   getKnowledgeNodeTree,
   searchKnowledgeNodes
 } from '@/api/knowledge'
-import MindMap from '@/components/MindMap.vue'
 import { sanitizeHtml } from '@/utils/markdown'
+
+const MindMap = defineAsyncComponent(() => import('@/components/MindMap.vue'))
 
 const route = useRoute()
 const router = useRouter()
