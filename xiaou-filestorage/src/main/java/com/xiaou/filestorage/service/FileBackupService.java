@@ -13,9 +13,8 @@ public interface FileBackupService {
      * 异步创建本地备份
      *
      * @param fileInfo 文件信息
-     * @return 备份是否成功
      */
-    boolean createLocalBackupAsync(FileInfo fileInfo);
+    void createLocalBackupAsync(FileInfo fileInfo);
 
     /**
      * 检查文件是否有本地备份
@@ -53,4 +52,4 @@ public interface FileBackupService {
      * @return 是否有足够空间
      */
     boolean hasEnoughSpace(long fileSize);
-} 
+}

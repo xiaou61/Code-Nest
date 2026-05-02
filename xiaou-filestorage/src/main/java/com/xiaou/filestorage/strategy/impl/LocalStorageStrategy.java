@@ -38,7 +38,7 @@ public class LocalStorageStrategy extends AbstractFileStorageStrategy {
     @Override
     protected boolean doInitialize(Map<String, Object> configParams) {
         this.basePath = getConfigParam("basePath", "/uploads");
-        this.urlPrefix = getConfigParam("urlPrefix", "http://localhost:9999/files");
+        this.urlPrefix = getConfigParam("urlPrefix", "http://localhost:9999/api/files");
 
         // 创建基础目录
         try {
@@ -81,8 +81,9 @@ public class LocalStorageStrategy extends AbstractFileStorageStrategy {
             
             // 生成访问URL
             String accessUrl = urlPrefix + "/" + storagePath.replace("\\", "/");
+            long fileSize = Files.size(targetPath);
             
-            return FileUploadResult.success(storagePath, accessUrl, file.getSize());
+            return FileUploadResult.success(storagePath, accessUrl, fileSize);
             
         } catch (Exception e) {
             log.error("本地上传文件失败: {}", e.getMessage(), e);
@@ -197,4 +198,4 @@ public class LocalStorageStrategy extends AbstractFileStorageStrategy {
             return null;
         }
     }
-} 
+}

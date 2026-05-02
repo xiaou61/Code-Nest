@@ -193,6 +193,7 @@ import {
   searchKnowledgeNodes
 } from '@/api/knowledge'
 import MindMap from '@/components/MindMap.vue'
+import { sanitizeHtml } from '@/utils/markdown'
 
 const route = useRoute()
 const router = useRouter()
@@ -355,7 +356,7 @@ const renderMarkdown = (text) => {
     .replace(/<p><\/p>/g, '')
     .replace(/<p>\s*<\/p>/g, '')
   
-  return result
+  return sanitizeHtml(result)
 }
 
 // 计算属性 - 不再需要渲染Markdown，直接处理URL
@@ -1224,4 +1225,4 @@ onMounted(() => {
     border-top: 1px solid #f0f0f0;
   }
 }
-</style> 
+</style>

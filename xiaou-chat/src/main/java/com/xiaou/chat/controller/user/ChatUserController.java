@@ -7,6 +7,7 @@ import com.xiaou.chat.dto.ChatRecallRequest;
 import com.xiaou.chat.service.ChatMessageService;
 import com.xiaou.chat.service.ChatOnlineUserService;
 import com.xiaou.chat.service.ChatRoomService;
+import com.xiaou.chat.service.ChatWebSocketTicketService;
 import com.xiaou.chat.websocket.ChatWebSocketHandler;
 import com.xiaou.common.annotation.Log;
 import com.xiaou.common.core.domain.Result;
@@ -31,7 +32,17 @@ public class ChatUserController {
     private final ChatMessageService chatMessageService;
     private final ChatOnlineUserService chatOnlineUserService;
     private final ChatRoomService chatRoomService;
+    private final ChatWebSocketTicketService chatWebSocketTicketService;
     private final ChatWebSocketHandler chatWebSocketHandler;
+
+    /**
+     * 获取 WebSocket 一次性握手票据
+     */
+    @PostMapping("/ws-ticket")
+    public Result<String> createWebSocketTicket() {
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        return Result.success(chatWebSocketTicketService.createTicket(userId));
+    }
     
     /**
      * 获取历史消息

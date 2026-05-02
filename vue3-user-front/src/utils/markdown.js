@@ -1,5 +1,6 @@
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
+import DOMPurify from 'dompurify'
 import 'highlight.js/styles/github.css' // 代码高亮主题
 
 // 配置markdown-it
@@ -22,6 +23,20 @@ const md = new MarkdownIt({
     return `<pre class="hljs"><code>${escaped}</code></pre>`
   }
 })
+
+const sanitizeOptions = {
+  USE_PROFILES: { html: true },
+  ADD_ATTR: ['target'],
+  FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed'],
+  FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'style']
+}
+
+export function sanitizeHtml(html) {
+  if (!html || typeof html !== 'string') {
+    return ''
+  }
+  return DOMPurify.sanitize(html, sanitizeOptions)
+}
 
 // 自定义渲染规则
 md.renderer.rules.heading_open = function (tokens, idx, options, env, renderer) {
@@ -87,14 +102,15 @@ export function renderMarkdown(content) {
   }
   
   try {
-    return md.render(content)
+    return sanitizeHtml(md.render(content))
   } catch (error) {
     console.error('Markdown渲染失败:', error)
     // 回退到简单的文本处理
-    return content.replace(/\n/g, '<br>')
+    return sanitizeHtml(md.utils.escapeHtml(content).replace(/\n/g, '<br>'))
   }
 }
 
 export default {
-  renderMarkdown
-} 
+  renderMarkdown,
+  sanitizeHtml
+}

@@ -24,6 +24,11 @@ export function recallMessage(data) {
   return request.post('/user/chat/message/recall', data)
 }
 
+// 获取 WebSocket 一次性握手票据
+export function getWebSocketTicket() {
+  return request.post('/user/chat/ws-ticket')
+}
+
 // 上传聊天图片
 export function uploadChatImage(file, onProgress) {
   const formData = new FormData()

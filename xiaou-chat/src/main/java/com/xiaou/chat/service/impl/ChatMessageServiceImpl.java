@@ -12,11 +12,13 @@ import com.xiaou.common.exception.BusinessException;
 import com.xiaou.common.utils.PageHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -30,14 +32,24 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ChatMessageServiceImpl implements ChatMessageService {
     
+    private static final int MESSAGE_TYPE_TEXT = 1;
+    private static final int MESSAGE_TYPE_IMAGE = 2;
+    private static final int RECALL_TIME_LIMIT = 120; // 撤回时间限制：2分钟
+
     private final ChatMessageMapper chatMessageMapper;
     private final ChatRoomService chatRoomService;
     private final ChatUserBanService chatUserBanService;
-    
-    private static final int RECALL_TIME_LIMIT = 120; // 撤回时间限制：2分钟
+
+    @Value("${xiaou.chat.message.max-text-length:1000}")
+    private int maxTextLength;
+
+    @Value("${xiaou.chat.message.max-image-url-length:1024}")
+    private int maxImageUrlLength;
     
     @Override
     public ChatMessage sendMessage(ChatMessageRequest request, Long userId, String ipAddress, String deviceInfo) {
+        validateMessageRequest(request);
+
         // 获取官方聊天室
         Long roomId = chatRoomService.getOfficialRoom().getId();
         
@@ -50,9 +62,10 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         ChatMessage message = new ChatMessage();
         message.setRoomId(roomId);
         message.setUserId(userId);
-        message.setMessageType(request.getMessageType());
-        message.setContent(request.getContent());
-        message.setImageUrl(request.getImageUrl());
+        int messageType = request.getMessageType() == null ? MESSAGE_TYPE_TEXT : request.getMessageType();
+        message.setMessageType(messageType);
+        message.setContent(normalizeContent(request, messageType));
+        message.setImageUrl(normalizeImageUrl(request, messageType));
         message.setIsDeleted(0);
         message.setIpAddress(ipAddress);
         message.setDeviceInfo(deviceInfo);
@@ -81,6 +94,65 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         
         // 查询完整消息信息（包含用户信息）
         return chatMessageMapper.selectById(message.getId());
+    }
+
+    private void validateMessageRequest(ChatMessageRequest request) {
+        if (request == null) {
+            throw new BusinessException("消息不能为空");
+        }
+
+        int messageType = request.getMessageType() == null ? MESSAGE_TYPE_TEXT : request.getMessageType();
+        if (messageType != MESSAGE_TYPE_TEXT && messageType != MESSAGE_TYPE_IMAGE) {
+            throw new BusinessException("不支持的消息类型");
+        }
+
+        if (messageType == MESSAGE_TYPE_TEXT) {
+            String content = request.getContent();
+            if (content == null || content.isBlank()) {
+                throw new BusinessException("消息内容不能为空");
+            }
+            if (content.length() > maxTextLength) {
+                throw new BusinessException("消息内容过长，最多" + maxTextLength + "个字符");
+            }
+            return;
+        }
+
+        String imageUrl = request.getImageUrl();
+        if (imageUrl == null || imageUrl.isBlank()) {
+            throw new BusinessException("图片消息地址不能为空");
+        }
+        if (imageUrl.length() > maxImageUrlLength) {
+            throw new BusinessException("图片地址过长");
+        }
+        if (!isAllowedImageUrl(imageUrl)) {
+            throw new BusinessException("图片地址格式不合法");
+        }
+        if (request.getContent() != null && request.getContent().length() > maxTextLength) {
+            throw new BusinessException("图片说明过长，最多" + maxTextLength + "个字符");
+        }
+    }
+
+    private String normalizeContent(ChatMessageRequest request, int messageType) {
+        if (messageType == MESSAGE_TYPE_IMAGE) {
+            String content = request.getContent();
+            return content == null || content.isBlank() ? "[图片]" : content.trim();
+        }
+        return request.getContent().trim();
+    }
+
+    private String normalizeImageUrl(ChatMessageRequest request, int messageType) {
+        if (messageType != MESSAGE_TYPE_IMAGE) {
+            return null;
+        }
+        return request.getImageUrl().trim();
+    }
+
+    private boolean isAllowedImageUrl(String imageUrl) {
+        String normalized = imageUrl.trim().toLowerCase(Locale.ROOT);
+        return normalized.startsWith("http://")
+            || normalized.startsWith("https://")
+            || normalized.startsWith("/api/files/")
+            || normalized.startsWith("api/files/");
     }
     
     @Override

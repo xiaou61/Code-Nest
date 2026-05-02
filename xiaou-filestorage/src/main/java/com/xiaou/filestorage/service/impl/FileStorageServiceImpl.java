@@ -439,7 +439,7 @@ public class FileStorageServiceImpl implements FileStorageService {
             // 初始化本地存储配置
             Map<String, Object> localParams = new HashMap<>();
             localParams.put("basePath", System.getProperty("user.dir") + "/uploads");
-            localParams.put("urlPrefix", "http://localhost:8080/files");
+            localParams.put("urlPrefix", "http://localhost:9999/api/files");
             
             boolean initialized = localStrategy.initialize(localParams);
             if (!initialized) {
@@ -503,7 +503,7 @@ public class FileStorageServiceImpl implements FileStorageService {
             
             Map<String, Object> localParams = new HashMap<>();
             localParams.put("basePath", System.getProperty("user.dir") + "/uploads");
-            localParams.put("urlPrefix", "http://localhost:8080/files");
+            localParams.put("urlPrefix", "http://localhost:9999/api/files");
             
             boolean initialized = localStrategy.initialize(localParams);
             if (!initialized) {
@@ -560,7 +560,7 @@ public class FileStorageServiceImpl implements FileStorageService {
             
             Map<String, Object> localParams = new HashMap<>();
             localParams.put("basePath", System.getProperty("user.dir") + "/uploads");
-            localParams.put("urlPrefix", "http://localhost:8080/files");
+            localParams.put("urlPrefix", "http://localhost:9999/api/files");
             
             boolean initialized = localStrategy.initialize(localParams);
             if (!initialized) {
@@ -574,4 +574,4 @@ public class FileStorageServiceImpl implements FileStorageService {
             return null;
         }
     }
-} 
+}

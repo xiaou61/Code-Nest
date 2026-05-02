@@ -6,6 +6,7 @@ import com.xiaou.chat.domain.ChatMessage;
 import com.xiaou.chat.domain.ChatRoom;
 import com.xiaou.chat.dto.ChatMessageRequest;
 import com.xiaou.chat.dto.ChatMessageResponse;
+import com.xiaou.chat.service.ChatRateLimitService;
 import com.xiaou.chat.service.ChatMessageService;
 import com.xiaou.chat.service.ChatOnlineUserService;
 import com.xiaou.chat.service.ChatRoomService;
@@ -18,6 +19,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -34,6 +36,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     private final ChatMessageService chatMessageService;
     private final ChatOnlineUserService chatOnlineUserService;
     private final ChatRoomService chatRoomService;
+    private final ChatRateLimitService chatRateLimitService;
     
     // 存储所有在线用户的WebSocket会话
     private static final Map<String, WebSocketSession> SESSIONS = new ConcurrentHashMap<>();
@@ -102,6 +105,14 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             // 处理心跳包
             if (WebSocketMessage.MessageType.HEARTBEAT.equals(type)) {
                 chatOnlineUserService.updateHeartbeat(sessionId);
+                sendMessage(session, new WebSocketMessage(WebSocketMessage.MessageType.PONG,
+                    Map.of("timestamp", System.currentTimeMillis())));
+                return;
+            }
+
+            // 处理输入中状态
+            if (WebSocketMessage.MessageType.TYPING.equals(type)) {
+                handleTypingMessage(session);
                 return;
             }
             
@@ -129,13 +140,28 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         // 解析消息请求
         Map<String, Object> dataMap = (Map<String, Object>) wsMessage.getData();
         ChatMessageRequest request = BeanUtil.toBean(dataMap, ChatMessageRequest.class);
+
+        ChatRateLimitService.RateLimitResult rateLimit = chatRateLimitService.tryAcquireMessage(userId);
+        if (!rateLimit.isAllowed()) {
+            sendError(session, "RATE_LIMITED", rateLimit.getMessage(), request.getTempId(), rateLimit.getRetryAfterSeconds());
+            log.warn("用户发送消息触发限流，用户ID: {}, retryAfter={}s", userId, rateLimit.getRetryAfterSeconds());
+            return;
+        }
         
         // 保存消息到数据库
-        ChatMessage chatMessage = chatMessageService.sendMessage(request, userId, ipAddress, deviceInfo);
+        ChatMessage chatMessage;
+        try {
+            chatMessage = chatMessageService.sendMessage(request, userId, ipAddress, deviceInfo);
+        } catch (Exception e) {
+            sendError(session, "MESSAGE_REJECTED", e.getMessage(), request.getTempId(), 0);
+            log.warn("用户消息被拒绝，用户ID: {}, 原因: {}", userId, e.getMessage());
+            return;
+        }
         
         // 转换为响应DTO
         ChatMessageResponse response = BeanUtil.copyProperties(chatMessage, ChatMessageResponse.class);
         response.setCanRecall(true); // 刚发送的消息可撤回
+        response.setTempId(request.getTempId());
         
         // 广播消息给所有在线用户（排除发送者，避免重复显示）
         WebSocketMessage broadcastMsg = new WebSocketMessage(WebSocketMessage.MessageType.MESSAGE, response);
@@ -146,6 +172,24 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         sendMessage(session, ackMsg);
         
         log.info("用户发送消息，用户ID: {}, 消息ID: {}", userId, chatMessage.getId());
+    }
+
+    /**
+     * 处理输入中状态
+     */
+    private void handleTypingMessage(WebSocketSession session) {
+        Long userId = (Long) session.getAttributes().get("userId");
+        String username = (String) session.getAttributes().get("username");
+        if (userId == null) {
+            return;
+        }
+        if (!chatRateLimitService.tryAcquireTyping(userId).isAllowed()) {
+            return;
+        }
+
+        WebSocketMessage typingMsg = new WebSocketMessage(WebSocketMessage.MessageType.TYPING,
+            Map.of("userId", userId, "nickname", username != null ? username : "用户" + userId));
+        broadcastMessage(typingMsg, session.getId());
     }
     
     /**
@@ -216,6 +260,19 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                 log.error("发送消息失败，会话ID: {}", session.getId(), e);
             }
         }
+    }
+
+    private void sendError(WebSocketSession session, String code, String message, String tempId, int retryAfterSeconds) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("code", code);
+        data.put("message", message);
+        if (tempId != null && !tempId.isBlank()) {
+            data.put("tempId", tempId);
+        }
+        if (retryAfterSeconds > 0) {
+            data.put("retryAfterSeconds", retryAfterSeconds);
+        }
+        sendMessage(session, new WebSocketMessage(WebSocketMessage.MessageType.ERROR, data));
     }
     
     /**

@@ -41,7 +41,7 @@
 
     <properties>
         <!-- 统一版本管理 -->
-        <revision>v2.1.0</revision>
+        <revision>v2.1.2</revision>
         
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>17</maven.compiler.source>

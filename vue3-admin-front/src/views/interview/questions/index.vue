@@ -290,6 +290,7 @@ import {
   Plus, Search, Refresh, Edit, Delete, View, Collection, Upload
 } from '@element-plus/icons-vue'
 import { interviewApi } from '@/api/interview'
+import { renderMarkdown as renderSafeMarkdown } from '@/utils/markdown'
 
 const route = useRoute()
 const router = useRouter()
@@ -362,16 +363,7 @@ const dialogTitle = computed(() => {
 
 // 简单的Markdown渲染（基本格式支持）
 const renderMarkdown = (text) => {
-  if (!text) return ''
-  
-  return text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/`(.*?)`/g, '<code>$1</code>')
-    .replace(/\n/g, '<br>')
-    .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-    .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-    .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+  return renderSafeMarkdown(text)
 }
 
 // 获取题目列表
@@ -766,4 +758,4 @@ onMounted(() => {
     justify-content: flex-end;
   }
 }
-</style> 
+</style>
