@@ -52,6 +52,16 @@ const operations = [
   { text: '常见问题排查', link: '/operations/troubleshooting' }
 ]
 
+const reference = [
+  { text: 'API 路由索引', link: '/reference/api-routes' },
+  { text: '前端路由索引', link: '/reference/frontend-routes' },
+  { text: '数据表索引', link: '/reference/database-tables' },
+  { text: '源码地图', link: '/reference/source-map' },
+  { text: '响应体与错误码', link: '/reference/response-errors' },
+  { text: 'WebSocket 协议', link: '/reference/websocket' },
+  { text: 'AI Schema 与治理', link: '/reference/ai-schemas' }
+]
+
 export default defineConfig({
   lang: 'zh-CN',
   title: 'Code Nest 文档',
@@ -68,6 +78,7 @@ export default defineConfig({
       { text: '指南', link: '/guide/quick-start' },
       { text: '架构', link: '/architecture/overview' },
       { text: '模块', link: '/modules/' },
+      { text: '参考', link: '/reference/api-routes' },
       { text: '运维', link: '/operations/docker' },
       { text: 'v2.2.0 计划', link: '/roadmap/v2.2.0-docs-plan' }
     ],
@@ -75,6 +86,7 @@ export default defineConfig({
       '/guide/': [{ text: '使用指南', items: guide }],
       '/architecture/': [{ text: '系统架构', items: architecture }],
       '/modules/': [{ text: '功能模块', items: modules }],
+      '/reference/': [{ text: '参考索引', items: reference }],
       '/operations/': [{ text: '部署运维', items: operations }],
       '/roadmap/': [
         {
