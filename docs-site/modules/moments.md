@@ -10,6 +10,29 @@
 | 管理端 | `/moments/list`、`/moments/comments`、`/moments/statistics` |
 | 后端模块 | `xiaou-moment` |
 
+## 推荐学习顺序
+
+动态广场适合用来学习“轻内容 + 互动计数 + 缓存统计”的实现。建议按下面顺序读：
+
+1. 看 `publishMoment`：理解发布频率限制、敏感词处理和图片 JSON 保存。
+2. 看 `toggleLike`、`toggleFavorite`、`publishComment`：理解互动表和计数字段如何同步。
+3. 看列表转换方法：理解用户信息、点赞状态、收藏状态如何批量补齐。
+4. 看 `MomentViewServiceImpl` 和两个定时任务：理解浏览数先写 Redis，再定时同步到数据库。
+5. 看管理端列表和统计：理解运营视角如何筛选、删除和观察趋势。
+
+## 源码地图
+
+| 关注点 | 源码位置 |
+| --- | --- |
+| 用户端接口 | `xiaou-moment/src/main/java/com/xiaou/moment/controller/user/UserMomentController.java` |
+| 管理端接口 | `xiaou-moment/src/main/java/com/xiaou/moment/controller/admin/AdminMomentController.java` |
+| 动态主服务 | `xiaou-moment/src/main/java/com/xiaou/moment/service/impl/MomentServiceImpl.java` |
+| 浏览数 Redis 服务 | `xiaou-moment/src/main/java/com/xiaou/moment/service/impl/MomentViewServiceImpl.java` |
+| 热门动态任务 | `xiaou-moment/src/main/java/com/xiaou/moment/task/HotMomentCalculateTask.java` |
+| 浏览数同步任务 | `xiaou-moment/src/main/java/com/xiaou/moment/task/MomentViewSyncTask.java` |
+| 状态枚举 | `xiaou-moment/src/main/java/com/xiaou/moment/enums` |
+| 核心 SQL | `sql/MySql/code_nest.sql` 的 `moments`、`moment_comments`、`moment_likes`、`moment_favorites`、`moment_views` |
+
 ## 用户侧接口域
 
 | 接口域 | 能力 |
@@ -43,6 +66,7 @@
 - 图片内容要走文件存储权限。
 - 热门动态和搜索需要明确排序权重。
 - 用户主页访问公开信息，不应泄露私密字段。
+- 用户信息来自 `UserInfoApiService`，批量列表要优先走批量接口，避免 N+1。
 
 ## 状态和发布限制
 
@@ -62,6 +86,18 @@
 2. 敏感词检测：正文不允许包含违规内容，允许时写入处理后的文本。
 
 图片以 JSON 数组保存在动态记录中，列表响应会反序列化为数组。
+
+## 发布流程拆解
+
+用户发布动态时，后端做了几件事：
+
+1. `StpUserUtil.checkLogin()` 校验登录。
+2. `checkPublishFrequency` 查询最近 5 分钟发文数量，超过 3 条就拒绝。
+3. 调用 `SensitiveWordUtils.checkText(content, "moment", null, currentUserId)`。
+4. 如果敏感词策略不允许发布，返回“内容包含敏感词，禁止发布”。
+5. 写入动态内容、图片 JSON、点赞数 0、评论数 0、状态 `NORMAL`。
+
+评论发布也会走敏感词，但模块名是 `moment_comment`，并且成功后会增加评论数。点赞、评论、收藏都会尝试通过通知中心提醒动态作者；通知失败只记录日志，不回滚主操作。
 
 ## 互动规则
 
@@ -87,6 +123,35 @@ likeCount * 2 + commentCount * 3 + viewCount * 0.1
 
 用户端列表会批量查询用户信息、点赞状态和收藏状态，避免明显的 N+1 查询。
 
+浏览数不是每次直接写数据库。`MomentViewServiceImpl` 会使用两个 Redis Key：
+
+| Key | 说明 |
+| --- | --- |
+| `moment:view:{momentId}` | 动态待同步浏览增量 |
+| `moment:view:user:{userId}:{momentId}` | 用户 5 分钟去重标记 |
+
+`MomentViewSyncTask` 每小时执行一次，把 Redis 增量同步到数据库。同步成功后会把对应 Redis 计数设为 0。这个设计能减少高频列表访问对数据库的写压力。
+
+## 数据表理解
+
+| 表 | 说明 |
+| --- | --- |
+| `moments` | 动态主表，保存内容、图片 JSON、互动计数和状态 |
+| `moment_comments` | 评论表，当前是动态下的评论列表 |
+| `moment_likes` | 点赞关系表 |
+| `moment_favorites` | 收藏关系表 |
+| `moment_views` | 浏览记录表，当前主要配合浏览统计能力 |
+
+## 常见坑
+
+| 问题 | 原因 | 建议 |
+| --- | --- | --- |
+| 浏览数没有立刻出现在数据库 | 浏览先写 Redis，每小时同步 | 联调时同时看 Redis 和数据库 |
+| 未登录列表的互动状态都是 false | 当前用户 ID 为空 | 前端不要把 false 当作接口异常 |
+| 管理端敏感词筛选不准确 | `hasSensitiveWord` 当前是预留参数 | 需要接入敏感词日志后再做真实筛选 |
+| 热门列表为空 | 最近 24 小时无可计算动态或任务未运行 | 先检查 `moment:hot:list` 和定时任务日志 |
+| 评论数出现负数风险 | 重复删除或并发删除会影响计数 | 删除前确认状态，后续可加幂等保护 |
+
 ## 验证点
 
 | 场景 | 预期 |
@@ -96,3 +161,7 @@ likeCount * 2 + commentCount * 3 + viewCount * 0.1
 | 评论者或动态作者删除评论 | 删除成功并减少评论数 |
 | 动态列表未登录访问 | 点赞、收藏、删除权限均为 false |
 | 热门任务失败 | 只记录错误，不影响主链路 |
+| 同一用户 5 分钟重复浏览同一动态 | 只统计一次浏览 |
+| 点赞后再次点击 | 取消点赞并减少点赞数 |
+| 收藏后再次点击 | 取消收藏并减少收藏数 |
+| 管理端批量删除 | 动态和关联评论一起软删除 |
