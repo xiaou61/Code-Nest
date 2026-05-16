@@ -16,15 +16,33 @@ const architecture = [
 const modules = [
   { text: '模块总览', link: '/modules/' },
   { text: '鉴权与用户体系', link: '/modules/auth' },
+  { text: '用户账户与个人中心', link: '/modules/user-account' },
   { text: 'AI Runtime', link: '/modules/ai-runtime' },
   { text: '题库与成长闭环', link: '/modules/interview-and-growth' },
+  { text: '面试题库', link: '/modules/interview' },
+  { text: '模拟面试与求职作战台', link: '/modules/mock-interview-job-battle' },
+  { text: '学习资产', link: '/modules/learning-assets' },
+  { text: '闪卡', link: '/modules/flashcard' },
+  { text: '计划与学习小组', link: '/modules/plan-team' },
+  { text: '知识图谱', link: '/modules/knowledge' },
+  { text: 'SQL 优化工作台', link: '/modules/sql-optimizer' },
   { text: 'OJ 判题系统', link: '/modules/oj' },
   { text: '社区与内容矩阵', link: '/modules/community-content' },
+  { text: '社区帖子', link: '/modules/community' },
+  { text: '动态广场', link: '/modules/moments' },
+  { text: '博客', link: '/modules/blog' },
+  { text: '代码工坊', link: '/modules/codepen' },
   { text: 'IM 聊天室', link: '/modules/chat' },
   { text: '简历系统', link: '/modules/resume' },
   { text: '积分与抽奖', link: '/modules/points' },
   { text: '文件存储', link: '/modules/file-storage' },
+  { text: '通知中心', link: '/modules/notification' },
+  { text: '敏感词风控', link: '/modules/sensitive' },
   { text: '工具、摸鱼与版本', link: '/modules/tools-moyu-version' },
+  { text: '开发者工具', link: '/modules/dev-tools' },
+  { text: '摸鱼工具', link: '/modules/moyu' },
+  { text: '版本历史', link: '/modules/version-history' },
+  { text: '仪表盘与日志', link: '/modules/dashboard-logs' },
   { text: '系统运营后台', link: '/modules/system-ops' }
 ]
 
@@ -89,4 +107,3 @@ export default defineConfig({
     }
   }
 })
-
