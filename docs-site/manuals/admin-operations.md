@@ -88,7 +88,7 @@
 | 文件迁移 | `/filestorage/migration` | 迁移任务 | `53-filestorage-migration.png` |
 | 系统设置 | `/filestorage/system-settings` | 文件类型和系统参数 | `54-filestorage-system-settings.png` |
 | AI 配置与观测 | `/system/ai-config` | Prompt、RAG、Schema、回归、指标 | `22-system-ai-config.png` |
-| AI 治理 | `/system/ai-governance` | 质量治理概览 | 截图待补 |
+| AI 治理 | `/system/ai-governance` | 质量治理概览 | 以治理页和 AI Runtime 模块文档为准 |
 | 版本管理 | `/system/version` | 版本历史维护 | `23-system-version.png` |
 | 积分概览 | `/points/index` | 积分统计 | `26-points-index.png` |
 | 积分排行 | `/points/users` | 用户积分排行 | `61-points-users.png` |
