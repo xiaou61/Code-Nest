@@ -3,7 +3,8 @@ import { defineConfig } from 'vitepress'
 const guide = [
   { text: '快速开始', link: '/guide/quick-start' },
   { text: '本地开发', link: '/guide/local-dev' },
-  { text: '独立部署', link: '/guide/deploy' }
+  { text: '独立部署', link: '/guide/deploy' },
+  { text: '文档维护规范', link: '/guide/documentation-maintenance' }
 ]
 
 const architecture = [
@@ -59,7 +60,8 @@ const reference = [
   { text: '源码地图', link: '/reference/source-map' },
   { text: '响应体与错误码', link: '/reference/response-errors' },
   { text: 'WebSocket 协议', link: '/reference/websocket' },
-  { text: 'AI Schema 与治理', link: '/reference/ai-schemas' }
+  { text: 'AI Schema 与治理', link: '/reference/ai-schemas' },
+  { text: '全功能覆盖矩阵', link: '/reference/feature-coverage' }
 ]
 
 const manuals = [
