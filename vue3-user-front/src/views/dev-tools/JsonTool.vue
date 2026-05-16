@@ -427,8 +427,17 @@ const highlightJson = (json) => {
       } else if (/null/.test(match)) {
         cls = 'json-null'
       }
-      return `<span class="${cls}">${match}</span>`
+      return `<span class="${cls}">${escapeHtml(match)}</span>`
     })
+}
+
+const escapeHtml = (text) => {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 // 历史记录管理

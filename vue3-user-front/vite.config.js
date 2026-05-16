@@ -3,35 +3,53 @@ import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
 const buildManualChunks = (id) => {
-  if (!id.includes('node_modules')) {
+  const normalizedId = id.replace(/\\/g, '/')
+
+  if (!normalizedId.includes('node_modules')) {
     return undefined
   }
 
-  if (id.includes('monaco-editor') || id.includes('@monaco-editor')) {
+  if (normalizedId.includes('monaco-editor') || normalizedId.includes('@monaco-editor')) {
     return 'vendor-monaco'
   }
 
-  if (id.includes('@antv') || id.includes('/g6/')) {
+  if (normalizedId.includes('@antv') || normalizedId.includes('/g6/')) {
     return 'vendor-graph'
   }
 
-  if (id.includes('markdown-it') || id.includes('highlight.js')) {
+  if (
+    normalizedId.includes('markdown-it') ||
+    normalizedId.includes('highlight.js') ||
+    normalizedId.includes('dompurify')
+  ) {
     return 'vendor-markdown'
   }
 
-  if (id.includes('element-plus') || id.includes('@element-plus')) {
+  if (normalizedId.includes('element-plus') || normalizedId.includes('@element-plus')) {
     return 'vendor-element'
   }
 
-  if (id.includes('/vue/') || id.includes('vue-router') || id.includes('pinia')) {
+  if (normalizedId.includes('vue-router')) {
+    return 'vendor-router'
+  }
+
+  if (
+    normalizedId.includes('pinia') ||
+    normalizedId.includes('@vueuse') ||
+    normalizedId.includes('vue-demi')
+  ) {
+    return 'vendor-state'
+  }
+
+  if (normalizedId.includes('/vue/') || normalizedId.includes('/@vue/')) {
     return 'vendor-vue'
   }
 
   if (
-    id.includes('axios') ||
-    id.includes('lodash') ||
-    id.includes('js-cookie') ||
-    id.includes('nprogress')
+    normalizedId.includes('axios') ||
+    normalizedId.includes('lodash') ||
+    normalizedId.includes('js-cookie') ||
+    normalizedId.includes('nprogress')
   ) {
     return 'vendor-utils'
   }

@@ -222,7 +222,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed, nextTick, watch, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, computed, nextTick, watch, onUnmounted, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -237,7 +237,8 @@ import {
   deleteKnowledgeNode,
   searchKnowledgeNodes
 } from '@/api/knowledge'
-import MindMap from '@/components/MindMap.vue'
+
+const MindMap = defineAsyncComponent(() => import('@/components/MindMap.vue'))
 
 const route = useRoute()
 const router = useRouter()

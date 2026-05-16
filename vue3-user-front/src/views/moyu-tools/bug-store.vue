@@ -158,6 +158,7 @@ import {
   Search, 
   Tools
 } from '@element-plus/icons-vue'
+import { sanitizeHtml } from '@/utils/markdown'
 import { getRandomBug as fetchRandomBug } from '@/api/moyu'
 
 // 响应式数据
@@ -201,7 +202,16 @@ const getDifficultyClass = (level) => {
 // 格式化内容（处理换行）
 const formatContent = (content) => {
   if (!content) return ''
-  return content.replace(/\n/g, '<br/>')
+  return sanitizeHtml(escapeHtml(content).replace(/\n/g, '<br/>'))
+}
+
+const escapeHtml = (text) => {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 // 复制Bug内容

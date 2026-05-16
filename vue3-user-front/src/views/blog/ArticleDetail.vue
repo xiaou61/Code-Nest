@@ -78,6 +78,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { getArticleDetail, deleteArticle as deleteArticleApi } from '@/api/blog'
 import TransformDialog from '@/components/learning-assets/TransformDialog.vue'
 import { useUserStore } from '@/stores/user'
+import { renderMarkdown } from '@/utils/markdown'
 
 const router = useRouter()
 const route = useRoute()
@@ -93,16 +94,6 @@ const loadArticle = async () => {
   } catch (error) {
     ElMessage.error(error.message || '加载文章失败')
   }
-}
-
-const renderMarkdown = (content) => {
-  // 简单的Markdown渲染，实际应该使用markdown-it等库
-  if (!content) return ''
-  return content
-    .replace(/\n/g, '<br/>')
-    .replace(/#{3}\s+(.*)/g, '<h3>$1</h3>')
-    .replace(/#{2}\s+(.*)/g, '<h2>$1</h2>')
-    .replace(/#{1}\s+(.*)/g, '<h1>$1</h1>')
 }
 
 const editArticle = () => {

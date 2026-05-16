@@ -93,7 +93,7 @@
             <span class="post-time">{{ formatTime(currentDiscussion.createTime) }}</span>
           </div>
         </div>
-        <div class="detail-content" v-html="currentDiscussion.content"></div>
+        <div class="detail-content" v-html="sanitizeDiscussionContent(currentDiscussion.content)"></div>
       </div>
     </el-dialog>
   </div>
@@ -104,6 +104,7 @@ import { ref, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { View, Star, ChatDotRound, MoreFilled, Delete } from '@element-plus/icons-vue'
 import teamApi from '@/api/team'
+import { sanitizeHtml } from '@/utils/markdown'
 
 const props = defineProps({
   teamId: { type: [String, Number], required: true },
@@ -128,6 +129,20 @@ watch(() => props.teamId, () => {
   pageNum.value = 1
   loadDiscussions()
 })
+
+const sanitizeDiscussionContent = (content) => {
+  if (!content) return ''
+  return sanitizeHtml(escapeHtml(content).replace(/\n/g, '<br>'))
+}
+
+const escapeHtml = (text) => {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
 
 const loadDiscussions = async () => {
   loading.value = true

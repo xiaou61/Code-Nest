@@ -152,7 +152,10 @@
 import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Search, Refresh, Download } from '@element-plus/icons-vue'
-import * as echarts from 'echarts'
+import { use, init, graphic } from 'echarts/core'
+import { LineChart, PieChart, BarChart } from 'echarts/charts'
+import { TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
 import {
   getStatisticsOverview,
   getHitTrend,
@@ -161,6 +164,8 @@ import {
   getModuleDistribution,
   exportStatisticsReport
 } from '@/api/sensitive'
+
+use([LineChart, PieChart, BarChart, TooltipComponent, LegendComponent, GridComponent, CanvasRenderer])
 
 // 响应式数据
 const dateRange = ref([])
@@ -287,7 +292,7 @@ const renderTrendChart = (data) => {
   if (!trendChartRef.value) return
   
   if (!trendChart) {
-    trendChart = echarts.init(trendChartRef.value)
+    trendChart = init(trendChartRef.value)
   }
 
   const dates = data.map(item => item.date)
@@ -312,7 +317,7 @@ const renderTrendChart = (data) => {
         smooth: true,
         data: counts,
         areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          color: new graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: 'rgba(255, 99, 71, 0.3)' },
             { offset: 1, color: 'rgba(255, 99, 71, 0.05)' }
           ])
@@ -340,7 +345,7 @@ const renderCategoryChart = (data) => {
   if (!categoryChartRef.value) return
   
   if (!categoryChart) {
-    categoryChart = echarts.init(categoryChartRef.value)
+    categoryChart = init(categoryChartRef.value)
   }
 
   const chartData = data.map(item => ({
@@ -380,7 +385,7 @@ const renderModuleChart = (data) => {
   if (!moduleChartRef.value) return
   
   if (!moduleChart) {
-    moduleChart = echarts.init(moduleChartRef.value)
+    moduleChart = init(moduleChartRef.value)
   }
 
   const modules = data.map(item => item.module || item.name || item.moduleName || '未知模块')
@@ -406,7 +411,7 @@ const renderModuleChart = (data) => {
         type: 'bar',
         data: counts,
         itemStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          color: new graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: '#409EFF' },
             { offset: 1, color: '#a0cfff' }
           ])

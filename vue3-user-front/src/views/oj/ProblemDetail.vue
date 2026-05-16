@@ -423,13 +423,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, CaretRight, Loading } from '@element-plus/icons-vue'
 import { ojApi } from '@/api/oj'
-import MarkdownIt from 'markdown-it'
 import loader from '@monaco-editor/loader'
 import { registerCompletionProviders, disposeCompletionProviders } from '@/utils/monacoCompletions'
+import { renderMarkdown } from '@/utils/markdown'
 
 const route = useRoute()
 const router = useRouter()
-const md = new MarkdownIt()
+const md = { render: renderMarkdown }
 const contestId = computed(() => {
   const raw = route.query.contestId
   if (raw == null || raw === '') {

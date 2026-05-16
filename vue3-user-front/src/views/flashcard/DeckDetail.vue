@@ -119,7 +119,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Collection, Files, DocumentCopy, Check, Reading, Edit, Plus, Delete } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { flashcardApi } from '@/api/flashcard'
-import MarkdownIt from 'markdown-it'
+import { renderMarkdown, sanitizeHtml } from '@/utils/markdown'
 
 const router = useRouter()
 const route = useRoute()
@@ -137,9 +137,6 @@ const tagList = computed(() => {
   if (!deck.value?.tags) return []
   return deck.value.tags.split(',').filter(t => t.trim())
 })
-
-// Markdown 渲染器
-const md = new MarkdownIt()
 
 // 加载卡组详情
 const loadDeckDetail = async () => {
@@ -165,12 +162,21 @@ const loadDeckDetail = async () => {
 const renderContent = (content, contentType) => {
   if (!content) return ''
   if (contentType === 2) { // Markdown
-    return md.render(content)
+    return renderMarkdown(content)
   }
   if (contentType === 3) { // 代码
-    return `<pre><code>${content}</code></pre>`
+    return sanitizeHtml(`<pre><code>${escapeHtml(content)}</code></pre>`)
   }
-  return content
+  return sanitizeHtml(escapeHtml(content).replace(/\n/g, '<br>'))
+}
+
+const escapeHtml = (text) => {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 // 掌握程度

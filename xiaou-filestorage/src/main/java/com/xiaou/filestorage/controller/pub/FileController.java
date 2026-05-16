@@ -1,7 +1,12 @@
 package com.xiaou.filestorage.controller.pub;
 
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.core.domain.ResultCode;
+import com.xiaou.common.satoken.StpAdminUtil;
+import com.xiaou.common.satoken.StpUserUtil;
+import com.xiaou.filestorage.domain.FileInfo;
 import com.xiaou.filestorage.dto.FileUploadResult;
+import com.xiaou.filestorage.mapper.FileInfoMapper;
 import com.xiaou.filestorage.service.FileStorageService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +38,9 @@ public class FileController {
     @Autowired
     private FileStorageService fileStorageService;
 
+    @Autowired
+    private FileInfoMapper fileInfoMapper;
+
     /**
      * 单文件上传
      *
@@ -45,6 +53,10 @@ public class FileController {
     public Result<FileUploadResult> uploadSingle(@RequestParam("file") MultipartFile file,
                                                 @RequestParam("moduleName") String moduleName,
                                                 @RequestParam(value = "businessType", required = false, defaultValue = "default") String businessType) {
+        if (!isAuthenticated()) {
+            return unauthorized("请先登录后再上传文件");
+        }
+
         try {
             FileUploadResult result = fileStorageService.uploadSingle(file, moduleName, businessType);
             if (result.isSuccess()) {
@@ -70,6 +82,10 @@ public class FileController {
     public Result<List<FileUploadResult>> uploadBatch(@RequestParam("files") MultipartFile[] files,
                                                      @RequestParam("moduleName") String moduleName,
                                                      @RequestParam(value = "businessType", required = false, defaultValue = "default") String businessType) {
+        if (!isAuthenticated()) {
+            return unauthorized("请先登录后再上传文件");
+        }
+
         try {
             List<FileUploadResult> results = fileStorageService.uploadBatch(files, moduleName, businessType);
             return Result.success(results);
@@ -89,9 +105,12 @@ public class FileController {
     public ResponseEntity<InputStreamResource> downloadFile(@PathVariable("id") Long id) {
         try {
             // 获取文件信息
-            Map<String, Object> fileInfo = fileStorageService.getFileInfo(id);
+            FileInfo fileInfo = getAvailableFile(id);
             if (fileInfo == null) {
                 return ResponseEntity.notFound().build();
+            }
+            if (!canReadFile(fileInfo)) {
+                return ResponseEntity.status(403).build();
             }
 
             // 获取文件流
@@ -101,8 +120,8 @@ public class FileController {
             }
 
             // 设置响应头
-            String originalName = (String) fileInfo.get("originalName");
-            String contentType = (String) fileInfo.get("contentType");
+            String originalName = fileInfo.getOriginalName();
+            String contentType = fileInfo.getContentType();
             
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.parseMediaType(contentType != null ? contentType : "application/octet-stream"));
@@ -127,11 +146,19 @@ public class FileController {
     @GetMapping("/info/{id}")
     public Result<Map<String, Object>> getFileInfo(@PathVariable("id") Long id) {
         try {
+            FileInfo dbFileInfo = getAvailableFile(id);
+            if (dbFileInfo == null) {
+                return Result.error(ResultCode.FILE_NOT_EXIST.getCode(), "文件不存在");
+            }
+            if (!canReadFile(dbFileInfo)) {
+                return forbidden("无权访问该文件");
+            }
+
             Map<String, Object> fileInfo = fileStorageService.getFileInfo(id);
             if (fileInfo != null) {
                 return Result.success(fileInfo);
             } else {
-                return Result.error("文件不存在");
+                return Result.error(ResultCode.FILE_NOT_EXIST.getCode(), "文件不存在");
             }
         } catch (Exception e) {
             log.error("获取文件信息失败: fileId={}, error={}", id, e.getMessage(), e);
@@ -150,6 +177,14 @@ public class FileController {
     public Result<String> getFileUrl(@PathVariable("id") Long id,
                                     @RequestParam(value = "expireHours", required = false) Integer expireHours) {
         try {
+            FileInfo fileInfo = getAvailableFile(id);
+            if (fileInfo == null) {
+                return Result.error(ResultCode.FILE_NOT_EXIST.getCode(), "文件不存在");
+            }
+            if (!canReadFile(fileInfo)) {
+                return forbidden("无权访问该文件");
+            }
+
             String url = fileStorageService.getFileUrl(id, expireHours);
             if (url != null) {
                 return Result.success(url);
@@ -171,6 +206,15 @@ public class FileController {
     @PostMapping("/urls")
     public Result<Map<Long, String>> getFileUrls(@RequestBody List<Long> fileIds) {
         try {
+            if (fileIds != null) {
+                for (Long fileId : fileIds) {
+                    FileInfo fileInfo = getAvailableFile(fileId);
+                    if (fileInfo != null && !canReadFile(fileInfo)) {
+                        return forbidden("无权访问部分文件");
+                    }
+                }
+            }
+
             Map<Long, String> urls = fileStorageService.getFileUrls(fileIds);
             return Result.success(urls);
         } catch (Exception e) {
@@ -189,6 +233,10 @@ public class FileController {
     @DeleteMapping("/{id}")
     public Result<Boolean> deleteFile(@PathVariable("id") Long id,
                                      @RequestParam("moduleName") String moduleName) {
+        if (!isAuthenticated()) {
+            return unauthorized("请先登录后再删除文件");
+        }
+
         try {
             boolean deleted = fileStorageService.deleteFile(id, moduleName);
             if (deleted) {
@@ -216,6 +264,10 @@ public class FileController {
                                                  @RequestParam(value = "businessType", required = false) String businessType,
                                                  @RequestParam(value = "pageNum", defaultValue = "1") Integer pageNum,
                                                  @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize) {
+        if (!isAuthenticated()) {
+            return unauthorized("请先登录后再查询文件列表");
+        }
+
         try {
             Map<String, Object> result = fileStorageService.listFiles(moduleName, businessType, pageNum, pageSize);
             return Result.success(result);
@@ -233,6 +285,10 @@ public class FileController {
      */
     @PostMapping("/exists")
     public Result<Map<Long, Boolean>> checkFilesExists(@RequestBody List<Long> fileIds) {
+        if (!isAuthenticated()) {
+            return unauthorized("请先登录后再检查文件状态");
+        }
+
         try {
             Map<Long, Boolean> existsMap = fileStorageService.checkFilesExists(fileIds);
             return Result.success(existsMap);
@@ -241,4 +297,38 @@ public class FileController {
             return Result.error("检查文件存在性失败: " + e.getMessage());
         }
     }
-} 
+
+    private FileInfo getAvailableFile(Long fileId) {
+        FileInfo fileInfo = fileInfoMapper.selectById(fileId);
+        if (fileInfo == null || !Integer.valueOf(1).equals(fileInfo.getStatus())) {
+            return null;
+        }
+        return fileInfo;
+    }
+
+    private boolean canReadFile(FileInfo fileInfo) {
+        return Integer.valueOf(1).equals(fileInfo.getIsPublic()) || isAuthenticated();
+    }
+
+    private boolean isAuthenticated() {
+        try {
+            if (StpUserUtil.isLogin()) {
+                return true;
+            }
+        } catch (Exception ignored) {
+        }
+        try {
+            return StpAdminUtil.isLogin();
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private <T> Result<T> unauthorized(String message) {
+        return Result.error(ResultCode.UNAUTHORIZED.getCode(), message);
+    }
+
+    private <T> Result<T> forbidden(String message) {
+        return Result.error(ResultCode.FORBIDDEN.getCode(), message);
+    }
+}

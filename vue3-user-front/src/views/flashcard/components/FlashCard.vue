@@ -24,7 +24,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { RefreshRight } from '@element-plus/icons-vue'
-import MarkdownIt from 'markdown-it'
+import { renderMarkdown, sanitizeHtml } from '@/utils/markdown'
 
 const props = defineProps({
   frontContent: {
@@ -49,25 +49,25 @@ const emit = defineEmits(['flip'])
 
 const isFlipped = ref(props.flipped)
 
-// Markdown 渲染器
-const md = new MarkdownIt()
-
 // 渲染内容
 const renderContent = (content) => {
   if (!content) return ''
   if (props.contentType === 2) { // Markdown
-    return md.render(content)
+    return renderMarkdown(content)
   }
   if (props.contentType === 3) { // 代码
-    return `<pre><code>${escapeHtml(content)}</code></pre>`
+    return sanitizeHtml(`<pre><code>${escapeHtml(content)}</code></pre>`)
   }
-  return escapeHtml(content).replace(/\n/g, '<br>')
+  return sanitizeHtml(escapeHtml(content).replace(/\n/g, '<br>'))
 }
 
 const escapeHtml = (text) => {
-  const div = document.createElement('div')
-  div.textContent = text
-  return div.innerHTML
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 const renderedFront = computed(() => renderContent(props.frontContent))

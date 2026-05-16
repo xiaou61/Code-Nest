@@ -47,12 +47,12 @@ public class FileBackupServiceImpl implements FileBackupService {
 
     @Override
     @Async("fileBackupExecutor")
-    public boolean createLocalBackupAsync(FileInfo fileInfo) {
+    public void createLocalBackupAsync(FileInfo fileInfo) {
         try {
             // 简化逻辑：检查是否已有本地备份
             if (hasLocalBackup(fileInfo.getId())) {
                 log.debug("文件已存在本地备份: fileId={}", fileInfo.getId());
-                return true;
+                return;
             }
 
             // 直接创建本地备份（简化逻辑：从原始文件路径复制）
@@ -75,7 +75,7 @@ public class FileBackupServiceImpl implements FileBackupService {
                 log.info("从本地文件创建备份: {} -> {}", originalPath, backupPath);
             } else {
                 log.warn("原始文件不存在，跳过备份: {}", originalPath);
-                return false;
+                return;
             }
 
             // 创建备份存储记录（本地存储配置ID假设为1）
@@ -91,14 +91,11 @@ public class FileBackupServiceImpl implements FileBackupService {
             int inserted = fileStorageMapper.insert(backupStorage);
             if (inserted > 0) {
                 log.info("本地备份创建成功: fileId={}, backupPath={}", fileInfo.getId(), backupPath);
-                return true;
+                return;
             }
-
-            return false;
 
         } catch (Exception e) {
             log.error("创建本地备份失败: fileId={}, error={}", fileInfo.getId(), e.getMessage(), e);
-            return false;
         }
     }
 
@@ -245,4 +242,4 @@ public class FileBackupServiceImpl implements FileBackupService {
             return false;
         }
     }
-} 
+}

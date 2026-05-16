@@ -145,7 +145,7 @@
                   <div class="message-body my-body">
                     <div class="message-meta my-meta">
                       <span class="message-time">{{ formatTime(message.createTime) }}</span>
-                      <span class="send-status" :class="message.status">
+                      <span class="send-status" :class="message.status" :title="message.errorMessage || ''">
                         <el-icon v-if="message.status === 'sending'" class="loading-icon"><Loading /></el-icon>
                         <template v-else-if="message.status === 'sent'">✓</template>
                         <template v-else-if="message.status === 'delivered'">✓✓</template>
@@ -386,7 +386,7 @@ import {
   ArrowUp, ArrowDown, Bell, Loading, WarningFilled, Search,
   ChatLineSquare, Close
 } from '@element-plus/icons-vue'
-import { getChatHistory, getOnlineCount, getOnlineUsers, recallMessage, uploadChatImage } from '@/api/chat'
+import { getChatHistory, getOnlineCount, getOnlineUsers, recallMessage, uploadChatImage, getWebSocketTicket } from '@/api/chat'
 import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
@@ -797,7 +797,7 @@ const loadOnlineUsers = async () => {
 }
 
 // ==================== WebSocket ====================
-const connectWebSocket = () => {
+const connectWebSocket = async () => {
   const token = userStore.token
   if (!token) {
     ElMessage.error('请先登录')
@@ -805,7 +805,12 @@ const connectWebSocket = () => {
   }
   connectionStatus.value = reconnectConfig.retryCount > 0 ? 'reconnecting' : 'connecting'
   try {
-    ws = new WebSocket(`${WS_URL}/ws/chat?token=${token}`)
+    const ticket = await getWebSocketTicket()
+    if (!ticket) {
+      throw new Error('获取WebSocket票据失败')
+    }
+
+    ws = new WebSocket(`${WS_URL}/ws/chat?ticket=${encodeURIComponent(ticket)}`)
     ws.onopen = () => {
       console.log('WebSocket连接成功')
       connectionStatus.value = 'connected'
@@ -930,7 +935,7 @@ const handleWebSocketMessage = (data) => {
       handleTypingStatus(messageData)
       break
     case 'ERROR':
-      ElMessage.error(messageData.message)
+      handleSocketError(messageData)
       break
   }
 }
@@ -959,12 +964,26 @@ const handleMessageDelete = (messageId) => {
 }
 
 const handleMessageAck = (data) => {
-  const { tempId, messageId, status } = data
+  const { tempId, messageId, id, status } = data
   const index = messages.value.findIndex(m => m.tempId === tempId)
   if (index !== -1) {
-    messages.value[index].id = messageId
+    messages.value[index].id = messageId || id
     messages.value[index].status = status || 'sent'
+    messages.value[index].errorMessage = ''
   }
+}
+
+const handleSocketError = (data = {}) => {
+  const payload = data || {}
+  const message = payload.message || '消息处理失败'
+  if (payload.tempId) {
+    const index = messages.value.findIndex(m => m.tempId === payload.tempId)
+    if (index !== -1) {
+      messages.value[index].status = 'failed'
+      messages.value[index].errorMessage = message
+    }
+  }
+  ElMessage.error(message)
 }
 
 const sendMessage = () => {
@@ -989,6 +1008,7 @@ const sendMessage = () => {
     content,
     createTime: new Date().toISOString(),
     status: 'sending',
+    errorMessage: '',
     canRecall: true,
     // 回复信息
     replyToId: replyingTo.value?.id || null,
@@ -1007,11 +1027,17 @@ const sendMessage = () => {
     }))
     setTimeout(() => {
       const msg = messages.value.find(m => m.tempId === tempId)
-      if (msg && msg.status === 'sending') msg.status = 'failed'
+      if (msg && msg.status === 'sending') {
+        msg.status = 'failed'
+        msg.errorMessage = '发送超时，请重试'
+      }
     }, 5000)
   } catch (error) {
     const msg = messages.value.find(m => m.tempId === tempId)
-    if (msg) msg.status = 'failed'
+    if (msg) {
+      msg.status = 'failed'
+      msg.errorMessage = '发送失败'
+    }
     ElMessage.error('发送失败')
   }
 }
@@ -1237,8 +1263,10 @@ const processAndUploadImage = async (file) => {
     const result = await uploadChatImage(file, (percent) => {
       uploadProgress.value = percent
     })
-    
-    if (result && result.fileUrl) {
+
+    const uploadedImageUrl = result?.fileUrl || result?.accessUrl
+
+    if (uploadedImageUrl) {
       // 发送图片消息
       const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       const tempMessage = {
@@ -1248,9 +1276,10 @@ const processAndUploadImage = async (file) => {
         userNickname: userStore.userInfo?.userName || userStore.userInfo?.nickName,
         userAvatar: userStore.userInfo?.userAvatar,
         messageType: 2,
-        imageUrl: result.fileUrl,
+        imageUrl: uploadedImageUrl,
         createTime: new Date().toISOString(),
         status: 'sending',
+        errorMessage: '',
         canRecall: true
       }
       messages.value.push(tempMessage)
@@ -1258,12 +1287,15 @@ const processAndUploadImage = async (file) => {
       
       ws.send(JSON.stringify({
         type: 'MESSAGE',
-        data: { messageType: 2, imageUrl: result.fileUrl, tempId }
+        data: { messageType: 2, imageUrl: uploadedImageUrl, tempId }
       }))
       
       setTimeout(() => {
         const msg = messages.value.find(m => m.tempId === tempId)
-        if (msg && msg.status === 'sending') msg.status = 'failed'
+        if (msg && msg.status === 'sending') {
+          msg.status = 'failed'
+          msg.errorMessage = '发送超时，请重试'
+        }
       }, 5000)
       
       ElMessage.success('图片发送成功')
