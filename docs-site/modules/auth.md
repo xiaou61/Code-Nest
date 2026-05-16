@@ -1,49 +1,134 @@
 # 鉴权与用户体系
 
-Code Nest 使用 Sa-Token 做双端鉴权。管理端和用户端是两个独立登录域，避免后台 Token 与用户 Token 混用。
+Code Nest 使用 Sa-Token 做鉴权，但不是“一套登录态走天下”。项目里有两个独立登录域：管理端使用 `admin`，用户端使用 `user`。这样做的目的很简单：后台管理员 Token 不能拿去当普通用户 Token 用，普通用户 Token 也不能误打误撞访问后台接口。
 
-## 主要模块
+## 读源码先看哪里
 
-| 模块 | 职责 |
+| 位置 | 作用 |
 | --- | --- |
-| `xiaou-common` | Sa-Token 配置、鉴权工具、统一返回和异常 |
-| `xiaou-system` | 管理员认证、系统用户、角色、菜单、日志 |
-| `xiaou-user` | 用户注册、登录、资料和用户态接口 |
-| `xiaou-user-api` | 用户跨模块调用契约 |
+| `xiaou-common/src/main/java/com/xiaou/common/config/SaTokenConfig.java` | 注册 Sa-Token 拦截器，定义哪些路径需要登录 |
+| `xiaou-common/src/main/java/com/xiaou/common/satoken/StpAdminUtil.java` | 管理端登录工具，`loginType = "admin"` |
+| `xiaou-common/src/main/java/com/xiaou/common/satoken/StpUserUtil.java` | 用户端登录工具，`loginType = "user"` |
+| `xiaou-common/src/main/java/com/xiaou/common/aspect/AdminAuthAspect.java` | `@RequireAdmin` 管理员权限切面 |
+| `xiaou-system/src/main/java/com/xiaou/system/controller/AuthController.java` | 管理端登录、退出、刷新、个人资料 |
+| `xiaou-user/src/main/java/com/xiaou/user/controller/UserAuthController.java` | 用户注册、登录、退出、唯一性校验 |
+| `vue3-admin-front/src/utils/request.js` | 管理端 Axios 请求/响应拦截器 |
+| `vue3-user-front/src/utils/request.js` | 用户端 Axios 请求/响应拦截器 |
 
-## 路径约定
+## 两套登录域
 
-| 接口域 | 说明 |
+| 登录域 | 后端工具 | 前端 Token key | 常见接口 |
+| --- | --- | --- | --- |
+| 管理端 | `StpAdminUtil` | `token` | `/auth/**`、`/admin/**`、`/log/**` |
+| 用户端 | `StpUserUtil` | `user_token` | `/user/**`、用户侧业务接口 |
+
+`StpAdminUtil` 和 `StpUserUtil` 都封装了 Sa-Token 的 `StpLogic`，但登录类型不同。登录类型是区分会话空间的关键。可以把它理解成两张门禁卡：卡面看起来都叫 Token，但后台门禁和用户门禁查的是不同名单。
+
+## 后端拦截规则
+
+`SaTokenConfig` 注册了全局拦截器，主要规则如下：
+
+| 路径 | 规则 |
 | --- | --- |
-| `/auth/**` | 管理端登录认证相关 |
-| `/admin/**` | 管理端业务接口 |
-| `/user/**` | 用户端业务接口 |
-| `/captcha/**` | 验证码，通常免登录 |
-| `/v3/api-docs/**`、`/swagger-ui/**` | API 文档相关，通常免登录 |
+| `/auth/**` | 除 `/auth/login`、`/auth/register`、`/auth/refresh` 外，需要管理员登录 |
+| `/user/**` | 除 `/user/auth/login`、`/user/auth/register`、`/user/auth/refresh`、用户名/邮箱检查外，需要用户登录 |
+| `/captcha/**` | 放行 |
+| `/v3/api-docs/**`、`/swagger-ui/**` | 放行 |
 
-## 前端登录态
+需要特别注意：很多后台业务接口是 `/admin/**`，它们主要依赖方法上的 `@RequireAdmin`。这个注解会进入 `AdminAuthAspect`，切面里先执行 `StpAdminUtil.checkLogin()`，再执行 `StpAdminUtil.checkRole("admin")`。所以新写后台接口时不要只改前端菜单，后端方法也要补 `@RequireAdmin`。
 
-| 前端 | Token key | 说明 |
+## 管理端登录流程
+
+| 步骤 | 代码位置 | 说明 |
 | --- | --- | --- |
-| 管理端 | `token` | 用于后台管理接口 |
-| 用户端 | `user_token` | 用于用户侧功能 |
+| 1 | `AuthController.login` | 接收用户名、密码 |
+| 2 | `SysAdminServiceImpl.login` | 查询 `sys_admin` |
+| 3 | `SysAdminServiceImpl.login` | 检查状态，`1` 表示禁用 |
+| 4 | `PasswordUtil.matches` | 校验密码 |
+| 5 | `StpAdminUtil.login(admin.getId())` | 创建管理员会话 |
+| 6 | `StpAdminUtil.set("userInfo", admin)` | 写入 Sa-Token Session |
+| 7 | `SysLoginLogMapper.insert` | 写登录成功/失败日志 |
+| 8 | `LoginResponse` | 返回 `accessToken`、`refreshToken`、`expiresIn`、角色和权限 |
 
-## 返回码
+管理端登录失败会记录 `sys_login_log`，包括用户名、IP、浏览器、操作系统、状态和失败原因。这是排查后台账号问题的第一现场。
 
-统一返回体在 `xiaou-common` 中定义。前端拦截器依赖以下业务码：
+## 用户端登录流程
 
-| 码值 | 含义 |
+| 步骤 | 代码位置 | 说明 |
+| --- | --- | --- |
+| 1 | `CaptchaServiceImpl.verifyCaptcha` | 先校验 Redis 里的验证码 |
+| 2 | `UserInfoMapper.selectByUsernameOrEmail` | 支持用户名或邮箱登录 |
+| 3 | `UserInfoServiceImpl.login` | 账号不存在或密码错误都返回统一提示，避免用户枚举 |
+| 4 | `UserInfoServiceImpl.login` | `status = 1` 禁用，`status = 2` 删除 |
+| 5 | `StpUserUtil.login(user.getId())` | 创建用户会话 |
+| 6 | `StpUserUtil.set("userInfo", user)` | 写入用户 Session |
+| 7 | `updateLastLoginInfo` | 更新最后登录时间和 IP |
+| 8 | `UserLoginResponse` | 返回 `accessToken`、`tokenType`、`expiresIn`、用户资料 |
+
+验证码存储在 Redis，key 前缀是 `user:captcha:`，有效期 5 分钟，验证成功后会删除，不能重复使用。
+
+## 前端如何携带 Token
+
+两个前端的请求拦截器都把 Token 放到请求头：
+
+```text
+Authorization: Bearer <token>
+```
+
+响应拦截器会处理统一业务码：
+
+| 码值 | 前端行为 |
 | --- | --- |
-| `200` | 成功 |
-| `701` | Token 无效 |
-| `702` | Token 过期 |
-| `703` | 权限不足 |
-| `704` | 账号禁用 |
+| `200` | 返回 `data` |
+| `701` | Token 无效，弹窗并跳登录 |
+| `702` | Token 过期，弹窗并跳登录 |
+| `703` | 权限不足，提示错误 |
+| `704` | 账号禁用，清理登录态 |
 
-## 开发注意
+因此后端新增鉴权失败时，应优先使用现有 `ResultCode` 和统一异常处理，不要随意返回新的业务码，否则前端拦截器不会自动处理。
 
-- 管理员权限优先使用现有管理员鉴权工具和注解。
-- 用户态接口不要复用管理端 Token。
-- 新接口需要明确是管理端、用户端还是公共接口。
-- 文件、WebSocket、富文本、AI 配置等敏感场景要单独检查权限边界。
+## 权限和角色
 
+管理端登录响应会返回：
+
+| 字段 | 来源 | 用途 |
+| --- | --- | --- |
+| `roles` | `SysRoleMapper.selectRolesByAdminId` | 判断角色，如 `admin` |
+| `permissions` | `SysPermissionMapper.selectPermissionsByAdminId` | 菜单、按钮、接口权限 |
+
+当前 `@RequireAdmin` 切面检查的是管理员登录和 `admin` 角色。更细的按钮级权限主要体现在前端菜单和返回的 permission 列表里。如果要新增强权限接口，建议按下面顺序处理：
+
+1. 后端方法加 `@RequireAdmin`。
+2. 如果需要更细粒度权限，在 Service 里显式判断权限码。
+3. 管理端菜单或按钮和 `sys_permission.permission_code` 保持一致。
+4. 操作类接口加 `@Log`，方便后台审计。
+
+## 核心数据表
+
+| 表 | 说明 |
+| --- | --- |
+| `sys_admin` | 管理员账号，状态 `0` 正常、`1` 禁用、`2` 删除 |
+| `sys_role` | 角色定义 |
+| `sys_permission` | 菜单、按钮、接口权限 |
+| `sys_admin_role` | 管理员和角色关系 |
+| `sys_role_permission` | 角色和权限关系 |
+| `sys_login_log` | 管理端登录成功/失败日志 |
+| `user_info` | 普通用户账号，状态 `0` 正常、`1` 禁用、`2` 删除 |
+
+## 常见坑
+
+| 问题 | 原因 | 排查方式 |
+| --- | --- | --- |
+| 管理端登录后访问后台接口仍提示未登录 | 请求头没有带 `Authorization`，或用了用户端 `user_token` | 看浏览器 Network 请求头 |
+| 用户端接口提示 Token 无效 | 前端没有从 `user_token` 读取，或 Cookie/localStorage 被清空 | 看 `vue3-user-front/src/stores/user.js` |
+| `/admin/**` 新接口被普通用户打到 | 后端方法缺少 `@RequireAdmin` | 搜索新增 Controller 方法 |
+| 改了密码但旧 Token 还能用 | 当前代码修改密码后用户端会 `logout` 当前会话，管理端提示重新登录；如需踢掉全部设备，要显式调用 Sa-Token kickout |
+| 登录失败排查无头绪 | 管理端有 `sys_login_log`，用户端目前主要看业务日志 | 查日志表和应用日志 |
+
+## 新增接口检查清单
+
+1. 先判断接口属于管理端、用户端还是公共端。
+2. 管理端接口加 `@RequireAdmin`，操作类接口加 `@Log`。
+3. 用户端接口从 `StpUserUtil.getLoginIdAsLong()` 获取当前用户，不信任前端传入的用户 ID。
+4. 前端调用统一走 `utils/request.js`，不要手写裸 `fetch` 绕过拦截器。
+5. 文档同步更新 API 索引、模块页和操作手册。
