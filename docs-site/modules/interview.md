@@ -11,19 +11,34 @@
 | 管理端 | `/interview/categories`、`/interview/question-sets`、`/interview/questions` |
 | 后端模块 | `xiaou-interview` |
 
-关键源码：
+## 推荐学习顺序
+
+第一次看面试题库时，可以把它拆成“内容管理”和“学习闭环”两条线。先理解题目从哪里来，再理解用户学习数据怎么沉淀。
+
+1. 先看分类、题单和题目，知道管理端如何把题库内容发布给用户。
+2. 再看用户端题单详情和题目详情，理解学习记录什么时候写入。
+3. 接着看收藏和掌握度，区分“我想以后再看”和“系统认为我该复习”。
+4. 然后看 Markdown 导入，掌握批量建设题库的最低成本方式。
+5. 最后看学习驾驶舱、闪卡、模拟面试这些联动模块，理解题库数据怎样被复用。
+
+如果只想快速跑通一条链路，推荐从“新建分类 -> 新建题单 -> 导入 2 道题 -> 用户学习 -> 标记掌握度 -> 查看复习列表”开始。
+
+## 源码地图
 
 | 文件 | 说明 |
 | --- | --- |
-| `InterviewCategoryPublicController` | 用户端分类列表和详情 |
-| `InterviewQuestionSetPublicController` | 用户端题单、题目、搜索、随机刷题 |
-| `InterviewFavoriteController` | 收藏、取消收藏、收藏列表 |
-| `InterviewMasteryController` | 掌握度、复习列表、热力图 |
-| `InterviewLearnRecordController` | 学习记录和题单进度 |
-| `InterviewCategoryController` | 管理端分类维护 |
-| `InterviewQuestionSetController` | 管理端题单维护和 Markdown 导入 |
-| `InterviewQuestionController` | 管理端题目维护 |
-| `MarkdownParser` | Markdown 批量导入解析 |
+| `xiaou-interview/src/main/java/com/xiaou/interview/controller/pub/InterviewCategoryPublicController.java` | 用户端分类列表和详情 |
+| `xiaou-interview/src/main/java/com/xiaou/interview/controller/pub/InterviewQuestionSetPublicController.java` | 用户端题单、题目、搜索、随机刷题 |
+| `xiaou-interview/src/main/java/com/xiaou/interview/controller/pub/InterviewFavoriteController.java` | 收藏、取消收藏、收藏列表 |
+| `xiaou-interview/src/main/java/com/xiaou/interview/controller/pub/InterviewMasteryController.java` | 掌握度、复习列表、热力图 |
+| `xiaou-interview/src/main/java/com/xiaou/interview/controller/pub/InterviewLearnRecordController.java` | 学习记录和题单进度 |
+| `xiaou-interview/src/main/java/com/xiaou/interview/controller/admin/InterviewCategoryController.java` | 管理端分类维护 |
+| `xiaou-interview/src/main/java/com/xiaou/interview/controller/admin/InterviewQuestionSetController.java` | 管理端题单维护和 Markdown 导入 |
+| `xiaou-interview/src/main/java/com/xiaou/interview/controller/admin/InterviewQuestionController.java` | 管理端题目维护 |
+| `xiaou-interview/src/main/java/com/xiaou/interview/service/impl/InterviewQuestionSetServiceImpl.java` | 题单创建、删除、导入和统计维护 |
+| `xiaou-interview/src/main/java/com/xiaou/interview/service/impl/InterviewMasteryServiceImpl.java` | 掌握度、复习时间、热力图和连续学习 |
+| `xiaou-interview/src/main/java/com/xiaou/interview/service/impl/InterviewLearnRecordServiceImpl.java` | 用户学习记录写入 |
+| `xiaou-interview/src/main/java/com/xiaou/interview/utils/MarkdownParser.java` | Markdown 批量导入解析 |
 
 ## 领域模型
 
@@ -165,7 +180,7 @@ synchronized 是 JVM 内置锁，ReentrantLock 提供可中断、公平锁等更
 | 知识图谱 | 高频薄弱知识点可以沉淀为图谱节点 |
 | 积分 | 当前题库学习本身不直接发积分，驾驶舱会把活跃度纳入成长分 |
 
-## 本地验证清单
+## 验证清单
 
 1. 管理端新建分类。
 2. 新建题单，状态设为草稿，确认用户端不可见。
