@@ -12,7 +12,7 @@ Code Nest 使用 Sa-Token 做鉴权，但不是“一套登录态走天下”。
 4. 接着看两个前端的 `utils/request.js` 和 store，理解 Token 保存在哪里、请求头如何拼。
 5. 最后看 `@RequireAdmin` 和 `AdminAuthAspect`，明确后台接口为什么不能只依赖前端菜单隐藏。
 
-## 读源码先看哪里
+## 源码地图
 
 | 位置 | 作用 |
 | --- | --- |

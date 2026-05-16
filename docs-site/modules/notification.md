@@ -21,7 +21,7 @@
 4. 然后读 `NotificationAdminService`，理解公告、批量发送、模板和统计。
 5. 最后读 `notification_user_read_record`，这是公告未读数最容易出错的地方。
 
-## 读源码先看哪里
+## 源码地图
 
 | 位置 | 作用 |
 | --- | --- |
