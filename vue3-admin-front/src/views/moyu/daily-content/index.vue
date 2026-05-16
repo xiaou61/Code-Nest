@@ -370,7 +370,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Edit, Search, Refresh, View, Star, DataAnalysis, Document, InfoFilled, EditPen, Calendar } from '@element-plus/icons-vue'
+import { Plus, Delete, Edit, Search, Refresh, View, Star, DataAnalysis } from '@element-plus/icons-vue'
 import { dailyContentApi } from '@/api/moyu'
 
 // 响应式数据

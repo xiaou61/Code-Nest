@@ -44,17 +44,17 @@ const tools = [
   {
     name: 'JSON工具',
     path: '/dev-tools/json',
-    icon: 'Document'
+    icon: Document
   },
   {
     name: '文本比对',
     path: '/dev-tools/text-diff',
-    icon: 'Operation'
+    icon: Operation
   },
   {
     name: '聚合翻译',
     path: '/dev-tools/translation',
-    icon: 'ChatLineSquare'
+    icon: ChatLineSquare
   }
 ]
 

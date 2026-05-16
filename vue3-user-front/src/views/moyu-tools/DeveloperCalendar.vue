@@ -10,7 +10,7 @@
           </h1>
           <p class="page-subtitle">发现属于程序员的每一个特殊时刻</p>
         </div>
-        
+
         <!-- 今日推荐卡片 -->
         <div class="today-recommend" v-if="todayRecommend">
           <div class="recommend-header">
@@ -24,10 +24,10 @@
               <p v-else>{{ getRandomGreeting() }}</p>
             </div>
           </div>
-          
+
           <div class="today-events" v-if="todayRecommend.todayEvents?.length">
-            <div class="event-item" 
-                 v-for="event in todayRecommend.todayEvents" 
+            <div class="event-item"
+                 v-for="event in todayRecommend.todayEvents"
                  :key="event.id"
                  :class="{ 'major-event': event.isMajor }"
                  @click="showEventDetail(event)">
@@ -56,26 +56,26 @@
           <span class="current-month">{{ currentYear }}年{{ currentMonth }}月</span>
           <el-button @click="nextMonth" :icon="ArrowRight" circle />
         </div>
-        
+
         <!-- 事件类型筛选 -->
         <div class="event-filters">
           <el-button-group>
-            <el-button 
+            <el-button
               :type="selectedEventType === null ? 'primary' : ''"
               @click="filterByType(null)">
               全部
             </el-button>
-            <el-button 
+            <el-button
               :type="selectedEventType === 1 ? 'primary' : ''"
               @click="filterByType(1)">
               程序员节日
             </el-button>
-            <el-button 
+            <el-button
               :type="selectedEventType === 2 ? 'primary' : ''"
               @click="filterByType(2)">
               技术纪念日
             </el-button>
-            <el-button 
+            <el-button
               :type="selectedEventType === 3 ? 'primary' : ''"
               @click="filterByType(3)">
               开源节日
@@ -92,12 +92,12 @@
         <div class="weekdays">
           <div class="weekday" v-for="day in weekdays" :key="day">{{ day }}</div>
         </div>
-        
+
         <!-- 日期网格 -->
         <div class="days-grid">
-          <div 
-            class="day-cell" 
-            v-for="day in calendarDays" 
+          <div
+            class="day-cell"
+            v-for="day in calendarDays"
             :key="`${day.year}-${day.month}-${day.day}`"
             :class="{
               'other-month': !day.isCurrentMonth,
@@ -106,13 +106,13 @@
               'has-major': day.hasMajorEvents
             }"
             @click="selectDate(day)">
-            
+
             <div class="day-number">{{ day.day }}</div>
-            
+
             <div class="day-events" v-if="day.events?.length">
-              <div 
-                class="event-dot" 
-                v-for="(event, index) in day.events.slice(0, 3)" 
+              <div
+                class="event-dot"
+                v-for="event in day.events.slice(0, 3)"
                 :key="event.id"
                 :class="[`event-type-${event.eventType}`, { 'major': event.isMajor }]"
                 :title="event.eventName">
@@ -130,7 +130,7 @@
       :title="selectedEvent?.eventName"
       width="600px"
       destroy-on-close>
-      
+
       <div class="event-detail" v-if="selectedEvent">
         <div class="event-header">
           <div class="event-type-badge">
@@ -141,11 +141,11 @@
           </div>
           <div class="event-date">{{ formatEventDate(selectedEvent.eventDate) }}</div>
         </div>
-        
+
         <div class="event-description">
           {{ selectedEvent.description }}
         </div>
-        
+
         <div class="event-blessing" v-if="selectedEvent.blessingText">
           <el-card class="blessing-card">
             <div class="blessing-content">
@@ -154,11 +154,11 @@
             </div>
           </el-card>
         </div>
-        
+
         <div class="event-links" v-if="selectedEvent.relatedLinks?.length">
           <h4>相关链接</h4>
           <div class="links-list">
-            <el-link 
+            <el-link
               v-for="(link, index) in selectedEvent.relatedLinks"
               :key="index"
               :href="link"
@@ -177,10 +177,10 @@
       v-model="dateEventsDialogVisible"
       :title="`${selectedDate} 的事件`"
       width="500px">
-      
+
       <div class="date-events-list">
-        <div class="event-list-item" 
-             v-for="event in selectedDateEvents" 
+        <div class="event-list-item"
+             v-for="event in selectedDateEvents"
              :key="event.id"
              @click="showEventDetail(event)">
           <div class="event-icon">
@@ -205,14 +205,13 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { 
+import {
   Calendar, ArrowLeft, ArrowRight, Star, Link,
   EditPen, Trophy, Box
 } from '@element-plus/icons-vue'
-import { 
-  getTodayRecommend, 
-  getMonthCalendar, 
-  getEventsByDate 
+import {
+  getTodayRecommend,
+  getMonthCalendar
 } from '@/api/moyu'
 
 // 响应式数据
@@ -249,23 +248,23 @@ const currentDay = computed(() => new Date().getDate())
 
 const calendarDays = computed(() => {
   if (!monthCalendar.value) return []
-  
+
   const year = currentDate.year
   const month = currentDate.month
   const firstDay = new Date(year, month - 1, 1)
   const lastDay = new Date(year, month, 0)
   const daysInMonth = lastDay.getDate()
   const startWeekday = firstDay.getDay()
-  
+
   const days = []
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]
-  
+
   // 添加上个月的日期
   const prevMonth = month === 1 ? 12 : month - 1
   const prevYear = month === 1 ? year - 1 : year
   const prevLastDay = new Date(prevYear, prevMonth, 0).getDate()
-  
+
   for (let i = startWeekday - 1; i >= 0; i--) {
     const day = prevLastDay - i
     days.push({
@@ -278,14 +277,14 @@ const calendarDays = computed(() => {
       hasMajorEvents: false
     })
   }
-  
+
   // 添加当月日期
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${String(day).padStart(2, '0')}`
     const fullDateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const dayEvents = monthCalendar.value.eventsByDate?.[dateStr] || []
     const hasMajorEvents = dayEvents.some(event => event.isMajor)
-    
+
     days.push({
       day,
       month,
@@ -296,12 +295,12 @@ const calendarDays = computed(() => {
       hasMajorEvents
     })
   }
-  
+
   // 填充下个月的日期，使总数为42 (6周 × 7天)
   const remainingDays = 42 - days.length
   const nextMonth = month === 12 ? 1 : month + 1
   const nextYear = month === 12 ? year + 1 : year
-  
+
   for (let day = 1; day <= remainingDays; day++) {
     days.push({
       day,
@@ -313,7 +312,7 @@ const calendarDays = computed(() => {
       hasMajorEvents: false
     })
   }
-  
+
   return days
 })
 
@@ -342,11 +341,11 @@ const getEventTypeTag = (type) => {
 
 const getEventIcon = (type) => {
   const iconMap = {
-    1: 'EditPen',
-    2: 'Trophy',
-    3: 'Box'
+    1: EditPen,
+    2: Trophy,
+    3: Box
   }
-  return iconMap[type] || 'Calendar'
+  return iconMap[type] || Calendar
 }
 
 const formatEventDate = (eventDate) => {
@@ -839,22 +838,22 @@ onMounted(() => {
     flex-direction: column;
     gap: 8px;
   }
-  
+
   .control-section {
     flex-direction: column;
     gap: 16px;
   }
-  
+
   .recommend-header {
     flex-direction: column;
     text-align: center;
   }
-  
+
   .day-cell {
     min-height: 80px;
     padding: 8px;
   }
-  
+
   .event-filters :deep(.el-button-group) {
     display: flex;
     flex-wrap: wrap;

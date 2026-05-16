@@ -11,20 +11,25 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingPathVariableException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
 
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -48,7 +53,7 @@ public class GlobalExceptionHandler {
 
     /**
      * Sa-Token 未登录异常处理
-     * 
+     *
      * 统一返回 HTTP 200，通过业务状态码区分（701/702）
      * 这样前端可以统一在响应拦截器中处理，而不是分散在 HTTP 状态码和业务状态码两个地方
      */
@@ -57,7 +62,7 @@ public class GlobalExceptionHandler {
     public Result<Void> handleNotLoginException(NotLoginException e, HttpServletRequest request) {
         String requestURI = request.getRequestURI();
         log.warn("请求地址'{}',Token验证失败: {}", requestURI, e.getMessage());
-        
+
         // 根据不同的异常类型返回不同的消息和状态码
         String message;
         Integer code;
@@ -86,13 +91,13 @@ public class GlobalExceptionHandler {
                 message = "登录状态已失效，请重新登录";
                 code = ResultCode.TOKEN_INVALID.getCode(); // 701
         }
-        
+
         return Result.error(code, message);
     }
 
     /**
      * Sa-Token 权限不足异常处理
-     * 
+     *
      * 统一返回 HTTP 200，通过业务状态码 703 区分
      */
     @ExceptionHandler(NotPermissionException.class)
@@ -105,7 +110,7 @@ public class GlobalExceptionHandler {
 
     /**
      * Sa-Token 角色权限不足异常处理
-     * 
+     *
      * 统一返回 HTTP 200，通过业务状态码 703 区分
      */
     @ExceptionHandler(NotRoleException.class)
@@ -118,7 +123,7 @@ public class GlobalExceptionHandler {
 
     /**
      * Sa-Token 服务封禁异常处理
-     * 
+     *
      * 统一返回 HTTP 200，通过业务状态码 704 区分
      */
     @ExceptionHandler(DisableServiceException.class)
@@ -138,7 +143,7 @@ public class GlobalExceptionHandler {
                                                             HttpServletRequest request) {
         String requestURI = request.getRequestURI();
         log.error("请求地址'{}',不支持'{}'请求", requestURI, e.getMethod());
-        return Result.error(ResultCode.METHOD_NOT_ALLOWED.getCode(), 
+        return Result.error(ResultCode.METHOD_NOT_ALLOWED.getCode(),
                           String.format("请求方法'%s'不支持", e.getMethod()));
     }
 
@@ -155,6 +160,30 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 请求可接受类型不支持异常处理
+     */
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+    @ResponseStatus(HttpStatus.NOT_ACCEPTABLE)
+    public Result<Void> handleHttpMediaTypeNotAcceptable(HttpMediaTypeNotAcceptableException e,
+                                                         HttpServletRequest request) {
+        String requestURI = request.getRequestURI();
+        log.error("请求地址'{}',不支持客户端要求的响应媒体类型", requestURI);
+        return Result.error(ResultCode.BAD_REQUEST.getCode(), "不支持的响应媒体类型");
+    }
+
+    /**
+     * 请求体不可读异常处理
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleHttpMessageNotReadable(HttpMessageNotReadableException e,
+                                                     HttpServletRequest request) {
+        String requestURI = request.getRequestURI();
+        log.error("请求地址'{}',请求体解析失败: {}", requestURI, e.getMessage());
+        return Result.error(ResultCode.BAD_REQUEST.getCode(), "请求体格式错误或缺少必要内容");
+    }
+
+    /**
      * 路径变量缺失异常处理
      */
     @ExceptionHandler(MissingPathVariableException.class)
@@ -163,7 +192,7 @@ public class GlobalExceptionHandler {
                                                  HttpServletRequest request) {
         String requestURI = request.getRequestURI();
         log.error("请求地址'{}',缺少必要的路径变量'{}'", requestURI, e.getVariableName());
-        return Result.error(ResultCode.BAD_REQUEST.getCode(), 
+        return Result.error(ResultCode.BAD_REQUEST.getCode(),
                           String.format("缺少必要的路径变量[%s]", e.getVariableName()));
     }
 
@@ -176,8 +205,21 @@ public class GlobalExceptionHandler {
                                                             HttpServletRequest request) {
         String requestURI = request.getRequestURI();
         log.error("请求地址'{}',缺少必要的请求参数'{}'", requestURI, e.getParameterName());
-        return Result.error(ResultCode.BAD_REQUEST.getCode(), 
+        return Result.error(ResultCode.BAD_REQUEST.getCode(),
                           String.format("缺少必要的请求参数[%s]", e.getParameterName()));
+    }
+
+    /**
+     * 请求头缺失异常处理
+     */
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleMissingRequestHeader(MissingRequestHeaderException e,
+                                                   HttpServletRequest request) {
+        String requestURI = request.getRequestURI();
+        log.error("请求地址'{}',缺少必要的请求头'{}'", requestURI, e.getHeaderName());
+        return Result.error(ResultCode.BAD_REQUEST.getCode(),
+                String.format("缺少必要的请求头[%s]", e.getHeaderName()));
     }
 
     /**
@@ -188,9 +230,9 @@ public class GlobalExceptionHandler {
     public Result<Void> handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException e,
                                                          HttpServletRequest request) {
         String requestURI = request.getRequestURI();
-        log.error("请求地址'{}',请求参数类型不匹配,参数'{}'需要类型'{}'", 
+        log.error("请求地址'{}',请求参数类型不匹配,参数'{}'需要类型'{}'",
                  requestURI, e.getName(), e.getRequiredType().getName());
-        return Result.error(ResultCode.BAD_REQUEST.getCode(), 
+        return Result.error(ResultCode.BAD_REQUEST.getCode(),
                           String.format("参数类型不匹配,参数[%s]需要[%s]类型", e.getName(), e.getRequiredType().getSimpleName()));
     }
 
@@ -233,6 +275,31 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 非法参数异常处理
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleIllegalArgumentException(IllegalArgumentException e,
+                                                       HttpServletRequest request) {
+        String requestURI = request.getRequestURI();
+        String message = Objects.requireNonNullElse(e.getMessage(), "请求参数错误");
+        log.warn("请求地址'{}',非法参数: {}", requestURI, message);
+        return Result.error(ResultCode.BAD_REQUEST.getCode(), message);
+    }
+
+    /**
+     * 文件大小超限异常处理
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    @ResponseStatus(HttpStatus.PAYLOAD_TOO_LARGE)
+    public Result<Void> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException e,
+                                                    HttpServletRequest request) {
+        String requestURI = request.getRequestURI();
+        log.error("请求地址'{}',上传文件大小超出限制", requestURI, e);
+        return Result.error(ResultCode.FILE_SIZE_EXCEEDED.getCode(), ResultCode.FILE_SIZE_EXCEEDED.getMessage());
+    }
+
+    /**
      * 404异常处理
      */
     @ExceptionHandler(NoHandlerFoundException.class)
@@ -253,4 +320,4 @@ public class GlobalExceptionHandler {
         log.error("请求地址'{}',发生系统异常.", requestURI, e);
         return Result.error(ResultCode.ERROR.getCode(), "系统内部错误，请联系管理员");
     }
-} 
+}

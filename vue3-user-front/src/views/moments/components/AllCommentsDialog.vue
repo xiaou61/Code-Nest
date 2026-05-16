@@ -96,7 +96,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ChatDotRound } from '@element-plus/icons-vue'
 import { getMomentComments, publishComment, deleteComment as deleteCommentApi } from '@/api/moment'

@@ -1,8 +1,8 @@
 package com.xiaou.filestorage.controller.admin;
 
-import cn.hutool.json.JSONUtil;
 import com.xiaou.common.annotation.RequireAdmin;
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.utils.JsonUtils;
 import com.xiaou.filestorage.domain.FileInfo;
 import com.xiaou.filestorage.domain.StorageConfig;
 import com.xiaou.filestorage.factory.StorageStrategyFactory;
@@ -86,7 +86,7 @@ public class AdminFileController {
             StorageConfig defaultConfig = storageConfigMapper.selectDefault();
             if (defaultConfig != null) {
                 // 从存储中删除文件
-                java.util.Map<String, Object> configParams = JSONUtil.toBean(defaultConfig.getConfigParams(), java.util.Map.class);
+                Map<String, Object> configParams = JsonUtils.parseMap(defaultConfig.getConfigParams());
                 FileStorageStrategy strategy = strategyFactory.createAndInitialize(
                     defaultConfig.getId(), defaultConfig.getStorageType(), configParams);
                 
@@ -140,12 +140,12 @@ public class AdminFileController {
             }
 
             // 初始化源存储策略
-            java.util.Map<String, Object> sourceConfigParams = JSONUtil.toBean(sourceConfig.getConfigParams(), java.util.Map.class);
+            Map<String, Object> sourceConfigParams = JsonUtils.parseMap(sourceConfig.getConfigParams());
             FileStorageStrategy sourceStrategy = strategyFactory.createAndInitialize(
                 sourceConfig.getId(), sourceConfig.getStorageType(), sourceConfigParams);
 
             // 初始化目标存储策略
-            java.util.Map<String, Object> targetConfigParams = JSONUtil.toBean(targetConfig.getConfigParams(), java.util.Map.class);
+            Map<String, Object> targetConfigParams = JsonUtils.parseMap(targetConfig.getConfigParams());
             FileStorageStrategy targetStrategy = strategyFactory.createAndInitialize(
                 targetConfig.getId(), targetConfig.getStorageType(), targetConfigParams);
 
@@ -154,7 +154,8 @@ public class AdminFileController {
             }
 
             // 从源存储下载文件
-            java.io.InputStream fileStream = sourceStrategy.downloadFile(fileInfo.getStoredName());
+            String originalStoredName = fileInfo.getStoredName();
+            java.io.InputStream fileStream = sourceStrategy.downloadFile(originalStoredName);
             if (fileStream == null) {
                 return Result.error("从源存储下载文件失败");
             }
@@ -176,7 +177,7 @@ public class AdminFileController {
                 int updated = fileInfoMapper.updateById(fileInfo);
                 if (updated > 0) {
                     // 删除源存储文件
-                    sourceStrategy.deleteFile(fileInfo.getStoredName());
+                    sourceStrategy.deleteFile(originalStoredName);
                     
                     log.info("文件移动成功: fileId={}, from={} to={}", id, sourceConfig.getStorageType(), targetConfig.getStorageType());
                     return Result.success(true);
@@ -233,4 +234,4 @@ public class AdminFileController {
             return Result.error("获取存储使用情况失败: " + e.getMessage());
         }
     }
-} 
+}

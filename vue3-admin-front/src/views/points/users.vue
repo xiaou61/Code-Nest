@@ -72,7 +72,7 @@
         :default-sort="{ prop: 'totalPoints', order: 'descending' }"
       >
         <el-table-column label="排名" width="80" align="center">
-          <template #default="{ row, $index }">
+          <template #default="{ $index }">
             <div class="rank-cell">
               <span 
                 class="rank-badge"
@@ -224,7 +224,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, User, Plus, View } from '@element-plus/icons-vue'

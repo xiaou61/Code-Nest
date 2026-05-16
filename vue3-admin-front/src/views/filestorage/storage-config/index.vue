@@ -82,17 +82,17 @@
           <el-button type="warning" size="small" @click="testConfig(row)">
             测试
           </el-button>
-          <el-button 
-            :type="row.isEnabled === 1 ? 'warning' : 'success'" 
-            size="small" 
+          <el-button
+            :type="row.isEnabled === 1 ? 'warning' : 'success'"
+            size="small"
             @click="toggleStatus(row)"
           >
             {{ row.isEnabled === 1 ? '禁用' : '启用' }}
           </el-button>
-          <el-button 
+          <el-button
             v-if="row.isDefault !== 1"
-            type="info" 
-            size="small" 
+            type="info"
+            size="small"
             @click="setDefault(row)"
           >
             设为默认
@@ -129,7 +129,7 @@
             />
           </el-select>
         </el-form-item>
-        
+
         <!-- 本地存储配置 -->
         <template v-if="form.storageType === 'LOCAL'">
           <el-form-item label="存储路径" prop="configParams.localPath">
@@ -231,7 +231,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed, nextTick } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh } from '@element-plus/icons-vue'
 import { storageAPI } from '@/api/filestorage'
@@ -342,13 +342,13 @@ const showEditDialog = async (row) => {
   try {
     const data = await storageAPI.getStorageConfig(row.id)
     Object.assign(form, data)
-    
+
     // 解析配置参数
     if (data.configParams) {
       const params = JSON.parse(data.configParams)
       Object.assign(configParams, params)
     }
-    
+
     isEdit.value = true
     dialogVisible.value = true
   } catch (error) {
@@ -378,12 +378,12 @@ const handleStorageTypeChange = () => {
 const handleSubmit = async () => {
   try {
     await formRef.value.validate()
-    
+
     const submitData = {
       ...form,
       configParams: JSON.stringify(configParams)
     }
-    
+
     if (isEdit.value) {
       await storageAPI.updateStorageConfig(form.id, submitData)
       ElMessage.success('更新存储配置成功')
@@ -391,7 +391,7 @@ const handleSubmit = async () => {
       await storageAPI.createStorageConfig(submitData)
       ElMessage.success('创建存储配置成功')
     }
-    
+
     dialogVisible.value = false
     loadStorageList()
   } catch (error) {
@@ -421,14 +421,14 @@ const testConfig = async (row) => {
 const toggleStatus = async (row) => {
   const newStatus = row.isEnabled === 1 ? 0 : 1
   const action = newStatus === 1 ? '启用' : '禁用'
-  
+
   try {
     await ElMessageBox.confirm(`确定要${action}此存储配置吗？`, '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning'
     })
-    
+
     await storageAPI.toggleStorageConfig(row.id, newStatus)
     ElMessage.success(`${action}存储配置成功`)
     loadStorageList()
@@ -446,7 +446,7 @@ const setDefault = async (row) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    
+
     await storageAPI.setDefaultStorageConfig(row.id)
     ElMessage.success('设置默认存储成功')
     loadStorageList()
@@ -464,7 +464,7 @@ const handleDelete = async (row) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    
+
     await storageAPI.deleteStorageConfig(row.id)
     ElMessage.success('删除存储配置成功')
     loadStorageList()
@@ -508,4 +508,4 @@ const handleDelete = async (row) => {
 .dialog-footer {
   text-align: right;
 }
-</style> 
+</style>

@@ -5,11 +5,11 @@
   <parent>
     <groupId>com.xiaou</groupId>
     <artifactId>Code-Nest</artifactId>
-    <version>v2.1.0</version>
+    <version>v2.2.0</version>
   </parent>
   <groupId>com.xiaou</groupId>
   <artifactId>xiaou-application</artifactId>
-  <version>v2.1.0</version>
+  <version>v2.2.0</version>
   <name>xiaou-application</name>
   <dependencies>
     <dependency>

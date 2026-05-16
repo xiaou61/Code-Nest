@@ -170,49 +170,49 @@ const features = ref([
   {
     title: '面试题库',
     desc: '海量面试真题，覆盖前端、后端、算法等热门方向，助你斩获心仪 Offer',
-    icon: 'Reading',
+    icon: Reading,
     path: '/interview',
     gradient: 'linear-gradient(135deg, #2f7bff 0%, #1f6feb 100%)'
   },
   {
     title: '知识图谱',
     desc: '可视化知识体系，理清技术脉络，构建完整的技术知识网络',
-    icon: 'Share',
+    icon: Share,
     path: '/knowledge',
     gradient: 'linear-gradient(135deg, #20a0f3 0%, #1f6feb 100%)'
   },
   {
     title: '在线简历',
     desc: '专业简历模板，在线编辑导出，让你的简历脱颖而出',
-    icon: 'Document',
+    icon: Document,
     path: '/resume',
     gradient: 'linear-gradient(135deg, #2d8df7 0%, #48b6ff 100%)'
   },
   {
     title: '代码工坊',
     desc: '在线代码编辑器，支持多种语言，实时预览与分享你的创意',
-    icon: 'Monitor',
+    icon: Monitor,
     path: '/codepen',
     gradient: 'linear-gradient(135deg, #2fb987 0%, #20a0a8 100%)'
   },
   {
     title: '技术博客',
     desc: 'Markdown 写作，记录学习心得，分享技术经验',
-    icon: 'Edit',
+    icon: Edit,
     path: '/blog',
     gradient: 'linear-gradient(135deg, #ff9d4a 0%, #f07b34 100%)'
   },
   {
     title: '技术社区',
     desc: '问答交流、技术讨论，与全国开发者一起探讨技术难题',
-    icon: 'ChatDotRound',
+    icon: ChatDotRound,
     path: '/community',
     gradient: 'linear-gradient(135deg, #5f8bff 0%, #3a6be0 100%)'
   },
   {
     title: '在线判题',
     desc: '支持多语言在线编程，实时判题反馈，提升算法与编码能力',
-    icon: 'Cpu',
+    icon: Cpu,
     path: '/oj',
     gradient: 'linear-gradient(135deg, #15a7a1 0%, #24c78e 100%)'
   }
@@ -220,15 +220,15 @@ const features = ref([
 
 // 快速入口数据
 const quickAccess = ref([
-  { title: '朋友圈', icon: 'ChatLineSquare', path: '/moments', color: 'linear-gradient(135deg, #4f89ff, #2f65d9)' },
-  { title: '聊天室', icon: 'ChatDotRound', path: '/chat', color: 'linear-gradient(135deg, #4b8ef8, #20a0f3)' },
-  { title: '通知中心', icon: 'Bell', path: '/notification', color: 'linear-gradient(135deg, #20a0f3, #1f6feb)' },
-  { title: '计划打卡', icon: 'Calendar', path: '/plan', color: 'linear-gradient(135deg, #f59e42, #ef7d2c)' },
-  { title: '我的积分', icon: 'Trophy', path: '/points', color: 'linear-gradient(135deg, #20b486, #13a67c)' },
-  { title: '幸运抽奖', icon: 'Ticket', path: '/lottery', color: 'linear-gradient(135deg, #f5b43b, #e0861c)' },
-  { title: '摸鱼工具', icon: 'Coffee', path: '/moyu-tools', color: 'linear-gradient(135deg, #688eff, #446ddc)' },
-  { title: '开发工具', icon: 'Compass', path: '/dev-tools', color: 'linear-gradient(135deg, #2ea8d0, #2f78cd)' },
-  { title: '版本历史', icon: 'DataAnalysis', path: '/version-history', color: 'linear-gradient(135deg, #6aa8ff, #3b76de)' }
+  { title: '朋友圈', icon: ChatLineSquare, path: '/moments', color: 'linear-gradient(135deg, #4f89ff, #2f65d9)' },
+  { title: '聊天室', icon: ChatDotRound, path: '/chat', color: 'linear-gradient(135deg, #4b8ef8, #20a0f3)' },
+  { title: '通知中心', icon: Bell, path: '/notification', color: 'linear-gradient(135deg, #20a0f3, #1f6feb)' },
+  { title: '计划打卡', icon: Calendar, path: '/plan', color: 'linear-gradient(135deg, #f59e42, #ef7d2c)' },
+  { title: '我的积分', icon: Trophy, path: '/points', color: 'linear-gradient(135deg, #20b486, #13a67c)' },
+  { title: '幸运抽奖', icon: Ticket, path: '/lottery', color: 'linear-gradient(135deg, #f5b43b, #e0861c)' },
+  { title: '摸鱼工具', icon: Coffee, path: '/moyu-tools', color: 'linear-gradient(135deg, #688eff, #446ddc)' },
+  { title: '开发工具', icon: Compass, path: '/dev-tools', color: 'linear-gradient(135deg, #2ea8d0, #2f78cd)' },
+  { title: '版本历史', icon: DataAnalysis, path: '/version-history', color: 'linear-gradient(135deg, #6aa8ff, #3b76de)' }
 ])
 
 const stats = ref([

@@ -1,17 +1,17 @@
 <template>
   <div class="mindmap-container" ref="containerRef">
-    <div 
-      :id="containerId" 
+    <div
+      :id="containerId"
       class="mindmap-canvas"
-      :style="{ 
-        width: width, 
+      :style="{
+        width: width,
         height: height,
         background: '#fff',
         border: '1px solid #e8e8e8',
         borderRadius: '4px'
       }"
     ></div>
-    
+
     <!-- 工具栏 -->
     <div v-if="showToolbar" class="mindmap-toolbar">
       <el-button-group>
@@ -28,7 +28,7 @@
           <el-icon><FullScreen /></el-icon>
         </el-button>
       </el-button-group>
-      
+
       <el-button-group v-if="editable" style="margin-left: 8px;">
         <el-button size="small" @click="addNode" title="添加节点">
           <el-icon><Plus /></el-icon>
@@ -38,7 +38,7 @@
         </el-button>
       </el-button-group>
     </div>
-    
+
     <!-- 节点详情面板 -->
     <div v-if="showNodePanel && selectedNodeInfo" class="node-panel-overlay" @click="closeNodePanel">
       <div class="node-panel" @click.stop>
@@ -64,7 +64,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { Graph } from '@antv/g6'
 import { ElMessage } from 'element-plus'
 import { ZoomIn, ZoomOut, FullScreen, Plus, Delete, Close } from '@element-plus/icons-vue'
@@ -118,14 +118,14 @@ const selectedNodeInfo = ref(null)
 // Methods
 // 检测是否为移动设备
 const isMobileDevice = () => {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-         ('ontouchstart' in window) || 
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+         ('ontouchstart' in window) ||
          (navigator.maxTouchPoints > 0)
 }
 
 const initGraph = () => {
   if (!containerRef.value) return
-  
+
   const container = document.getElementById(containerId.value)
   if (!container) return
 
@@ -146,8 +146,8 @@ const initGraph = () => {
       },
       modes: {
         default: [
-          'zoom-canvas', 
-          'drag-canvas', 
+          'zoom-canvas',
+          'drag-canvas',
           'drag-node',
           {
             type: 'tooltip',
@@ -227,20 +227,20 @@ const initGraph = () => {
       const nodeData = item.getModel()
       selectedNode.value = item
       selectedNodeInfo.value = nodeData
-      
+
       // 清除所有状态并设置选中状态
       if (selectedNode.value && selectedNode.value !== item) {
         graph.value.setItemState(selectedNode.value, 'selected', false)
       }
       graph.value.setItemState(item, 'selected', true)
-      
+
       console.log('G6节点交互事件:', nodeData) // 调试日志
       emit('node-click', nodeData)
     } catch (error) {
       console.warn('节点交互事件处理错误:', error)
     }
   }
-  
+
   // 绑定多种事件以确保移动端兼容性
   graph.value.on('node:click', handleNodeInteraction)
   graph.value.on('node:tap', handleNodeInteraction) // 移动端tap事件
@@ -257,7 +257,7 @@ const initGraph = () => {
       console.warn('节点双击事件处理错误:', error)
     }
   }
-  
+
   graph.value.on('node:dblclick', handleNodeDoubleInteraction)
   graph.value.on('node:dbltap', handleNodeDoubleInteraction) // 移动端双击事件
 
@@ -270,7 +270,7 @@ const initGraph = () => {
   })
 
   // 缩放事件监听
-  graph.value.on('viewportchange', (e) => {
+  graph.value.on('viewportchange', () => {
     currentZoom.value = graph.value.getZoom()
   })
 
@@ -284,7 +284,7 @@ const initGraph = () => {
         console.log('Canvas touchstart事件触发') // 调试日志
         handleCanvasTouchStart(e)
       }, { passive: false })
-      
+
       canvas.addEventListener('click', (e) => {
         console.log('Canvas click事件触发') // 调试日志
         handleCanvasClick(e)
@@ -301,7 +301,7 @@ const handleCanvasTouchStart = (e) => {
   const touch = e.touches[0]
   const point = graph.value.getPointByClient(touch.clientX, touch.clientY)
   const item = graph.value.getItemAt(point.x, point.y)
-  
+
   if (item && item.getType() === 'node') {
     console.log('通过Canvas触摸找到节点:', item.getModel()) // 调试日志
     const nodeData = item.getModel()
@@ -313,7 +313,7 @@ const handleCanvasTouchStart = (e) => {
 const handleCanvasClick = (e) => {
   const point = graph.value.getPointByClient(e.clientX, e.clientY)
   const item = graph.value.getItemAt(point.x, point.y)
-  
+
   if (item && item.getType() === 'node') {
     console.log('通过Canvas点击找到节点:', item.getModel()) // 调试日志
     const nodeData = item.getModel()
@@ -323,14 +323,14 @@ const handleCanvasClick = (e) => {
 
 const loadData = () => {
   if (!graph.value || !props.data) return
-  
+
   const data = formatData(props.data)
-  
+
   try {
     // G6 v4 API
     graph.value.data(data)
     graph.value.render()
-    
+
     // 自动布局 - 多次尝试确保正确定位
     nextTick(() => {
       if (graph.value) {
@@ -358,10 +358,10 @@ const formatData = (rawData) => {
   const nodes = rawData.nodes?.map(node => {
     const title = node.title || node.name || node.label || node.id
     const nodeType = node.nodeType || node.type || 'normal'
-    
+
     const nodeId = String(node.id || node.nodeId)
     const colorInfo = getNodeColor(nodeType, nodeId)
-    
+
     return {
       id: nodeId,
       label: title,
@@ -401,7 +401,7 @@ const formatData = (rawData) => {
 // 定义美观的颜色组合
 const colorPalettes = [
   { bg: 'l(0) 0:#fff5f5 1:#fed7e2', border: '#f56565' }, // 红色
-  { bg: 'l(0) 0:#fffaf0 1:#fbd38d', border: '#ed8936' }, // 橙色  
+  { bg: 'l(0) 0:#fffaf0 1:#fbd38d', border: '#ed8936' }, // 橙色
   { bg: 'l(0) 0:#fffff0 1:#faf089', border: '#d69e2e' }, // 黄色
   { bg: 'l(0) 0:#f0fff4 1:#9ae6b4', border: '#38a169' }, // 绿色
   { bg: 'l(0) 0:#e6fffa 1:#81e6d9', border: '#319795' }, // 青色
@@ -418,17 +418,17 @@ const getNodeColor = (nodeType, nodeId) => {
     a = ((a << 5) - a) + b.charCodeAt(0)
     return a & a
   }, 0)
-  
+
   const paletteIndex = Math.abs(hash) % colorPalettes.length
   const palette = colorPalettes[paletteIndex]
-  
+
   // 根据节点类型调整透明度
   const typeMultiplier = {
     normal: 1,
     important: 0.9,
     category: 0.8
   }
-  
+
   return {
     fill: palette.bg,
     stroke: palette.border,
@@ -654,24 +654,24 @@ defineExpose({
     -webkit-user-select: none;
     user-select: none;
   }
-  
+
   .node-panel {
     width: 95vw;
     max-height: 85vh;
   }
-  
+
   .panel-header {
     padding: 12px 16px;
   }
-  
+
   .panel-header h4 {
     font-size: 16px;
   }
-  
+
   .panel-content {
     padding: 16px 20px;
   }
-  
+
   .node-description p {
     font-size: 14px;
   }
@@ -687,4 +687,4 @@ defineExpose({
   padding: 4px 8px;
   font-size: 12px;
 }
-</style> 
+</style>

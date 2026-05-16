@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.xiaou.team.mapper.StudyTeamDiscussionMapper">
+
+    <sql id="BaseColumns">
+        id, team_id, user_id, category, title, content, images, is_pinned, is_essence,
+        view_count, like_count, comment_count, status, is_deleted, create_by, create_time,
+        update_by, update_time, last_reply_time
+    </sql>
     
     <!-- 插入讨论 -->
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
@@ -26,7 +32,10 @@
     
     <!-- 根据ID查询讨论 -->
     <select id="selectById" resultType="com.xiaou.team.domain.StudyTeamDiscussion">
-        SELECT * FROM study_team_discussion WHERE id = #{id} AND is_deleted = 0
+        SELECT <include refid="BaseColumns"/>
+        FROM study_team_discussion
+        WHERE id = #{id}
+        AND is_deleted = 0
     </select>
     
     <!-- 删除讨论 -->

@@ -120,7 +120,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, ElImageViewer } from 'element-plus'
-import { Star, ChatDotRound, View, StarFilled, ArrowLeft, Pointer } from '@element-plus/icons-vue'
+import { ChatDotRound, StarFilled, ArrowLeft, Pointer } from '@element-plus/icons-vue'
 import { getMyFavorites, toggleLike, toggleFavorite } from '@/api/moment'
 import { formatRelativeTime } from '@/utils/timeUtil'
 import CommentDialog from './components/CommentDialog.vue'
@@ -236,7 +236,7 @@ const showCommentDialog = (moment) => {
 }
 
 // 处理评论成功
-const handleCommented = (comment) => {
+const handleCommented = (_comment) => {
   const moment = currentMoment.value
   if (moment) {
     moment.commentCount++

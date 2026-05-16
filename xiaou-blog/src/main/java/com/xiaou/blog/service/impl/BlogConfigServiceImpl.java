@@ -13,6 +13,7 @@ import com.xiaou.blog.mapper.BlogConfigMapper;
 import com.xiaou.blog.service.BlogConfigService;
 import com.xiaou.common.exception.BusinessException;
 import com.xiaou.common.satoken.StpUserUtil;
+import com.xiaou.common.utils.JsonUtils;
 import com.xiaou.points.mapper.UserPointsBalanceMapper;
 import com.xiaou.points.mapper.UserPointsDetailMapper;
 import com.xiaou.points.domain.UserPointsDetail;
@@ -150,7 +151,7 @@ public class BlogConfigServiceImpl implements BlogConfigService {
             response.setPersonalTags(JSONUtil.toList(config.getPersonalTags(), String.class));
         }
         if (config.getSocialLinks() != null) {
-            response.setSocialLinks(JSONUtil.toBean(config.getSocialLinks(), java.util.Map.class));
+            response.setSocialLinks(JsonUtils.parseStringMap(config.getSocialLinks()));
         }
         
         return response;

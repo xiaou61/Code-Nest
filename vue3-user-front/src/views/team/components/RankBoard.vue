@@ -64,7 +64,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, computed } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { Check, Timer, Odometer, TrendCharts, Trophy } from '@element-plus/icons-vue'
 import teamApi from '@/api/team'
 

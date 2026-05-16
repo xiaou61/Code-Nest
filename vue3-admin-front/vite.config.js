@@ -2,6 +2,61 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
+const buildManualChunks = (id) => {
+  const normalizedId = id.replace(/\\/g, '/')
+
+  if (!normalizedId.includes('node_modules')) {
+    return undefined
+  }
+
+  if (normalizedId.includes('@antv') || normalizedId.includes('/g6/')) {
+    return 'vendor-graph'
+  }
+
+  if (normalizedId.includes('echarts') || normalizedId.includes('/d3')) {
+    return 'vendor-charts'
+  }
+
+  if (
+    normalizedId.includes('markdown-it') ||
+    normalizedId.includes('highlight.js') ||
+    normalizedId.includes('dompurify')
+  ) {
+    return 'vendor-markdown'
+  }
+
+  if (normalizedId.includes('element-plus') || normalizedId.includes('@element-plus')) {
+    return 'vendor-element'
+  }
+
+  if (normalizedId.includes('vue-router')) {
+    return 'vendor-router'
+  }
+
+  if (
+    normalizedId.includes('pinia') ||
+    normalizedId.includes('@vueuse') ||
+    normalizedId.includes('vue-demi')
+  ) {
+    return 'vendor-state'
+  }
+
+  if (normalizedId.includes('/vue/') || normalizedId.includes('/@vue/')) {
+    return 'vendor-vue'
+  }
+
+  if (
+    normalizedId.includes('axios') ||
+    normalizedId.includes('lodash') ||
+    normalizedId.includes('js-cookie') ||
+    normalizedId.includes('nprogress')
+  ) {
+    return 'vendor-utils'
+  }
+
+  return 'vendor'
+}
+
 export default defineConfig({
   plugins: [vue()],
   resolve: {
@@ -21,49 +76,23 @@ export default defineConfig({
       },
     },
   },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        api: 'modern',
+      },
+    },
+  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
     minify: 'esbuild',
     sourcemap: false,
+    chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (!id.includes('node_modules')) {
-            return
-          }
-
-          if (id.includes('echarts')) {
-            return 'vendor-charts'
-          }
-
-          if (id.includes('@antv/g6') || id.includes('d3')) {
-            return 'vendor-visualization'
-          }
-
-          if (id.includes('markdown-it') || id.includes('highlight.js') || id.includes('dompurify')) {
-            return 'vendor-markdown'
-          }
-
-          if (id.includes('element-plus') || id.includes('@element-plus')) {
-            return 'vendor-element'
-          }
-
-          if (id.includes('vue-router')) {
-            return 'vendor-router'
-          }
-
-          if (id.includes('pinia') || id.includes('@vueuse') || id.includes('vue-demi')) {
-            return 'vendor-state'
-          }
-
-          if (id.includes('vue')) {
-            return 'vendor-vue'
-          }
-
-          return 'vendor-misc'
-        }
-      }
-    }
+        manualChunks: buildManualChunks,
+      },
+    },
   },
-}) 
+})

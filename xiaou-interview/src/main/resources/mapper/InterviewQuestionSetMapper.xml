@@ -27,6 +27,11 @@
         view_count, favorite_count, status, creator_id, creator_name, create_time, update_time
     </sql>
 
+    <sql id="Question_Set_Column_List">
+        iqs.id, iqs.title, iqs.description, iqs.category_id, iqs.type, iqs.visibility, iqs.question_count,
+        iqs.view_count, iqs.favorite_count, iqs.status, iqs.creator_id, iqs.creator_name, iqs.create_time, iqs.update_time
+    </sql>
+
     <!-- 插入题单 -->
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO interview_question_set (
@@ -67,7 +72,7 @@
 
     <!-- 分页查询题单列表 -->
     <select id="selectPage" resultMap="BaseResultMap">
-        SELECT iqs.*, ic.name as category_name
+        SELECT <include refid="Question_Set_Column_List"/>, ic.name as category_name
         FROM interview_question_set iqs
         LEFT JOIN interview_category ic ON iqs.category_id = ic.id
         <where>
@@ -212,4 +217,4 @@
         WHERE category_id = #{categoryId}
     </select>
 
-</mapper> 
+</mapper>

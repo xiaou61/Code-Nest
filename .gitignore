@@ -36,7 +36,12 @@ build/
 /.idea/
 /vue3-admin-front/node_modules/
 /vue3-user-front/node_modules/
+/docs-site/node_modules/
+/docs-site/.vitepress/.temp/
+/docs-site/.vitepress/cache/
+/docs-site/.vitepress/dist/
 /logs/
+/uploads/
 /.tmp/
 /.cursor/
 /.idea/

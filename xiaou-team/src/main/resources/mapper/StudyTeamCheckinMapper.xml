@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.xiaou.team.mapper.StudyTeamCheckinMapper">
+
+    <sql id="BaseColumns">
+        id, team_id, task_id, user_id, checkin_date, complete_value, content, images,
+        feeling, related_question_ids, is_supplement, like_count, comment_count, duration,
+        related_link, is_deleted, create_by, create_time, update_by, update_time
+    </sql>
     
     <!-- 打卡响应映射 -->
     <resultMap id="CheckinResponseMap" type="com.xiaou.team.dto.CheckinResponse">
@@ -47,7 +53,10 @@
     
     <!-- 根据ID查询打卡记录 -->
     <select id="selectById" resultType="com.xiaou.team.domain.StudyTeamCheckin">
-        SELECT * FROM study_team_checkin WHERE id = #{id} AND is_deleted = 0
+        SELECT <include refid="BaseColumns"/>
+        FROM study_team_checkin
+        WHERE id = #{id}
+        AND is_deleted = 0
     </select>
     
     <!-- 删除打卡记录 -->
@@ -206,7 +215,7 @@
     
     <!-- 查询用户今日在某任务的打卡记录 -->
     <select id="selectUserTodayCheckin" resultType="com.xiaou.team.domain.StudyTeamCheckin">
-        SELECT *
+        SELECT <include refid="BaseColumns"/>
         FROM study_team_checkin
         WHERE user_id = #{userId}
         AND task_id = #{taskId}

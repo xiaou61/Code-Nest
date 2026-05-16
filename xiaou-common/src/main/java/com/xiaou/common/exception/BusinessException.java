@@ -27,6 +27,8 @@ public class BusinessException extends RuntimeException {
 
     public BusinessException() {
         super();
+        this.code = ResultCode.BUSINESS_ERROR.getCode();
+        this.message = ResultCode.BUSINESS_ERROR.getMessage();
     }
 
     public BusinessException(String message) {
@@ -67,6 +69,6 @@ public class BusinessException extends RuntimeException {
 
     @Override
     public String getMessage() {
-        return this.message;
+        return this.message != null ? this.message : super.getMessage();
     }
-} 
+}

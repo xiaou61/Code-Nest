@@ -186,6 +186,22 @@ function getJavaSuggestions(monaco, model, position) {
   return suggestions
 }
 
+function getJavaDotSuggestions(monaco, model, position) {
+  const range = wordRange(model, position)
+  const Kind = monaco.languages.CompletionItemKind
+  return [
+    { label: 'length()', insertText: 'length()', detail: 'String.length()', kind: Kind.Method, range },
+    { label: 'charAt()', insertText: 'charAt(${1:index})', detail: 'String.charAt(index)', kind: Kind.Method, range },
+    { label: 'substring()', insertText: 'substring(${1:start}, ${2:end})', detail: 'String.substring(start, end)', kind: Kind.Method, range },
+    { label: 'size()', insertText: 'size()', detail: 'Collection.size()', kind: Kind.Method, range },
+    { label: 'get()', insertText: 'get(${1:index})', detail: 'List.get(index)', kind: Kind.Method, range },
+    { label: 'add()', insertText: 'add(${1:value})', detail: 'Collection.add(value)', kind: Kind.Method, range }
+  ].map(item => ({
+    ...item,
+    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+  }))
+}
+
 // ============ C++ ============
 
 const CPP_CLASSES = [
@@ -254,6 +270,22 @@ function getCppSuggestions(monaco, model, position) {
   return suggestions
 }
 
+function getCppDotSuggestions(monaco, model, position) {
+  const range = wordRange(model, position)
+  const Kind = monaco.languages.CompletionItemKind
+  return [
+    { label: 'size()', insertText: 'size()', detail: 'container.size()', kind: Kind.Method, range },
+    { label: 'empty()', insertText: 'empty()', detail: 'container.empty()', kind: Kind.Method, range },
+    { label: 'push_back()', insertText: 'push_back(${1:value})', detail: 'vector.push_back(value)', kind: Kind.Method, range },
+    { label: 'pop_back()', insertText: 'pop_back()', detail: 'vector.pop_back()', kind: Kind.Method, range },
+    { label: 'begin()', insertText: 'begin()', detail: 'container.begin()', kind: Kind.Method, range },
+    { label: 'end()', insertText: 'end()', detail: 'container.end()', kind: Kind.Method, range }
+  ].map(item => ({
+    ...item,
+    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+  }))
+}
+
 // ============ Python ============
 
 const PYTHON_SNIPPETS = [
@@ -284,6 +316,22 @@ function getPythonSuggestions(monaco, model, position) {
     insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
     range,
     detail: s.detail,
+  }))
+}
+
+function getPythonDotSuggestions(monaco, model, position) {
+  const range = wordRange(model, position)
+  const Kind = monaco.languages.CompletionItemKind
+  return [
+    { label: 'append()', insertText: 'append(${1:value})', detail: 'list.append(value)', kind: Kind.Method, range },
+    { label: 'pop()', insertText: 'pop()', detail: 'list.pop()', kind: Kind.Method, range },
+    { label: 'sort()', insertText: 'sort()', detail: 'list.sort()', kind: Kind.Method, range },
+    { label: 'split()', insertText: 'split(${1})', detail: 'str.split()', kind: Kind.Method, range },
+    { label: 'strip()', insertText: 'strip()', detail: 'str.strip()', kind: Kind.Method, range },
+    { label: 'items()', insertText: 'items()', detail: 'dict.items()', kind: Kind.Method, range }
+  ].map(item => ({
+    ...item,
+    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
   }))
 }
 

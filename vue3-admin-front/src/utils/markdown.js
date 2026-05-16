@@ -1,43 +1,48 @@
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js/lib/core'
-import javascript from 'highlight.js/lib/languages/javascript'
-import typescript from 'highlight.js/lib/languages/typescript'
-import java from 'highlight.js/lib/languages/java'
-import sql from 'highlight.js/lib/languages/sql'
-import xml from 'highlight.js/lib/languages/xml'
-import json from 'highlight.js/lib/languages/json'
 import bash from 'highlight.js/lib/languages/bash'
-import cpp from 'highlight.js/lib/languages/cpp'
 import c from 'highlight.js/lib/languages/c'
+import cpp from 'highlight.js/lib/languages/cpp'
+import css from 'highlight.js/lib/languages/css'
 import go from 'highlight.js/lib/languages/go'
-import python from 'highlight.js/lib/languages/python'
+import java from 'highlight.js/lib/languages/java'
+import javascript from 'highlight.js/lib/languages/javascript'
+import json from 'highlight.js/lib/languages/json'
+import markdown from 'highlight.js/lib/languages/markdown'
 import plaintext from 'highlight.js/lib/languages/plaintext'
+import python from 'highlight.js/lib/languages/python'
+import sql from 'highlight.js/lib/languages/sql'
+import typescript from 'highlight.js/lib/languages/typescript'
+import xml from 'highlight.js/lib/languages/xml'
 import DOMPurify from 'dompurify'
-import 'highlight.js/styles/github.css' // 代码高亮主题
+import 'highlight.js/styles/github.css'
 
 const supportedLanguages = {
-  javascript,
-  js: javascript,
-  typescript,
-  ts: typescript,
-  java,
-  sql,
-  xml,
-  html: xml,
-  vue: xml,
-  json,
   bash,
   shell: bash,
   sh: bash,
+  c,
   cpp,
   'c++': cpp,
-  c,
+  css,
   go,
   golang: go,
+  java,
+  javascript,
+  js: javascript,
+  json,
+  markdown,
+  md: markdown,
+  plaintext,
+  text: plaintext,
   python,
   py: python,
-  text: plaintext,
-  plaintext
+  sql,
+  typescript,
+  ts: typescript,
+  xml,
+  html: xml,
+  vue: xml
 }
 
 Object.entries(supportedLanguages).forEach(([name, language]) => {
@@ -46,14 +51,12 @@ Object.entries(supportedLanguages).forEach(([name, language]) => {
   }
 })
 
-// 配置markdown-it
 const md = new MarkdownIt({
-  html: true,        // 启用HTML标签
-  linkify: true,     // 自动识别链接
-  typographer: true, // 启用一些语言中性的替换和引号的美化
-  breaks: true,      // 将换行符转换为<br>
-  highlight: function (str, lang) {
-    // 代码高亮处理
+  html: true,
+  linkify: true,
+  typographer: true,
+  breaks: true,
+  highlight(str, lang) {
     const normalizedLang = lang ? lang.toLowerCase() : ''
 
     if (normalizedLang && hljs.getLanguage(normalizedLang)) {
@@ -62,8 +65,7 @@ const md = new MarkdownIt({
         return `<pre class="hljs"><code class="language-${normalizedLang}">${result}</code></pre>`
       } catch (__) {}
     }
-    
-    // 默认处理（没有指定语言或语言不支持）
+
     const escaped = md.utils.escapeHtml(str)
     return `<pre class="hljs"><code>${escaped}</code></pre>`
   }
@@ -71,7 +73,7 @@ const md = new MarkdownIt({
 
 const sanitizeOptions = {
   USE_PROFILES: { html: true },
-  ADD_ATTR: ['target'],
+  ADD_ATTR: ['target', 'rel'],
   FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed'],
   FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'style']
 }
@@ -80,13 +82,13 @@ export function sanitizeHtml(html) {
   if (!html || typeof html !== 'string') {
     return ''
   }
+
   return DOMPurify.sanitize(html, sanitizeOptions)
 }
 
-// 自定义渲染规则
-md.renderer.rules.heading_open = function (tokens, idx, options, env, renderer) {
+md.renderer.rules.heading_open = function (tokens, idx) {
   const token = tokens[idx]
-  const level = token.tag.slice(1) // h1 -> 1, h2 -> 2, etc.
+  const level = token.tag.slice(1)
   return `<${token.tag} class="markdown-heading markdown-h${level}">`
 }
 
@@ -118,39 +120,38 @@ md.renderer.rules.table_close = function () {
   return '</table></div>'
 }
 
-// 自定义链接渲染（添加target="_blank"）
-const defaultLinkRender = md.renderer.rules.link_open || function(tokens, idx, options, env, renderer) {
+const defaultLinkRender = md.renderer.rules.link_open || function (tokens, idx, options, env, renderer) {
   return renderer.renderToken(tokens, idx, options)
 }
 
 md.renderer.rules.link_open = function (tokens, idx, options, env, renderer) {
-  const aIndex = tokens[idx].attrIndex('target')
-  
-  if (aIndex < 0) {
+  const targetIndex = tokens[idx].attrIndex('target')
+  const relIndex = tokens[idx].attrIndex('rel')
+
+  if (targetIndex < 0) {
     tokens[idx].attrPush(['target', '_blank'])
+  } else {
+    tokens[idx].attrs[targetIndex][1] = '_blank'
+  }
+
+  if (relIndex < 0) {
     tokens[idx].attrPush(['rel', 'noopener noreferrer'])
   } else {
-    tokens[idx].attrs[aIndex][1] = '_blank'
+    tokens[idx].attrs[relIndex][1] = 'noopener noreferrer'
   }
-  
+
   return defaultLinkRender(tokens, idx, options, env, renderer)
 }
 
-/**
- * 渲染Markdown内容
- * @param {string} content - Markdown内容
- * @returns {string} - 渲染后的HTML
- */
 export function renderMarkdown(content) {
   if (!content || typeof content !== 'string') {
     return ''
   }
-  
+
   try {
     return sanitizeHtml(md.render(content))
   } catch (error) {
     console.error('Markdown渲染失败:', error)
-    // 回退到简单的文本处理
     return sanitizeHtml(md.utils.escapeHtml(content).replace(/\n/g, '<br>'))
   }
 }

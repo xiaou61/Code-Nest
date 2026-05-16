@@ -10,6 +10,10 @@
         <result column="create_time" property="createTime"/>
     </resultMap>
 
+    <sql id="BaseColumns">
+        id, contest_id, problem_id, sort_order, create_time
+    </sql>
+
     <delete id="deleteByContestId">
         DELETE FROM oj_contest_problem WHERE contest_id = #{contestId}
     </delete>
@@ -37,7 +41,8 @@
     </select>
 
     <select id="selectByContestId" resultMap="BaseResultMap">
-        SELECT * FROM oj_contest_problem
+        SELECT <include refid="BaseColumns"/>
+        FROM oj_contest_problem
         WHERE contest_id = #{contestId}
         ORDER BY sort_order ASC, id ASC
     </select>

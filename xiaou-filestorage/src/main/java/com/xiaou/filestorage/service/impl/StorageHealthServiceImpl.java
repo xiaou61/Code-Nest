@@ -1,6 +1,6 @@
 package com.xiaou.filestorage.service.impl;
 
-import cn.hutool.json.JSONUtil;
+import com.xiaou.common.utils.JsonUtils;
 import com.xiaou.filestorage.domain.StorageConfig;
 import com.xiaou.filestorage.factory.StorageStrategyFactory;
 import com.xiaou.filestorage.mapper.StorageConfigMapper;
@@ -97,7 +97,7 @@ public class StorageHealthServiceImpl implements StorageHealthService {
     private boolean performHealthCheck(StorageConfig storageConfig) {
         try {
             // 解析配置参数
-            Map<String, Object> configParams = JSONUtil.toBean(storageConfig.getConfigParams(), Map.class);
+            Map<String, Object> configParams = JsonUtils.parseMap(storageConfig.getConfigParams());
             
             // 创建并初始化存储策略
             FileStorageStrategy strategy = strategyFactory.createAndInitialize(
@@ -124,4 +124,4 @@ public class StorageHealthServiceImpl implements StorageHealthService {
             return false;
         }
     }
-} 
+}

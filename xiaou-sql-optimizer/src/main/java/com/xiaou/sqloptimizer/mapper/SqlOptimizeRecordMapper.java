@@ -13,6 +13,9 @@ import java.util.List;
 @Mapper
 public interface SqlOptimizeRecordMapper {
 
+    String RECORD_COLUMNS = "id, user_id, original_sql, explain_result, explain_format, table_structures, " +
+            "mysql_version, analysis_result, score, is_favorite, create_time, update_time, deleted";
+
     /**
      * 插入记录
      */
@@ -26,13 +29,13 @@ public interface SqlOptimizeRecordMapper {
     /**
      * 根据ID查询
      */
-    @Select("SELECT * FROM sql_optimize_record WHERE id = #{id} AND deleted = 0")
+    @Select("SELECT " + RECORD_COLUMNS + " FROM sql_optimize_record WHERE id = #{id} AND deleted = 0")
     SqlOptimizeRecord selectById(Long id);
 
     /**
      * 根据用户ID分页查询
      */
-    @Select("SELECT * FROM sql_optimize_record WHERE user_id = #{userId} AND deleted = 0 " +
+    @Select("SELECT " + RECORD_COLUMNS + " FROM sql_optimize_record WHERE user_id = #{userId} AND deleted = 0 " +
             "ORDER BY create_time DESC LIMIT #{offset}, #{limit}")
     List<SqlOptimizeRecord> selectByUserId(@Param("userId") Long userId, 
                                             @Param("offset") int offset, 
@@ -41,7 +44,7 @@ public interface SqlOptimizeRecordMapper {
     /**
      * 查询用户全部记录（按时间倒序）
      */
-    @Select("SELECT * FROM sql_optimize_record WHERE user_id = #{userId} AND deleted = 0 ORDER BY create_time DESC")
+    @Select("SELECT " + RECORD_COLUMNS + " FROM sql_optimize_record WHERE user_id = #{userId} AND deleted = 0 ORDER BY create_time DESC")
     List<SqlOptimizeRecord> selectAllByUserId(@Param("userId") Long userId);
 
     /**

@@ -4,7 +4,7 @@
       <!-- 顶部操作栏 -->
       <div class="detail-header">
         <div class="header-left">
-          <el-button icon="Back" @click="goBack">返回</el-button>
+          <el-button :icon="Back" @click="goBack">返回</el-button>
           <h1 class="pen-title">{{ penData.title }}</h1>
           
           <!-- 付费标识 -->
@@ -27,7 +27,7 @@
           <el-button 
             v-if="penData.canEdit"
             type="primary"
-            icon="Edit"
+            :icon="Edit"
             @click="editPen"
           >
             编辑
@@ -63,7 +63,7 @@
             {{ penData.collectCount }}
           </el-button>
 
-          <el-button icon="Share" @click="showShareDialog = true">分享</el-button>
+          <el-button :icon="Share" @click="showShareDialog = true">分享</el-button>
         </div>
       </div>
 
@@ -119,7 +119,7 @@
             <h2>预览效果</h2>
             <el-button
               text
-              icon="FullScreen"
+              :icon="FullScreen"
               @click="fullscreenPreview = true"
             >
               全屏预览
@@ -457,6 +457,7 @@ const runCode = () => {
   const html = penData.value.htmlCode || ''
   const css = penData.value.cssCode || ''
   const js = penData.value.jsCode || ''
+  const scriptCloseTag = '</scr' + 'ipt>'
 
   const content = `
     <!DOCTYPE html>
@@ -466,7 +467,7 @@ const runCode = () => {
       </head>
       <body>
         ${html}
-        <script>${js}<\/script>
+        <script>${js}${scriptCloseTag}
       </body>
     </html>
   `

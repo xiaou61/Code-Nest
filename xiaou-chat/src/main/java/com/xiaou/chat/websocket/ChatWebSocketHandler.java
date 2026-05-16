@@ -10,6 +10,7 @@ import com.xiaou.chat.service.ChatRateLimitService;
 import com.xiaou.chat.service.ChatMessageService;
 import com.xiaou.chat.service.ChatOnlineUserService;
 import com.xiaou.chat.service.ChatRoomService;
+import com.xiaou.common.utils.JsonUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -138,7 +139,10 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         String deviceInfo = getUserAgent(session);
         
         // 解析消息请求
-        Map<String, Object> dataMap = (Map<String, Object>) wsMessage.getData();
+        Map<String, Object> dataMap = JsonUtils.toObjectMap(wsMessage.getData());
+        if (dataMap == null) {
+            throw new IllegalArgumentException("消息数据格式不正确");
+        }
         ChatMessageRequest request = BeanUtil.toBean(dataMap, ChatMessageRequest.class);
 
         ChatRateLimitService.RateLimitResult rateLimit = chatRateLimitService.tryAcquireMessage(userId);

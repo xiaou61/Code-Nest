@@ -1,6 +1,6 @@
 package com.xiaou.filestorage.service.impl;
 
-import cn.hutool.json.JSONUtil;
+import com.xiaou.common.utils.JsonUtils;
 import com.xiaou.filestorage.domain.StorageConfig;
 import com.xiaou.filestorage.factory.StorageStrategyFactory;
 import com.xiaou.filestorage.mapper.StorageConfigMapper;
@@ -242,7 +242,7 @@ public class StorageConfigServiceImpl implements StorageConfigService {
             }
 
             // 解析配置参数
-            Map<String, Object> configParams = JSONUtil.toBean(config.getConfigParams(), Map.class);
+            Map<String, Object> configParams = JsonUtils.parseMap(config.getConfigParams());
             
             // 创建并测试策略
             FileStorageStrategy strategy = strategyFactory.createAndInitialize(
@@ -282,4 +282,4 @@ public class StorageConfigServiceImpl implements StorageConfigService {
     public List<String> getSupportedStorageTypes() {
         return strategyFactory.getSupportedStorageTypes();
     }
-} 
+}

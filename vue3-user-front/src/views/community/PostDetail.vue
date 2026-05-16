@@ -697,13 +697,6 @@ const loadMoreReplies = async (comment) => {
   }
 }
 
-// 评论分页大小改变
-const handleCommentSizeChange = (size) => {
-  commentQueryParams.size = size
-  commentQueryParams.page = 1
-  fetchComments()
-}
-
 // 评论当前页改变
 const handleCommentCurrentChange = (page) => {
   commentQueryParams.page = page

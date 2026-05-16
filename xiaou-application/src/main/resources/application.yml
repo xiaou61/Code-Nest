@@ -41,7 +41,8 @@ spring:
 # JWT配置（保留兼容旧代码）
 jwt:
   # JWT密钥（HS512算法要求至少64字节）
-  secret: A0I5+vaOwhnQpPdtIxs0H+lKBa+tU6c8aP+Ppj5msSco0GSvcEo21JYJlAztsFPGiQ/jHRcXzS+asTbcj2LqFA==
+  # 生产环境必须通过环境变量或 application-sec.yml 覆盖，避免把真实密钥提交到仓库。
+  secret: ${XIAOU_JWT_SECRET:change-me-code-nest-jwt-secret-at-least-64-bytes-for-dev-only-2026}
   # 访问令牌过期时间（秒）7天 - 与前端Cookie保持一致
   expiration: 604800
   # 刷新令牌过期时间（秒）30天

@@ -5,11 +5,11 @@
   <parent>
     <groupId>com.xiaou</groupId>
     <artifactId>Code-Nest</artifactId>
-    <version>v2.1.0</version>
+    <version>v2.2.0</version>
   </parent>
   <groupId>com.xiaou</groupId>
   <artifactId>xiaou-system</artifactId>
-  <version>v2.1.0</version>
+  <version>v2.2.0</version>
   <name>xiaou-system</name>
   <description>系统管理模块</description>
   <dependencies>
@@ -41,18 +41,15 @@
     <dependency>
       <groupId>io.jsonwebtoken</groupId>
       <artifactId>jjwt-api</artifactId>
-      <version>0.11.5</version>
     </dependency>
     <dependency>
       <groupId>io.jsonwebtoken</groupId>
       <artifactId>jjwt-impl</artifactId>
-      <version>0.11.5</version>
       <scope>runtime</scope>
     </dependency>
     <dependency>
       <groupId>io.jsonwebtoken</groupId>
       <artifactId>jjwt-jackson</artifactId>
-      <version>0.11.5</version>
       <scope>runtime</scope>
     </dependency>
     <dependency>

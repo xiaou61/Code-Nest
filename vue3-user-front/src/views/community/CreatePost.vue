@@ -211,11 +211,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
-  Back, Edit, EditPen, More, Flag, Menu, Plus, Check, CircleCheck, Delete, Loading
+  Back, Edit, Plus, Check, CircleCheck, Delete, Loading
 } from '@element-plus/icons-vue'
 import { communityApi } from '@/api/community'
 import { renderMarkdown } from '@/utils/markdown'
@@ -256,11 +256,6 @@ const previewHtml = computed(() => {
 // 计算属性 - 预览字符数
 const previewWordCount = computed(() => {
   return postForm.content.length
-})
-
-// 计算属性 - 可用标签（过滤掉已选标签）
-const availableTags = computed(() => {
-  return tagList.value.filter(tag => !postForm.tagIds.includes(tag.id))
 })
 
 // 获取标签名称
@@ -361,12 +356,6 @@ const loadDraft = () => {
 // 处理内容输入
 const handleContentInput = () => {
   saveDraft()
-}
-
-// 更新预览 (这个函数现在由computed自动处理，保留是为了未来扩展)
-const updatePreview = () => {
-  // 由于使用了computed，这里可以做一些其他处理
-  // 比如同步滚动等功能
 }
 
 // 插入Markdown标记

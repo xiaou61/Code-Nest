@@ -21,6 +21,19 @@
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
+    <sql id="BaseColumns">
+        id, title, description, difficulty, time_limit, memory_limit, input_description,
+        output_description, sample_input, sample_output, accepted_count, submit_count,
+        status, create_user_id, create_time, update_time
+    </sql>
+
+    <sql id="ProblemColumns">
+        p.id, p.title, p.description, p.difficulty, p.time_limit, p.memory_limit,
+        p.input_description, p.output_description, p.sample_input, p.sample_output,
+        p.accepted_count, p.submit_count, p.status, p.create_user_id, p.create_time,
+        p.update_time
+    </sql>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO oj_problem (title, description, difficulty, time_limit, memory_limit,
                                 input_description, output_description, sample_input, sample_output,
@@ -53,11 +66,14 @@
     </delete>
 
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT * FROM oj_problem WHERE id = #{id}
+        SELECT <include refid="BaseColumns"/>
+        FROM oj_problem
+        WHERE id = #{id}
     </select>
 
     <select id="selectPage" resultMap="BaseResultMap">
-        SELECT p.* FROM oj_problem p
+        SELECT <include refid="ProblemColumns"/>
+        FROM oj_problem p
         <if test="request.tagId != null">
             INNER JOIN oj_problem_tag_relation ptr ON p.id = ptr.problem_id AND ptr.tag_id = #{request.tagId}
         </if>
@@ -117,6 +133,10 @@
     </select>
 
     <select id="selectPublicByOffset" resultMap="BaseResultMap">
-        SELECT * FROM oj_problem WHERE status = 1 ORDER BY id LIMIT 1 OFFSET #{offset}
+        SELECT <include refid="BaseColumns"/>
+        FROM oj_problem
+        WHERE status = 1
+        ORDER BY id
+        LIMIT 1 OFFSET #{offset}
     </select>
 </mapper>

@@ -18,6 +18,10 @@
         id, user_id, target_type, target_id, create_time
     </sql>
 
+    <sql id="Favorite_Column_List">
+        f.id, f.user_id, f.target_type, f.target_id, f.create_time
+    </sql>
+
     <!-- 插入收藏 -->
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO interview_favorite (
@@ -58,7 +62,7 @@
 
     <!-- 查询用户收藏的题单 -->
     <select id="selectQuestionSetsByUserId" resultMap="BaseResultMap">
-        SELECT f.*, iqs.title as target_title, iqs.description as target_description
+        SELECT <include refid="Favorite_Column_List"/>, iqs.title as target_title, iqs.description as target_description
         FROM interview_favorite f
         LEFT JOIN interview_question_set iqs ON f.target_id = iqs.id
         WHERE f.user_id = #{userId} 
@@ -79,7 +83,7 @@
 
     <!-- 查询用户收藏的题目 -->
     <select id="selectQuestionsByUserId" resultMap="BaseResultMap">
-        SELECT f.*, iq.title as target_title
+        SELECT <include refid="Favorite_Column_List"/>, iq.title as target_title
         FROM interview_favorite f
         LEFT JOIN interview_question iq ON f.target_id = iq.id
         LEFT JOIN interview_question_set iqs ON iq.question_set_id = iqs.id
@@ -128,4 +132,4 @@
         ORDER BY create_time DESC
     </select>
 
-</mapper> 
+</mapper>

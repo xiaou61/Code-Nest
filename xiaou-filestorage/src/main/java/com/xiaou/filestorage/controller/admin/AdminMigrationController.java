@@ -2,6 +2,7 @@ package com.xiaou.filestorage.controller.admin;
 
 import com.xiaou.common.annotation.RequireAdmin;
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.utils.JsonUtils;
 import com.xiaou.filestorage.domain.FileMigration;
 import com.xiaou.filestorage.service.FileMigrationService;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +39,7 @@ public class AdminMigrationController {
             Long targetStorageId = Long.valueOf(request.get("targetStorageId").toString());
             String migrationType = (String) request.get("migrationType");
             String taskName = (String) request.get("taskName");
-            Map<String, Object> filterParams = (Map<String, Object>) request.get("filterParams");
+            Map<String, Object> filterParams = JsonUtils.toObjectMap(request.get("filterParams"));
 
             Long migrationId = fileMigrationService.createMigrationTask(
                 sourceStorageId, targetStorageId, migrationType, filterParams, taskName);
@@ -180,4 +181,4 @@ public class AdminMigrationController {
             return Result.error("获取迁移进度失败: " + e.getMessage());
         }
     }
-} 
+}

@@ -36,4 +36,4 @@ router.isReady().then(() => {
   }
 
   setTimeout(preload, 600)
-}) 
+})

@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -166,11 +167,76 @@ public class JsonUtils {
             return null;
         }
         try {
-            return JSON.parseObject(json, Map.class);
+            JSONObject jsonObject = JSON.parseObject(json);
+            return jsonObject == null ? null : new LinkedHashMap<>(jsonObject);
         } catch (Exception e) {
             log.error("JSON转Map失败: {}", json, e);
             return null;
         }
+    }
+
+    /**
+     * JSON字符串转字符串Map（使用FastJson2）
+     *
+     * @param json JSON字符串
+     * @return 字符串Map对象
+     */
+    public static Map<String, String> parseStringMap(String json) {
+        if (!StringUtils.hasText(json)) {
+            return null;
+        }
+        try {
+            JSONObject jsonObject = JSON.parseObject(json);
+            if (jsonObject == null) {
+                return null;
+            }
+            Map<String, String> result = new LinkedHashMap<>();
+            jsonObject.forEach((key, value) -> result.put(key, value == null ? null : value.toString()));
+            return result;
+        } catch (Exception e) {
+            log.error("JSON转String Map失败: {}", json, e);
+            return null;
+        }
+    }
+
+    /**
+     * 对象转Map，主要用于请求体或第三方响应中的弱类型Map字段。
+     *
+     * @param value 原始对象
+     * @return Map对象，非Map输入返回null
+     */
+    public static Map<String, Object> toObjectMap(Object value) {
+        if (!(value instanceof Map<?, ?> rawMap)) {
+            return null;
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        rawMap.forEach((key, mapValue) -> {
+            if (key != null) {
+                result.put(key.toString(), mapValue);
+            }
+        });
+        return result;
+    }
+
+    /**
+     * 对象转字符串Map，主要用于第三方响应中值类型不稳定的Map字段。
+     *
+     * @param value 原始对象
+     * @return 字符串Map对象，非Map输入返回null
+     */
+    public static Map<String, String> toStringMap(Object value) {
+        if (!(value instanceof Map<?, ?> rawMap)) {
+            return null;
+        }
+
+        Map<String, String> result = new LinkedHashMap<>();
+        rawMap.forEach((key, mapValue) -> {
+            if (key != null && mapValue != null) {
+                result.put(key.toString(), mapValue.toString());
+            }
+        });
+        return result;
     }
     
     /**

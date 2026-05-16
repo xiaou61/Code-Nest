@@ -22,6 +22,11 @@
         view_count, favorite_count, create_time, update_time
     </sql>
 
+    <sql id="Question_Column_List">
+        iq.id, iq.question_set_id, iq.title, iq.answer, iq.sort_order,
+        iq.view_count, iq.favorite_count, iq.create_time, iq.update_time
+    </sql>
+
     <!-- 插入题目 -->
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO interview_question (
@@ -86,7 +91,7 @@
 
     <!-- 根据题单ID列表查询题目列表 -->
     <select id="selectByQuestionSetIds" resultMap="BaseResultMap">
-        SELECT iq.*, iqs.title as question_set_title
+        SELECT <include refid="Question_Column_List"/>, iqs.title as question_set_title
         FROM interview_question iq
         LEFT JOIN interview_question_set iqs ON iq.question_set_id = iqs.id
         WHERE iq.question_set_id IN

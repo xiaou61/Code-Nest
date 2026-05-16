@@ -1,0 +1,48 @@
+name: Docs Site
+
+on:
+  pull_request:
+    paths:
+      - "docs-site/**"
+      - ".github/workflows/docs-site.yml"
+  push:
+    branches:
+      - v2.2.0
+    paths:
+      - "docs-site/**"
+      - ".github/workflows/docs-site.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: docs-site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: docs-site
+
+      - name: Build docs site
+        run: npm run build
+        working-directory: docs-site
+
+      - name: Upload docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-nest-docs-site
+          path: docs-site/.vitepress/dist

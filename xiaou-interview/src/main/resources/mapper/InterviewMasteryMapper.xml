@@ -25,6 +25,11 @@
         last_review_time, next_review_time, create_time, update_time
     </sql>
 
+    <sql id="Mastery_Column_List">
+        m.id, m.user_id, m.question_id, m.question_set_id, m.mastery_level, m.review_count,
+        m.last_review_time, m.next_review_time, m.create_time, m.update_time
+    </sql>
+
     <!-- 插入掌握度记录 -->
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO interview_mastery_record (
@@ -67,7 +72,7 @@
 
     <!-- 查询用户待复习题目（逾期） -->
     <select id="selectOverdueReview" resultMap="BaseResultMap">
-        SELECT m.*, 
+        SELECT <include refid="Mastery_Column_List"/>,
                iq.title as question_title,
                iqs.title as question_set_title,
                DATEDIFF(#{now}, m.next_review_time) as overdue_days
@@ -82,7 +87,7 @@
 
     <!-- 查询用户今日待复习题目 -->
     <select id="selectTodayReview" resultMap="BaseResultMap">
-        SELECT m.*, 
+        SELECT <include refid="Mastery_Column_List"/>,
                iq.title as question_title,
                iqs.title as question_set_title,
                0 as overdue_days
@@ -98,7 +103,7 @@
 
     <!-- 查询用户本周待复习题目 -->
     <select id="selectWeekReview" resultMap="BaseResultMap">
-        SELECT m.*, 
+        SELECT <include refid="Mastery_Column_List"/>,
                iq.title as question_title,
                iqs.title as question_set_title,
                0 as overdue_days

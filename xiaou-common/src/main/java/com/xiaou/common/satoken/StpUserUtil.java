@@ -1,8 +1,8 @@
 package com.xiaou.common.satoken;
 
 import cn.dev33.satoken.session.SaSession;
-import cn.dev33.satoken.stp.SaLoginModel;
 import cn.dev33.satoken.stp.StpLogic;
+import cn.dev33.satoken.stp.parameter.SaLoginParameter;
 
 import java.util.List;
 
@@ -38,8 +38,8 @@ public class StpUserUtil {
     /**
      * 登录，并指定登录配置
      */
-    public static void login(Object id, SaLoginModel loginModel) {
-        stpLogic.login(id, loginModel);
+    public static void login(Object id, SaLoginParameter loginParameter) {
+        stpLogic.login(id, loginParameter);
     }
     
     /**

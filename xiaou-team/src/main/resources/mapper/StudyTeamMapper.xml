@@ -33,6 +33,12 @@
         total_checkins, total_discussions, active_days, creator_id, status, create_time, update_time
     </sql>
 
+    <sql id="Team_Column_List">
+        t.id, t.team_name, t.team_desc, t.team_avatar, t.team_type, t.tags, t.max_members, t.current_members,
+        t.join_type, t.invite_code, t.goal_title, t.goal_desc, t.goal_start_date, t.goal_end_date, t.daily_target,
+        t.total_checkins, t.total_discussions, t.active_days, t.creator_id, t.status, t.create_time, t.update_time
+    </sql>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO study_team (
             team_name, team_desc, team_avatar, team_type, tags, max_members, current_members,
@@ -107,7 +113,7 @@
     </select>
 
     <select id="selectJoinedTeams" resultMap="BaseResultMap">
-        SELECT t.*
+        SELECT <include refid="Team_Column_List"/>
         FROM study_team t
         INNER JOIN study_team_member m ON t.id = m.team_id
         WHERE m.user_id = #{userId} AND m.status = 1 AND t.status != 0

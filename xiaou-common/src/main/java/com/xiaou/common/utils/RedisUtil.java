@@ -7,10 +7,10 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Redis工具类
@@ -164,7 +164,7 @@ public class RedisUtil {
     public boolean set(String key, Object value, long time) {
         try {
             if (time > 0) {
-                redissonClient.getBucket(key).set(value, time, TimeUnit.SECONDS);
+                redissonClient.getBucket(key).set(value, Duration.ofSeconds(time));
             } else {
                 redissonClient.getBucket(key).set(value);
             }
@@ -198,7 +198,7 @@ public class RedisUtil {
      * 递减
      *
      * @param key   键
-     * @param delta 要减少几(小于0)
+     * @param delta 要减少几(大于0)
      * @return 减少后的值
      */
     public long decr(String key, long delta) {
@@ -242,7 +242,7 @@ public class RedisUtil {
             return redissonClient.getMap(key).readAllMap();
         } catch (Exception e) {
             log.error("Hash获取所有键值失败", e);
-            return null;
+            return Collections.emptyMap();
         }
     }
 
@@ -369,7 +369,7 @@ public class RedisUtil {
             return redissonClient.getSet(key).readAll();
         } catch (Exception e) {
             log.error("Set获取所有值失败", e);
-            return null;
+            return Collections.emptySet();
         }
     }
 
@@ -398,8 +398,11 @@ public class RedisUtil {
      */
     public long sSet(String key, Object... values) {
         try {
+            if (values == null || values.length == 0) {
+                return 0;
+            }
             RSet<Object> set = redissonClient.getSet(key);
-            return set.addAll(List.of(values)) ? values.length : 0;
+            return addSetValues(set, values);
         } catch (Exception e) {
             log.error("Set添加值失败", e);
             return 0;
@@ -416,8 +419,11 @@ public class RedisUtil {
      */
     public long sSetAndTime(String key, long time, Object... values) {
         try {
+            if (values == null || values.length == 0) {
+                return 0;
+            }
             RSet<Object> set = redissonClient.getSet(key);
-            long count = set.addAll(List.of(values)) ? values.length : 0;
+            long count = addSetValues(set, values);
             if (time > 0) {
                 expire(key, time);
             }
@@ -452,8 +458,17 @@ public class RedisUtil {
      */
     public long setRemove(String key, Object... values) {
         try {
+            if (values == null || values.length == 0) {
+                return 0;
+            }
             RSet<Object> set = redissonClient.getSet(key);
-            return set.removeAll(List.of(values)) ? values.length : 0;
+            long removed = 0;
+            for (Object value : values) {
+                if (set.remove(value)) {
+                    removed++;
+                }
+            }
+            return removed;
         } catch (Exception e) {
             log.error("Set移除值失败", e);
             return 0;
@@ -475,7 +490,7 @@ public class RedisUtil {
             return redissonClient.getList(key).range((int) start, (int) end);
         } catch (Exception e) {
             log.error("List获取范围值失败", e);
-            return null;
+            return Collections.emptyList();
         }
     }
 
@@ -670,7 +685,7 @@ public class RedisUtil {
             return redissonClient.getKeys().getKeysByPattern(pattern);
         } catch (Exception e) {
             log.error("获取所有key失败", e);
-            return null;
+            return Collections.emptyList();
         }
     }
 
@@ -688,9 +703,9 @@ public class RedisUtil {
             return 0;
         }
     }
-    
+
     // ================================ZSet（有序集合）=================================
-    
+
     /**
      * ZSet添加元素
      *
@@ -708,7 +723,7 @@ public class RedisUtil {
             return false;
         }
     }
-    
+
     /**
      * ZSet获取指定范围的元素（按分数从小到大）
      *
@@ -723,10 +738,10 @@ public class RedisUtil {
             return sortedSet.valueRange(start, end);
         } catch (Exception e) {
             log.error("ZSet获取范围元素失败", e);
-            return null;
+            return Collections.emptyList();
         }
     }
-    
+
     /**
      * ZSet获取指定范围的元素（按分数从大到小）
      *
@@ -741,10 +756,10 @@ public class RedisUtil {
             return sortedSet.valueRangeReversed(start, end);
         } catch (Exception e) {
             log.error("ZSet倒序获取范围元素失败", e);
-            return null;
+            return Collections.emptyList();
         }
     }
-    
+
     /**
      * ZSet获取指定范围的元素及分数（按分数从大到小）
      *
@@ -765,10 +780,10 @@ public class RedisUtil {
             return result;
         } catch (Exception e) {
             log.error("ZSet倒序获取元素和分数失败", e);
-            return null;
+            return Collections.emptyMap();
         }
     }
-    
+
     /**
      * ZSet获取元素的分数
      *
@@ -785,7 +800,7 @@ public class RedisUtil {
             return null;
         }
     }
-    
+
     /**
      * ZSet获取集合大小
      *
@@ -800,7 +815,7 @@ public class RedisUtil {
             return 0;
         }
     }
-    
+
     /**
      * ZSet移除元素
      *
@@ -810,14 +825,23 @@ public class RedisUtil {
      */
     public long zRemove(String key, Object... values) {
         try {
+            if (values == null || values.length == 0) {
+                return 0;
+            }
             RScoredSortedSet<Object> sortedSet = redissonClient.getScoredSortedSet(key);
-            return sortedSet.removeAll(List.of(values)) ? values.length : 0;
+            long removed = 0;
+            for (Object value : values) {
+                if (sortedSet.remove(value)) {
+                    removed++;
+                }
+            }
+            return removed;
         } catch (Exception e) {
             log.error("ZSet移除元素失败", e);
             return 0;
         }
     }
-    
+
     /**
      * ZSet移除指定排名范围的元素
      *
@@ -835,4 +859,14 @@ public class RedisUtil {
             return 0;
         }
     }
-} 
+
+    private long addSetValues(RSet<Object> set, Object... values) {
+        long added = 0;
+        for (Object value : values) {
+            if (set.add(value)) {
+                added++;
+            }
+        }
+        return added;
+    }
+}

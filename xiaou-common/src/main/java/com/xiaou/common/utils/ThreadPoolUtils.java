@@ -366,7 +366,7 @@ public class ThreadPoolUtils {
     public static void runAll(Runnable... tasks) {
         CompletableFuture<?>[] futures = Arrays.stream(tasks)
                 .map(task -> CompletableFuture.runAsync(task, COMMON_EXECUTOR))
-                .toArray(CompletableFuture[]::new);
+                .toArray(CompletableFuture<?>[]::new);
         CompletableFuture.allOf(futures).join();
     }
 
@@ -751,13 +751,14 @@ public class ThreadPoolUtils {
             throw new IllegalArgumentException("任务列表不能为空");
         }
 
-        @SuppressWarnings("unchecked")
-        CompletableFuture<T>[] futures = Arrays.stream(tasks)
+        CompletableFuture<?>[] futures = Arrays.stream(tasks)
                 .map(task -> CompletableFuture.supplyAsync(task, COMMON_EXECUTOR))
-                .toArray(CompletableFuture[]::new);
+                .toArray(CompletableFuture<?>[]::new);
 
         try {
-            return (T) CompletableFuture.anyOf(futures).get(DEFAULT_TIMEOUT, TimeUnit.SECONDS);
+            @SuppressWarnings("unchecked")
+            T result = (T) CompletableFuture.anyOf(futures).get(DEFAULT_TIMEOUT, TimeUnit.SECONDS);
+            return result;
         } catch (Exception e) {
             throw new RuntimeException("获取最快任务结果失败", e);
         }

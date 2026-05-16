@@ -76,7 +76,9 @@ try {
     const user = JSON.parse(userStr)
     currentUserId.value = user.id || user.userId
   }
-} catch {}
+} catch {
+  currentUserId.value = null
+}
 
 const loadRanking = async () => {
   loading.value = true
