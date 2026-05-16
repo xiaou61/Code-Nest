@@ -62,6 +62,13 @@ const reference = [
   { text: 'AI Schema 与治理', link: '/reference/ai-schemas' }
 ]
 
+const manuals = [
+  { text: '用户端操作手册', link: '/manuals/user-operations' },
+  { text: '管理端操作手册', link: '/manuals/admin-operations' },
+  { text: '核心链路教程', link: '/manuals/core-workflows' },
+  { text: '验证记录与已知问题', link: '/manuals/verified-scenarios' }
+]
+
 export default defineConfig({
   lang: 'zh-CN',
   title: 'Code Nest 文档',
@@ -79,6 +86,7 @@ export default defineConfig({
       { text: '架构', link: '/architecture/overview' },
       { text: '模块', link: '/modules/' },
       { text: '参考', link: '/reference/api-routes' },
+      { text: '手册', link: '/manuals/user-operations' },
       { text: '运维', link: '/operations/docker' },
       { text: 'v2.2.0 计划', link: '/roadmap/v2.2.0-docs-plan' }
     ],
@@ -87,6 +95,7 @@ export default defineConfig({
       '/architecture/': [{ text: '系统架构', items: architecture }],
       '/modules/': [{ text: '功能模块', items: modules }],
       '/reference/': [{ text: '参考索引', items: reference }],
+      '/manuals/': [{ text: '操作手册', items: manuals }],
       '/operations/': [{ text: '部署运维', items: operations }],
       '/roadmap/': [
         {
