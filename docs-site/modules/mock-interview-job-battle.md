@@ -11,6 +11,31 @@
 | 管理端 | `/mock-interview/sessions`、`/mock-interview/directions`、`/system/ai-config`、`/system/ai-governance` |
 | 后端模块 | `xiaou-mock-interview`、`xiaou-ai` |
 
+## 推荐学习顺序
+
+这个模块横跨面试、求职和 AI 编排，新人建议这样看：
+
+1. 先看模拟面试会话，理解 `session -> QA -> report` 的主链路。
+2. 再看题目来源，区分本地题库模式和 AI 出题模式。
+3. 接着看回答评分和追问，理解 AI 失败时为什么有本地兜底。
+4. 然后看 Job Battle，理解 JD 解析、简历匹配、计划生成和复盘如何推事件。
+5. 最后看 Career Loop，理解这些事件如何推进求职阶段和行动项。
+
+## 源码地图
+
+| 目标 | 文件 |
+| --- | --- |
+| 模拟面试用户接口 | `xiaou-mock-interview/src/main/java/com/xiaou/mockinterview/controller/MockInterviewController.java` |
+| 面试会话接口 | `xiaou-mock-interview/src/main/java/com/xiaou/mockinterview/controller/MockInterviewSessionController.java` |
+| 后台面试运营 | `xiaou-mock-interview/src/main/java/com/xiaou/mockinterview/controller/admin/AdminMockInterviewController.java` |
+| 面试主服务 | `xiaou-mock-interview/src/main/java/com/xiaou/mockinterview/service/impl/MockInterviewServiceImpl.java` |
+| 题目选择 | `xiaou-mock-interview/src/main/java/com/xiaou/mockinterview/service/impl/QuestionSelectorServiceImpl.java` |
+| AI 面试官 | `xiaou-mock-interview/src/main/java/com/xiaou/mockinterview/service/impl/AIInterviewerServiceImpl.java` |
+| 求职作战台 | `xiaou-mock-interview/src/main/java/com/xiaou/mockinterview/service/impl/JobBattleServiceImpl.java` |
+| 求职闭环 | `xiaou-mock-interview/src/main/java/com/xiaou/mockinterview/service/impl/CareerLoopServiceImpl.java` |
+| 阶段状态机 | `xiaou-mock-interview/src/main/java/com/xiaou/mockinterview/service/CareerLoopStateMachine.java` |
+| AI 能力目录 | `xiaou-ai/src/main/java/com/xiaou/ai` |
+
 ## 模拟面试接口域
 
 | 接口域 | 能力 |
@@ -41,6 +66,21 @@ AI 能力由 `xiaou-ai` 提供，核心点包括：
 - Structured output schema 约束输出。
 - Regression eval 保护高价值场景质量。
 
+## 配置枚举
+
+这些枚举是前后端联调时最容易写错的字段：
+
+| 维度 | 枚举 | 说明 |
+| --- | --- | --- |
+| 出题模式 | `1 LOCAL`、`2 AI` | 创建面试时未传默认使用 AI 出题 |
+| 面试级别 | `1 JUNIOR`、`2 MIDDLE`、`3 SENIOR` | 对应初级、中级、高级 |
+| 面试类型 | `1 TECHNICAL`、`2 COMPREHENSIVE`、`3 SPECIALIZED` | 技术面、综合面、专项突破 |
+| AI 风格 | `1 GENTLE`、`2 STANDARD`、`3 PRESSURE` | 温和、标准、压力 |
+| 会话状态 | `0 ONGOING`、`1 COMPLETED`、`2 INTERRUPTED` | 只有进行中允许作答 |
+| QA 状态 | `0 PENDING`、`1 ANSWERED`、`2 SKIPPED` | 只有待回答可以提交答案 |
+
+AI 风格会影响本地兜底评分和追问概率：温和型加 1 分、追问率 0.3；标准型不调整、追问率 0.5；压力型减 1 分、追问率 0.7。
+
 ## 核心流程
 
 1. 用户选择面试方向和配置。
@@ -50,6 +90,21 @@ AI 能力由 `xiaou-ai` 提供，核心点包括：
 5. 用户结束面试后生成报告。
 6. 报告可转学习资产或进入求职闭环。
 7. 求职作战台读取 JD、简历和历史结果生成行动计划。
+
+## 一次模拟面试如何完成
+
+| 步骤 | 说明 |
+| --- | --- |
+| 读取配置 | `/user/mock-interview/config` 返回方向、级别、类型、风格和题数选项 |
+| 创建会话 | `createInterview` 校验方向启用、题数合法、用户没有进行中会话 |
+| 生成题目 | 本地题库按方向/级别抽题，AI 模式调用 AI 生成；本地无题会提示切换 AI |
+| 写入 QA | 每道主问题写入 `mock_interview_qa`，状态为 `PENDING` |
+| 开始面试 | `startInterview` 设置开始时间和当前题序 |
+| 提交答案 | 只有 `PENDING` 可回答，AI 评分后保存分数和反馈 JSON |
+| 自动追问 | AI 返回 `followUp` 时创建追问 QA |
+| 结束面试 | 计算总分、维度分、报告，并推送 `INTERVIEW_DONE` 事件 |
+
+会话时长默认按题数估算：`questionCount * 4` 分钟。这个字段更像产品体验上的预计时长，不等同于实际答题耗时。
 
 ## 面试会话状态
 
@@ -87,6 +142,20 @@ AI 能力由 `xiaou-ai` 提供，核心点包括：
 | QA 明细 | 主问题和对应追问树 |
 | 面试时长 | `startTime` 到 `endTime` 的秒数 |
 
+## 求职作战台主线
+
+Job Battle 不是单独的 AI 页面，它的每个关键动作都会推动 Career Loop：
+
+| 动作 | 接口 | 推进阶段 |
+| --- | --- | --- |
+| JD 解析 | `/user/job-battle/jd/parse` | `JD_PARSED` |
+| 简历匹配 | `/user/job-battle/resume/match` | `RESUME_MATCHED` |
+| 行动计划生成 | `/user/job-battle/plan/generate` | `PLAN_READY` |
+| 匹配引擎运行 | `/user/job-battle/match-engine/run` | 通常复用简历匹配结果 |
+| 面试复盘 | `/user/job-battle/interview/review` | `REVIEWED` |
+
+匹配引擎最多处理 10 个目标岗位，排序先看引擎评分，再看预估通过率。行动计划会保存到 `job_battle_plan_record`，即使落库失败也不会阻断 AI 返回，排查历史记录缺失时要先看服务日志。
+
 ## Career Loop 阶段
 
 求职闭环阶段定义在 `CareerLoopStageEnum`，状态机只允许幂等或向前推进，不允许回退。
@@ -104,6 +173,33 @@ AI 能力由 `xiaou-ai` 提供，核心点包括：
 
 阶段推进后会写入 `career_loop_stage_log`，并按阶段重置 `career_loop_action` 的待办项。画像快照保存在 `career_loop_snapshot`，包含计划进度、模拟面试次数、最新模拟分、复盘次数、风险标记和下一步建议。
 
+## 核心数据表
+
+| 表 | 作用 | 排查时重点看 |
+| --- | --- | --- |
+| `mock_interview_direction` | 面试方向配置 | `status` 是否启用 |
+| `mock_interview_session` | 面试会话 | 状态、当前题序、总分、维度分、AI 总结 |
+| `mock_interview_qa` | 主问题和追问 | `question_type`、`parent_qa_id`、`status`、评分和反馈 |
+| `mock_interview_user_stats` | 用户面试统计 | 总场次、平均分、题目数 |
+| `job_battle_plan_record` | 行动计划历史 | AI 返回内容、计划天数、生成时间 |
+| `career_loop_session` | 当前求职闭环 | 当前阶段、健康分、周投入小时 |
+| `career_loop_stage_log` | 阶段变更记录 | 阶段推进来源和时间 |
+| `career_loop_action` | 当前阶段待办 | 是否完成、行动类型 |
+| `career_loop_snapshot` | 求职画像快照 | 计划进度、面试次数、复盘次数和风险 |
+
+## 常见坑
+
+| 问题 | 常见原因 | 排查方式 |
+| --- | --- | --- |
+| 创建面试失败 | 用户已有 `ONGOING` 会话 | 查 `mock_interview_session.status` |
+| 本地题库模式无题 | 方向、级别或题单没有可用题 | 切换 AI 模式或补充题库 |
+| AI 出题失败 | AI 服务异常且没有生成结果 | 看 `QuestionSelectorServiceImpl` 日志 |
+| 回答接口失败 | QA 已回答或已跳过 | 查 `mock_interview_qa.status` |
+| 追问数量超限 | 每道主问题最多 2 个手动追问 | 查同一 `parent_qa_id` 下追问数量 |
+| 报告没有 AI 总结 | 总结需要手动调用 `/{id}/summary` | 查会话的 AI 总结字段 |
+| Career Loop 不推进 | 事件目标阶段为空或试图回退 | 查 `career_loop_stage_log` 和状态机异常 |
+| 行动项突然被重置 | 阶段推进后会按阶段重建待办 | 这是当前设计，不是数据丢失 |
+
 ## 验证点
 
 | 场景 | 预期 |
@@ -114,3 +210,6 @@ AI 能力由 `xiaou-ai` 提供，核心点包括：
 | 追问超过 2 次 | 返回每道题最多追问 2 次 |
 | 已完成会话重复结束 | 幂等返回报告 |
 | Career Loop 回退阶段 | 抛出“不允许回退求职闭环阶段” |
+| JD 解析成功 | Career Loop 推进到 `JD_PARSED` |
+| 生成行动计划 | 写入计划历史并推进到 `PLAN_READY` |
+| 完成面试复盘 | Career Loop 推进到 `REVIEWED` |
