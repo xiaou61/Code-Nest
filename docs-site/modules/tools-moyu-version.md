@@ -2,6 +2,28 @@
 
 这一组能力偏向轻工具、运营内容和产品版本展示。它们不像 OJ、社区、AI Runtime 那样重业务流程，但非常影响用户日常体验：开发者工具解决即时小需求，摸鱼工具增加轻量互动，版本历史让用户知道产品在持续进化。
 
+## 推荐学习顺序
+
+这组模块可以按“无后端 -> 有运营内容 -> 正式公告”的顺序学习：
+
+1. 先读开发者工具，理解纯前端工具如何避免不必要的上传和后端依赖。
+2. 再读摸鱼工具，理解轻量内容模块为什么需要后台运营、缓存和定时任务。
+3. 最后读版本历史，理解正式产品公告的草稿、发布、隐藏和批量操作。
+
+## 源码地图
+
+| 能力 | 源码入口 |
+| --- | --- |
+| 开发者工具页面 | `vue3-user-front/src/views/dev-tools` |
+| 开发者工具导航 | `vue3-user-front/src/components/DevToolsNav.vue` |
+| 摸鱼用户端页面 | `vue3-user-front/src/views/moyu-tools` |
+| 摸鱼管理端页面 | `vue3-admin-front/src/views/moyu` |
+| 摸鱼后端 | `xiaou-moyu/src/main/java/com/xiaou/moyu` |
+| 摸鱼后台 API 封装 | `vue3-admin-front/src/api/moyu.js` |
+| 版本历史后端 | `xiaou-version/src/main/java/com/xiaou/version` |
+| 版本历史管理端 | `vue3-admin-front/src/views/system/version/index.vue` |
+| 版本历史 API 封装 | `vue3-admin-front/src/api/version.js` |
+
 ## 功能地图
 
 | 功能 | 用户端入口 | 管理端入口 | 后端模块 | 深入文档 |

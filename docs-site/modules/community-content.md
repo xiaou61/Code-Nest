@@ -2,6 +2,29 @@
 
 社区与内容矩阵让用户生产内容、沉淀经验、交流作品，并把高价值内容转化为学习资产。它包含社区帖子、动态、博客、代码工坊和学习资产，不是单纯的“发帖系统”，而是一条从内容生产到学习沉淀的链路。
 
+## 推荐学习顺序
+
+内容矩阵建议按“发布入口 -> 互动运营 -> 学习转化 -> 风控审核”的顺序读：
+
+1. 先读社区帖子，理解分类、标签、评论树、收藏和 AI 摘要。
+2. 再读动态广场，理解短内容、频率限制、浏览去重和热门任务。
+3. 接着读博客和 CodePen，理解长文、作品、付费 Fork 和积分联动。
+4. 然后读学习资产，理解内容如何转成闪卡、计划、知识节点或题目候选。
+5. 最后读敏感词风控，理解所有用户输入发布前为什么要经过统一策略。
+
+## 源码地图
+
+| 能力 | 源码入口 |
+| --- | --- |
+| 社区帖子 | `xiaou-community/src/main/java/com/xiaou/community` |
+| 动态广场 | `xiaou-moment/src/main/java/com/xiaou/moment` |
+| 博客 | `xiaou-blog/src/main/java/com/xiaou/blog` |
+| 代码工坊 | `xiaou-codepen/src/main/java/com/xiaou/codepen` |
+| 学习资产 | `xiaou-learning-asset/src/main/java/com/xiaou/learningasset` |
+| 敏感词风控 | `xiaou-sensitive/src/main/java/com/xiaou/sensitive` |
+| 用户端内容路由 | `vue3-user-front/src/router/index.js` |
+| 管理端内容路由 | `vue3-admin-front/src/router/index.js` |
+
 ## 功能地图
 
 | 功能 | 用户端入口 | 管理端入口 | 后端模块 | 深入文档 |
@@ -129,7 +152,7 @@
 
 具体字段和状态请看各模块深度页。
 
-## 验证场景
+## 验证清单
 
 | 场景 | 预期 |
 | --- | --- |

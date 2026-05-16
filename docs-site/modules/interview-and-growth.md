@@ -4,6 +4,31 @@
 
 如果你是第一次学习 Code Nest 的业务，可以先读这篇导览，再进入每个模块的详细文档。
 
+## 推荐学习顺序
+
+这篇是学习成长域的总入口，建议按“内容 -> 练习 -> 反馈 -> 复习 -> 计划”的顺序读：
+
+1. 先读面试题库，理解最基础的题目、题单、掌握度和复习记录。
+2. 再读 OJ，理解代码提交如何变成可统计的 AC、排名和积分奖励。
+3. 接着读模拟面试和 Job Battle，理解 AI 如何把问答、JD、简历和计划串起来。
+4. 然后读学习资产、闪卡和知识图谱，理解内容如何沉淀为可复习材料。
+5. 最后读计划、学习小组和学习驾驶舱，理解行为数据如何被聚合成成长反馈。
+
+## 源码地图
+
+| 能力 | 源码入口 |
+| --- | --- |
+| 学习驾驶舱 | `xiaou-application/src/main/java/com/xiaou/web/learning/controller/LearningCockpitController.java` |
+| 驾驶舱聚合服务 | `xiaou-application/src/main/java/com/xiaou/web/learning/service` |
+| 成长自动驾驶 | `xiaou-plan/src/main/java/com/xiaou/plan` |
+| 面试题库 | `xiaou-interview/src/main/java/com/xiaou/interview` |
+| OJ 判题 | `xiaou-oj/src/main/java/com/xiaou/oj` |
+| 模拟面试和 Career Loop | `xiaou-mock-interview/src/main/java/com/xiaou/mockinterview` |
+| 学习资产转化 | `xiaou-learning-asset/src/main/java/com/xiaou/learningasset` |
+| 闪卡学习 | `xiaou-flashcard/src/main/java/com/xiaou/flashcard` |
+| 知识图谱 | `xiaou-knowledge/src/main/java/com/xiaou/knowledge` |
+| 用户端路由 | `vue3-user-front/src/router/index.js` |
+
 ## 功能地图
 
 | 功能 | 用户端入口 | 管理端入口 | 后端模块 | 深入文档 |
@@ -115,7 +140,7 @@
 7. [知识图谱](/modules/knowledge)：理解知识结构化沉淀。
 8. [AI Runtime](/modules/ai-runtime)：回头理解所有 AI 场景的治理底座。
 
-## 关键验证场景
+## 验证清单
 
 | 场景 | 目的 |
 | --- | --- |
