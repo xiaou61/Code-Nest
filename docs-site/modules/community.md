@@ -183,7 +183,7 @@
 | 封禁过期后仍不能操作 | 过期自动解封依赖访问时检查 | 重新触发用户状态检查并查 `ban_expire_time` |
 | AI 摘要生成失败 | `community.ai.enabled=false` 或 AI 服务异常 | 先看配置，再看 `community:post:summary:{postId}` 缓存 |
 
-## 验证点
+## 验证清单
 
 | 场景 | 预期 |
 | --- | --- |
