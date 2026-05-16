@@ -50,3 +50,12 @@ npm run preview
 
 `docs-site/` 负责对这些资料重新组织成“读者能顺着看”的文档站。后续迁移或引用旧资料时，优先保持原始文件不动，再在文档站里写结构化说明。
 
+## 验证清单
+
+第一次启动文档站时，确认：
+
+1. `npm install` 能在 `docs-site/` 内完成，不需要回到项目根目录安装。
+2. `npm run dev` 能打印本地访问地址，并能打开首页。
+3. `npm run build` 能生成 `.vitepress/dist`。
+4. `npm run preview` 能预览构建产物。
+5. 修改任意 Markdown 后，开发服务能热更新页面内容。

@@ -71,3 +71,14 @@ ws://<host>/ws/chat?token=<sa-token>
 1. 目前 `typingUsers` 是前端输入状态 UI，服务端协议未登记 `TYPING` 事件；如果要做多人输入中提示，需要新增事件并更新本页。
 2. 管理端删除和踢人必须同时走 REST 和 WebSocket 通知，否则用户端状态会延迟。
 3. 集群部署时需要关注 WebSocket session 的节点内存态，目前 `SESSIONS` 是本地 `ConcurrentHashMap`。
+
+## 验证清单
+
+验证聊天室协议时，至少覆盖：
+
+1. 未携带 Token 或 Token 失效时，握手被拒绝。
+2. 正常连接后收到 `CONNECT`，在线人数随连接变化。
+3. 发送 `MESSAGE` 后，发送者收到 `MESSAGE_ACK`，其他在线用户收到广播消息。
+4. 心跳能更新在线状态，超时用户会被清理。
+5. 撤回、删除、踢出、系统公告能通过 REST 动作触发 WebSocket 通知。
+6. 前端存在但服务端未登记的事件，不应写进正式协议表。
