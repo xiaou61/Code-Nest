@@ -2,6 +2,16 @@
 
 Code Nest 使用 Sa-Token 做鉴权，但不是“一套登录态走天下”。项目里有两个独立登录域：管理端使用 `admin`，用户端使用 `user`。这样做的目的很简单：后台管理员 Token 不能拿去当普通用户 Token 用，普通用户 Token 也不能误打误撞访问后台接口。
 
+## 推荐学习顺序
+
+鉴权模块要先学“边界”，再学“流程”：
+
+1. 先看 `StpAdminUtil` 和 `StpUserUtil`，确认项目里确实有两套 Sa-Token 登录域。
+2. 再看 `SaTokenConfig`，理解哪些路径被拦截、哪些路径被放行。
+3. 然后看 `AuthController.login` 和 `UserAuthController.login`，比较管理员登录和普通用户登录的差异。
+4. 接着看两个前端的 `utils/request.js` 和 store，理解 Token 保存在哪里、请求头如何拼。
+5. 最后看 `@RequireAdmin` 和 `AdminAuthAspect`，明确后台接口为什么不能只依赖前端菜单隐藏。
+
 ## 读源码先看哪里
 
 | 位置 | 作用 |
@@ -23,6 +33,19 @@ Code Nest 使用 Sa-Token 做鉴权，但不是“一套登录态走天下”。
 | 用户端 | `StpUserUtil` | `user_token` | `/user/**`、用户侧业务接口 |
 
 `StpAdminUtil` 和 `StpUserUtil` 都封装了 Sa-Token 的 `StpLogic`，但登录类型不同。登录类型是区分会话空间的关键。可以把它理解成两张门禁卡：卡面看起来都叫 Token，但后台门禁和用户门禁查的是不同名单。
+
+## 一次请求如何通过鉴权
+
+| 步骤 | 管理端 | 用户端 |
+| --- | --- | --- |
+| 1. 前端取 Token | `vue3-admin-front/src/stores/user.js` 读取 `token` | `vue3-user-front/src/stores/user.js` 读取 `user_token` |
+| 2. 请求头 | `Authorization: Bearer <token>` | `Authorization: Bearer <token>` |
+| 3. 后端拦截 | `/auth/**` 和方法级 `@RequireAdmin` | `/user/**` 和业务接口内 `StpUserUtil` |
+| 4. 会话校验 | `StpAdminUtil.checkLogin()` | `StpUserUtil.checkLogin()` |
+| 5. 角色校验 | `StpAdminUtil.checkRole("admin")` | 普通用户通常只校验登录态 |
+| 6. 业务取人 | 管理员 ID | 用户 ID |
+
+排查鉴权问题时先确认“用了哪张卡”。后台接口拿用户端 `user_token` 调用，表面上也是 Bearer Token，但登录域不同，后端会认为未登录。
 
 ## 后端拦截规则
 
@@ -115,6 +138,17 @@ Authorization: Bearer <token>
 | `sys_login_log` | 管理端登录成功/失败日志 |
 | `user_info` | 普通用户账号，状态 `0` 正常、`1` 禁用、`2` 删除 |
 
+## 排查路径
+
+| 现象 | 优先检查 |
+| --- | --- |
+| 前端跳登录页 | 响应码是否是 `701` 或 `702`，Token 是否存在 |
+| 后台提示权限不足 | 当前管理员是否有 `admin` 角色，接口是否命中 `@RequireAdmin` |
+| 用户端登录成功但刷新后丢失 | `user_token` Cookie/localStorage 是否写入 |
+| 管理端刷新 Token 失败 | `StpAdminUtil.isLogin()` 是否为 false，Token 是否已经过期 |
+| 注册页唯一性校验异常 | 目标接口是否被 `SaTokenConfig` 放行 |
+| 新后台接口裸奔 | Controller 方法是否漏了 `@RequireAdmin` |
+
 ## 常见坑
 
 | 问题 | 原因 | 排查方式 |
@@ -132,3 +166,15 @@ Authorization: Bearer <token>
 3. 用户端接口从 `StpUserUtil.getLoginIdAsLong()` 获取当前用户，不信任前端传入的用户 ID。
 4. 前端调用统一走 `utils/request.js`，不要手写裸 `fetch` 绕过拦截器。
 5. 文档同步更新 API 索引、模块页和操作手册。
+
+## 验证清单
+
+| 场景 | 预期 |
+| --- | --- |
+| 管理员登录后台 | 返回管理端 Token、角色和权限 |
+| 普通用户登录用户端 | 返回用户端 Token 和用户资料 |
+| 用用户 Token 调后台接口 | 返回未登录或权限不足 |
+| 用管理员 Token 调用户接口 | 不能当作普通用户会话使用 |
+| 后台接口缺少 Token | 前端收到 `701/702` 后清理登录态并跳登录 |
+| 普通管理员缺少 `admin` 角色 | `@RequireAdmin` 拦截 |
+| 登录失败 | 管理端写入 `sys_login_log` |

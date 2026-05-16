@@ -2,6 +2,42 @@
 
 Code Nest 的功能可以按读者视角分成五组：成长学习、内容社区、AI 能力、运营后台、基础设施。
 
+## 新人推荐阅读路线
+
+如果你是第一次接手 Code Nest，不建议按目录从上到下硬读。更高效的顺序是：
+
+1. 先读 [架构总览](/architecture/overview) 和 [源码地图](/reference/source-map)，知道后端多模块、用户端、管理端和文档站分别在哪里。
+2. 再读 [鉴权与用户体系](/modules/auth) 和 [用户账户与个人中心](/modules/user-account)，理解普通用户和管理员为什么是两套登录域。
+3. 接着读一个完整业务链路，比如 [OJ 判题系统](/modules/oj) 或 [模拟面试与求职作战台](/modules/mock-interview-job-battle)，练习从页面、Controller、Service、Mapper 到表结构的阅读方法。
+4. 然后读 [通知中心](/modules/notification)、[文件存储](/modules/file-storage)、[敏感词风控](/modules/sensitive) 这些平台能力，因为很多业务模块都会调用它们。
+5. 最后读 [全功能覆盖矩阵](/reference/feature-coverage)，用它检查某个功能有没有用户入口、管理入口、API 前缀、核心表和文档页。
+
+## 按任务找文档
+
+| 我想做的事 | 先看 |
+| --- | --- |
+| 本地把项目跑起来 | [快速开始](/guide/quick-start)、[本地开发](/guide/local-dev) |
+| 新增一个用户端功能 | [前端路由索引](/reference/frontend-routes)、对应模块页、[API 分组索引](/reference/api-routes) |
+| 新增一个后台管理页 | [鉴权与用户体系](/modules/auth)、[系统运营后台](/modules/system-ops)、对应业务模块页 |
+| 新增一张表或字段 | [数据库与脚本](/architecture/database)、[数据表索引](/reference/database-tables)、对应模块页 |
+| 接入 AI 能力 | [AI Runtime](/modules/ai-runtime)、[AI Schema 与治理](/reference/ai-schemas) |
+| 排查线上问题 | [监控与观测](/operations/monitoring)、[仪表盘与日志](/modules/dashboard-logs)、具体模块的“常见坑” |
+| 验收一个版本功能 | [核心链路教程](/manuals/core-workflows)、[验证记录与已知问题](/manuals/verified-scenarios) |
+
+## 模块依赖关系
+
+很多页面不是孤立功能。读源码时可以用下面的依赖关系定位影响范围：
+
+| 基础能力 | 被哪些模块调用 | 典型场景 |
+| --- | --- | --- |
+| 鉴权 | 几乎所有用户端和管理端接口 | 登录、角色校验、当前用户 ID |
+| 用户账户 | 积分、通知、社区、聊天、学习统计 | 注册、资料、头像、状态 |
+| 文件存储 | 头像、简历导出、聊天图片、内容附件 | 上传、访问 URL、迁移 |
+| 通知中心 | 注册、资料变更、社区互动、审核结果 | 站内信、公告、模板消息 |
+| 积分 | OJ、签到、博客、抽奖、CodePen | 奖励、扣减、流水 |
+| 敏感词 | 社区、动态、评论、内容发布 | 拦截、替换、记录 |
+| AI Runtime | 模拟面试、求职作战台、SQL 优化、社区摘要 | Prompt、Schema、RAG、回归 |
+
 ## 成长学习
 
 | 功能 | 用户端 | 管理端 | 后端模块 |
