@@ -211,3 +211,5 @@
 如果你准备把这套流程真的在团队内跑起来，下一步最省心的做法就是把 [带教交付模板包](/guide/onboarding-deliverable-templates) 直接拿去复制使用。
 
 准备把“学习闭环”切换成“交付闭环”时，建议直接接 [首个真实任务接入指南](/guide/first-real-task)。
+
+如果带教已经走到“该发第一单”的阶段，直接使用 [首单任务题库](/guide/first-task-backlog) 会更省事。
