@@ -98,7 +98,7 @@
 | 管理端文件、迁移、存储配置、系统设置 | `/admin/file`、`/admin/storage`、`/admin/system` | `AdminFileController`、`AdminMigrationController`、`AdminStorageController`、`AdminSystemController` | `xiaou-filestorage` |
 | 通知用户侧 | `/notification` | `NotificationController` | `xiaou-notification` |
 | 通知管理侧 | `/admin/notification` | `AdminNotificationController` | `xiaou-notification` |
-| 聊天用户侧 REST | `/user/chat` | `ChatUserController` | `xiaou-chat` |
+| 聊天用户侧 REST 和 WebSocket 票据 | `/user/chat` | `ChatUserController` | `xiaou-chat` |
 | 聊天管理侧 REST | `/admin/chat` | `ChatAdminController` | `xiaou-chat` |
 | 积分用户侧 | `/user/points` | `UserPointsController` | `xiaou-points` |
 | 抽奖用户侧 | `/user/lottery` | `UserLotteryController` | `xiaou-points` |

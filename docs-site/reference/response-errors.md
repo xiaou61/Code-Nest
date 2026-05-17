@@ -82,6 +82,28 @@
 | `804` | 文件类型不支持 | MIME 或后缀不在允许范围 |
 | `805` | 文件大小超出限制 | 超过上传大小限制 |
 
+## WebSocket 业务错误
+
+聊天室 WebSocket 的 `ERROR` 事件不走统一 HTTP 响应体，而是把错误放在事件 `data` 里。前端会优先根据 `tempId` 找到本地乐观消息，并把它标记为失败。
+
+```json
+{
+  "type": "ERROR",
+  "data": {
+    "code": "RATE_LIMITED",
+    "message": "发送太快了，请稍后再试",
+    "tempId": "temp_1710000000000_xxx",
+    "retryAfterSeconds": 10
+  }
+}
+```
+
+| code | 场景 | 前端处理 |
+| --- | --- | --- |
+| `RATE_LIMITED` | 用户短时间发送消息超过 `xiaou.chat.rate-limit.message-limit` | 标记对应 `tempId` 消息失败，提示稍后再试 |
+| `MESSAGE_REJECTED` | 消息为空、超长、图片 URL 非法、用户被禁言等 | 标记对应 `tempId` 消息失败，展示后端原因 |
+| 无 code | JSON 解析失败或未知 WebSocket 处理异常 | 展示通用错误，必要时重连 |
+
 ## 异常处理策略
 
 | 异常 | HTTP 状态 | 业务 code |

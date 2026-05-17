@@ -5,10 +5,10 @@ IM 聊天室使用 Spring WebSocket，服务端入口位于 `xiaou-chat/src/main
 ## 连接地址
 
 ```text
-ws://<host>/ws/chat?token=<sa-token>
+ws://<host>/ws/chat?ticket=<one-time-ticket>
 ```
 
-握手阶段由 `SaTokenWebSocketInterceptor` 校验 Token。校验成功后，服务端会把 `userId`、`username` 写入 WebSocket session attributes。
+连接前，用户端先调用 `POST /user/chat/ws-ticket` 换取一次性票据。票据由 `ChatWebSocketTicketService` 写入 Redis，TTL 为 60 秒，握手时被 `SaTokenWebSocketInterceptor` 消费，消费后立即删除。校验成功后，服务端会把 `userId`、`username` 写入 WebSocket session attributes。
 
 ## 消息格式
 
@@ -39,13 +39,15 @@ ws://<host>/ws/chat?token=<sa-token>
 | `MESSAGE_DELETE` | 服务端到客户端 | `{ "messageId": 100 }` |
 | `KICK_OUT` | 服务端到客户端 | `{ "message": "您已被管理员踢出聊天室" }` |
 | `HEARTBEAT` | 客户端到服务端 | 心跳包，服务端更新在线状态 |
-| `ERROR` | 服务端到客户端 | `{ "message": "消息处理失败: ..." }` |
+| `PONG` | 服务端到客户端 | `{ "timestamp": 1710000000000 }` |
+| `TYPING` | 客户端到服务端，服务端到其他客户端 | `{ "userId": 1, "nickname": "demo" }` |
+| `ERROR` | 服务端到客户端 | `{ "code": "RATE_LIMITED", "message": "发送太快了，请稍后再试", "tempId": "temp_xxx", "retryAfterSeconds": 10 }` |
 
 ## REST 辅助接口
 
 | 能力 | 路由前缀 | 说明 |
 | --- | --- | --- |
-| 用户侧消息历史、在线人数、在线用户、撤回、图片上传 | `/user/chat` | WebSocket 之外的查询和操作 |
+| 用户侧一次性握手票据、消息历史、在线人数、在线用户、撤回、图片上传 | `/user/chat` | WebSocket 之外的查询和操作 |
 | 管理侧消息删除、批量删除、禁言、踢人、系统公告 | `/admin/chat` | 管理动作会通过 WebSocket 广播删除、踢出或系统消息 |
 
 ## 在线状态
@@ -59,26 +61,30 @@ ws://<host>/ws/chat?token=<sa-token>
 
 用户端页面位于 `vue3-user-front/src/views/chat/Index.vue`。
 
-1. 页面进入时读取用户 Token 并连接 `/ws/chat`。
-2. 发送普通消息使用 `type=MESSAGE`。
-3. 心跳定时发送 `type=HEARTBEAT`。
-4. 收到 `MESSAGE_ACK` 后更新本地消息状态。
-5. 收到 `MESSAGE_RECALL`、`MESSAGE_DELETE` 后更新消息列表。
-6. 收到 `KICK_OUT` 后断开连接并提示用户。
+1. 页面进入时读取用户登录态，先请求 `/user/chat/ws-ticket`。
+2. 拿到票据后连接 `/ws/chat?ticket=...`。
+3. 发送普通消息使用 `type=MESSAGE`，发送输入中状态使用 `type=TYPING`。
+4. 心跳定时发送 `type=HEARTBEAT`，收到 `PONG` 后更新延迟和心跳状态。
+5. 收到 `MESSAGE_ACK` 后更新本地消息状态。
+6. 收到 `MESSAGE_RECALL`、`MESSAGE_DELETE` 后更新消息列表。
+7. 收到 `ERROR` 后根据 `tempId` 标记本地乐观消息失败。
+8. 收到 `KICK_OUT` 后断开连接并提示用户。
 
 ## 注意事项
 
-1. 目前 `typingUsers` 是前端输入状态 UI，服务端协议未登记 `TYPING` 事件；如果要做多人输入中提示，需要新增事件并更新本页。
+1. WebSocket 票据只能使用一次，超过 60 秒或被消费后需要重新申请。
 2. 管理端删除和踢人必须同时走 REST 和 WebSocket 通知，否则用户端状态会延迟。
-3. 集群部署时需要关注 WebSocket session 的节点内存态，目前 `SESSIONS` 是本地 `ConcurrentHashMap`。
+3. `MESSAGE` 和 `TYPING` 都有 Redis 固定窗口限流，默认消息为 10 秒 8 条，输入中为 10 秒 12 次。
+4. 集群部署时需要关注 WebSocket session 的节点内存态，目前 `SESSIONS` 是本地 `ConcurrentHashMap`。
 
 ## 验证清单
 
 验证聊天室协议时，至少覆盖：
 
-1. 未携带 Token 或 Token 失效时，握手被拒绝。
-2. 正常连接后收到 `CONNECT`，在线人数随连接变化。
+1. 未携带 ticket、ticket 过期或重复使用时，握手被拒绝。
+2. 正常连接前先拿到 `/user/chat/ws-ticket`，连接后收到 `CONNECT`，在线人数随连接变化。
 3. 发送 `MESSAGE` 后，发送者收到 `MESSAGE_ACK`，其他在线用户收到广播消息。
-4. 心跳能更新在线状态，超时用户会被清理。
-5. 撤回、删除、踢出、系统公告能通过 REST 动作触发 WebSocket 通知。
-6. 前端存在但服务端未登记的事件，不应写进正式协议表。
+4. 心跳能收到 `PONG` 并更新在线状态，超时用户会被清理。
+5. 输入框持续输入时，其他客户端能收到 `TYPING`。
+6. 高频发送消息时，服务端返回带 `RATE_LIMITED` 的 `ERROR`。
+7. 撤回、删除、踢出、系统公告能通过 REST 动作触发 WebSocket 通知。
