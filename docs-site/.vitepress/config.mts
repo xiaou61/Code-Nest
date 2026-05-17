@@ -6,6 +6,7 @@ const guide = [
   { text: '按模块学习路线', link: '/guide/module-learning-paths' },
   { text: '模块学习任务模板', link: '/guide/module-learning-workbook' },
   { text: '模块结业案例', link: '/guide/module-learning-capstone' },
+  { text: '模块学习评审表', link: '/guide/module-learning-rubric' },
   { text: '角色上手任务包', link: '/guide/onboarding-tasks' },
   { text: '本地完整启动剧本', link: '/guide/startup-playbook' },
   { text: '功能开发流程', link: '/guide/feature-development' },
