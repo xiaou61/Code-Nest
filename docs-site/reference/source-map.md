@@ -93,4 +93,5 @@
 3. 到 [API 路由索引](/reference/api-routes) 找 Controller。
 4. 到本页找后端模块。
 5. 到 [数据表索引](/reference/database-tables) 找表和 Mapper。
-6. 最后回到 `docs/PRD` 或 `docs/plans` 查背景材料。
+6. 如果遇到不熟悉的项目名词，先查 [术语表](/reference/glossary)。
+7. 最后回到 `docs/PRD` 或 `docs/plans` 查背景材料。

@@ -57,6 +57,7 @@ const operations = [
 ]
 
 const reference = [
+  { text: '术语表', link: '/reference/glossary' },
   { text: 'API 路由索引', link: '/reference/api-routes' },
   { text: '前端路由索引', link: '/reference/frontend-routes' },
   { text: '数据表索引', link: '/reference/database-tables' },
