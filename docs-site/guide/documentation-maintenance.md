@@ -14,6 +14,7 @@
 | 新错误码 | [响应体与错误码](/reference/response-errors) |
 | 新 AI Prompt、RAG、Schema 或回归 | [AI Schema 与治理](/reference/ai-schemas)、[AI Runtime](/modules/ai-runtime) |
 | 新 Markdown、富文本或 `v-html` 展示 | [前端渲染安全](/reference/frontend-rendering-security)、对应模块页 |
+| 新业务链路、部署配置或高风险修复 | [发布前验证](/guide/release-verification)、[验证记录与已知问题](/manuals/verified-scenarios) |
 | 新截图或补测结果 | 对应操作手册、[验证记录与已知问题](/manuals/verified-scenarios) |
 | 新模块 | [模块总览](/modules/)、[全功能覆盖矩阵](/reference/feature-coverage)、VitePress sidebar |
 
@@ -52,6 +53,8 @@ cd docs-site
 npm run build
 ```
 
+如果这次只改 `docs-site/**`，上面的构建通常就是最低要求。如果同时改了后端、用户端、管理端、AI、OJ、聊天、文件上传或部署配置，要先按 [发布前验证](/guide/release-verification) 选择对应验证项，再提交。
+
 建议在提交前再执行：
 
 ```powershell
@@ -86,6 +89,6 @@ npm run docs:dev -- --port 5178
 ## 版本节奏
 
 1. 功能开发分支先改代码和文档。
-2. 合并前跑后端/前端必要验证和 `docs-site` 构建。
+2. 合并前按 [发布前验证](/guide/release-verification) 跑后端、前端、文档和关键业务烟测。
 3. 发布版本时更新 [版本历史](/modules/version-history) 和 [v2.2.0 文档计划](/roadmap/v2.2.0-docs-plan)。
 4. 手册截图有变更时，先放入 `docs/manual-assets/<date>`，再更新文档站索引。
