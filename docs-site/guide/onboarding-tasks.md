@@ -6,6 +6,8 @@
 
 如果你希望按业务模块而不是按角色训练，可以改走 [按模块学习路线](/guide/module-learning-paths)，并使用 [模块学习任务模板](/guide/module-learning-workbook) 作为交付格式。
 
+模块路线全部走完后，可以再用 [模块结业案例](/guide/module-learning-capstone) 做一次综合演练。
+
 ## 怎么使用这页
 
 每个任务包都按同一种节奏执行：
