@@ -78,6 +78,7 @@ const reference = [
 const manuals = [
   { text: '用户端操作手册', link: '/manuals/user-operations' },
   { text: '管理端操作手册', link: '/manuals/admin-operations' },
+  { text: '端到端业务链路图', link: '/manuals/business-flow-map' },
   { text: '核心链路教程', link: '/manuals/core-workflows' },
   { text: '验证记录与已知问题', link: '/manuals/verified-scenarios' }
 ]
