@@ -82,7 +82,7 @@ JSON 工具的核心是三步：
 5. 展示时通过 `formatDiffForSideBySide` 或 `formatDiffForUnified` 生成 HTML。
 6. 所有用户文本进入 HTML 前要走 `escapeHtml`，避免把用户输入当成页面代码执行。
 
-这里最值得学的是“前端工具也要做安全处理”。虽然文本不上传，但结果区域用了 `v-html`，所以转义是必须的。
+这里最值得学的是“前端工具也要做安全处理”。虽然文本不上传，但结果区域用了 `v-html`，所以转义是必须的。新增类似工具时，先按 [前端渲染安全](/reference/frontend-rendering-security) 的审计清单确认内容来源和转义方式。
 
 ## 聚合翻译
 

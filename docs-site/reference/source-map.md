@@ -71,6 +71,8 @@
 | `vue3-admin-front/src/views` | 管理端页面 |
 | `vue3-admin-front/src/api` | 管理端接口封装 |
 | `vue3-admin-front/src/layout` | 管理后台布局、菜单、顶栏 |
+| `vue3-user-front/src/utils/markdown.js` | 用户端 Markdown 渲染、DOMPurify 净化和代码高亮 |
+| `vue3-admin-front/src/utils/markdown.js` | 管理端 Markdown 渲染、DOMPurify 净化和代码高亮 |
 
 ## 文档与素材
 

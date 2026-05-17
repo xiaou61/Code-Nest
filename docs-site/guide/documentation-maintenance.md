@@ -13,6 +13,7 @@
 | 新 WebSocket 事件 | [WebSocket 协议](/reference/websocket) |
 | 新错误码 | [响应体与错误码](/reference/response-errors) |
 | 新 AI Prompt、RAG、Schema 或回归 | [AI Schema 与治理](/reference/ai-schemas)、[AI Runtime](/modules/ai-runtime) |
+| 新 Markdown、富文本或 `v-html` 展示 | [前端渲染安全](/reference/frontend-rendering-security)、对应模块页 |
 | 新截图或补测结果 | 对应操作手册、[验证记录与已知问题](/manuals/verified-scenarios) |
 | 新模块 | [模块总览](/modules/)、[全功能覆盖矩阵](/reference/feature-coverage)、VitePress sidebar |
 
@@ -41,6 +42,7 @@
 | 少写口号 | 文档面向维护和交付，不写营销文案 |
 | 保持中文术语一致 | 同一个功能不要在不同页面混用多个名字 |
 | 不嵌入密钥 | 示例配置不得出现真实 token、API key、数据库密码 |
+| 审查 `v-html` | 新增内容渲染前先确认是否走 `renderMarkdown`、`sanitizeHtml` 或 `escapeHtml` |
 | 构建验证 | 每批文档变更都运行 `npm run build` |
 
 ## 提交前验证
