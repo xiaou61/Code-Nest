@@ -50,7 +50,7 @@
 | 项目 | 内容 |
 | --- | --- |
 | 目标 | 能从一个页面或接口定位到 Controller、Service、Mapper 和核心表 |
-| 先读 | [后端模块](/architecture/backend-modules)、[API 路由索引](/reference/api-routes)、[API 调用示例](/reference/api-examples)、[数据表索引](/reference/database-tables)、[权限与安全边界](/guide/security-boundaries) |
+| 先读 | [后端模块](/architecture/backend-modules)、[API 路由索引](/reference/api-routes)、[API 调用示例](/reference/api-examples)、[数据表索引](/reference/database-tables)、[数据库字段阅读指南](/reference/database-field-guide)、[权限与安全边界](/guide/security-boundaries) |
 | 推荐模块 | [OJ 判题系统](/modules/oj) 或 [社区帖子](/modules/community) |
 | 输出 | 一张“接口前缀 -> Controller -> Service -> Mapper -> 表 -> 验证项”的小表 |
 

@@ -69,6 +69,7 @@ const reference = [
   { text: 'API 调用示例', link: '/reference/api-examples' },
   { text: '前端路由索引', link: '/reference/frontend-routes' },
   { text: '数据表索引', link: '/reference/database-tables' },
+  { text: '数据库字段阅读指南', link: '/reference/database-field-guide' },
   { text: '源码地图', link: '/reference/source-map' },
   { text: '模块依赖地图', link: '/reference/module-dependencies' },
   { text: '响应体与错误码', link: '/reference/response-errors' },

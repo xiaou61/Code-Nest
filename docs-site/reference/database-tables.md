@@ -2,6 +2,8 @@
 
 主库基线脚本位于 `sql/MySql/code_nest.sql`。版本增量脚本位于 `sql/v*` 目录，用于追溯模块从 v1.x 到 v2.x 的演进。
 
+如果你已经定位到具体表，想理解 `status`、`user_id`、`is_deleted`、`file_id`、积分、通知、OJ、AI 等字段怎么读，继续看 [数据库字段阅读指南](/reference/database-field-guide)。
+
 ## 使用方式
 
 | 任务 | 推荐入口 |
