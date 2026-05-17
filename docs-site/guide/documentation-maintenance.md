@@ -18,6 +18,8 @@
 | 新截图或补测结果 | 对应操作手册、[验证记录与已知问题](/manuals/verified-scenarios) |
 | 新模块 | [模块总览](/modules/)、[全功能覆盖矩阵](/reference/feature-coverage)、VitePress sidebar |
 
+如果不是单纯改文档，而是要从代码层面新增一个完整功能，先按 [功能开发流程](/guide/feature-development) 走一遍，再回到本页检查文档同步位置。
+
 ## 模块页模板
 
 每个模块页都应该逐步补齐这些部分：
