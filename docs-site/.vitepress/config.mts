@@ -53,6 +53,7 @@ const modules = [
 const operations = [
   { text: 'Docker 与服务部署', link: '/operations/docker' },
   { text: '监控与观测', link: '/operations/monitoring' },
+  { text: '问题定位流程', link: '/operations/diagnosis-flow' },
   { text: '常见问题排查', link: '/operations/troubleshooting' }
 ]
 
