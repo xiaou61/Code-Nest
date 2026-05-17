@@ -32,6 +32,14 @@ mvn -pl xiaou-application -am spring-boot:run
 mvn -pl xiaou-application -am clean package -DskipTests
 ```
 
+默认后端地址是：
+
+```text
+http://localhost:9999/api
+```
+
+这来自 `xiaou-application/src/main/resources/application.yml` 的 `server.port=9999` 和 `server.servlet.context-path=/api`。本地开发时前端不需要手动拼完整后端域名，两个 Vite 应用都会把 `/api` 代理到 `http://localhost:9999`。
+
 ## 管理端
 
 ```bash
@@ -42,6 +50,8 @@ npm run dev
 
 管理端默认面向运营和管理员，包含用户、题库、OJ、内容审核、AI 配置、文件、积分、日志和系统管理等页面。
 
+管理端默认端口是 `3000`，`vite.config.js` 中的 `/api` 代理不做 rewrite，因为后端本身已经带 `/api` 上下文。
+
 ## 用户端
 
 ```bash
@@ -51,6 +61,24 @@ npm run dev2
 ```
 
 用户端面向开发者，包含刷题、OJ、模拟面试、求职闭环、学习驾驶舱、社区、动态、博客、代码工坊、简历、闪卡、计划、团队、摸鱼工具等功能。
+
+用户端默认端口是 `3001`。聊天室默认 WebSocket 地址为 `ws://localhost:9999/api`，连接前会先调用 `POST /user/chat/ws-ticket` 获取一次性票据，再连接 `/ws/chat?ticket=...`。
+
+## 本地跨域和静态文件
+
+后端 CORS 和 WebSocket Origin 使用同一个白名单配置：
+
+```text
+xiaou.cors.allowed-origin-patterns
+```
+
+默认已包含 `localhost:3000`、`localhost:3001` 和 `localhost:5173` 等本地开发地址。如果你临时改了前端端口，需要同步改这个配置。
+
+本地上传文件会保存在后端工作目录的 `uploads/` 下，外部访问一般是：
+
+```text
+http://localhost:9999/api/files/...
+```
 
 ## AI sidecar
 
@@ -73,4 +101,3 @@ npm run dev
 ```
 
 文档站只依赖 Node.js，不要求后端服务在线。
-
