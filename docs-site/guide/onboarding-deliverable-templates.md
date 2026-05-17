@@ -335,3 +335,5 @@
 5. 用 [模块结业案例](/guide/module-learning-capstone) 做对照补强。
 
 这样这套 onboarding 文档体系就不只是“看起来完整”，而是真的可以拿去执行。
+
+当你准备从模板化训练转到真实交付时，继续看 [首个真实任务接入指南](/guide/first-real-task)。

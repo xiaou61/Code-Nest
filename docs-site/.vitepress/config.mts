@@ -9,6 +9,7 @@ const guide = [
   { text: '模块学习评审表', link: '/guide/module-learning-rubric' },
   { text: '带教执行剧本', link: '/guide/onboarding-execution-playbook' },
   { text: '带教交付模板包', link: '/guide/onboarding-deliverable-templates' },
+  { text: '首个真实任务接入', link: '/guide/first-real-task' },
   { text: '角色上手任务包', link: '/guide/onboarding-tasks' },
   { text: '本地完整启动剧本', link: '/guide/startup-playbook' },
   { text: '功能开发流程', link: '/guide/feature-development' },
