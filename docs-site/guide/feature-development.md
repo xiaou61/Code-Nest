@@ -27,6 +27,7 @@
 | 管理端是否要运营入口 | [系统运营后台](/modules/system-ops)、对应模块页 |
 | 后端应该放在哪个 Maven 模块 | [后端模块](/architecture/backend-modules)、[源码地图](/reference/source-map) |
 | 是否会新增表或字段 | [数据库与脚本](/architecture/database)、[数据表索引](/reference/database-tables) |
+| 这次改动会牵连哪些平台能力 | [模块依赖地图](/reference/module-dependencies) |
 
 这一阶段最重要的是避免“功能写完了才发现落错模块”。例如文件上传不要散落在业务模块里自己实现存储，应该优先复用 [文件存储](/modules/file-storage)；内容发布不要自己写一套敏感词逻辑，应该接入 [敏感词风控](/modules/sensitive)。
 

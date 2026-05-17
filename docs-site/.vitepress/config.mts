@@ -68,6 +68,7 @@ const reference = [
   { text: '前端路由索引', link: '/reference/frontend-routes' },
   { text: '数据表索引', link: '/reference/database-tables' },
   { text: '源码地图', link: '/reference/source-map' },
+  { text: '模块依赖地图', link: '/reference/module-dependencies' },
   { text: '响应体与错误码', link: '/reference/response-errors' },
   { text: 'WebSocket 协议', link: '/reference/websocket' },
   { text: 'AI Schema 与治理', link: '/reference/ai-schemas' },
