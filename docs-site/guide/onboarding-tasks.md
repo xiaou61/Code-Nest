@@ -10,6 +10,8 @@
 
 如果你要把这套任务真正放进团队带教计划，可以直接套用 [带教执行剧本](/guide/onboarding-execution-playbook)。
 
+如果你希望团队直接复制现成表单来跑带教，可以继续用 [带教交付模板包](/guide/onboarding-deliverable-templates)。
+
 ## 怎么使用这页
 
 每个任务包都按同一种节奏执行：

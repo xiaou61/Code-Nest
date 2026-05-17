@@ -12,6 +12,7 @@
 - [模块学习任务模板](/guide/module-learning-workbook)
 - [模块结业案例](/guide/module-learning-capstone)
 - [模块学习评审表](/guide/module-learning-rubric)
+- [带教交付模板包](/guide/onboarding-deliverable-templates)
 
 ## 使用原则
 
@@ -51,6 +52,8 @@
 推荐在团队内部用一个固定位置保存交付物（例如一个仓库目录或文档空间）。关键是：交付物要能被下一位继续复用。
 
 本剧本不强制工具，但强制格式：交付物必须能套进 [模块学习任务模板](/guide/module-learning-workbook) 的四类模板。
+
+如果你不想自己临时写日报、评审意见和返工通知，可以直接套用 [带教交付模板包](/guide/onboarding-deliverable-templates)。
 
 ## 两套节奏：3 天游与 5 天游
 
@@ -204,3 +207,5 @@
 4. 能写出“已验证/未验证/原因/下一步”的诚实交接。
 
 满足以上条件后，就可以开始接第一个真实小任务了。建议从低到中风险模块开始，不要一上来就接 AI/OJ/聊天这类高风险链路。
+
+如果你准备把这套流程真的在团队内跑起来，下一步最省心的做法就是把 [带教交付模板包](/guide/onboarding-deliverable-templates) 直接拿去复制使用。

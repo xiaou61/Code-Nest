@@ -302,3 +302,5 @@
 这样评审才会变成真正的成长反馈，而不是抽象打分。
 
 如果你已经准备把这套路线真正跑起来，可以继续看 [带教执行剧本](/guide/onboarding-execution-playbook)。它把 3 天游、5 天游、每日交付物和评审节点都串好了。
+
+如果你还需要日报、返工通知和结业结论的现成模板，直接配合 [带教交付模板包](/guide/onboarding-deliverable-templates) 使用。
