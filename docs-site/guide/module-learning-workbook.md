@@ -255,6 +255,8 @@
 
 如果你希望把这套作业变成可打分、可复盘的评审流程，可以继续用 [模块学习评审表](/guide/module-learning-rubric)。
 
+如果你要实际安排 3 天游或 5 天游的学习节奏，下一步直接用 [带教执行剧本](/guide/onboarding-execution-playbook)。
+
 ## 常见误区
 
 | 误区 | 正确做法 |

@@ -44,6 +44,8 @@
 
 如果你需要把学习结果做成可评审交付，最后一步建议套用 [模块学习评审表](/guide/module-learning-rubric)。
 
+如果你是团队带教或想给自己排一个学习周期，直接继续看 [带教执行剧本](/guide/onboarding-execution-playbook)。
+
 ## 模块学习总顺序
 
 | 阶段 | 模块组 | 为什么先学这一组 |
