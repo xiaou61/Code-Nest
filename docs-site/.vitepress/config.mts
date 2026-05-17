@@ -3,7 +3,9 @@ import { defineConfig } from 'vitepress'
 const guide = [
   { text: '快速开始', link: '/guide/quick-start' },
   { text: '学习路线', link: '/guide/learning-paths' },
+  { text: '本地完整启动剧本', link: '/guide/startup-playbook' },
   { text: '功能开发流程', link: '/guide/feature-development' },
+  { text: '常见二开场景', link: '/guide/extension-scenarios' },
   { text: '本地开发', link: '/guide/local-dev' },
   { text: '发布前验证', link: '/guide/release-verification' },
   { text: '独立部署', link: '/guide/deploy' },
