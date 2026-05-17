@@ -82,6 +82,16 @@
 | `804` | 文件类型不支持 | MIME 或后缀不在允许范围 |
 | `805` | 文件大小超出限制 | 超过上传大小限制 |
 
+## 文件接口认证和读取错误
+
+文件接口有一部分直接返回基础 HTTP 语义码作为业务 `code`，下载流接口则会直接用 HTTP 状态表达失败。前端不要只按“文件错误码 8xx”判断文件模块失败。
+
+| 表现 | 场景 | 常见接口 |
+| --- | --- | --- |
+| 业务 `code = 401` | 未登录就上传、批量上传、删除、查询列表或检查存在性 | `POST /file/upload/single`、`DELETE /file/{id}`、`GET /file/list` |
+| 业务 `code = 403` 或 HTTP `403` | 读取私有文件但当前请求没有用户端或管理端登录态 | `GET /file/info/{id}`、`GET /file/url/{id}`、`POST /file/urls`、`GET /file/download/{id}` |
+| 业务 `code = 803` 或 HTTP `404` | 文件记录不存在或 `status != 1` | `GET /file/info/{id}`、`GET /file/url/{id}`、`GET /file/download/{id}` |
+
 ## WebSocket 业务错误
 
 聊天室 WebSocket 的 `ERROR` 事件不走统一 HTTP 响应体，而是把错误放在事件 `data` 里。前端会优先根据 `tempId` 找到本地乐观消息，并把它标记为失败。

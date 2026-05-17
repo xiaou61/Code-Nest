@@ -94,7 +94,7 @@
 
 | 能力 | 路由前缀 | Controller | 模块 |
 | --- | --- | --- | --- |
-| 文件上传、下载、URL、删除、列表、存在性检查 | `/file` | `FileController` | `xiaou-filestorage` |
+| 文件上传、下载、URL、删除、列表、存在性检查；上传/删除/列表等需要登录，公开文件可匿名读 | `/file` | `FileController` | `xiaou-filestorage` |
 | 管理端文件、迁移、存储配置、系统设置 | `/admin/file`、`/admin/storage`、`/admin/system` | `AdminFileController`、`AdminMigrationController`、`AdminStorageController`、`AdminSystemController` | `xiaou-filestorage` |
 | 通知用户侧 | `/notification` | `NotificationController` | `xiaou-notification` |
 | 通知管理侧 | `/admin/notification` | `AdminNotificationController` | `xiaou-notification` |
