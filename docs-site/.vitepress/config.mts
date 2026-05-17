@@ -3,6 +3,7 @@ import { defineConfig } from 'vitepress'
 const guide = [
   { text: '快速开始', link: '/guide/quick-start' },
   { text: '学习路线', link: '/guide/learning-paths' },
+  { text: '按模块学习路线', link: '/guide/module-learning-paths' },
   { text: '角色上手任务包', link: '/guide/onboarding-tasks' },
   { text: '本地完整启动剧本', link: '/guide/startup-playbook' },
   { text: '功能开发流程', link: '/guide/feature-development' },
