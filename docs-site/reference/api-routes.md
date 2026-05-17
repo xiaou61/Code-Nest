@@ -2,6 +2,8 @@
 
 本页把后端 Controller 的入口按业务域整理成索引。它不替代接口文档工具，主要用于快速判断“某个能力在哪个模块、走哪个前缀、读哪个 Controller”。
 
+如果你已经知道要调用哪个接口，想看 `curl`、Token、分页、文件上传、WebSocket 和 AI 调试的写法，直接看 [API 调用示例](/reference/api-examples)。
+
 ## 路由约定
 
 | 前缀 | 使用场景 | 登录域 |

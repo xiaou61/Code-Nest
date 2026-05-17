@@ -57,6 +57,7 @@ const modules = [
 
 const operations = [
   { text: 'Docker 与服务部署', link: '/operations/docker' },
+  { text: '环境变量总表', link: '/operations/env-vars' },
   { text: '监控与观测', link: '/operations/monitoring' },
   { text: '问题定位流程', link: '/operations/diagnosis-flow' },
   { text: '常见问题排查', link: '/operations/troubleshooting' }
@@ -65,6 +66,7 @@ const operations = [
 const reference = [
   { text: '术语表', link: '/reference/glossary' },
   { text: 'API 路由索引', link: '/reference/api-routes' },
+  { text: 'API 调用示例', link: '/reference/api-examples' },
   { text: '前端路由索引', link: '/reference/frontend-routes' },
   { text: '数据表索引', link: '/reference/database-tables' },
   { text: '源码地图', link: '/reference/source-map' },

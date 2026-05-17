@@ -55,6 +55,8 @@ docker build -f docker/Dockerfile -t code-nest-api:local .
 
 运行时必须提供数据库、Redis、AI 等环境变量。可以参考 `docker/env/example.env`。
 
+完整变量含义和本地、AI、OJ、监控、前端、文档站的配置关系见 [环境变量总表](/operations/env-vars)。
+
 ## 核心环境变量
 
 | 变量 | 说明 |

@@ -50,7 +50,7 @@
 | 项目 | 内容 |
 | --- | --- |
 | 目标 | 能从一个页面或接口定位到 Controller、Service、Mapper 和核心表 |
-| 先读 | [后端模块](/architecture/backend-modules)、[API 路由索引](/reference/api-routes)、[数据表索引](/reference/database-tables)、[权限与安全边界](/guide/security-boundaries) |
+| 先读 | [后端模块](/architecture/backend-modules)、[API 路由索引](/reference/api-routes)、[API 调用示例](/reference/api-examples)、[数据表索引](/reference/database-tables)、[权限与安全边界](/guide/security-boundaries) |
 | 推荐模块 | [OJ 判题系统](/modules/oj) 或 [社区帖子](/modules/community) |
 | 输出 | 一张“接口前缀 -> Controller -> Service -> Mapper -> 表 -> 验证项”的小表 |
 
@@ -149,7 +149,7 @@ Mapper：
 | 项目 | 内容 |
 | --- | --- |
 | 目标 | 能从启动失败或线上异常定位到服务、端口、代理、环境变量和日志 |
-| 先读 | [本地开发](/guide/local-dev)、[Docker 与服务部署](/operations/docker)、[问题定位流程](/operations/diagnosis-flow)、[常见问题排查](/operations/troubleshooting)、[发布前验证](/guide/release-verification) |
+| 先读 | [本地开发](/guide/local-dev)、[Docker 与服务部署](/operations/docker)、[环境变量总表](/operations/env-vars)、[问题定位流程](/operations/diagnosis-flow)、[常见问题排查](/operations/troubleshooting)、[发布前验证](/guide/release-verification) |
 | 推荐任务 | 选一个故障现象，按诊断流程写排查路径 |
 | 输出 | 一份“现象 -> 证据 -> 可能模块 -> 验证命令 -> 结论”的排障记录 |
 

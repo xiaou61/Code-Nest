@@ -4,6 +4,8 @@
 
 如果你想直接照着命令把文档、后端、前端、AI、OJ 和监控逐个拉起来，先看 [本地完整启动剧本](/guide/startup-playbook)。本页更偏解释各服务之间的本地联调关系。
 
+本地接口联调可以参考 [API 调用示例](/reference/api-examples)。如果你需要调整 MySQL、Redis、AI、RAG、WebSocket、文档站子路径等配置，先看 [环境变量总表](/operations/env-vars)。
+
 ## 推荐启动顺序
 
 1. 启动 MySQL 和 Redis。
