@@ -49,6 +49,23 @@
 | 审查 `v-html` | 新增内容渲染前先确认是否走 `renderMarkdown`、`sanitizeHtml` 或 `escapeHtml` |
 | 构建验证 | 每批文档变更都运行 `npm run build` |
 
+## 文档同步基线自动刷新
+
+当前文档站已经接入基线自动刷新脚本：
+
+```powershell
+cd docs-site
+npm run sync:baseline
+```
+
+默认情况下：
+
+1. `npm run dev` 前会自动刷新一次。
+2. `npm run build` 前会自动刷新一次。
+3. `npm run preview` 前会自动刷新一次。
+
+这意味着 [文档同步基线](/reference/docs-sync-baseline) 页面会优先展示当前 Git `HEAD` 和工作区状态，而不是靠手工维护一组 SHA 文案。
+
 ## 提交前验证
 
 ```powershell
