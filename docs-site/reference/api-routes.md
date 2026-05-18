@@ -4,6 +4,8 @@
 
 如果你已经知道要调用哪个接口，想看 `curl`、Token、分页、文件上传、WebSocket 和 AI 调试的写法，直接看 [API 调用示例](/reference/api-examples)。
 
+如果你现在卡住的不是“接口在哪”，而是“这个接口到底是公开、用户态、管理员态，还是还要继续做 owner 归属校验”，继续看 [权限注解与角色边界索引](/reference/permission-boundaries) 会更直接。
+
 ## 路由约定
 
 | 前缀 | 使用场景 | 登录域 |

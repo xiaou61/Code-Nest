@@ -126,6 +126,8 @@ Authorization: Bearer <token>
 3. 管理端菜单或按钮和 `sys_permission.permission_code` 保持一致。
 4. 操作类接口加 `@Log`，方便后台审计。
 
+这里还要补一条很关键的当前实现细节：Sa-Token 运行时的 `StpInterfaceImpl` 目前给 `admin` 登录域返回固定 `admin` 角色/权限，给 `user` 登录域返回固定 `user` 角色/权限。也就是说，后端当前最稳定的强校验主要还是“是不是管理员登录域”和“方法上有没有 `@RequireAdmin`”，并不是已经普遍按数据库里的 `permission_code` 做后端按钮级强鉴权。想系统看清这层差别，可以继续读 [权限注解与角色边界索引](/reference/permission-boundaries)。
+
 ## 核心数据表
 
 | 表 | 说明 |
