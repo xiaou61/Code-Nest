@@ -89,6 +89,7 @@ const reference = [
   { text: 'AI Schema 与治理', link: '/reference/ai-schemas' },
   { text: '前端渲染安全', link: '/reference/frontend-rendering-security' },
   { text: '文档同步基线', link: '/reference/docs-sync-baseline' },
+  { text: '模块最小回归矩阵', link: '/reference/module-regression-matrix' },
   { text: '全功能覆盖矩阵', link: '/reference/feature-coverage' }
 ]
 

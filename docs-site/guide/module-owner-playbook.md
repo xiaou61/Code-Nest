@@ -263,3 +263,5 @@
 5. 再回到 [测试与回归](/guide/testing-regression)、[发布前验证](/guide/release-verification) 和 [验证记录与已知问题](/manuals/verified-scenarios) 沉淀证据。
 
 这样你守模块就不是“靠记性和经验”，而是逐渐形成一套可复用的方法。
+
+如果你已经把模块自己的日常节奏建立起来，下一步就把最低验证范围固定到 [模块最小回归矩阵](/reference/module-regression-matrix) 这种查表口径里。这样不管是你自己、带教对象还是临时接手的人，都能更快知道“改完这个模块至少先回归什么”。
