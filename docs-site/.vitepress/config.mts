@@ -88,6 +88,7 @@ const reference = [
   { text: 'WebSocket 协议', link: '/reference/websocket' },
   { text: 'AI Schema 与治理', link: '/reference/ai-schemas' },
   { text: '前端渲染安全', link: '/reference/frontend-rendering-security' },
+  { text: '文档同步基线', link: '/reference/docs-sync-baseline' },
   { text: '全功能覆盖矩阵', link: '/reference/feature-coverage' }
 ]
 
