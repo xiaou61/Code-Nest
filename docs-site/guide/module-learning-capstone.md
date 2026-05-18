@@ -344,3 +344,5 @@ session、qa、candidate、publish_log 等相关表写入记录
 如果你要把结业案例交给带教或团队评审，建议直接使用 [模块学习评审表](/guide/module-learning-rubric) 统一打分口径。
 
 如果你是按周期带新人，可以直接把这页接到 [带教执行剧本](/guide/onboarding-execution-playbook) 里使用。
+
+如果结业案例已经做完，并且开始进入真实任务阶段，下一步最适合接 [模块接手升级路线](/guide/module-ownership-ladder)。

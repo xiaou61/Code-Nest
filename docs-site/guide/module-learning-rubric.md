@@ -304,3 +304,5 @@
 如果你已经准备把这套路线真正跑起来，可以继续看 [带教执行剧本](/guide/onboarding-execution-playbook)。它把 3 天游、5 天游、每日交付物和评审节点都串好了。
 
 如果你还需要日报、返工通知和结业结论的现成模板，直接配合 [带教交付模板包](/guide/onboarding-deliverable-templates) 使用。
+
+如果评审已经稳定通过，准备判断“是不是可以继续接手一个模块”，下一步继续看 [模块接手升级路线](/guide/module-ownership-ladder)。
