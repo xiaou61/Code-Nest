@@ -12,6 +12,7 @@ const guide = [
   { text: '首个真实任务接入', link: '/guide/first-real-task' },
   { text: '首单任务题库', link: '/guide/first-task-backlog' },
   { text: '模块接手升级路线', link: '/guide/module-ownership-ladder' },
+  { text: '模块接手检查清单', link: '/guide/module-takeover-checklist' },
   { text: '角色上手任务包', link: '/guide/onboarding-tasks' },
   { text: '本地完整启动剧本', link: '/guide/startup-playbook' },
   { text: '功能开发流程', link: '/guide/feature-development' },
