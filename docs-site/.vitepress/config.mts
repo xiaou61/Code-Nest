@@ -14,6 +14,7 @@ const guide = [
   { text: '模块接手升级路线', link: '/guide/module-ownership-ladder' },
   { text: '模块接手检查清单', link: '/guide/module-takeover-checklist' },
   { text: '模块接手样例包', link: '/guide/module-takeover-examples' },
+  { text: '模块值守与回归手册', link: '/guide/module-owner-playbook' },
   { text: '角色上手任务包', link: '/guide/onboarding-tasks' },
   { text: '本地完整启动剧本', link: '/guide/startup-playbook' },
   { text: '功能开发流程', link: '/guide/feature-development' },
