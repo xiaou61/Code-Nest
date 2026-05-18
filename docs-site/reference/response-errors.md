@@ -2,6 +2,8 @@
 
 后端统一响应体位于 `xiaou-common/src/main/java/com/xiaou/common/core/domain/Result.java`，错误码定义位于 `ResultCode.java`，异常收敛位于 `GlobalExceptionHandler.java`。
 
+如果你已经看到失败表现，但不确定它对应的是“权限、参数、状态机、外部依赖”哪一层，继续看 [异常路径与失败态索引](/reference/failure-paths) 会更快。
+
 ## 统一响应体
 
 ```json
