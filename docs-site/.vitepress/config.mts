@@ -91,6 +91,7 @@ const reference = [
   { text: '异常路径与失败态索引', link: '/reference/failure-paths' },
   { text: '事件、通知与回流索引', link: '/reference/event-backflow-index' },
   { text: '统计、排行与计数口径索引', link: '/reference/statistics-ranking-counts' },
+  { text: '幂等、回滚与补偿索引', link: '/reference/idempotency-rollbacks-compensation' },
   { text: '前端渲染安全', link: '/reference/frontend-rendering-security' },
   { text: '文档同步基线', link: '/reference/docs-sync-baseline' },
   { text: '模块状态机与生命周期索引', link: '/reference/module-state-machines' },

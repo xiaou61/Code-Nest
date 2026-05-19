@@ -27,6 +27,7 @@
 3. 区分必须成功和 best-effort。
 4. 如果副作用没到位，先看第一证据，再回模块页。
 5. 如果你关注的是“数值怎么算、为什么慢半拍”，继续看 [统计、排行与计数口径索引](/reference/statistics-ranking-counts)。
+6. 如果你关注的是“失败后到底回滚还是补偿”，继续看 [幂等、回滚与补偿索引](/reference/idempotency-rollbacks-compensation)。
 
 ## 五种最常见的回流类型
 

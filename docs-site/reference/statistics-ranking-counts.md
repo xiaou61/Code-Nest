@@ -134,4 +134,4 @@ likeCount * 2 + commentCount * 3 + viewCount * 0.1
 3. 接着看 [仪表盘与日志](/modules/dashboard-logs)，理解跨模块聚合值怎么兜底。
 4. 然后看对应模块页，把具体口径和第一证据补进去。
 5. 最后回到 [文档同步基线](/reference/docs-sync-baseline)，确认你看的到底是不是最新文档。
-
+6. 如果数值不一致是因为重复提交、失败回滚或副作用漏写，再看 [幂等、回滚与补偿索引](/reference/idempotency-rollbacks-compensation)。
