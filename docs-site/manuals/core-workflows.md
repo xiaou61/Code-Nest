@@ -108,3 +108,5 @@
 | 7 | 查看治理概览 | `/system/ai-governance` 汇总质量状态 |
 
 相关文档：[AI Runtime](/modules/ai-runtime)、[AI Schema 与治理](/reference/ai-schemas)。
+
+如果你在做的是“成功后还要回到用户端、通知中心、日志或统计里”，建议同时看 [事件、通知与回流索引](/reference/event-backflow-index)，把回流验证和主流程验证一起补齐。
