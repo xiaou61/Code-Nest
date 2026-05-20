@@ -2,6 +2,8 @@
 
 Code Nest 是一个多服务项目：Spring Boot 后端、两个 Vue 前端、VitePress 文档站、MySQL、Redis、LlamaIndex RAG sidecar、go-judge 判题沙箱和监控组件。部署时不要把它理解成“一个 jar 就完事”，而要按服务边界拆开。
 
+如果部署问题已经影响到真实用户，或者你已经看到告警、5xx 飙升、服务不可用，先配合 [事故响应](/operations/incident-response) 使用。本页更适合梳理服务边界、部署顺序、变量和常见故障，不替代线上止损流程。
+
 ## 部署资料入口
 
 | 路径 | 说明 |
@@ -268,6 +270,8 @@ docker compose up -d
 | 上传图片打不开 | 查返回 URL 是 `/api/files/**` 还是 Nginx `/files/**`，确认 `uploads/` 持久化路径一致 |
 | 文档站资源 404 | 查 VitePress `base` 和静态资源路径 |
 | Prometheus target down | 查 `host.docker.internal:9999` 是否适合当前系统 |
+
+如果这些故障已经从“部署问题”升级成“线上事故”，不要只在本页继续排查，先回到 [事故响应](/operations/incident-response) 做影响面判断、止损和记录。
 
 ## 推荐部署顺序
 

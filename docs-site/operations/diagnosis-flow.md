@@ -6,6 +6,8 @@
 
 如果你看到的是“接口已经成功，但通知、日志、统计、排行榜或页面回流没跟上”，建议再看 [事件、通知与回流索引](/reference/event-backflow-index)。
 
+如果问题已经影响到很多用户，或者你已经看到告警、5xx 飙升、服务不可用，先去看 [事故响应](/operations/incident-response) 和 [监控与观测](/operations/monitoring)。本页更适合“缩小范围”和“找第一证据”，事故响应更适合“先止损再排查”。
+
 ## 先做三件事
 
 遇到问题时先不要急着改代码，先收集最小证据。
@@ -32,6 +34,7 @@
 | AI 返回结构不稳定 | [AI Runtime](/modules/ai-runtime) | [AI Schema 与治理](/reference/ai-schemas) |
 | OJ 提交一直等待或失败 | [OJ 判题系统](/modules/oj) | [常见问题排查](/operations/troubleshooting) |
 | 部署后跨域或代理异常 | [Docker 与服务部署](/operations/docker) | [本地开发](/guide/local-dev) |
+| 已经发生线上事故或需要立即止损 | [事故响应](/operations/incident-response) | [监控与观测](/operations/monitoring) |
 | 不知道某个名词是什么 | [术语表](/reference/glossary) | [源码地图](/reference/source-map) |
 
 ## 前端问题怎么缩小范围
