@@ -84,6 +84,8 @@ git diff --check
 git status --short
 ```
 
+如果这次准备提 PR，仓库根目录已经约定使用 `.github/pull_request_template.md`。不要只写“改了什么”，至少把验证范围、未验证边界和文档同步项勾清楚。
+
 ## 推荐提交粒度
 
 | 类型 | 提交示例 |

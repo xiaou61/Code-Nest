@@ -4,6 +4,8 @@ Code Nest 已经具备 Prometheus + Grafana 的基础监控配置，并在 AI Ru
 
 如果你已经看到告警、用户大面积失败或服务不可用，先看 [事故响应](/operations/incident-response)。本页更适合确认“问题有没有发生、发生在哪、趋势是不是在恶化”。
 
+如果你已经知道是哪条告警响了，但不想临场再想“第一分钟该做什么”，直接去看 [告警 Runbook](/operations/alert-runbooks)。
+
 ## 资料入口
 
 | 路径 | 说明 |
@@ -125,6 +127,8 @@ rule_files:
 ```
 
 如果要发邮件、企业微信、飞书或 Webhook，还需要部署并配置 Alertmanager。
+
+具体到每条告警响了以后先看什么、先止损什么，见 [告警 Runbook](/operations/alert-runbooks)。
 
 ## 常用 PromQL
 
