@@ -71,6 +71,8 @@
 | `vue3-admin-front/src/views` | 管理端页面 |
 | `vue3-admin-front/src/api` | 管理端接口封装 |
 | `vue3-admin-front/src/layout` | 管理后台布局、菜单、顶栏 |
+| `vue3-user-front/src/utils/markdown.js` | 用户端 Markdown 渲染、DOMPurify 净化和代码高亮 |
+| `vue3-admin-front/src/utils/markdown.js` | 管理端 Markdown 渲染、DOMPurify 净化和代码高亮 |
 
 ## 文档与素材
 
@@ -91,4 +93,5 @@
 3. 到 [API 路由索引](/reference/api-routes) 找 Controller。
 4. 到本页找后端模块。
 5. 到 [数据表索引](/reference/database-tables) 找表和 Mapper。
-6. 最后回到 `docs/PRD` 或 `docs/plans` 查背景材料。
+6. 如果遇到不熟悉的项目名词，先查 [术语表](/reference/glossary)。
+7. 最后回到 `docs/PRD` 或 `docs/plans` 查背景材料。

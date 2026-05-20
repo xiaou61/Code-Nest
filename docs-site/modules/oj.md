@@ -139,6 +139,8 @@ OJ 的代码看起来多，但主线很清楚。建议按这条线读：
 - 测试用例。
 - 时间和内存限制。
 
+题目描述和题解说明会在用户端以 Markdown 展示，当前前端通过 `@/utils/markdown` 的 `renderMarkdown` 统一渲染并净化。新增题面字段或题解富文本时，不要直接 `v-html="rawContent"`，应按 [前端渲染安全](/reference/frontend-rendering-security) 的 Markdown 链路处理。
+
 ## 赛事能力
 
 OJ 赛事覆盖赛事创建、题目关联、报名、提交限制、榜单统计和赛后评分预估。
@@ -189,6 +191,7 @@ ACM 排名在 `ContestRankingCalculator` 中计算，规则是：
 - 测试用例输出比对应处理空白符、超时、编译错误和运行错误。
 - 正式判题和 Playground 自测可以采用不同响应策略。
 - go-judge 不可用时会落到 `system_error` 或 Playground 的 `error`，本地验收要先确认 `docker/go-judge` 服务可访问。
+- 题面、题解和评论展示涉及 Markdown 或用户文本时，必须走统一渲染或转义链路。
 
 ## 验证清单
 

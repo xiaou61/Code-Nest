@@ -2,6 +2,10 @@
 
 本页把后端 Controller 的入口按业务域整理成索引。它不替代接口文档工具，主要用于快速判断“某个能力在哪个模块、走哪个前缀、读哪个 Controller”。
 
+如果你已经知道要调用哪个接口，想看 `curl`、Token、分页、文件上传、WebSocket 和 AI 调试的写法，直接看 [API 调用示例](/reference/api-examples)。
+
+如果你现在卡住的不是“接口在哪”，而是“这个接口到底是公开、用户态、管理员态，还是还要继续做 owner 归属校验”，继续看 [权限注解与角色边界索引](/reference/permission-boundaries) 会更直接。
+
 ## 路由约定
 
 | 前缀 | 使用场景 | 登录域 |
@@ -94,11 +98,11 @@
 
 | 能力 | 路由前缀 | Controller | 模块 |
 | --- | --- | --- | --- |
-| 文件上传、下载、URL、删除、列表、存在性检查 | `/file` | `FileController` | `xiaou-filestorage` |
+| 文件上传、下载、URL、删除、列表、存在性检查；上传/删除/列表等需要登录，公开文件可匿名读 | `/file` | `FileController` | `xiaou-filestorage` |
 | 管理端文件、迁移、存储配置、系统设置 | `/admin/file`、`/admin/storage`、`/admin/system` | `AdminFileController`、`AdminMigrationController`、`AdminStorageController`、`AdminSystemController` | `xiaou-filestorage` |
 | 通知用户侧 | `/notification` | `NotificationController` | `xiaou-notification` |
 | 通知管理侧 | `/admin/notification` | `AdminNotificationController` | `xiaou-notification` |
-| 聊天用户侧 REST | `/user/chat` | `ChatUserController` | `xiaou-chat` |
+| 聊天用户侧 REST 和 WebSocket 票据 | `/user/chat` | `ChatUserController` | `xiaou-chat` |
 | 聊天管理侧 REST | `/admin/chat` | `ChatAdminController` | `xiaou-chat` |
 | 积分用户侧 | `/user/points` | `UserPointsController` | `xiaou-points` |
 | 抽奖用户侧 | `/user/lottery` | `UserLotteryController` | `xiaou-points` |

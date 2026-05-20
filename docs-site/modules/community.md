@@ -64,7 +64,7 @@
 ## 风控点
 
 - 发帖、评论、回复需要敏感词检测。
-- Markdown 和富文本展示要净化。
+- Markdown 和富文本展示要净化，前端统一参考 [前端渲染安全](/reference/frontend-rendering-security)。
 - 删除、禁用和封禁要保留审计信息。
 - AI 摘要需要失败兜底，不能阻塞主链路。
 

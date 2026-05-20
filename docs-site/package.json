@@ -4,12 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "sync:baseline": "node ./scripts/generate-docs-sync-baseline.mjs",
+    "predev": "npm run sync:baseline",
     "dev": "vitepress dev . --host 0.0.0.0",
+    "prebuild": "npm run sync:baseline",
     "build": "vitepress build .",
+    "prepreview": "npm run sync:baseline",
     "preview": "vitepress preview . --host 0.0.0.0"
   },
   "devDependencies": {
     "vitepress": "next"
   }
 }
-

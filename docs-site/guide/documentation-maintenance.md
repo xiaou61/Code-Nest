@@ -13,8 +13,13 @@
 | 新 WebSocket 事件 | [WebSocket 协议](/reference/websocket) |
 | 新错误码 | [响应体与错误码](/reference/response-errors) |
 | 新 AI Prompt、RAG、Schema 或回归 | [AI Schema 与治理](/reference/ai-schemas)、[AI Runtime](/modules/ai-runtime) |
+| 新 Markdown、富文本或 `v-html` 展示 | [前端渲染安全](/reference/frontend-rendering-security)、对应模块页 |
+| 新业务链路、部署配置或高风险修复 | [发布前验证](/guide/release-verification)、[验证记录与已知问题](/manuals/verified-scenarios) |
 | 新截图或补测结果 | 对应操作手册、[验证记录与已知问题](/manuals/verified-scenarios) |
 | 新模块 | [模块总览](/modules/)、[全功能覆盖矩阵](/reference/feature-coverage)、VitePress sidebar |
+| 新增一批文档同步批次 | [文档同步基线](/reference/docs-sync-baseline)、[v2.2.0 文档计划](/roadmap/v2.2.0-docs-plan) |
+
+如果不是单纯改文档，而是要从代码层面新增一个完整功能，先按 [功能开发流程](/guide/feature-development) 走一遍，再回到本页检查文档同步位置。
 
 ## 模块页模板
 
@@ -32,6 +37,8 @@
 
 首版可以先写 1 到 6，后续每次改功能时补齐 7 到 9。
 
+如果这次补的是状态流转类文档，除了更新对应模块页，也建议同步看看 [模块状态机与生命周期索引](/reference/module-state-machines) 是否需要补一条总览入口。
+
 ## 写作规则
 
 | 规则 | 说明 |
@@ -41,7 +48,25 @@
 | 少写口号 | 文档面向维护和交付，不写营销文案 |
 | 保持中文术语一致 | 同一个功能不要在不同页面混用多个名字 |
 | 不嵌入密钥 | 示例配置不得出现真实 token、API key、数据库密码 |
+| 审查 `v-html` | 新增内容渲染前先确认是否走 `renderMarkdown`、`sanitizeHtml` 或 `escapeHtml` |
 | 构建验证 | 每批文档变更都运行 `npm run build` |
+
+## 文档同步基线自动刷新
+
+当前文档站已经接入基线自动刷新脚本：
+
+```powershell
+cd docs-site
+npm run sync:baseline
+```
+
+默认情况下：
+
+1. `npm run dev` 前会自动刷新一次。
+2. `npm run build` 前会自动刷新一次。
+3. `npm run preview` 前会自动刷新一次。
+
+这意味着 [文档同步基线](/reference/docs-sync-baseline) 页面会优先展示当前 Git `HEAD` 和工作区状态，而不是靠手工维护一组 SHA 文案。
 
 ## 提交前验证
 
@@ -50,12 +75,16 @@ cd docs-site
 npm run build
 ```
 
+如果这次只改 `docs-site/**`，上面的构建通常就是最低要求。如果同时改了后端、用户端、管理端、AI、OJ、聊天、文件上传或部署配置，要先按 [发布前验证](/guide/release-verification) 选择对应验证项，再提交。
+
 建议在提交前再执行：
 
 ```powershell
 git diff --check
 git status --short
 ```
+
+如果这次准备提 PR，仓库根目录已经约定使用 `.github/pull_request_template.md`。不要只写“改了什么”，至少把验证范围、未验证边界和文档同步项勾清楚。
 
 ## 推荐提交粒度
 
@@ -84,6 +113,7 @@ npm run docs:dev -- --port 5178
 ## 版本节奏
 
 1. 功能开发分支先改代码和文档。
-2. 合并前跑后端/前端必要验证和 `docs-site` 构建。
+2. 合并前按 [发布前验证](/guide/release-verification) 跑后端、前端、文档和关键业务烟测。
 3. 发布版本时更新 [版本历史](/modules/version-history) 和 [v2.2.0 文档计划](/roadmap/v2.2.0-docs-plan)。
-4. 手册截图有变更时，先放入 `docs/manual-assets/<date>`，再更新文档站索引。
+4. 每次明显的文档批次完成后，更新 [文档同步基线](/reference/docs-sync-baseline)，写清当前对齐到的分支、SHA、时间和提交标题。
+5. 手册截图有变更时，先放入 `docs/manual-assets/<date>`，再更新文档站索引。

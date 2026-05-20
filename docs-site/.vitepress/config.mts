@@ -2,7 +2,27 @@ import { defineConfig } from 'vitepress'
 
 const guide = [
   { text: '快速开始', link: '/guide/quick-start' },
+  { text: '学习路线', link: '/guide/learning-paths' },
+  { text: '按模块学习路线', link: '/guide/module-learning-paths' },
+  { text: '模块学习任务模板', link: '/guide/module-learning-workbook' },
+  { text: '模块结业案例', link: '/guide/module-learning-capstone' },
+  { text: '模块学习评审表', link: '/guide/module-learning-rubric' },
+  { text: '带教执行剧本', link: '/guide/onboarding-execution-playbook' },
+  { text: '带教交付模板包', link: '/guide/onboarding-deliverable-templates' },
+  { text: '首个真实任务接入', link: '/guide/first-real-task' },
+  { text: '首单任务题库', link: '/guide/first-task-backlog' },
+  { text: '模块接手升级路线', link: '/guide/module-ownership-ladder' },
+  { text: '模块接手检查清单', link: '/guide/module-takeover-checklist' },
+  { text: '模块接手样例包', link: '/guide/module-takeover-examples' },
+  { text: '模块值守与回归手册', link: '/guide/module-owner-playbook' },
+  { text: '角色上手任务包', link: '/guide/onboarding-tasks' },
+  { text: '本地完整启动剧本', link: '/guide/startup-playbook' },
+  { text: '功能开发流程', link: '/guide/feature-development' },
+  { text: '常见二开场景', link: '/guide/extension-scenarios' },
+  { text: '测试与回归', link: '/guide/testing-regression' },
+  { text: '权限与安全边界', link: '/guide/security-boundaries' },
   { text: '本地开发', link: '/guide/local-dev' },
+  { text: '发布前验证', link: '/guide/release-verification' },
   { text: '独立部署', link: '/guide/deploy' },
   { text: '文档维护规范', link: '/guide/documentation-maintenance' }
 ]
@@ -49,24 +69,42 @@ const modules = [
 
 const operations = [
   { text: 'Docker 与服务部署', link: '/operations/docker' },
+  { text: '环境变量总表', link: '/operations/env-vars' },
   { text: '监控与观测', link: '/operations/monitoring' },
+  { text: '告警 Runbook', link: '/operations/alert-runbooks' },
+  { text: '事故响应', link: '/operations/incident-response' },
+  { text: '问题定位流程', link: '/operations/diagnosis-flow' },
   { text: '常见问题排查', link: '/operations/troubleshooting' }
 ]
 
 const reference = [
+  { text: '术语表', link: '/reference/glossary' },
   { text: 'API 路由索引', link: '/reference/api-routes' },
+  { text: 'API 调用示例', link: '/reference/api-examples' },
   { text: '前端路由索引', link: '/reference/frontend-routes' },
   { text: '数据表索引', link: '/reference/database-tables' },
+  { text: '数据库字段阅读指南', link: '/reference/database-field-guide' },
   { text: '源码地图', link: '/reference/source-map' },
+  { text: '模块依赖地图', link: '/reference/module-dependencies' },
   { text: '响应体与错误码', link: '/reference/response-errors' },
   { text: 'WebSocket 协议', link: '/reference/websocket' },
   { text: 'AI Schema 与治理', link: '/reference/ai-schemas' },
+  { text: '权限注解与角色边界索引', link: '/reference/permission-boundaries' },
+  { text: '异常路径与失败态索引', link: '/reference/failure-paths' },
+  { text: '事件、通知与回流索引', link: '/reference/event-backflow-index' },
+  { text: '统计、排行与计数口径索引', link: '/reference/statistics-ranking-counts' },
+  { text: '幂等、回滚与补偿索引', link: '/reference/idempotency-rollbacks-compensation' },
+  { text: '前端渲染安全', link: '/reference/frontend-rendering-security' },
+  { text: '文档同步基线', link: '/reference/docs-sync-baseline' },
+  { text: '模块状态机与生命周期索引', link: '/reference/module-state-machines' },
+  { text: '模块最小回归矩阵', link: '/reference/module-regression-matrix' },
   { text: '全功能覆盖矩阵', link: '/reference/feature-coverage' }
 ]
 
 const manuals = [
   { text: '用户端操作手册', link: '/manuals/user-operations' },
   { text: '管理端操作手册', link: '/manuals/admin-operations' },
+  { text: '端到端业务链路图', link: '/manuals/business-flow-map' },
   { text: '核心链路教程', link: '/manuals/core-workflows' },
   { text: '验证记录与已知问题', link: '/manuals/verified-scenarios' }
 ]

@@ -2,6 +2,8 @@
 
 本页按“入口、动作、API、数据、验证”整理主要业务闭环。适合回归测试、演示和交接。
 
+如果你还没有全局概念，先读 [端到端业务链路图](/manuals/business-flow-map)，再回到本页按步骤操作。
+
 ## 注册登录到首页
 
 | 步骤 | 操作 | 验证 |
@@ -82,13 +84,14 @@
 
 | 步骤 | 操作 | 验证 |
 | --- | --- | --- |
-| 1 | 用户端打开 `/chat` | WebSocket `/ws/chat?token=...` 连接成功 |
+| 1 | 用户端打开 `/chat` | 先获取 `/user/chat/ws-ticket`，再通过 WebSocket `/ws/chat?ticket=...` 连接成功 |
 | 2 | 发送文本或图片消息 | 消息入库，`MESSAGE_ACK` 回流 |
-| 3 | 管理端 `/chat/messages` 检索消息 | 消息列表可见 |
-| 4 | 发送系统公告 | 用户端收到 `SYSTEM` |
-| 5 | 禁言用户 | 用户端发送失败并提示 |
-| 6 | 踢出用户 | 用户端收到 `KICK_OUT` 并断开 |
-| 7 | 用户撤回消息 | 用户端和历史消息列表同步更新 |
+| 3 | 快速连续发送消息 | 命中阈值时收到 `RATE_LIMITED`，本地消息变为失败态 |
+| 4 | 管理端 `/chat/messages` 检索消息 | 消息列表可见 |
+| 5 | 发送系统公告 | 用户端收到 `SYSTEM` |
+| 6 | 禁言用户 | 用户端发送失败并提示 |
+| 7 | 踢出用户 | 用户端收到 `KICK_OUT` 并断开 |
+| 8 | 用户撤回消息 | 用户端和历史消息列表同步更新 |
 
 协议细节见 [WebSocket 协议](/reference/websocket)。
 
@@ -105,3 +108,5 @@
 | 7 | 查看治理概览 | `/system/ai-governance` 汇总质量状态 |
 
 相关文档：[AI Runtime](/modules/ai-runtime)、[AI Schema 与治理](/reference/ai-schemas)。
+
+如果你在做的是“成功后还要回到用户端、通知中心、日志或统计里”，建议同时看 [事件、通知与回流索引](/reference/event-backflow-index)，把回流验证和主流程验证一起补齐。

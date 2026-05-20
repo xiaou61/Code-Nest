@@ -2,6 +2,10 @@
 
 后端统一响应体位于 `xiaou-common/src/main/java/com/xiaou/common/core/domain/Result.java`，错误码定义位于 `ResultCode.java`，异常收敛位于 `GlobalExceptionHandler.java`。
 
+如果你已经看到失败表现，但不确定它对应的是“权限、参数、状态机、外部依赖”哪一层，继续看 [异常路径与失败态索引](/reference/failure-paths) 会更快。
+
+如果你看到的是“接口成功，但后续通知、统计、ACK 或日志没有跟上”，那通常不只是错误码问题，也可以继续看 [事件、通知与回流索引](/reference/event-backflow-index)。
+
 ## 统一响应体
 
 ```json
@@ -72,6 +76,8 @@
 | `704` | 账户已被禁用 | 账号封禁或服务禁用 |
 | `705` | 登录失败 | 用户名或密码错误 |
 
+这些错误码只能告诉你“哪一步失败了”，但不能单独说明“权限本来该在哪层生效”。如果你遇到的是“明明有按钮却不能调”或“前缀看起来公开但实际写操作被拦”这类问题，建议同步看 [权限注解与角色边界索引](/reference/permission-boundaries)。
+
 ## 文件错误码
 
 | code | message | 场景 |
@@ -81,6 +87,38 @@
 | `803` | 文件不存在 | 文件记录或对象不存在 |
 | `804` | 文件类型不支持 | MIME 或后缀不在允许范围 |
 | `805` | 文件大小超出限制 | 超过上传大小限制 |
+
+## 文件接口认证和读取错误
+
+文件接口有一部分直接返回基础 HTTP 语义码作为业务 `code`，下载流接口则会直接用 HTTP 状态表达失败。前端不要只按“文件错误码 8xx”判断文件模块失败。
+
+| 表现 | 场景 | 常见接口 |
+| --- | --- | --- |
+| 业务 `code = 401` | 未登录就上传、批量上传、删除、查询列表或检查存在性 | `POST /file/upload/single`、`DELETE /file/{id}`、`GET /file/list` |
+| 业务 `code = 403` 或 HTTP `403` | 读取私有文件但当前请求没有用户端或管理端登录态 | `GET /file/info/{id}`、`GET /file/url/{id}`、`POST /file/urls`、`GET /file/download/{id}` |
+| 业务 `code = 803` 或 HTTP `404` | 文件记录不存在或 `status != 1` | `GET /file/info/{id}`、`GET /file/url/{id}`、`GET /file/download/{id}` |
+
+## WebSocket 业务错误
+
+聊天室 WebSocket 的 `ERROR` 事件不走统一 HTTP 响应体，而是把错误放在事件 `data` 里。前端会优先根据 `tempId` 找到本地乐观消息，并把它标记为失败。
+
+```json
+{
+  "type": "ERROR",
+  "data": {
+    "code": "RATE_LIMITED",
+    "message": "发送太快了，请稍后再试",
+    "tempId": "temp_1710000000000_xxx",
+    "retryAfterSeconds": 10
+  }
+}
+```
+
+| code | 场景 | 前端处理 |
+| --- | --- | --- |
+| `RATE_LIMITED` | 用户短时间发送消息超过 `xiaou.chat.rate-limit.message-limit` | 标记对应 `tempId` 消息失败，提示稍后再试 |
+| `MESSAGE_REJECTED` | 消息为空、超长、图片 URL 非法、用户被禁言等 | 标记对应 `tempId` 消息失败，展示后端原因 |
+| 无 code | JSON 解析失败或未知 WebSocket 处理异常 | 展示通用错误，必要时重连 |
 
 ## 异常处理策略
 
