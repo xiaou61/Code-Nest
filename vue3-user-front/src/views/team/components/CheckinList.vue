@@ -114,8 +114,8 @@ const loadCheckins = async () => {
       pageNum: pageNum.value, 
       pageSize: pageSize.value 
     })
-    checkins.value = response.records || response || []
-    hasMore.value = props.limit === 0 && (response.records?.length === pageSize.value)
+    checkins.value = response || []
+    hasMore.value = props.limit === 0 && checkins.value.length === pageSize.value
   } catch (error) {
     console.error('加载打卡列表失败:', error)
   } finally {
@@ -131,7 +131,7 @@ const loadMore = async () => {
       pageNum: pageNum.value, 
       pageSize: pageSize.value 
     })
-    const newCheckins = response.records || response || []
+    const newCheckins = response || []
     checkins.value = [...checkins.value, ...newCheckins]
     hasMore.value = newCheckins.length === pageSize.value
   } catch (error) {
@@ -145,11 +145,11 @@ const loadMore = async () => {
 const handleLike = async (checkin) => {
   try {
     if (checkin.isLiked) {
-      await teamApi.unlikeCheckin(props.teamId, checkin.id)
+      await teamApi.unlikeCheckin(checkin.id)
       checkin.isLiked = false
       checkin.likeCount = Math.max(0, (checkin.likeCount || 1) - 1)
     } else {
-      await teamApi.likeCheckin(props.teamId, checkin.id)
+      await teamApi.likeCheckin(checkin.id)
       checkin.isLiked = true
       checkin.likeCount = (checkin.likeCount || 0) + 1
     }

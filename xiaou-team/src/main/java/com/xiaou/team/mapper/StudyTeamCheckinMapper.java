@@ -2,10 +2,14 @@ package com.xiaou.team.mapper;
 
 import com.xiaou.team.domain.StudyTeamCheckin;
 import com.xiaou.team.dto.CheckinResponse;
+import com.xiaou.team.dto.DateValueStat;
+import com.xiaou.team.dto.TeamValueStat;
+import com.xiaou.team.dto.UserValueStat;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -90,6 +94,13 @@ public interface StudyTeamCheckinMapper {
                             @Param("teamId") Long teamId,
                             @Param("taskId") Long taskId,
                             @Param("today") LocalDate today);
+
+    /**
+     * 统计用户最长连续打卡天数
+     */
+    Integer countMaxStreakDays(@Param("userId") Long userId,
+                               @Param("teamId") Long teamId,
+                               @Param("taskId") Long taskId);
     
     /**
      * 统计用户在小组的总打卡天数
@@ -112,6 +123,36 @@ public interface StudyTeamCheckinMapper {
     List<Long> selectCheckinUserIds(@Param("teamId") Long teamId,
                                     @Param("taskId") Long taskId,
                                     @Param("date") LocalDate date);
+
+    /**
+     * 统计日期范围内每个用户的打卡次数
+     */
+    List<UserValueStat> countUserCheckinsByDateRange(@Param("teamId") Long teamId,
+                                                     @Param("userIds") Collection<Long> userIds,
+                                                     @Param("startDate") LocalDate startDate,
+                                                     @Param("endDate") LocalDate endDate);
+
+    /**
+     * 统计日期范围内每个用户的学习时长
+     */
+    List<UserValueStat> sumUserDurationByDateRange(@Param("teamId") Long teamId,
+                                                   @Param("userIds") Collection<Long> userIds,
+                                                   @Param("startDate") LocalDate startDate,
+                                                   @Param("endDate") LocalDate endDate);
+
+    /**
+     * 统计日期范围内每天的总学习时长
+     */
+    List<DateValueStat> sumDailyDurationByDateRange(@Param("teamId") Long teamId,
+                                                    @Param("startDate") LocalDate startDate,
+                                                    @Param("endDate") LocalDate endDate);
+
+    /**
+     * 统计近7天每个小组的打卡人数总和
+     */
+    List<TeamValueStat> countRecentCheckinUsersByTeamIds(@Param("teamIds") Collection<Long> teamIds,
+                                                         @Param("startDate") LocalDate startDate,
+                                                         @Param("endDate") LocalDate endDate);
     
     /**
      * 检查用户是否点赞

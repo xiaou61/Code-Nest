@@ -24,6 +24,7 @@
         <result column="is_supplement" property="isSupplement"/>
         <result column="like_count" property="likeCount"/>
         <result column="comment_count" property="commentCount"/>
+        <result column="duration" property="duration"/>
         <result column="create_time" property="createTime"/>
     </resultMap>
     
@@ -86,6 +87,7 @@
             c.is_supplement,
             c.like_count,
             c.comment_count,
+            c.duration,
             c.create_time
         FROM study_team_checkin c
         LEFT JOIN study_team_task t ON c.task_id = t.id
@@ -115,6 +117,7 @@
             c.is_supplement,
             c.like_count,
             c.comment_count,
+            c.duration,
             c.create_time
         FROM study_team_checkin c
         LEFT JOIN study_team_task t ON c.task_id = t.id
@@ -149,6 +152,7 @@
             c.is_supplement,
             c.like_count,
             c.comment_count,
+            c.duration,
             c.create_time
         FROM study_team_checkin c
         LEFT JOIN study_team_task t ON c.task_id = t.id
@@ -183,6 +187,25 @@
         )
         SELECT COALESCE(MAX(day_count), 0) FROM streak
     </select>
+
+    <select id="countMaxStreakDays" resultType="java.lang.Integer">
+        SELECT COALESCE(MAX(streak_len), 0)
+        FROM (
+            SELECT COUNT(1) AS streak_len
+            FROM (
+                SELECT DISTINCT checkin_date,
+                       DATE_SUB(checkin_date, INTERVAL ROW_NUMBER() OVER (ORDER BY checkin_date) DAY) AS grp
+                FROM study_team_checkin
+                WHERE user_id = #{userId}
+                AND team_id = #{teamId}
+                <if test="taskId != null">
+                    AND task_id = #{taskId}
+                </if>
+                AND is_deleted = 0
+            ) streak_groups
+            GROUP BY grp
+        ) streak_summary
+    </select>
     
     <!-- 统计用户在小组的总打卡天数 -->
     <select id="countUserTotalCheckinDays" resultType="java.lang.Integer">
@@ -203,6 +226,75 @@
         </if>
         AND checkin_date = #{date}
         AND is_deleted = 0
+    </select>
+
+    <select id="countUserCheckinsByDateRange" resultType="com.xiaou.team.dto.UserValueStat">
+        SELECT user_id, COUNT(1) AS value
+        FROM study_team_checkin
+        WHERE team_id = #{teamId}
+        AND is_deleted = 0
+        <if test="startDate != null">
+            AND checkin_date &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND checkin_date &lt;= #{endDate}
+        </if>
+        <if test="userIds != null and userIds.size() > 0">
+            AND user_id IN
+            <foreach collection="userIds" item="userId" open="(" separator="," close=")">
+                #{userId}
+            </foreach>
+        </if>
+        GROUP BY user_id
+    </select>
+
+    <select id="sumUserDurationByDateRange" resultType="com.xiaou.team.dto.UserValueStat">
+        SELECT user_id, COALESCE(SUM(duration), 0) AS value
+        FROM study_team_checkin
+        WHERE team_id = #{teamId}
+        AND is_deleted = 0
+        <if test="startDate != null">
+            AND checkin_date &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND checkin_date &lt;= #{endDate}
+        </if>
+        <if test="userIds != null and userIds.size() > 0">
+            AND user_id IN
+            <foreach collection="userIds" item="userId" open="(" separator="," close=")">
+                #{userId}
+            </foreach>
+        </if>
+        GROUP BY user_id
+    </select>
+
+    <select id="sumDailyDurationByDateRange" resultType="com.xiaou.team.dto.DateValueStat">
+        SELECT checkin_date AS statDate, COALESCE(SUM(duration), 0) AS value
+        FROM study_team_checkin
+        WHERE team_id = #{teamId}
+        AND is_deleted = 0
+        <if test="startDate != null">
+            AND checkin_date &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND checkin_date &lt;= #{endDate}
+        </if>
+        GROUP BY checkin_date
+        ORDER BY checkin_date ASC
+    </select>
+
+    <select id="countRecentCheckinUsersByTeamIds" resultType="com.xiaou.team.dto.TeamValueStat">
+        SELECT team_id, COUNT(DISTINCT CONCAT(checkin_date, ':', user_id)) AS value
+        FROM study_team_checkin
+        WHERE is_deleted = 0
+        AND checkin_date BETWEEN #{startDate} AND #{endDate}
+        <if test="teamIds != null and teamIds.size() > 0">
+            AND team_id IN
+            <foreach collection="teamIds" item="teamId" open="(" separator="," close=")">
+                #{teamId}
+            </foreach>
+        </if>
+        GROUP BY team_id
     </select>
     
     <!-- 检查用户是否点赞 -->

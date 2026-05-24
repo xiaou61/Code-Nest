@@ -86,4 +86,15 @@
         WHERE team_id = #{teamId} AND status = 0
     </select>
 
+    <select id="countPendingByTeamIds" resultType="com.xiaou.team.dto.TeamValueStat">
+        SELECT team_id AS teamId, COUNT(*) AS value
+        FROM study_team_application
+        WHERE status = 0
+        AND team_id IN
+        <foreach collection="teamIds" item="teamId" open="(" separator="," close=")">
+            #{teamId}
+        </foreach>
+        GROUP BY team_id
+    </select>
+
 </mapper>

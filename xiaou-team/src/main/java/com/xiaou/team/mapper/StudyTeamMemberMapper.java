@@ -4,6 +4,7 @@ import com.xiaou.team.domain.StudyTeamMember;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -38,6 +39,12 @@ public interface StudyTeamMemberMapper {
      * 查询小组有效成员列表
      */
     List<StudyTeamMember> selectActiveByTeamId(@Param("teamId") Long teamId);
+
+    /**
+     * 查询用户在多个小组中的有效成员记录
+     */
+    List<StudyTeamMember> selectActiveByUserIdAndTeamIds(@Param("userId") Long userId,
+                                                         @Param("teamIds") Collection<Long> teamIds);
     
     /**
      * 更新成员状态

@@ -93,10 +93,35 @@ public class MemberResponse {
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private LocalDateTime joinTime;
+
+    /**
+     * 禁言结束时间
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    private LocalDateTime muteEndTime;
     
     /**
      * 最后活跃时间
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private LocalDateTime lastActiveTime;
+
+    public Integer getMemberRole() {
+        return role;
+    }
+
+    public Integer getCheckinCount() {
+        return totalCheckins;
+    }
+
+    public Integer getStreakDays() {
+        return currentStreak;
+    }
+
+    public Boolean getIsMuted() {
+        if (muteEndTime != null) {
+            return muteEndTime.isAfter(LocalDateTime.now());
+        }
+        return status != null && status == 2;
+    }
 }

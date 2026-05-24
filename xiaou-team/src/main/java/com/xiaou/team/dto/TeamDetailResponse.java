@@ -196,4 +196,19 @@ public class TeamDetailResponse {
      * 最近打卡记录
      */
     private List<CheckinResponse> recentCheckins;
+
+    public String getTags() {
+        if (tagList == null || tagList.isEmpty()) {
+            return null;
+        }
+        return String.join(",", tagList);
+    }
+
+    public Integer getMemberRole() {
+        return myRole;
+    }
+
+    public Boolean getIsMember() {
+        return joined;
+    }
 }

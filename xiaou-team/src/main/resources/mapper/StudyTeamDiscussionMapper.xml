@@ -55,7 +55,9 @@
     
     <!-- 更新点赞数 -->
     <update id="updateLikeCount">
-        UPDATE study_team_discussion SET like_count = like_count + #{delta}, update_time = NOW() WHERE id = #{id}
+        UPDATE study_team_discussion
+        SET like_count = GREATEST(like_count + #{delta}, 0), update_time = NOW()
+        WHERE id = #{id}
     </update>
     
     <!-- 讨论响应映射 -->
@@ -138,6 +140,14 @@
         <if test="category != null">
             AND category = #{category}
         </if>
+    </select>
+
+    <select id="countDiscussionsByDate" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM study_team_discussion
+        WHERE team_id = #{teamId}
+        AND is_deleted = 0
+        AND DATE(create_time) = #{date}
     </select>
     
     <!-- 增加浏览量 -->

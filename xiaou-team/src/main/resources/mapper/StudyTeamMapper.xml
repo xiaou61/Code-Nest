@@ -116,7 +116,7 @@
         SELECT <include refid="Team_Column_List"/>
         FROM study_team t
         INNER JOIN study_team_member m ON t.id = m.team_id
-        WHERE m.user_id = #{userId} AND m.status = 1 AND t.status != 0
+        WHERE m.user_id = #{userId} AND m.status != 0 AND t.status != 0
         ORDER BY m.join_time DESC
     </select>
 
@@ -142,8 +142,31 @@
         WHERE id = #{id}
     </update>
 
+    <update id="decrementCheckinCount">
+        UPDATE study_team
+        SET total_checkins = GREATEST(total_checkins - 1, 0), update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="incrementActiveDays">
+        UPDATE study_team SET active_days = active_days + 1, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="decrementActiveDays">
+        UPDATE study_team
+        SET active_days = GREATEST(active_days - 1, 0), update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
     <update id="incrementDiscussionCount">
         UPDATE study_team SET total_discussions = total_discussions + 1, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="decrementDiscussionCount">
+        UPDATE study_team
+        SET total_discussions = GREATEST(total_discussions - 1, 0), update_time = NOW()
         WHERE id = #{id}
     </update>
 
@@ -170,7 +193,7 @@
         WHERE status = 1 
           AND current_members &lt; max_members
           AND id NOT IN (
-              SELECT team_id FROM study_team_member WHERE user_id = #{userId} AND status = 1
+              SELECT team_id FROM study_team_member WHERE user_id = #{userId} AND status != 0
           )
         ORDER BY current_members DESC, total_checkins DESC
         LIMIT #{limit}

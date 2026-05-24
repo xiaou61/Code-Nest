@@ -151,8 +151,8 @@ const loadDiscussions = async () => {
       pageNum: pageNum.value, 
       pageSize: 10 
     })
-    discussions.value = response.records || response || []
-    hasMore.value = (response.records?.length || 0) === 10
+    discussions.value = response || []
+    hasMore.value = discussions.value.length === 10
   } catch (error) {
     console.error('加载讨论列表失败:', error)
   } finally {
@@ -168,7 +168,7 @@ const loadMore = async () => {
       pageNum: pageNum.value, 
       pageSize: 10 
     })
-    const newItems = response.records || response || []
+    const newItems = response || []
     discussions.value = [...discussions.value, ...newItems]
     hasMore.value = newItems.length === 10
   } catch (error) {
@@ -181,7 +181,7 @@ const loadMore = async () => {
 
 const viewDetail = async (item) => {
   try {
-    const detail = await teamApi.getDiscussionDetail(props.teamId, item.id)
+    const detail = await teamApi.getDiscussionDetail(item.id)
     currentDiscussion.value = detail
     showDetailDialog.value = true
   } catch (error) {
@@ -192,11 +192,11 @@ const viewDetail = async (item) => {
 const handleLike = async (item) => {
   try {
     if (item.isLiked) {
-      await teamApi.unlikeDiscussion(props.teamId, item.id)
+      await teamApi.unlikeDiscussion(item.id)
       item.isLiked = false
       item.likeCount = Math.max(0, (item.likeCount || 1) - 1)
     } else {
-      await teamApi.likeDiscussion(props.teamId, item.id)
+      await teamApi.likeDiscussion(item.id)
       item.isLiked = true
       item.likeCount = (item.likeCount || 0) + 1
     }
@@ -207,7 +207,7 @@ const handleLike = async (item) => {
 
 const toggleTop = async (item) => {
   try {
-    await teamApi.setDiscussionTop(props.teamId, item.id, !item.isTop)
+    await teamApi.setDiscussionTop(item.id, item.isTop ? 0 : 1)
     item.isTop = !item.isTop
     ElMessage.success(item.isTop ? '已置顶' : '已取消置顶')
   } catch (error) {
@@ -217,7 +217,7 @@ const toggleTop = async (item) => {
 
 const toggleEssence = async (item) => {
   try {
-    await teamApi.setDiscussionEssence(props.teamId, item.id, !item.isEssence)
+    await teamApi.setDiscussionEssence(item.id, item.isEssence ? 0 : 1)
     item.isEssence = !item.isEssence
     ElMessage.success(item.isEssence ? '已设为精华' : '已取消精华')
   } catch (error) {
@@ -232,7 +232,7 @@ const handleDelete = async (item) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    await teamApi.deleteDiscussion(props.teamId, item.id)
+    await teamApi.deleteDiscussion(item.id)
     ElMessage.success('删除成功')
     loadDiscussions()
   } catch (error) {

@@ -121,4 +121,16 @@ public class TaskResponse {
      * 当前用户今日是否已打卡
      */
     private Boolean todayCheckedIn;
+
+    public Long getId() {
+        return taskId;
+    }
+
+    public Boolean getTodayChecked() {
+        return todayCheckedIn;
+    }
+
+    public Integer getCheckinCount() {
+        return todayCheckinCount;
+    }
 }

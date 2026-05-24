@@ -123,8 +123,8 @@
             <div class="tabs-left">
               <button 
                 class="tab-btn" 
-                :class="{ active: sortBy === 'time' }"
-                @click="sortBy = 'time'; loadTeamList()"
+                :class="{ active: sortBy === 'new' }"
+                @click="sortBy = 'new'; loadTeamList()"
               >
                 <el-icon><Clock /></el-icon>
                 最新
@@ -287,7 +287,7 @@ const total = ref(0)
 
 // 筛选条件
 const filterType = ref(null)
-const sortBy = ref('time')
+const sortBy = ref('new')
 const keyword = ref('')
 
 // 邀请码

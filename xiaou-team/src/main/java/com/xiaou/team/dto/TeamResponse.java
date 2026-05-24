@@ -101,6 +101,21 @@ public class TeamResponse {
      * 7日打卡率
      */
     private Integer checkinRate;
+
+    /**
+     * 总打卡次数
+     */
+    private Integer totalCheckins;
+
+    /**
+     * 总讨论数
+     */
+    private Integer totalDiscussions;
+
+    /**
+     * 活跃天数
+     */
+    private Integer activeDays;
     
     /**
      * 创建者ID
@@ -142,4 +157,24 @@ public class TeamResponse {
      * 当前用户在组内的角色
      */
     private Integer myRole;
+
+    /**
+     * 待审批申请数
+     */
+    private Integer pendingApplications;
+
+    public String getTags() {
+        if (tagList == null || tagList.isEmpty()) {
+            return null;
+        }
+        return String.join(",", tagList);
+    }
+
+    public Integer getMemberRole() {
+        return myRole;
+    }
+
+    public Boolean getIsMember() {
+        return joined;
+    }
 }
