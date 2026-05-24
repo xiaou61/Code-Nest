@@ -161,6 +161,16 @@
         )
         ORDER BY t.create_time DESC
     </select>
+
+    <select id="countTasks" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM study_team_task
+        WHERE team_id = #{teamId}
+        AND is_deleted = 0
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+    </select>
     
     <!-- 统计今日已打卡人数 -->
     <select id="countTodayCheckins" resultType="java.lang.Integer">

@@ -79,4 +79,12 @@ public class RankResponse {
      * 是否是当前用户
      */
     private Boolean isCurrentUser;
+
+    public Integer getMemberRole() {
+        return role;
+    }
+
+    public Integer getCheckinCount() {
+        return totalCheckins;
+    }
 }

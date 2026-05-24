@@ -130,7 +130,7 @@ export const teamApi = {
   },
 
   // 禁言成员
-  muteMember(teamId, targetUserId, minutes) {
+  muteMember(teamId, targetUserId, minutes = 60) {
     return request.post(`/user/team/${teamId}/member/${targetUserId}/mute`, null, {
       params: { minutes }
     })
@@ -171,7 +171,8 @@ export const teamApi = {
   },
 
   // 获取任务列表
-  getTaskList(teamId, status = null) {
+  getTaskList(teamId, params = {}) {
+    const { status = null } = params || {}
     return request.get(`/user/team/${teamId}/tasks`, {
       params: status !== null ? { status } : {}
     })
@@ -207,9 +208,9 @@ export const teamApi = {
   },
 
   // 获取打卡列表
-  getCheckinList(teamId, { taskId, page = 1, pageSize = 20 } = {}) {
+  getCheckinList(teamId, { taskId, page, pageNum, pageSize = 20 } = {}) {
     return request.get(`/user/team/${teamId}/checkins`, {
-      params: { taskId, page, pageSize }
+      params: { taskId, page: page ?? pageNum ?? 1, pageSize }
     })
   },
 
@@ -309,9 +310,9 @@ export const teamApi = {
   },
 
   // 获取讨论列表
-  getDiscussionList(teamId, { category, keyword, page = 1, pageSize = 20 } = {}) {
+  getDiscussionList(teamId, { category, keyword, page, pageNum, pageSize = 20 } = {}) {
     return request.get(`/user/team/${teamId}/discussions`, {
-      params: { category, keyword, page, pageSize }
+      params: { category, keyword, page: page ?? pageNum ?? 1, pageSize }
     })
   },
 

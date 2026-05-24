@@ -1,7 +1,9 @@
 package com.xiaou.team.service.impl;
 
+import com.xiaou.common.exception.BusinessException;
 import com.xiaou.team.domain.StudyTeam;
 import com.xiaou.team.domain.StudyTeamMember;
+import com.xiaou.team.dto.DateValueStat;
 import com.xiaou.team.dto.RankResponse;
 import com.xiaou.team.dto.TeamStatsResponse;
 import com.xiaou.team.mapper.*;
@@ -15,7 +17,10 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 统计服务实现
@@ -38,7 +43,7 @@ public class TeamStatsServiceImpl implements TeamStatsService {
     public TeamStatsResponse getTeamStats(Long teamId, Long userId) {
         StudyTeam team = teamMapper.selectById(teamId);
         if (team == null) {
-            throw new RuntimeException("小组不存在");
+            throw new BusinessException("小组不存在");
         }
         
         TeamStatsResponse stats = new TeamStatsResponse();
@@ -74,12 +79,12 @@ public class TeamStatsServiceImpl implements TeamStatsService {
         stats.setDiscussionCount(discussionCount != null ? discussionCount : 0);
         
         // 任务数量
-        Integer taskCount = taskMapper.selectTaskList(teamId, null).size();
-        stats.setTaskCount(taskCount);
+        Integer taskCount = taskMapper.countTasks(teamId, null);
+        stats.setTaskCount(taskCount != null ? taskCount : 0);
         
         // 活跃任务数
-        Integer activeTaskCount = taskMapper.selectTaskList(teamId, 1).size();
-        stats.setActiveTaskCount(activeTaskCount);
+        Integer activeTaskCount = taskMapper.countTasks(teamId, 1);
+        stats.setActiveTaskCount(activeTaskCount != null ? activeTaskCount : 0);
         
         // 本周统计
         stats.setWeeklyStats(getWeeklyDailyStats(teamId, memberCount));
@@ -96,7 +101,7 @@ public class TeamStatsServiceImpl implements TeamStatsService {
     public TeamStatsResponse getWeeklyStats(Long teamId) {
         StudyTeam team = teamMapper.selectById(teamId);
         if (team == null) {
-            throw new RuntimeException("小组不存在");
+            throw new BusinessException("小组不存在");
         }
         
         TeamStatsResponse stats = new TeamStatsResponse();
@@ -115,7 +120,7 @@ public class TeamStatsServiceImpl implements TeamStatsService {
     public TeamStatsResponse getMonthlyStats(Long teamId, Integer year, Integer month) {
         StudyTeam team = teamMapper.selectById(teamId);
         if (team == null) {
-            throw new RuntimeException("小组不存在");
+            throw new BusinessException("小组不存在");
         }
         
         TeamStatsResponse stats = new TeamStatsResponse();
@@ -154,10 +159,11 @@ public class TeamStatsServiceImpl implements TeamStatsService {
             userStats.setRank(rank.getRank());
         }
         
-        // 本周/本月打卡数简化实现
-        userStats.setWeeklyCheckins(0);
-        userStats.setMonthlyCheckins(0);
-        userStats.setTotalDuration(0);
+        LocalDate weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate monthStart = today.withDayOfMonth(1);
+        userStats.setWeeklyCheckins(countUserCheckins(teamId, userId, weekStart, today));
+        userStats.setMonthlyCheckins(countUserCheckins(teamId, userId, monthStart, today));
+        userStats.setTotalDuration(sumUserDuration(teamId, userId, null, null));
         
         return userStats;
     }
@@ -170,6 +176,7 @@ public class TeamStatsServiceImpl implements TeamStatsService {
         
         LocalDate today = LocalDate.now();
         LocalDate monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        Map<LocalDate, Integer> dailyDurationMap = toDateValueMap(checkinMapper.sumDailyDurationByDateRange(teamId, monday, today));
         
         for (int i = 0; i < 7; i++) {
             LocalDate date = monday.plusDays(i);
@@ -189,7 +196,7 @@ public class TeamStatsServiceImpl implements TeamStatsService {
                 dailyStats.setCheckinRate(0.0);
             }
             
-            dailyStats.setTotalDuration(0); // 简化实现
+            dailyStats.setTotalDuration(dailyDurationMap.getOrDefault(date, 0));
             
             dailyStatsList.add(dailyStats);
         }
@@ -211,6 +218,7 @@ public class TeamStatsServiceImpl implements TeamStatsService {
         if (endDate.isAfter(today)) {
             endDate = today;
         }
+        Map<LocalDate, Integer> dailyDurationMap = toDateValueMap(checkinMapper.sumDailyDurationByDateRange(teamId, startDate, endDate));
         
         for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
             TeamStatsResponse.DailyStats dailyStats = new TeamStatsResponse.DailyStats();
@@ -225,11 +233,40 @@ public class TeamStatsServiceImpl implements TeamStatsService {
                 dailyStats.setCheckinRate(0.0);
             }
             
-            dailyStats.setTotalDuration(0);
+            dailyStats.setTotalDuration(dailyDurationMap.getOrDefault(date, 0));
             
             dailyStatsList.add(dailyStats);
         }
         
         return dailyStatsList;
+    }
+
+    private Integer countUserCheckins(Long teamId, Long userId, LocalDate startDate, LocalDate endDate) {
+        return checkinMapper.countUserCheckinsByDateRange(teamId, Collections.singletonList(userId), startDate, endDate)
+                .stream()
+                .findFirst()
+                .map(stat -> stat.getValue() != null ? stat.getValue() : 0)
+                .orElse(0);
+    }
+
+    private Integer sumUserDuration(Long teamId, Long userId, LocalDate startDate, LocalDate endDate) {
+        return checkinMapper.sumUserDurationByDateRange(teamId, Collections.singletonList(userId), startDate, endDate)
+                .stream()
+                .findFirst()
+                .map(stat -> stat.getValue() != null ? stat.getValue() : 0)
+                .orElse(0);
+    }
+
+    private Map<LocalDate, Integer> toDateValueMap(List<DateValueStat> stats) {
+        if (stats == null || stats.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<LocalDate, Integer> map = new HashMap<>();
+        for (DateValueStat stat : stats) {
+            if (stat.getStatDate() != null) {
+                map.put(stat.getStatDate(), stat.getValue() != null ? stat.getValue() : 0);
+            }
+        }
+        return map;
     }
 }

@@ -15,16 +15,43 @@
         </div>
         <div class="task-desc" v-if="task.taskDesc">{{ task.taskDesc }}</div>
       </div>
-      
+
+      <div class="task-info" v-else-if="selectedTask">
+        <div class="task-name">
+          <el-icon><Calendar /></el-icon>
+          {{ selectedTask.taskName }}
+        </div>
+        <div class="task-desc" v-if="selectedTask.taskDesc">{{ selectedTask.taskDesc }}</div>
+      </div>
+
       <el-form
         ref="formRef"
         :model="form"
         :rules="rules"
         label-position="top"
       >
-        <el-form-item label="打卡内容" prop="checkinContent">
-          <el-input 
-            v-model="form.checkinContent" 
+        <el-form-item v-if="!task" label="选择任务" prop="taskId">
+          <el-select
+            v-model="form.taskId"
+            placeholder="请选择要打卡的任务"
+            filterable
+            :loading="tasksLoading"
+          >
+            <el-option
+              v-for="item in availableTasks"
+              :key="item.id"
+              :label="item.taskName"
+              :value="item.id"
+            />
+          </el-select>
+          <div v-if="!tasksLoading && availableTasks.length === 0" class="task-empty-tip">
+            当前没有待打卡任务
+          </div>
+        </el-form-item>
+
+        <el-form-item label="打卡内容" prop="content">
+          <el-input
+            v-model="form.content"
             type="textarea"
             :rows="4"
             placeholder="记录你今天的学习/完成情况..."
@@ -32,22 +59,22 @@
             show-word-limit
           />
         </el-form-item>
-        
+
         <el-form-item label="学习时长（分钟）" prop="duration">
-          <el-input-number 
-            v-model="form.duration" 
-            :min="1" 
+          <el-input-number
+            v-model="form.duration"
+            :min="1"
             :max="1440"
             placeholder="可选"
           />
           <span class="form-tip">选填，记录你本次学习的时长</span>
         </el-form-item>
-        
+
         <el-form-item label="图片（可选）">
           <div class="image-upload">
-            <div 
-              v-for="(img, index) in imageList" 
-              :key="index" 
+            <div
+              v-for="(img, index) in imageList"
+              :key="index"
               class="image-item"
             >
               <img :src="img" />
@@ -55,23 +82,23 @@
                 <el-icon><Close /></el-icon>
               </div>
             </div>
-            <div 
-              v-if="imageList.length < 3" 
+            <div
+              v-if="imageList.length < 3"
               class="image-add"
               @click="openImageInput"
             >
               <el-icon><Plus /></el-icon>
             </div>
           </div>
-          <input 
+          <input
             ref="imageInput"
-            type="file" 
-            accept="image/*" 
+            type="file"
+            accept="image/*"
             style="display: none"
             @change="handleImageSelect"
           />
         </el-form-item>
-        
+
         <!-- 补卡选项 -->
         <el-form-item v-if="allowSupplement">
           <el-checkbox v-model="isSupplement">补卡（选择补卡日期）</el-checkbox>
@@ -87,7 +114,7 @@
         </el-form-item>
       </el-form>
     </div>
-    
+
     <template #footer>
       <el-button @click="$emit('update:modelValue', false)">取消</el-button>
       <el-button type="primary" @click="handleSubmit" :loading="submitting">
@@ -98,7 +125,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Calendar, Close, Plus } from '@element-plus/icons-vue'
 import teamApi from '@/api/team'
@@ -117,37 +144,69 @@ const imageInput = ref()
 const submitting = ref(false)
 const imageList = ref([])
 const isSupplement = ref(false)
+const tasksLoading = ref(false)
+const availableTasks = ref([])
 
 const form = ref({
-  checkinContent: '',
+  taskId: null,
+  content: '',
   duration: null,
-  images: '',
   checkinDate: null
 })
 
 const rules = {
-  checkinContent: [
+  taskId: [
+    { required: true, message: '请选择任务', trigger: 'change' }
+  ],
+  content: [
     { required: true, message: '请输入打卡内容', trigger: 'blur' }
   ]
 }
+
+const selectedTask = computed(() => {
+  if (props.task) {
+    return props.task
+  }
+  return availableTasks.value.find(item => item.id === form.value.taskId) || null
+})
 
 // 监听弹窗打开
 watch(() => props.modelValue, (val) => {
   if (val) {
     resetForm()
+    if (!props.task) {
+      loadAvailableTasks()
+    }
   }
 })
 
 const resetForm = () => {
   form.value = {
-    checkinContent: '',
+    taskId: props.task?.id || null,
+    content: '',
     duration: null,
-    images: '',
     checkinDate: null
   }
   imageList.value = []
   isSupplement.value = false
+  availableTasks.value = []
   formRef.value?.clearValidate()
+}
+
+const loadAvailableTasks = async () => {
+  tasksLoading.value = true
+  try {
+    const tasks = await teamApi.getTodayTasks(props.teamId)
+    availableTasks.value = (tasks || []).filter(item => !item.todayChecked)
+    if (!form.value.taskId && availableTasks.value.length > 0) {
+      form.value.taskId = availableTasks.value[0].id
+    }
+  } catch (error) {
+    console.error('加载可打卡任务失败:', error)
+    availableTasks.value = []
+  } finally {
+    tasksLoading.value = false
+  }
 }
 
 // 禁用未来日期和7天前的日期
@@ -167,14 +226,14 @@ const openImageInput = () => {
 const handleImageSelect = (e) => {
   const file = e.target.files[0]
   if (!file) return
-  
+
   // 简单预览，实际项目需要上传到服务器
   const reader = new FileReader()
   reader.onload = (event) => {
     imageList.value.push(event.target.result)
   }
   reader.readAsDataURL(file)
-  
+
   // 清空input以便重复选择同一文件
   e.target.value = ''
 }
@@ -186,25 +245,35 @@ const removeImage = (index) => {
 const handleSubmit = async () => {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
-  
+
   submitting.value = true
   try {
     const data = {
-      ...form.value,
-      taskId: props.task?.id,
-      images: imageList.value.join(',')
+      taskId: form.value.taskId || props.task?.id,
+      content: form.value.content,
+      duration: form.value.duration,
+      images: [...imageList.value]
     }
-    
-    if (isSupplement.value && form.value.checkinDate) {
+
+    if (!data.taskId) {
+      ElMessage.warning('请先选择一个任务再打卡')
+      return
+    }
+
+    if (isSupplement.value) {
+      if (!form.value.checkinDate) {
+        ElMessage.warning('请选择补卡日期')
+        return
+      }
       // 补卡
-      await teamApi.supplementCheckin(props.teamId, data)
+      await teamApi.supplementCheckin(props.teamId, data, form.value.checkinDate)
       ElMessage.success('补卡成功')
     } else {
       // 正常打卡
       await teamApi.checkin(props.teamId, data)
       ElMessage.success('打卡成功！')
     }
-    
+
     emit('update:modelValue', false)
     emit('success')
   } catch (error) {
@@ -222,7 +291,7 @@ const handleSubmit = async () => {
     background: #f8f9fc;
     border-radius: 8px;
     margin-bottom: 20px;
-    
+
     .task-name {
       display: flex;
       align-items: center;
@@ -230,12 +299,12 @@ const handleSubmit = async () => {
       font-size: 15px;
       font-weight: 500;
       color: #333;
-      
+
       .el-icon {
         color: #409eff;
       }
     }
-    
+
     .task-desc {
       margin-top: 6px;
       font-size: 13px;
@@ -251,27 +320,33 @@ const handleSubmit = async () => {
   color: #999;
 }
 
+.task-empty-tip {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #999;
+}
+
 .image-upload {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  
+
   .image-item, .image-add {
     width: 80px;
     height: 80px;
     border-radius: 8px;
     overflow: hidden;
   }
-  
+
   .image-item {
     position: relative;
-    
+
     img {
       width: 100%;
       height: 100%;
       object-fit: cover;
     }
-    
+
     .image-delete {
       position: absolute;
       top: 4px;
@@ -284,18 +359,18 @@ const handleSubmit = async () => {
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      
+
       .el-icon {
         color: white;
         font-size: 12px;
       }
-      
+
       &:hover {
         background: rgba(0, 0, 0, 0.7);
       }
     }
   }
-  
+
   .image-add {
     border: 1px dashed #dcdfe6;
     display: flex;
@@ -303,15 +378,15 @@ const handleSubmit = async () => {
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s;
-    
+
     .el-icon {
       font-size: 24px;
       color: #c0c4cc;
     }
-    
+
     &:hover {
       border-color: #409eff;
-      
+
       .el-icon {
         color: #409eff;
       }

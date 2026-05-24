@@ -102,13 +102,13 @@ const loadRankData = async () => {
     let response
     switch (activeTab.value) {
       case 'checkin':
-        response = await teamApi.getCheckinRank(props.teamId)
+        response = await teamApi.getCheckinRank(props.teamId, { type: 'total', limit: 20 })
         break
       case 'streak':
         response = await teamApi.getStreakRank(props.teamId)
         break
       case 'duration':
-        response = await teamApi.getDurationRank(props.teamId)
+        response = await teamApi.getDurationRank(props.teamId, { type: 'total', limit: 20 })
         break
       case 'contribution':
         response = await teamApi.getContributionRank(props.teamId)

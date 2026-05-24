@@ -2376,6 +2376,21 @@ CREATE TABLE `study_team_discussion`  (
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '小组讨论表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
+-- Table structure for study_team_discussion_like
+-- ----------------------------
+DROP TABLE IF EXISTS `study_team_discussion_like`;
+CREATE TABLE `study_team_discussion_like`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '点赞ID',
+  `discussion_id` bigint NOT NULL COMMENT '讨论ID',
+  `user_id` bigint NOT NULL COMMENT '点赞用户ID',
+  `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '点赞时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_discussion_user`(`discussion_id` ASC, `user_id` ASC) USING BTREE,
+  INDEX `idx_discussion_id`(`discussion_id` ASC) USING BTREE,
+  INDEX `idx_user_id`(`user_id` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '讨论点赞表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
 -- Table structure for study_team_member
 -- ----------------------------
 DROP TABLE IF EXISTS `study_team_member`;

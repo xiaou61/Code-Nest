@@ -1,9 +1,11 @@
 package com.xiaou.team.service.impl;
+import com.xiaou.common.exception.BusinessException;
 import com.xiaou.team.domain.StudyTeam;
 import com.xiaou.team.domain.StudyTeamMember;
 import com.xiaou.team.domain.StudyTeamTask;
 import com.xiaou.team.dto.TaskCreateRequest;
 import com.xiaou.team.dto.TaskResponse;
+import com.xiaou.team.enums.MemberStatus;
 import com.xiaou.team.enums.MemberRole;
 import com.xiaou.team.enums.RepeatType;
 import com.xiaou.team.enums.TaskType;
@@ -20,7 +22,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * 打卡任务服务实现
@@ -42,7 +48,7 @@ public class TeamTaskServiceImpl implements TeamTaskService {
         // 验证小组存在
         StudyTeam team = teamMapper.selectById(teamId);
         if (team == null) {
-            throw new RuntimeException("小组不存在");
+            throw new BusinessException("小组不存在");
         }
         
         // 验证用户权限（组长或管理员）
@@ -76,7 +82,7 @@ public class TeamTaskServiceImpl implements TeamTaskService {
     public void updateTask(Long taskId, TaskCreateRequest request, Long userId) {
         StudyTeamTask task = taskMapper.selectById(taskId);
         if (task == null || task.getIsDeleted() == 1) {
-            throw new RuntimeException("任务不存在");
+            throw new BusinessException("任务不存在");
         }
         
         // 验证用户权限
@@ -105,7 +111,7 @@ public class TeamTaskServiceImpl implements TeamTaskService {
     public void deleteTask(Long taskId, Long userId) {
         StudyTeamTask task = taskMapper.selectById(taskId);
         if (task == null || task.getIsDeleted() == 1) {
-            throw new RuntimeException("任务不存在");
+            throw new BusinessException("任务不存在");
         }
         
         // 验证用户权限
@@ -120,7 +126,7 @@ public class TeamTaskServiceImpl implements TeamTaskService {
     public void setTaskStatus(Long taskId, Integer status, Long userId) {
         StudyTeamTask task = taskMapper.selectById(taskId);
         if (task == null || task.getIsDeleted() == 1) {
-            throw new RuntimeException("任务不存在");
+            throw new BusinessException("任务不存在");
         }
         
         // 验证用户权限
@@ -133,21 +139,22 @@ public class TeamTaskServiceImpl implements TeamTaskService {
     public TaskResponse getTaskDetail(Long taskId, Long userId) {
         TaskResponse task = taskMapper.selectTaskById(taskId);
         if (task == null) {
-            throw new RuntimeException("任务不存在");
+            throw new BusinessException("任务不存在");
         }
-        
+
         // 填充额外信息
-        fillTaskExtraInfo(task, userId);
+        fillTaskExtraInfo(task, userId, buildUserInfoMap(java.util.List.of(task)));
         return task;
     }
     
     @Override
     public List<TaskResponse> getTaskList(Long teamId, Integer status, Long userId) {
         List<TaskResponse> tasks = taskMapper.selectTaskList(teamId, status);
+        Map<Long, SimpleUserInfo> userInfoMap = buildUserInfoMap(tasks);
         
         // 填充额外信息
         for (TaskResponse task : tasks) {
-            fillTaskExtraInfo(task, userId);
+            fillTaskExtraInfo(task, userId, userInfoMap);
         }
         
         return tasks;
@@ -160,10 +167,11 @@ public class TeamTaskServiceImpl implements TeamTaskService {
         int dayOfWeek = today.getDayOfWeek().getValue();
         
         List<TaskResponse> tasks = taskMapper.selectTodayTasks(teamId, today, dayOfWeek);
+        Map<Long, SimpleUserInfo> userInfoMap = buildUserInfoMap(tasks);
         
         // 填充额外信息
         for (TaskResponse task : tasks) {
-            fillTaskExtraInfo(task, userId);
+            fillTaskExtraInfo(task, userId, userInfoMap);
         }
         
         return tasks;
@@ -172,7 +180,7 @@ public class TeamTaskServiceImpl implements TeamTaskService {
     /**
      * 填充任务额外信息
      */
-    private void fillTaskExtraInfo(TaskResponse task, Long userId) {
+    private void fillTaskExtraInfo(TaskResponse task, Long userId, Map<Long, SimpleUserInfo> userInfoMap) {
         LocalDate today = LocalDate.now();
         
         // 任务类型名称
@@ -193,7 +201,7 @@ public class TeamTaskServiceImpl implements TeamTaskService {
         
         // 创建人信息
         if (task.getCreateBy() != null) {
-            SimpleUserInfo creatorInfo = userInfoApiService.getSimpleUserInfo(task.getCreateBy());
+            SimpleUserInfo creatorInfo = userInfoMap.get(task.getCreateBy());
             if (creatorInfo != null) {
                 task.setCreatorName(creatorInfo.getDisplayName());
             }
@@ -206,13 +214,28 @@ public class TeamTaskServiceImpl implements TeamTaskService {
     private void checkAdminPermission(Long teamId, Long userId) {
         StudyTeamMember member = memberMapper.selectByTeamIdAndUserId(teamId, userId);
         
-        if (member == null || member.getStatus() != 1) {
-            throw new RuntimeException("您不是小组成员");
+        if (member == null || MemberStatus.QUIT.getCode().equals(member.getStatus())) {
+            throw new BusinessException("您不是小组成员");
         }
         
         if (member.getRole() != MemberRole.LEADER.getCode() && 
             member.getRole() != MemberRole.ADMIN.getCode()) {
-            throw new RuntimeException("您没有权限执行此操作");
+            throw new BusinessException("您没有权限执行此操作");
         }
+    }
+
+    private Map<Long, SimpleUserInfo> buildUserInfoMap(List<TaskResponse> tasks) {
+        if (tasks == null || tasks.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<Long> userIds = tasks.stream()
+                .map(TaskResponse::getCreateBy)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        if (userIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return userInfoApiService.getSimpleUserInfoBatch(userIds);
     }
 }

@@ -228,7 +228,22 @@ CREATE TABLE `study_team_discussion` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='小组讨论表';
 
 -- ----------------------------
--- 9. 小组每日统计表
+-- 9. 讨论点赞表
+-- ----------------------------
+DROP TABLE IF EXISTS `study_team_discussion_like`;
+CREATE TABLE `study_team_discussion_like` (
+    `id` BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '点赞ID',
+    `discussion_id` BIGINT NOT NULL COMMENT '讨论ID',
+    `user_id` BIGINT NOT NULL COMMENT '点赞用户ID',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '点赞时间',
+
+    UNIQUE KEY `uk_discussion_user` (`discussion_id`, `user_id`),
+    INDEX `idx_discussion_id` (`discussion_id`),
+    INDEX `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='讨论点赞表';
+
+-- ----------------------------
+-- 10. 小组每日统计表
 -- ----------------------------
 DROP TABLE IF EXISTS `study_team_daily_stats`;
 CREATE TABLE `study_team_daily_stats` (

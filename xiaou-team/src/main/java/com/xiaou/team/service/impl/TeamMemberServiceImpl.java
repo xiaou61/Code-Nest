@@ -21,7 +21,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -63,7 +67,7 @@ public class TeamMemberServiceImpl implements TeamMemberService {
         
         // 检查是否已经是成员
         StudyTeamMember existMember = memberMapper.selectByTeamIdAndUserId(teamId, userId);
-        if (existMember != null && existMember.getStatus().equals(MemberStatus.NORMAL.getCode())) {
+        if (isActiveMember(existMember)) {
             throw new BusinessException("您已经是该小组成员");
         }
         
@@ -138,7 +142,7 @@ public class TeamMemberServiceImpl implements TeamMemberService {
     @Transactional(rollbackFor = Exception.class)
     public boolean quitTeam(Long userId, Long teamId) {
         StudyTeamMember member = memberMapper.selectByTeamIdAndUserId(teamId, userId);
-        if (member == null || !member.getStatus().equals(MemberStatus.NORMAL.getCode())) {
+        if (!isActiveMember(member)) {
             throw new BusinessException("您不是该小组成员");
         }
         
@@ -157,8 +161,11 @@ public class TeamMemberServiceImpl implements TeamMemberService {
     @Override
     public List<MemberResponse> getMemberList(Long teamId) {
         List<StudyTeamMember> members = memberMapper.selectActiveByTeamId(teamId);
+        Map<Long, SimpleUserInfo> userInfoMap = getUserInfoMap(
+                members.stream().map(StudyTeamMember::getUserId).collect(Collectors.toList())
+        );
         return members.stream()
-                .map(this::convertToMemberResponse)
+                .map(member -> convertToMemberResponse(member, userInfoMap))
                 .collect(Collectors.toList());
     }
     
@@ -213,20 +220,34 @@ public class TeamMemberServiceImpl implements TeamMemberService {
         
         List<StudyTeamApplication> applications = applicationMapper.selectPendingByTeamId(teamId);
         StudyTeam team = teamMapper.selectById(teamId);
+        Map<Long, SimpleUserInfo> userInfoMap = getUserInfoMap(
+                applications.stream()
+                        .flatMap(app -> java.util.stream.Stream.of(app.getUserId(), app.getReviewerId()))
+                        .collect(Collectors.toList())
+        );
         
         return applications.stream()
-                .map(app -> convertToApplicationResponse(app, team))
+                .map(app -> convertToApplicationResponse(app, team, userInfoMap))
                 .collect(Collectors.toList());
     }
     
     @Override
     public List<ApplicationResponse> getMyApplications(Long userId) {
         List<StudyTeamApplication> applications = applicationMapper.selectByUserId(userId);
+        Map<Long, StudyTeam> teamMap = applications.stream()
+                .map(StudyTeamApplication::getTeamId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .map(teamMapper::selectById)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(StudyTeam::getId, Function.identity(), (left, right) -> left));
+        Map<Long, SimpleUserInfo> userInfoMap = getUserInfoMap(
+                applications.stream()
+                        .flatMap(app -> java.util.stream.Stream.of(app.getUserId(), app.getReviewerId()))
+                        .collect(Collectors.toList())
+        );
         return applications.stream()
-                .map(app -> {
-                    StudyTeam team = teamMapper.selectById(app.getTeamId());
-                    return convertToApplicationResponse(app, team);
-                })
+                .map(app -> convertToApplicationResponse(app, teamMap.get(app.getTeamId()), userInfoMap))
                 .collect(Collectors.toList());
     }
     
@@ -252,7 +273,7 @@ public class TeamMemberServiceImpl implements TeamMemberService {
         
         // 获取目标成员
         StudyTeamMember targetMember = memberMapper.selectByTeamIdAndUserId(teamId, targetUserId);
-        if (targetMember == null || !targetMember.getStatus().equals(MemberStatus.NORMAL.getCode())) {
+        if (!isActiveMember(targetMember)) {
             throw new BusinessException("该成员不存在");
         }
         
@@ -289,7 +310,7 @@ public class TeamMemberServiceImpl implements TeamMemberService {
         
         // 检查目标成员
         StudyTeamMember targetMember = memberMapper.selectByTeamIdAndUserId(teamId, targetUserId);
-        if (targetMember == null || !targetMember.getStatus().equals(MemberStatus.NORMAL.getCode())) {
+        if (!isActiveMember(targetMember)) {
             throw new BusinessException("该成员不存在");
         }
         
@@ -315,7 +336,7 @@ public class TeamMemberServiceImpl implements TeamMemberService {
         
         // 检查新组长是否是成员
         StudyTeamMember newLeader = memberMapper.selectByTeamIdAndUserId(teamId, newLeaderId);
-        if (newLeader == null || !newLeader.getStatus().equals(MemberStatus.NORMAL.getCode())) {
+        if (!isActiveMember(newLeader)) {
             throw new BusinessException("目标用户不是小组成员");
         }
         
@@ -338,7 +359,7 @@ public class TeamMemberServiceImpl implements TeamMemberService {
         
         // 检查目标
         StudyTeamMember target = memberMapper.selectByTeamIdAndUserId(teamId, targetUserId);
-        if (target == null) {
+        if (!isActiveMember(target)) {
             throw new BusinessException("成员不存在");
         }
         if (target.getRole().equals(MemberRole.LEADER.getCode())) {
@@ -353,7 +374,7 @@ public class TeamMemberServiceImpl implements TeamMemberService {
             throw new BusinessException("禁言时长最长7天");
         }
         
-        target.setStatus(MemberStatus.MUTED.getCode());
+        target.setStatus(MemberStatus.NORMAL.getCode());
         target.setMuteEndTime(LocalDateTime.now().plusMinutes(minutes));
         memberMapper.update(target);
         
@@ -371,7 +392,7 @@ public class TeamMemberServiceImpl implements TeamMemberService {
         }
         
         StudyTeamMember target = memberMapper.selectByTeamIdAndUserId(teamId, targetUserId);
-        if (target == null) {
+        if (!isActiveMember(target)) {
             throw new BusinessException("成员不存在");
         }
         
@@ -409,7 +430,7 @@ public class TeamMemberServiceImpl implements TeamMemberService {
         // 检查是否已是成员
         StudyTeamMember existMember = memberMapper.selectByTeamIdAndUserId(teamId, userId);
         if (existMember != null) {
-            if (existMember.getStatus().equals(MemberStatus.NORMAL.getCode())) {
+            if (isActiveMember(existMember)) {
                 throw new BusinessException("您已经是该小组成员");
             }
             // 重新加入
@@ -456,7 +477,7 @@ public class TeamMemberServiceImpl implements TeamMemberService {
     /**
      * 转换为成员响应DTO
      */
-    private MemberResponse convertToMemberResponse(StudyTeamMember member) {
+    private MemberResponse convertToMemberResponse(StudyTeamMember member, Map<Long, SimpleUserInfo> userInfoMap) {
         MemberResponse response = new MemberResponse();
         response.setId(member.getId());
         response.setTeamId(member.getTeamId());
@@ -475,6 +496,7 @@ public class TeamMemberServiceImpl implements TeamMemberService {
         response.setTotalLikesReceived(member.getTotalLikesReceived());
         response.setContributionPoints(member.getContributionPoints());
         response.setStatus(member.getStatus());
+        response.setMuteEndTime(member.getMuteEndTime());
         
         MemberStatus status = MemberStatus.getByCode(member.getStatus());
         if (status != null) {
@@ -485,7 +507,7 @@ public class TeamMemberServiceImpl implements TeamMemberService {
         response.setLastActiveTime(member.getLastActiveTime());
         
         // 用户信息
-        SimpleUserInfo userInfo = userInfoApiService.getSimpleUserInfo(member.getUserId());
+        SimpleUserInfo userInfo = userInfoMap.get(member.getUserId());
         if (userInfo != null) {
             response.setUserName(userInfo.getDisplayName());
             response.setUserAvatar(userInfo.getAvatar());
@@ -497,11 +519,14 @@ public class TeamMemberServiceImpl implements TeamMemberService {
     /**
      * 转换为申请响应DTO
      */
-    private ApplicationResponse convertToApplicationResponse(StudyTeamApplication app, StudyTeam team) {
+    private ApplicationResponse convertToApplicationResponse(StudyTeamApplication app,
+                                                            StudyTeam team,
+                                                            Map<Long, SimpleUserInfo> userInfoMap) {
         ApplicationResponse response = new ApplicationResponse();
         response.setId(app.getId());
         response.setTeamId(app.getTeamId());
         response.setTeamName(team != null ? team.getTeamName() : null);
+        response.setTeamAvatar(team != null ? team.getTeamAvatar() : null);
         response.setUserId(app.getUserId());
         response.setApplyReason(app.getApplyReason());
         response.setStatus(app.getStatus());
@@ -517,7 +542,7 @@ public class TeamMemberServiceImpl implements TeamMemberService {
         response.setCreateTime(app.getCreateTime());
         
         // 申请人信息
-        SimpleUserInfo userInfo = userInfoApiService.getSimpleUserInfo(app.getUserId());
+        SimpleUserInfo userInfo = userInfoMap.get(app.getUserId());
         if (userInfo != null) {
             response.setUserName(userInfo.getDisplayName());
             response.setUserAvatar(userInfo.getAvatar());
@@ -525,12 +550,23 @@ public class TeamMemberServiceImpl implements TeamMemberService {
         
         // 审核人信息
         if (app.getReviewerId() != null) {
-            SimpleUserInfo reviewer = userInfoApiService.getSimpleUserInfo(app.getReviewerId());
+            SimpleUserInfo reviewer = userInfoMap.get(app.getReviewerId());
             if (reviewer != null) {
                 response.setReviewerName(reviewer.getDisplayName());
             }
         }
         
         return response;
+    }
+
+    private Map<Long, SimpleUserInfo> getUserInfoMap(List<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return userInfoApiService.getSimpleUserInfoBatch(userIds);
+    }
+
+    private boolean isActiveMember(StudyTeamMember member) {
+        return member != null && !MemberStatus.QUIT.getCode().equals(member.getStatus());
     }
 }

@@ -61,8 +61,21 @@
     <select id="selectActiveByTeamId" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM study_team_member
-        WHERE team_id = #{teamId} AND status = 1
+        WHERE team_id = #{teamId} AND status != 0
         ORDER BY role ASC, join_time ASC
+    </select>
+
+    <select id="selectActiveByUserIdAndTeamIds" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM study_team_member
+        WHERE user_id = #{userId}
+        AND status != 0
+        <if test="teamIds != null and teamIds.size() > 0">
+            AND team_id IN
+            <foreach collection="teamIds" item="teamId" open="(" separator="," close=")">
+                #{teamId}
+            </foreach>
+        </if>
     </select>
 
     <update id="updateStatus">
@@ -92,26 +105,26 @@
     <select id="countActiveMembers" resultType="int">
         SELECT COUNT(*)
         FROM study_team_member
-        WHERE team_id = #{teamId} AND status = 1
+        WHERE team_id = #{teamId} AND status != 0
     </select>
 
     <select id="countJoinedTeams" resultType="int">
         SELECT COUNT(*)
         FROM study_team_member
-        WHERE user_id = #{userId} AND status = 1
+        WHERE user_id = #{userId} AND status != 0
     </select>
 
     <select id="selectRole" resultType="java.lang.Integer">
         SELECT role
         FROM study_team_member
-        WHERE team_id = #{teamId} AND user_id = #{userId} AND status = 1
+        WHERE team_id = #{teamId} AND user_id = #{userId} AND status != 0
     </select>
 
     <select id="selectMemberAvatars" resultType="java.lang.String">
         SELECT u.avatar
         FROM study_team_member m
         INNER JOIN user_info u ON m.user_id = u.id
-        WHERE m.team_id = #{teamId} AND m.status = 1
+        WHERE m.team_id = #{teamId} AND m.status != 0
         ORDER BY m.role ASC, m.join_time ASC
         LIMIT #{limit}
     </select>
@@ -123,7 +136,7 @@
     <select id="selectCount" resultType="java.lang.Long">
         SELECT COUNT(*)
         FROM study_team_member
-        WHERE team_id = #{teamId} AND status = 1
+        WHERE team_id = #{teamId} AND status != 0
     </select>
     
     <select id="selectOne" resultMap="BaseResultMap">

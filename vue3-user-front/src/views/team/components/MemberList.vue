@@ -42,6 +42,7 @@
               <el-icon><Star /></el-icon>管理员
             </span>
             <span v-else class="role-badge member">成员</span>
+            <span v-if="member.isMuted" class="role-badge muted">禁言中</span>
           </div>
         </div>
         
@@ -271,12 +272,43 @@ const toggleMute = async (member) => {
       await teamApi.unmuteMember(props.teamId, member.userId)
       ElMessage.success('已解除禁言')
     } else {
-      await teamApi.muteMember(props.teamId, member.userId)
-      ElMessage.success('已禁言')
+      const minutes = await promptMuteMinutes(member)
+      if (minutes === null) {
+        return
+      }
+      await teamApi.muteMember(props.teamId, member.userId, minutes)
+      ElMessage.success(`已禁言 ${minutes} 分钟`)
     }
     loadMembers()
   } catch (error) {
     console.error('操作失败:', error)
+  }
+}
+
+const promptMuteMinutes = async (member) => {
+  try {
+    const { value } = await ElMessageBox.prompt(
+      `请输入对 ${member.userName} 的禁言时长（分钟）`,
+      '禁言成员',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        inputValue: '60',
+        inputPattern: /^(?:[1-9]\d{0,4})$/,
+        inputErrorMessage: '请输入 1-10080 之间的整数分钟'
+      }
+    )
+    const minutes = Number(value)
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 10080) {
+      ElMessage.warning('禁言时长需为 1-10080 分钟')
+      return null
+    }
+    return minutes
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') {
+      return null
+    }
+    throw error
   }
 }
 
@@ -461,6 +493,11 @@ defineExpose({ loadMembers, loadApplications })
       &.member {
         background: #f5f7fa;
         color: #909399;
+      }
+
+      &.muted {
+        background: #fef0f0;
+        color: #f56c6c;
       }
     }
   }

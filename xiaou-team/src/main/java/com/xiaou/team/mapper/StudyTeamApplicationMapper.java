@@ -1,6 +1,7 @@
 package com.xiaou.team.mapper;
 
 import com.xiaou.team.domain.StudyTeamApplication;
+import com.xiaou.team.dto.TeamValueStat;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -64,4 +65,9 @@ public interface StudyTeamApplicationMapper {
      * 统计小组待审核的申请数
      */
     int countPendingByTeamId(@Param("teamId") Long teamId);
+
+    /**
+     * 批量统计小组待审核的申请数
+     */
+    List<TeamValueStat> countPendingByTeamIds(@Param("teamIds") List<Long> teamIds);
 }

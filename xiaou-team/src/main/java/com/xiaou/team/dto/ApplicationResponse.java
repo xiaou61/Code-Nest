@@ -27,6 +27,11 @@ public class ApplicationResponse {
      * 小组名称
      */
     private String teamName;
+
+    /**
+     * 小组头像
+     */
+    private String teamAvatar;
     
     /**
      * 申请人ID

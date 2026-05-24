@@ -70,6 +70,12 @@ public interface StudyTeamTaskMapper {
     List<TaskResponse> selectTodayTasks(@Param("teamId") Long teamId,
                                         @Param("today") LocalDate today,
                                         @Param("dayOfWeek") Integer dayOfWeek);
+
+    /**
+     * 统计任务数量
+     */
+    Integer countTasks(@Param("teamId") Long teamId,
+                       @Param("status") Integer status);
     
     /**
      * 统计今日已打卡人数

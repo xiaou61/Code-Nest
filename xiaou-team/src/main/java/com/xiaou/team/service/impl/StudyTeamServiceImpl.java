@@ -7,10 +7,13 @@ import com.xiaou.common.exception.BusinessException;
 import com.xiaou.common.utils.PageHelper;
 import com.xiaou.team.domain.StudyTeam;
 import com.xiaou.team.domain.StudyTeamMember;
+import com.xiaou.team.dto.TeamValueStat;
 import com.xiaou.team.dto.*;
 import com.xiaou.team.enums.*;
+import com.xiaou.team.mapper.StudyTeamCheckinMapper;
 import com.xiaou.team.mapper.StudyTeamMapper;
 import com.xiaou.team.mapper.StudyTeamMemberMapper;
+import com.xiaou.team.mapper.StudyTeamApplicationMapper;
 import com.xiaou.team.service.StudyTeamService;
 import com.xiaou.user.api.UserInfoApiService;
 import com.xiaou.user.api.dto.SimpleUserInfo;
@@ -24,7 +27,12 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -39,6 +47,8 @@ public class StudyTeamServiceImpl implements StudyTeamService {
     
     private final StudyTeamMapper teamMapper;
     private final StudyTeamMemberMapper memberMapper;
+    private final StudyTeamCheckinMapper checkinMapper;
+    private final StudyTeamApplicationMapper applicationMapper;
     private final UserInfoApiService userInfoApiService;
     
     /**
@@ -242,7 +252,7 @@ public class StudyTeamServiceImpl implements StudyTeamService {
         response.setTotalCheckins(team.getTotalCheckins());
         response.setTotalDiscussions(team.getTotalDiscussions());
         response.setActiveDays(team.getActiveDays());
-        response.setCheckinRate(calculateCheckinRate(teamId));
+        response.setCheckinRate(calculateCheckinRate(teamId, team.getCurrentMembers()));
         
         // 创建者信息
         response.setCreatorId(team.getCreatorId());
@@ -279,34 +289,26 @@ public class StudyTeamServiceImpl implements StudyTeamService {
     public PageResult<TeamResponse> getTeamList(Long userId, TeamListRequest request) {
         return PageHelper.doPage(request.getPageNum(), request.getPageSize(), () -> {
             List<StudyTeam> teams = teamMapper.selectList(request);
-            return teams.stream()
-                    .map(team -> convertToTeamResponse(team, userId))
-                    .collect(Collectors.toList());
+            return convertToTeamResponses(teams, userId);
         });
     }
     
     @Override
     public List<TeamResponse> getMyTeams(Long userId) {
         List<StudyTeam> teams = teamMapper.selectJoinedTeams(userId);
-        return teams.stream()
-                .map(team -> convertToTeamResponse(team, userId))
-                .collect(Collectors.toList());
+        return convertToTeamResponses(teams, userId);
     }
     
     @Override
     public List<TeamResponse> getCreatedTeams(Long userId) {
         List<StudyTeam> teams = teamMapper.selectByCreatorId(userId);
-        return teams.stream()
-                .map(team -> convertToTeamResponse(team, userId))
-                .collect(Collectors.toList());
+        return convertToTeamResponses(teams, userId);
     }
     
     @Override
     public List<TeamResponse> getRecommendTeams(Long userId) {
         List<StudyTeam> teams = teamMapper.selectRecommend(userId, 6);
-        return teams.stream()
-                .map(team -> convertToTeamResponse(team, userId))
-                .collect(Collectors.toList());
+        return convertToTeamResponses(teams, userId);
     }
     
     @Override
@@ -370,15 +372,35 @@ public class StudyTeamServiceImpl implements StudyTeamService {
     /**
      * 计算7日打卡率
      */
-    private Integer calculateCheckinRate(Long teamId) {
-        // TODO: 实现打卡率计算
-        return 0;
+    private Integer calculateCheckinRate(Long teamId, Integer memberCount) {
+        if (teamId == null || memberCount == null || memberCount <= 0) {
+            return 0;
+        }
+        LocalDate endDate = LocalDate.now();
+        LocalDate startDate = endDate.minusDays(6);
+        List<TeamValueStat> stats = checkinMapper.countRecentCheckinUsersByTeamIds(
+                Collections.singletonList(teamId), startDate, endDate);
+        if (stats.isEmpty()) {
+            return 0;
+        }
+        int totalActiveUsers = stats.get(0).getValue() != null ? stats.get(0).getValue() : 0;
+        return Math.min(100, totalActiveUsers * 100 / (memberCount * 7));
     }
     
     /**
      * 转换为响应DTO
      */
     private TeamResponse convertToTeamResponse(StudyTeam team, Long userId) {
+        return convertToTeamResponse(team, userId, Collections.emptyMap(), Collections.emptyMap(),
+                Collections.emptyMap(), Collections.emptyMap());
+    }
+
+    private TeamResponse convertToTeamResponse(StudyTeam team,
+                                               Long userId,
+                                               Map<Long, SimpleUserInfo> creatorMap,
+                                               Map<Long, Integer> roleMap,
+                                               Map<Long, Integer> checkinRateMap,
+                                               Map<Long, Integer> pendingApplicationMap) {
         TeamResponse response = new TeamResponse();
         response.setId(team.getId());
         response.setTeamName(team.getTeamName());
@@ -408,6 +430,9 @@ public class StudyTeamServiceImpl implements StudyTeamService {
         response.setGoalTitle(team.getGoalTitle());
         response.setGoalStartDate(team.getGoalStartDate());
         response.setGoalEndDate(team.getGoalEndDate());
+        response.setTotalCheckins(team.getTotalCheckins());
+        response.setTotalDiscussions(team.getTotalDiscussions());
+        response.setActiveDays(team.getActiveDays());
         
         // 计算目标进度
         if (team.getGoalStartDate() != null && team.getGoalEndDate() != null) {
@@ -419,11 +444,15 @@ public class StudyTeamServiceImpl implements StudyTeamService {
             }
         }
         
-        response.setCheckinRate(calculateCheckinRate(team.getId()));
+        Integer checkinRate = checkinRateMap.get(team.getId());
+        response.setCheckinRate(checkinRate != null ? checkinRate : calculateCheckinRate(team.getId(), team.getCurrentMembers()));
         response.setCreatorId(team.getCreatorId());
         
         // 创建者信息
-        SimpleUserInfo creator = userInfoApiService.getSimpleUserInfo(team.getCreatorId());
+        SimpleUserInfo creator = creatorMap.get(team.getCreatorId());
+        if (creator == null && team.getCreatorId() != null) {
+            creator = userInfoApiService.getSimpleUserInfo(team.getCreatorId());
+        }
         if (creator != null) {
             response.setCreatorName(creator.getDisplayName());
             response.setCreatorAvatar(creator.getAvatar());
@@ -439,11 +468,117 @@ public class StudyTeamServiceImpl implements StudyTeamService {
         
         // 当前用户角色
         if (userId != null) {
-            Integer myRole = memberMapper.selectRole(team.getId(), userId);
+            Integer myRole = roleMap.containsKey(team.getId()) ? roleMap.get(team.getId()) : memberMapper.selectRole(team.getId(), userId);
             response.setJoined(myRole != null);
             response.setMyRole(myRole);
         }
+
+        if (team.getId() != null && team.getCreatorId() != null && team.getCreatorId().equals(userId)) {
+            if (pendingApplicationMap.containsKey(team.getId())) {
+                response.setPendingApplications(pendingApplicationMap.get(team.getId()));
+            } else {
+                response.setPendingApplications(applicationMapper.countPendingByTeamId(team.getId()));
+            }
+        }
         
         return response;
+    }
+
+    private List<TeamResponse> convertToTeamResponses(List<StudyTeam> teams, Long userId) {
+        if (teams == null || teams.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<Long> creatorIds = teams.stream()
+                .map(StudyTeam::getCreatorId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Long, SimpleUserInfo> creatorMap = creatorIds.isEmpty()
+                ? Collections.emptyMap()
+                : userInfoApiService.getSimpleUserInfoBatch(creatorIds);
+
+        Map<Long, Integer> roleMap = new HashMap<>();
+        if (userId != null) {
+            List<Long> teamIds = teams.stream()
+                    .map(StudyTeam::getId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            List<StudyTeamMember> memberships = memberMapper.selectActiveByUserIdAndTeamIds(userId, teamIds);
+            for (StudyTeamMember membership : memberships) {
+                roleMap.put(membership.getTeamId(), membership.getRole());
+            }
+        }
+
+        Map<Long, Integer> checkinRateMap = buildCheckinRateMap(teams);
+        Map<Long, Integer> pendingApplicationMap = buildPendingApplicationMap(teams, userId);
+        return teams.stream()
+                .map(team -> convertToTeamResponse(team, userId, creatorMap, roleMap, checkinRateMap, pendingApplicationMap))
+                .collect(Collectors.toList());
+    }
+
+    private Map<Long, Integer> buildPendingApplicationMap(List<StudyTeam> teams, Long userId) {
+        if (teams == null || teams.isEmpty() || userId == null) {
+            return Collections.emptyMap();
+        }
+        List<Long> ownedTeamIds = teams.stream()
+                .filter(team -> team.getId() != null && userId.equals(team.getCreatorId()))
+                .map(StudyTeam::getId)
+                .collect(Collectors.toList());
+        if (ownedTeamIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<Long, Integer> pendingMap = applicationMapper.countPendingByTeamIds(ownedTeamIds).stream()
+                .filter(stat -> stat.getTeamId() != null)
+                .collect(Collectors.toMap(TeamValueStat::getTeamId,
+                        stat -> stat.getValue() != null ? stat.getValue() : 0,
+                        (left, right) -> left));
+        for (Long teamId : ownedTeamIds) {
+            pendingMap.putIfAbsent(teamId, 0);
+        }
+        return pendingMap;
+    }
+
+    private Map<Long, Integer> buildCheckinRateMap(List<StudyTeam> teams) {
+        if (teams == null || teams.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<Long> teamIds = teams.stream()
+                .map(StudyTeam::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        if (teamIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        LocalDate endDate = LocalDate.now();
+        LocalDate startDate = endDate.minusDays(6);
+        Map<Long, Integer> memberCountMap = teams.stream()
+                .filter(team -> team.getId() != null)
+                .collect(Collectors.toMap(StudyTeam::getId,
+                        team -> team.getCurrentMembers() != null ? team.getCurrentMembers() : 0,
+                        (left, right) -> left));
+        Map<Long, Integer> rateMap = new HashMap<>();
+        List<TeamValueStat> stats = checkinMapper.countRecentCheckinUsersByTeamIds(teamIds, startDate, endDate);
+        Set<Long> statTeamIds = stats.stream()
+                .map(TeamValueStat::getTeamId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        for (TeamValueStat stat : stats) {
+            Long teamId = stat.getTeamId();
+            int memberCount = memberCountMap.getOrDefault(teamId, 0);
+            if (teamId != null) {
+                if (memberCount <= 0) {
+                    rateMap.put(teamId, 0);
+                } else {
+                    int totalActiveUsers = stat.getValue() != null ? stat.getValue() : 0;
+                    rateMap.put(teamId, Math.min(100, totalActiveUsers * 100 / (memberCount * 7)));
+                }
+            }
+        }
+        for (Long teamId : teamIds) {
+            if (!statTeamIds.contains(teamId)) {
+                rateMap.put(teamId, 0);
+            }
+        }
+        return rateMap;
     }
 }

@@ -59,11 +59,31 @@ public interface StudyTeamMapper {
      * 更新打卡次数
      */
     int incrementCheckinCount(@Param("id") Long id);
+
+    /**
+     * 减少打卡次数
+     */
+    int decrementCheckinCount(@Param("id") Long id);
+
+    /**
+     * 增加活跃天数
+     */
+    int incrementActiveDays(@Param("id") Long id);
+
+    /**
+     * 减少活跃天数
+     */
+    int decrementActiveDays(@Param("id") Long id);
     
     /**
      * 更新讨论数
      */
     int incrementDiscussionCount(@Param("id") Long id);
+
+    /**
+     * 减少讨论数
+     */
+    int decrementDiscussionCount(@Param("id") Long id);
     
     /**
      * 根据邀请码查询

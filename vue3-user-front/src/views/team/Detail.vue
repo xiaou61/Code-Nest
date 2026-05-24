@@ -7,7 +7,7 @@
           <el-icon><ArrowLeft /></el-icon>
           返回
         </el-button>
-        
+
         <div class="team-avatar">
           <img v-if="team.teamAvatar" :src="team.teamAvatar" />
           <span v-else class="avatar-text">{{ team.teamName?.charAt(0) || '组' }}</span>
@@ -15,7 +15,7 @@
             {{ getTypeText(team.teamType) }}
           </span>
         </div>
-        
+
         <div class="team-info">
           <h1 class="team-name">{{ team.teamName }}</h1>
           <p class="team-desc">{{ team.teamDesc || '暂无简介' }}</p>
@@ -33,7 +33,7 @@
             </span>
           </div>
         </div>
-        
+
         <div class="team-actions">
           <template v-if="!team.joined">
             <el-button type="primary" @click="handleJoin" :loading="joining">
@@ -132,12 +132,13 @@
           <div class="content-card">
             <div class="card-header">
               <h3><el-icon><Calendar /></el-icon>今日任务</h3>
-              <el-button v-if="isAdmin" size="small" type="primary" @click="showTaskForm = true">
+              <el-button v-if="isAdmin" size="small" type="primary" @click="openTaskCreate">
                 <el-icon><Plus /></el-icon>创建任务
               </el-button>
             </div>
-            <TaskList 
-              :team-id="teamId" 
+            <TaskList
+              ref="overviewTaskListRef"
+              :team-id="teamId"
               :is-admin="isAdmin"
               @checkin="openCheckinDialog"
             />
@@ -148,15 +149,22 @@
             <div class="card-header">
               <h3><el-icon><Timer /></el-icon>最近打卡</h3>
             </div>
-            <CheckinList :team-id="teamId" :limit="5" />
+            <CheckinList ref="overviewCheckinListRef" :team-id="teamId" :limit="5" />
+          </div>
+
+          <div class="content-card full-width">
+            <div class="card-header">
+              <h3><el-icon><Trophy /></el-icon>小组统计</h3>
+            </div>
+            <TeamStats :team-id="teamId" />
           </div>
         </div>
       </div>
 
       <!-- 成员 -->
       <div v-if="activeTab === 'members'" class="members-content">
-        <MemberList 
-          :team-id="teamId" 
+        <MemberList
+          :team-id="teamId"
           :is-admin="isAdmin"
           :is-leader="isLeader"
           :current-user-id="currentUserId"
@@ -182,11 +190,12 @@
             去打卡
           </el-button>
         </div>
-        
+
         <div class="tasks-section">
           <h3>打卡任务</h3>
-          <TaskList 
-            :team-id="teamId" 
+          <TaskList
+            ref="allTaskListRef"
+            :team-id="teamId"
             :is-admin="isAdmin"
             show-all
             @checkin="openCheckinDialog"
@@ -196,7 +205,7 @@
 
         <div class="checkin-feed-section">
           <h3>打卡动态</h3>
-          <CheckinList :team-id="teamId" />
+          <CheckinList ref="allCheckinListRef" :team-id="teamId" />
         </div>
       </div>
 
@@ -214,15 +223,16 @@
             发布讨论
           </el-button>
         </div>
-        <DiscussionList 
-          :team-id="teamId" 
+        <DiscussionList
+          ref="discussionListRef"
+          :team-id="teamId"
           :is-admin="isAdmin"
         />
       </div>
     </div>
 
     <!-- 打卡弹窗 -->
-    <CheckinDialog 
+    <CheckinDialog
       v-model="showCheckinDialog"
       :team-id="teamId"
       :task="checkinTask"
@@ -230,7 +240,7 @@
     />
 
     <!-- 任务创建弹窗 -->
-    <TaskFormDialog 
+    <TaskFormDialog
       v-model="showTaskForm"
       :team-id="teamId"
       :task-data="editingTask"
@@ -238,7 +248,7 @@
     />
 
     <!-- 讨论发布弹窗 -->
-    <DiscussionFormDialog 
+    <DiscussionFormDialog
       v-model="showDiscussionForm"
       :team-id="teamId"
       @success="onDiscussionPosted"
@@ -270,9 +280,9 @@
     <el-dialog v-model="showApplyDialog" title="申请加入" width="400px">
       <el-form>
         <el-form-item label="申请理由">
-          <el-input 
-            v-model="applyReason" 
-            type="textarea" 
+          <el-input
+            v-model="applyReason"
+            type="textarea"
             :rows="3"
             placeholder="简单介绍一下自己"
             maxlength="200"
@@ -292,8 +302,8 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  ArrowLeft, User, Calendar, Edit, Share, Aim, HomeFilled, 
+import {
+  ArrowLeft, User, Calendar, Edit, Share, Aim, HomeFilled,
   Check, Trophy, ChatDotRound, Plus, Timer, DocumentCopy, Refresh
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
@@ -306,6 +316,7 @@ import RankBoard from './components/RankBoard.vue'
 import DiscussionList from './components/DiscussionList.vue'
 import DiscussionFormDialog from './components/DiscussionFormDialog.vue'
 import MemberList from './components/MemberList.vue'
+import TeamStats from './components/TeamStats.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -334,6 +345,11 @@ const myTotal = ref(0)
 // 打卡弹窗
 const showCheckinDialog = ref(false)
 const checkinTask = ref(null)
+const overviewTaskListRef = ref()
+const allTaskListRef = ref()
+const overviewCheckinListRef = ref()
+const allCheckinListRef = ref()
+const discussionListRef = ref()
 
 // 任务弹窗
 const showTaskForm = ref(false)
@@ -369,7 +385,7 @@ const loadTeamDetail = async () => {
   try {
     const response = await teamApi.getTeamDetail(teamId.value)
     team.value = response || {}
-    
+
     // 如果是成员，加载打卡统计
     if (team.value.isMember) {
       loadMyStats()
@@ -485,10 +501,19 @@ const openCheckinDialog = (task) => {
   showCheckinDialog.value = true
 }
 
+const openTaskCreate = () => {
+  editingTask.value = null
+  showTaskForm.value = true
+}
+
 // 打卡成功
 const onCheckinSuccess = () => {
   loadMyStats()
   loadTeamDetail()
+  overviewTaskListRef.value?.loadTasks?.()
+  allTaskListRef.value?.loadTasks?.()
+  overviewCheckinListRef.value?.loadCheckins?.()
+  allCheckinListRef.value?.loadCheckins?.()
 }
 
 // 编辑任务
@@ -500,11 +525,15 @@ const editTask = (task) => {
 // 任务保存成功
 const onTaskSaved = () => {
   editingTask.value = null
+  overviewTaskListRef.value?.loadTasks?.()
+  allTaskListRef.value?.loadTasks?.()
+  loadTeamDetail()
 }
 
 // 讨论发布成功
 const onDiscussionPosted = () => {
-  // 刷新讨论列表
+  discussionListRef.value?.loadDiscussions?.()
+  loadTeamDetail()
 }
 
 // 工具函数
@@ -538,7 +567,7 @@ const goToEdit = () => router.push(`/team/${teamId.value}/edit`)
   padding: 24px 32px;
   background: #f5f7fa;
   min-height: calc(100vh - 60px);
-  
+
   @media (max-width: 768px) {
     padding: 16px;
   }
@@ -559,7 +588,7 @@ const goToEdit = () => router.push(`/team/${teamId.value}/edit`)
   gap: 20px;
   margin-bottom: 20px;
   position: relative;
-  
+
   .back-btn {
     position: absolute;
     top: -8px;
@@ -576,13 +605,13 @@ const goToEdit = () => router.push(`/team/${teamId.value}/edit`)
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   flex-shrink: 0;
   margin-left: 40px;
-  
+
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
   }
-  
+
   .avatar-text {
     display: flex;
     align-items: center;
@@ -593,7 +622,7 @@ const goToEdit = () => router.push(`/team/${teamId.value}/edit`)
     font-weight: bold;
     color: white;
   }
-  
+
   .type-badge {
     position: absolute;
     bottom: -4px;
@@ -603,7 +632,7 @@ const goToEdit = () => router.push(`/team/${teamId.value}/edit`)
     font-size: 11px;
     border-radius: 10px;
     white-space: nowrap;
-    
+
     &.type-goal { background: #e8f4fd; color: #409eff; }
     &.type-study { background: #f0f9eb; color: #67c23a; }
     &.type-checkin { background: #fdf2e9; color: #e6a23c; }
@@ -613,27 +642,27 @@ const goToEdit = () => router.push(`/team/${teamId.value}/edit`)
 .team-info {
   flex: 1;
   min-width: 0;
-  
+
   .team-name {
     font-size: 22px;
     font-weight: 600;
     color: #333;
     margin: 0 0 8px 0;
   }
-  
+
   .team-desc {
     font-size: 14px;
     color: #666;
     margin: 0 0 12px 0;
     line-height: 1.5;
   }
-  
+
   .team-meta {
     display: flex;
     flex-wrap: wrap;
     gap: 16px;
     align-items: center;
-    
+
     .meta-item {
       display: flex;
       align-items: center;
@@ -641,11 +670,11 @@ const goToEdit = () => router.push(`/team/${teamId.value}/edit`)
       font-size: 13px;
       color: #999;
     }
-    
+
     .meta-tags {
       display: flex;
       gap: 6px;
-      
+
       .tag {
         padding: 2px 8px;
         background: #f5f7fa;
@@ -669,30 +698,30 @@ const goToEdit = () => router.push(`/team/${teamId.value}/edit`)
   background: #f8f9fc;
   border-radius: 12px;
   margin-bottom: 20px;
-  
+
   .goal-header {
     display: flex;
     align-items: center;
     gap: 8px;
     margin-bottom: 8px;
-    
+
     .el-icon {
       color: #409eff;
     }
-    
+
     .goal-title {
       font-size: 15px;
       font-weight: 600;
       color: #333;
     }
   }
-  
+
   .goal-desc {
     font-size: 14px;
     color: #666;
     margin: 0 0 8px 0;
   }
-  
+
   .goal-meta {
     font-size: 12px;
     color: #999;
@@ -706,23 +735,23 @@ const goToEdit = () => router.push(`/team/${teamId.value}/edit`)
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
-  
+
   @media (max-width: 600px) {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .stat-item {
     text-align: center;
     padding: 16px;
     background: #f8f9fc;
     border-radius: 12px;
-    
+
     .stat-value {
       font-size: 24px;
       font-weight: bold;
       color: #409eff;
     }
-    
+
     .stat-label {
       font-size: 13px;
       color: #999;
@@ -738,7 +767,7 @@ const goToEdit = () => router.push(`/team/${teamId.value}/edit`)
   padding: 0 20px;
   margin-bottom: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  
+
   :deep(.el-tabs__header) {
     margin: 0;
   }
@@ -761,7 +790,7 @@ const goToEdit = () => router.push(`/team/${teamId.value}/edit`)
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 24px;
-    
+
     @media (max-width: 900px) {
       grid-template-columns: 1fr;
     }
@@ -773,13 +802,17 @@ const goToEdit = () => router.push(`/team/${teamId.value}/edit`)
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  
+
+  &.full-width {
+    grid-column: 1 / -1;
+  }
+
   .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 16px;
-    
+
     h3 {
       display: flex;
       align-items: center;
@@ -788,7 +821,7 @@ const goToEdit = () => router.push(`/team/${teamId.value}/edit`)
       font-weight: 600;
       color: #333;
       margin: 0;
-      
+
       .el-icon {
         color: #409eff;
       }
@@ -808,34 +841,34 @@ const goToEdit = () => router.push(`/team/${teamId.value}/edit`)
     margin-bottom: 24px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   }
-  
+
   .checkin-stats {
     display: flex;
     gap: 32px;
-    
+
     .stat {
       text-align: center;
-      
+
       .stat-num {
         font-size: 28px;
         font-weight: bold;
         color: #409eff;
       }
-      
+
       .stat-text {
         font-size: 13px;
         color: #999;
       }
     }
   }
-  
+
   .tasks-section, .checkin-feed-section {
     background: white;
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 24px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    
+
     h3 {
       font-size: 16px;
       font-weight: 600;
@@ -867,13 +900,13 @@ const goToEdit = () => router.push(`/team/${teamId.value}/edit`)
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  
+
   .discussion-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
-    
+
     h3 {
       font-size: 16px;
       font-weight: 600;
@@ -886,7 +919,7 @@ const goToEdit = () => router.push(`/team/${teamId.value}/edit`)
 // 邀请码弹窗
 .invite-dialog-content {
   text-align: center;
-  
+
   .invite-code-box {
     display: flex;
     align-items: center;
@@ -896,7 +929,7 @@ const goToEdit = () => router.push(`/team/${teamId.value}/edit`)
     background: #f5f7fa;
     border-radius: 8px;
     margin-bottom: 16px;
-    
+
     .invite-code {
       font-size: 24px;
       font-weight: bold;
@@ -904,11 +937,11 @@ const goToEdit = () => router.push(`/team/${teamId.value}/edit`)
       letter-spacing: 2px;
     }
   }
-  
+
   .invite-actions {
     margin-bottom: 16px;
   }
-  
+
   .invite-tip {
     font-size: 13px;
     color: #999;

@@ -2,6 +2,7 @@ package com.xiaou.team.service.impl;
 
 import com.xiaou.team.domain.StudyTeamMember;
 import com.xiaou.team.dto.RankResponse;
+import com.xiaou.team.dto.UserValueStat;
 import com.xiaou.team.enums.MemberRole;
 import com.xiaou.team.mapper.StudyTeamCheckinMapper;
 import com.xiaou.team.mapper.StudyTeamMemberMapper;
@@ -15,8 +16,11 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -55,6 +59,10 @@ public class TeamRankServiceImpl implements TeamRankService {
         }
         
         List<RankResponse> ranks = new ArrayList<>();
+        List<Long> userIds = members.stream().map(StudyTeamMember::getUserId).collect(Collectors.toList());
+        Map<Long, Integer> rangedCheckinMap = startDate == null
+                ? Collections.emptyMap()
+                : toValueMap(checkinMapper.countUserCheckinsByDateRange(teamId, userIds, startDate, endDate));
         
         for (StudyTeamMember member : members) {
             RankResponse rank = new RankResponse();
@@ -64,7 +72,7 @@ public class TeamRankServiceImpl implements TeamRankService {
             // 统计打卡次数
             Integer checkins;
             if (startDate != null) {
-                checkins = countUserCheckins(member.getUserId(), teamId, startDate, endDate);
+                checkins = rangedCheckinMap.getOrDefault(member.getUserId(), 0);
             } else {
                 checkins = member.getTotalCheckins() != null ? member.getTotalCheckins() : 0;
             }
@@ -137,6 +145,8 @@ public class TeamRankServiceImpl implements TeamRankService {
         }
         
         List<RankResponse> ranks = new ArrayList<>();
+        List<Long> userIds = members.stream().map(StudyTeamMember::getUserId).collect(Collectors.toList());
+        Map<Long, Integer> durationMap = toValueMap(checkinMapper.sumUserDurationByDateRange(teamId, userIds, startDate, endDate));
         
         for (StudyTeamMember member : members) {
             RankResponse rank = new RankResponse();
@@ -144,7 +154,7 @@ public class TeamRankServiceImpl implements TeamRankService {
             rank.setRole(member.getRole());
             
             // 统计学习时长
-            Integer duration = countUserDuration(member.getUserId(), teamId, startDate, endDate);
+            Integer duration = durationMap.getOrDefault(member.getUserId(), 0);
             rank.setTotalDuration(duration);
             rank.setTotalCheckins(member.getTotalCheckins());
             
@@ -211,25 +221,6 @@ public class TeamRankServiceImpl implements TeamRankService {
     }
     
     /**
-     * 统计用户打卡次数
-     */
-    private Integer countUserCheckins(Long userId, Long teamId, LocalDate startDate, LocalDate endDate) {
-        // 通过checkinMapper统计
-        List<Long> userIds = checkinMapper.selectCheckinUserIds(teamId, null, startDate);
-        // 简化实现：返回成员表中的总打卡数
-        StudyTeamMember member = memberMapper.selectByTeamIdAndUserId(teamId, userId);
-        return member != null ? member.getTotalCheckins() : 0;
-    }
-    
-    /**
-     * 统计用户学习时长
-     */
-    private Integer countUserDuration(Long userId, Long teamId, LocalDate startDate, LocalDate endDate) {
-        // 简化实现
-        return 0;
-    }
-    
-    /**
      * 填充排名信息
      */
     private void fillRankInfo(List<RankResponse> ranks, Long userId, Integer limit) {
@@ -262,5 +253,18 @@ public class TeamRankServiceImpl implements TeamRankService {
         if (limit != null && ranks.size() > limit) {
             ranks.subList(limit, ranks.size()).clear();
         }
+    }
+
+    private Map<Long, Integer> toValueMap(List<UserValueStat> stats) {
+        if (stats == null || stats.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<Long, Integer> map = new HashMap<>();
+        for (UserValueStat stat : stats) {
+            if (stat.getUserId() != null) {
+                map.put(stat.getUserId(), stat.getValue() != null ? stat.getValue() : 0);
+            }
+        }
+        return map;
     }
 }

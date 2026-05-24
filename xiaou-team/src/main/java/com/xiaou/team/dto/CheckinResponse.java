@@ -80,6 +80,11 @@ public class CheckinResponse {
      * 图片JSON字符串（用于MyBatis映射）
      */
     private String images;
+
+    /**
+     * 学习时长（分钟）
+     */
+    private Integer duration;
     
     /**
      * 心得感悟
@@ -116,4 +121,19 @@ public class CheckinResponse {
      * 相对时间（如：刚刚、5分钟前）
      */
     private String relativeTime;
+
+    public String getCheckinContent() {
+        return content;
+    }
+
+    public Boolean getIsLiked() {
+        return liked;
+    }
+
+    public String getImages() {
+        if (imageList != null && !imageList.isEmpty()) {
+            return String.join(",", imageList);
+        }
+        return images;
+    }
 }

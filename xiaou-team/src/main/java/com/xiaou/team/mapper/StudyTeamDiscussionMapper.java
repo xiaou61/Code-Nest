@@ -82,6 +82,11 @@ public interface StudyTeamDiscussionMapper {
      * @return 数量
      */
     Integer countDiscussions(@Param("teamId") Long teamId, @Param("category") Integer category);
+
+    /**
+     * 统计某日新增讨论数
+     */
+    Integer countDiscussionsByDate(@Param("teamId") Long teamId, @Param("date") java.time.LocalDate date);
     
     /**
      * 增加浏览量

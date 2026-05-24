@@ -25,9 +25,10 @@
             <div class="task-title">{{ task.taskName }}</div>
             <div class="task-desc" v-if="task.taskDesc">{{ task.taskDesc }}</div>
             <div class="task-meta">
-              <span v-if="task.taskType === 1" class="meta-tag daily">每日</span>
-              <span v-else-if="task.taskType === 2" class="meta-tag weekly">每周</span>
+              <span v-if="task.repeatType === 1" class="meta-tag daily">每日</span>
+              <span v-else-if="task.repeatType === 2" class="meta-tag weekly">工作日</span>
               <span v-else class="meta-tag once">单次</span>
+              <span class="task-type">{{ task.taskTypeName || '自定义任务' }}</span>
               <span class="checkin-count">
                 <el-icon><Check /></el-icon>
                 {{ task.checkinCount || 0 }}人已打卡
@@ -107,8 +108,8 @@ const loadTasks = async () => {
     let response
     if (props.showAll) {
       response = await teamApi.getTaskList(props.teamId, { pageNum: pageNum.value, pageSize: 10 })
-      tasks.value = response.records || response || []
-      hasMore.value = response.records?.length === 10
+      tasks.value = response || []
+      hasMore.value = false
     } else {
       response = await teamApi.getTodayTasks(props.teamId)
       tasks.value = response || []
@@ -125,9 +126,9 @@ const loadMore = async () => {
   pageNum.value++
   try {
     const response = await teamApi.getTaskList(props.teamId, { pageNum: pageNum.value, pageSize: 10 })
-    const newTasks = response.records || response || []
+    const newTasks = response || []
     tasks.value = [...tasks.value, ...newTasks]
-    hasMore.value = newTasks.length === 10
+    hasMore.value = false
   } catch (error) {
     console.error('加载更多失败:', error)
     pageNum.value--
@@ -149,7 +150,7 @@ const handleEdit = (task) => {
 const handleToggleStatus = async (task) => {
   const newStatus = task.status === 1 ? 2 : 1
   try {
-    await teamApi.setTaskStatus(props.teamId, task.id, newStatus)
+    await teamApi.setTaskStatus(task.id, newStatus)
     ElMessage.success(newStatus === 1 ? '任务已启用' : '任务已暂停')
     loadTasks()
   } catch (error) {
@@ -164,7 +165,7 @@ const handleDelete = async (task) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    await teamApi.deleteTask(props.teamId, task.id)
+    await teamApi.deleteTask(task.id)
     ElMessage.success('删除成功')
     loadTasks()
   } catch (error) {
@@ -277,6 +278,11 @@ defineExpose({ loadTasks })
       gap: 3px;
       font-size: 12px;
       color: #999;
+    }
+
+    .task-type {
+      font-size: 12px;
+      color: #666;
     }
   }
 }
