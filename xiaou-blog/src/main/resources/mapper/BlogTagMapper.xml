@@ -35,6 +35,7 @@
         UPDATE blog_tag
         <set>
             <if test="tagName != null">tag_name = #{tagName},</if>
+            <if test="useCount != null">use_count = #{useCount},</if>
             update_time = NOW()
         </set>
         WHERE id = #{id}

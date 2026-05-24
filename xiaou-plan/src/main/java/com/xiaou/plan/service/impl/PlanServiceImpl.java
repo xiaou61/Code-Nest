@@ -65,7 +65,7 @@ public class PlanServiceImpl implements PlanService {
         plan.setUserId(userId);
         plan.setPlanName(request.getPlanName());
         plan.setPlanDesc(request.getPlanDesc());
-        plan.setPlanType(request.getPlanType());
+        plan.setPlanType(normalizePlanTypeCode(request.getPlanType()));
         plan.setTargetType(request.getTargetType() != null ? request.getTargetType() : 1);
         plan.setTargetValue(request.getTargetValue() != null ? request.getTargetValue() : 1);
         plan.setTargetUnit(request.getTargetUnit() != null ? request.getTargetUnit() : "次");
@@ -73,7 +73,7 @@ public class PlanServiceImpl implements PlanService {
         plan.setEndDate(request.getEndDate());
         plan.setDailyStartTime(request.getDailyStartTime());
         plan.setDailyEndTime(request.getDailyEndTime());
-        plan.setRepeatType(request.getRepeatType() != null ? request.getRepeatType() : 1);
+        plan.setRepeatType(normalizeRepeatTypeCode(request.getRepeatType(), request.getRepeatDays()));
         plan.setRepeatDays(request.getRepeatDays());
         plan.setRemindBefore(request.getRemindBefore() != null ? request.getRemindBefore() : 30);
         plan.setRemindDeadline(request.getRemindDeadline() != null ? request.getRemindDeadline() : 10);
@@ -105,7 +105,7 @@ public class PlanServiceImpl implements PlanService {
         }
         plan.setPlanDesc(request.getPlanDesc());
         if (request.getPlanType() != null) {
-            plan.setPlanType(request.getPlanType());
+            plan.setPlanType(normalizePlanTypeCode(request.getPlanType()));
         }
         if (request.getTargetType() != null) {
             plan.setTargetType(request.getTargetType());
@@ -123,7 +123,7 @@ public class PlanServiceImpl implements PlanService {
         plan.setDailyStartTime(request.getDailyStartTime());
         plan.setDailyEndTime(request.getDailyEndTime());
         if (request.getRepeatType() != null) {
-            plan.setRepeatType(request.getRepeatType());
+            plan.setRepeatType(normalizeRepeatTypeCode(request.getRepeatType(), request.getRepeatDays()));
         }
         plan.setRepeatDays(request.getRepeatDays());
         if (request.getRemindBefore() != null) {
@@ -246,12 +246,13 @@ public class PlanServiceImpl implements PlanService {
                 }
             }
             
-            PlanType planType = PlanType.fromCode(plan.getPlanType());
+            Integer normalizedPlanType = normalizePlanTypeCode(plan.getPlanType());
+            PlanType planType = PlanType.fromCode(normalizedPlanType);
             
             tasks.add(TodayTaskResponse.builder()
                     .planId(plan.getId())
                     .planName(plan.getPlanName())
-                    .planType(plan.getPlanType())
+                    .planType(normalizedPlanType)
                     .planTypeDesc(planType.getDesc())
                     .planTypeIcon(planType.getIcon())
                     .targetValue(plan.getTargetValue())
@@ -379,7 +380,7 @@ public class PlanServiceImpl implements PlanService {
      * 判断今天是否需要打卡
      */
     private boolean shouldCheckinToday(UserPlan plan, LocalDate today) {
-        int repeatType = plan.getRepeatType();
+        int repeatType = normalizeRepeatTypeCode(plan.getRepeatType(), plan.getRepeatDays());
         DayOfWeek dayOfWeek = today.getDayOfWeek();
         
         switch (repeatType) {
@@ -437,9 +438,11 @@ public class PlanServiceImpl implements PlanService {
      * 转换为响应DTO
      */
     private PlanResponse convertToPlanResponse(UserPlan plan, LocalDate today) {
-        PlanType planType = PlanType.fromCode(plan.getPlanType());
+        Integer normalizedPlanType = normalizePlanTypeCode(plan.getPlanType());
+        Integer normalizedRepeatType = normalizeRepeatTypeCode(plan.getRepeatType(), plan.getRepeatDays());
+        PlanType planType = PlanType.fromCode(normalizedPlanType);
         PlanStatus status = PlanStatus.fromCode(plan.getStatus());
-        RepeatType repeatType = RepeatType.fromCode(plan.getRepeatType());
+        RepeatType repeatType = RepeatType.fromCode(normalizedRepeatType);
         
         // 检查今天是否已打卡
         PlanCheckinRecord todayRecord = checkinRecordMapper.selectByPlanIdAndDate(plan.getId(), today);
@@ -465,7 +468,7 @@ public class PlanServiceImpl implements PlanService {
                 .userId(plan.getUserId())
                 .planName(plan.getPlanName())
                 .planDesc(plan.getPlanDesc())
-                .planType(plan.getPlanType())
+                .planType(normalizedPlanType)
                 .planTypeDesc(planType.getDesc())
                 .planTypeIcon(planType.getIcon())
                 .targetType(plan.getTargetType())
@@ -475,7 +478,7 @@ public class PlanServiceImpl implements PlanService {
                 .endDate(plan.getEndDate())
                 .dailyStartTime(plan.getDailyStartTime())
                 .dailyEndTime(plan.getDailyEndTime())
-                .repeatType(plan.getRepeatType())
+                .repeatType(normalizedRepeatType)
                 .repeatTypeDesc(repeatType.getDesc())
                 .repeatDays(plan.getRepeatDays())
                 .remindBefore(plan.getRemindBefore())
@@ -492,5 +495,22 @@ public class PlanServiceImpl implements PlanService {
                 .createTime(plan.getCreateTime())
                 .updateTime(plan.getUpdateTime())
                 .build();
+    }
+
+    private Integer normalizePlanTypeCode(Integer planType) {
+        if (planType == null) {
+            return null;
+        }
+        return planType == 99 ? PlanType.CUSTOM.getCode() : planType;
+    }
+
+    private Integer normalizeRepeatTypeCode(Integer repeatType, String repeatDays) {
+        if (repeatType == null) {
+            return null;
+        }
+        if (repeatType == 3 && StrUtil.isNotBlank(repeatDays)) {
+            return RepeatType.CUSTOM.getCode();
+        }
+        return repeatType;
     }
 }

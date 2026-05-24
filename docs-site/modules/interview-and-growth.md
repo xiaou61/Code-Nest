@@ -1,12 +1,12 @@
 # 题库与成长闭环
 
-题库与成长闭环把面试题、OJ、模拟面试、求职作战台、学习资产、闪卡、计划、学习小组、知识图谱和积分串在一起。它的目标不是堆功能，而是让用户从“看内容”走向“有目标、有反馈、有复习、有沉淀”的能力提升。
+题库与成长闭环把面试题、OJ、模拟面试、求职作战台、学习资产、闪卡、计划、学习小组、知识图谱和积分串在一起。它的目标不是堆功能，而是让用户从"看内容"走向"有目标、有反馈、有复习、有沉淀"的能力提升。
 
 如果你是第一次学习 Code Nest 的业务，可以先读这篇导览，再进入每个模块的详细文档。
 
 ## 推荐学习顺序
 
-这篇是学习成长域的总入口，建议按“内容 -> 练习 -> 反馈 -> 复习 -> 计划”的顺序读：
+这篇是学习成长域的总入口，建议按"内容 -> 练习 -> 反馈 -> 复习 -> 计划"的顺序读：
 
 1. 先读面试题库，理解最基础的题目、题单、掌握度和复习记录。
 2. 再读 OJ，理解代码提交如何变成可统计的 AC、排名和积分奖励。
@@ -16,18 +16,18 @@
 
 ## 源码地图
 
-| 能力 | 源码入口 |
-| --- | --- |
-| 学习驾驶舱 | `xiaou-application/src/main/java/com/xiaou/web/learning/controller/LearningCockpitController.java` |
-| 驾驶舱聚合服务 | `xiaou-application/src/main/java/com/xiaou/web/learning/service` |
-| 成长自动驾驶 | `xiaou-plan/src/main/java/com/xiaou/plan` |
-| 面试题库 | `xiaou-interview/src/main/java/com/xiaou/interview` |
-| OJ 判题 | `xiaou-oj/src/main/java/com/xiaou/oj` |
-| 模拟面试和 Career Loop | `xiaou-mock-interview/src/main/java/com/xiaou/mockinterview` |
-| 学习资产转化 | `xiaou-learning-asset/src/main/java/com/xiaou/learningasset` |
-| 闪卡学习 | `xiaou-flashcard/src/main/java/com/xiaou/flashcard` |
-| 知识图谱 | `xiaou-knowledge/src/main/java/com/xiaou/knowledge` |
-| 用户端路由 | `vue3-user-front/src/router/index.js` |
+| 能力 | 源码入口 | 关键类 |
+| --- | --- | --- |
+| 学习驾驶舱 | `xiaou-application/src/main/java/com/xiaou/web/learning` | LearningCockpitController、LearningCockpitService |
+| 成长自动驾驶 | `xiaou-plan/src/main/java/com/xiaou/plan` | UserGrowthAutopilotController |
+| 面试题库 | `xiaou-interview/src/main/java/com/xiaou/interview` | InterviewUserController、InterviewAdminController |
+| OJ 判题 | `xiaou-oj/src/main/java/com/xiaou/oj` | OjUserController、OjAdminController |
+| 模拟面试和 Career Loop | `xiaou-mock-interview/src/main/java/com/xiaou/mockinterview` | MockInterviewUserController |
+| 学习资产转化 | `xiaou-learning-asset/src/main/java/com/xiaou/learningasset` | LearningAssetUserController |
+| 闪卡学习 | `xiaou-flashcard/src/main/java/com/xiaou/flashcard` | FlashcardUserController |
+| 知识图谱 | `xiaou-knowledge/src/main/java/com/xiaou/knowledge` | KnowledgeMapController |
+| 计划 | `xiaou-plan/src/main/java/com/xiaou/plan` | UserPlanController |
+| 学习小组 | `xiaou-team/src/main/java/com/xiaou/team` | UserTeamController |
 
 ## 功能地图
 
@@ -36,9 +36,9 @@
 | 面试题库 | `/interview` | `/interview/*` | `xiaou-interview` | [面试题库](/modules/interview) |
 | OJ 判题 | `/oj/*` | `/oj/*` | `xiaou-oj` | [OJ 判题系统](/modules/oj) |
 | AI 模拟面试 | `/mock-interview/*` | `/mock-interview/*` | `xiaou-mock-interview`、`xiaou-ai` | [模拟面试与求职作战台](/modules/mock-interview-job-battle) |
-| 求职作战台 | `/job-battle`、`/job-match-engine` | `/system/ai-config`、`/system/ai-governance` | `xiaou-mock-interview`、`xiaou-ai` | [模拟面试与求职作战台](/modules/mock-interview-job-battle) |
+| 求职作战台 | `/job-battle` | AI 治理页面 | `xiaou-mock-interview`、`xiaou-ai` | [模拟面试与求职作战台](/modules/mock-interview-job-battle) |
 | Career Loop | `/career-loop` | AI 治理相关页面 | `xiaou-mock-interview` | [模拟面试与求职作战台](/modules/mock-interview-job-battle) |
-| 学习驾驶舱 | `/learning-cockpit` | 暂无独立后台 | `xiaou-application`、`xiaou-plan`、多个业务模块 | 本页 |
+| 学习驾驶舱 | `/learning-cockpit` | 暂无独立后台 | `xiaou-application` + 多个业务模块 | 本页 |
 | 成长自动驾驶 | `/learning-cockpit` 子视图 | 暂无独立后台 | `xiaou-plan` | [计划与学习小组](/modules/plan-team) |
 | 学习资产 | `/learning-assets` | `/learning-assets/*` | `xiaou-learning-asset` | [学习资产](/modules/learning-assets) |
 | 闪卡 | `/flashcard/*` | 后续可扩展审核 | `xiaou-flashcard` | [闪卡](/modules/flashcard) |
@@ -66,49 +66,49 @@
 
 ## 学习驾驶舱聚合了什么
 
-学习驾驶舱入口是 `/user/learning-cockpit/overview`，控制器位于 `xiaou-application/src/main/java/com/xiaou/web/learning/controller/LearningCockpitController.java`。
+学习驾驶舱入口是 `/user/learning-cockpit/overview`，控制器位于 `xiaou-application` 模块。
 
 `LearningCockpitService` 会聚合多个模块：
 
-| 来源 | 数据 |
-| --- | --- |
-| 计划 | 今日完成数、待完成数、本周打卡数 |
-| 积分 | 当前积分、今日是否签到、连续签到天数 |
-| 闪卡 | 今日学习、连续学习、近 21 天热力图 |
-| 面试题库 | 复习统计、年度热力图、总学习数 |
-| OJ | 提交/AC 统计、周榜、总榜 |
-| Career Loop | 当前求职阶段、行动项 |
-| 排名快照 | 本周排名和历史排名变化 |
+| 来源 | 数据 | 降级策略 |
+| --- | --- | --- |
+| 计划 | 今日完成数、待完成数、本周打卡数 | 默认 0 |
+| 积分 | 当前积分、今日是否签到、连续签到天数 | 默认 0 / false |
+| 闪卡 | 今日学习、连续学习、近 21 天热力图 | 默认空热力图 |
+| 面试题库 | 复习统计、年度热力图、总学习数 | 默认 0 |
+| OJ | 提交/AC 统计、周榜、总榜 | 默认空统计 |
+| Career Loop | 当前求职阶段、行动项 | 默认空 |
+| 排名快照 | 本周排名和历史排名变化 | 默认空 |
 
-服务里大量使用 `safeCall`。这意味着某个模块接口异常时，驾驶舱会用默认值降级，不会让整个概览页崩掉。这个设计适合聚合页：聚合页追求“尽量展示”，不能被单个模块拖死。
+服务里大量使用 `safeCall`。这意味着某个模块接口异常时，驾驶舱会用默认值降级，不会让整个概览页崩掉。这个设计适合聚合页：聚合页追求"尽量展示"，不能被单个模块拖死。
 
 ## 成长分怎么理解
 
-成长分不是简单的“积分”，而是学习行为的综合评分。当前口径主要来自：
+成长分不是简单的"积分"，而是学习行为的综合评分。当前口径主要来自：
 
-| 维度 | 含义 |
-| --- | --- |
-| 完成率 | 本周目标完成情况 |
-| 活跃天数 | 本周是否持续学习 |
-| 均衡性 | OJ、题库、闪卡、计划、积分是否过于偏科 |
-| 排名表现 | OJ 周榜、总榜和上周变化 |
-| 趋势 | 近几天活跃曲线 |
-| 风险扣分 | 逾期复习、计划未完成、排名下滑等 |
+| 维度 | 含义 | 权重方向 |
+| --- | --- | --- |
+| 完成率 | 本周目标完成情况 | 越高越好 |
+| 活跃天数 | 本周是否持续学习 | 越多越好 |
+| 均衡性 | OJ、题库、闪卡、计划、积分是否过于偏科 | 越均衡越好 |
+| 排名表现 | OJ 周榜、总榜和上周变化 | 上升加分 |
+| 趋势 | 近几天活跃曲线 | 上升趋势加分 |
+| 风险扣分 | 逾期复习、计划未完成、排名下滑等 | 每项扣分 |
 
-因此成长分适合用来回答“我这周学习状态怎么样”，不适合当作严格的业务结算分。
+因此成长分适合用来回答"我这周学习状态怎么样"，不适合当作严格的业务结算分。
 
 ## 成长自动驾驶
 
 成长自动驾驶在 `xiaou-plan` 模块，用户端 API 在 `/user/plan/autopilot/**`。
 
-| 能力 | 接口 |
-| --- | --- |
-| 查看仪表盘 | `GET /user/plan/autopilot/dashboard` |
-| 生成周计划 | `POST /user/plan/autopilot/generate` |
-| 重新规划 | `POST /user/plan/autopilot/replan` |
-| 完成单个任务 | `POST /user/plan/autopilot/tasks/{taskId}/complete` |
-| 完成今日任务 | `POST /user/plan/autopilot/tasks/today/complete` |
-| 推迟任务 | `POST /user/plan/autopilot/tasks/{taskId}/postpone` |
+| 能力 | 接口 | 方法 |
+| --- | --- | --- |
+| 查看仪表盘 | `/user/plan/autopilot/dashboard` | GET |
+| 生成周计划 | `/user/plan/autopilot/generate` | POST |
+| 重新规划 | `/user/plan/autopilot/replan` | POST |
+| 完成单个任务 | `/user/plan/autopilot/tasks/{taskId}/complete` | POST |
+| 完成今日任务 | `/user/plan/autopilot/tasks/today/complete` | POST |
+| 推迟任务 | `/user/plan/autopilot/tasks/{taskId}/postpone` | POST |
 
 它和普通计划的区别是：普通计划由用户自己写任务，自动驾驶会根据目标岗位、每周可投入时间和模块模板生成任务，再把任务状态推进为 `todo`、`done`、`missed`。
 
@@ -126,33 +126,6 @@
 | 学习资产 | 闪卡/知识图谱 | 审核后发布成可复习材料 |
 | Career Loop | 学习驾驶舱 | 求职阶段和行动项 |
 | 求职作战台 | Career Loop | JD、简历差距、行动计划 |
-
-## 推荐阅读顺序
-
-新同学读文档时，可以按这个顺序：
-
-1. [面试题库](/modules/interview)：先理解最基础的学习内容模型。
-2. [OJ 判题系统](/modules/oj)：理解代码能力如何被判题和统计。
-3. [模拟面试与求职作战台](/modules/mock-interview-job-battle)：理解 AI 如何参与问答和求职计划。
-4. [学习资产](/modules/learning-assets)：理解内容如何转成可复习资产。
-5. [闪卡](/modules/flashcard)：理解复习算法和卡片学习。
-6. [计划与学习小组](/modules/plan-team)：理解行为闭环和协作学习。
-7. [知识图谱](/modules/knowledge)：理解知识结构化沉淀。
-8. [AI Runtime](/modules/ai-runtime)：回头理解所有 AI 场景的治理底座。
-
-## 验证清单
-
-| 场景 | 目的 |
-| --- | --- |
-| 刷面试题并标记掌握度 | 验证题库、掌握度、每日统计 |
-| 做一次 OJ 提交 | 验证 OJ 统计和排名 |
-| 做一轮模拟面试 | 验证 AI 问答、报告、弱点识别 |
-| 从内容转学习资产 | 验证学习资产候选和审核 |
-| 学习闪卡 | 验证复习算法和热力图 |
-| 完成计划打卡 | 验证计划统计和成长驾驶舱 |
-| 创建学习小组并打卡 | 验证小组任务、打卡、排行 |
-| 打开学习驾驶舱 | 验证聚合降级和成长分 |
-| 生成成长自动驾驶计划 | 验证任务模板和周目标 |
 
 ## 常见设计取舍
 

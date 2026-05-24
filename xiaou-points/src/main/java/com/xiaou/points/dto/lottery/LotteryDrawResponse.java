@@ -23,6 +23,16 @@ public class LotteryDrawResponse {
      * 记录ID
      */
     private Long recordId;
+
+    /**
+     * 兼容前端的记录ID字段
+     */
+    private Long id;
+
+    /**
+     * 用户ID
+     */
+    private Long userId;
     
     /**
      * 奖品ID
@@ -63,6 +73,21 @@ public class LotteryDrawResponse {
      * 当前余额
      */
     private Integer currentBalance;
+
+    /**
+     * 抽奖策略
+     */
+    private String strategyType;
+
+    /**
+     * 抽奖IP
+     */
+    private String ip;
+
+    /**
+     * 抽奖设备
+     */
+    private String device;
     
     /**
      * 今日抽奖次数
@@ -94,5 +119,10 @@ public class LotteryDrawResponse {
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private LocalDateTime drawTime;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    public LocalDateTime getCreateTime() {
+        return drawTime;
+    }
 }
 

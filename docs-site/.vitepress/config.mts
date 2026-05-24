@@ -20,6 +20,9 @@ const guide = [
   { text: '功能开发流程', link: '/guide/feature-development' },
   { text: '常见二开场景', link: '/guide/extension-scenarios' },
   { text: '测试与回归', link: '/guide/testing-regression' },
+  { text: 'Git Log 版更新记录', link: '/guide/git-log-release-notes' },
+  { text: '版本公告与交接模板', link: '/guide/version-release-handoff-template' },
+  { text: '版本交付实战样例', link: '/guide/version-release-worked-examples' },
   { text: '权限与安全边界', link: '/guide/security-boundaries' },
   { text: '本地开发', link: '/guide/local-dev' },
   { text: '发布前验证', link: '/guide/release-verification' },
@@ -36,6 +39,7 @@ const architecture = [
 
 const modules = [
   { text: '模块总览', link: '/modules/' },
+  { text: '公共底座', link: '/modules/common' },
   { text: '鉴权与用户体系', link: '/modules/auth' },
   { text: '用户账户与个人中心', link: '/modules/user-account' },
   { text: 'AI Runtime', link: '/modules/ai-runtime' },
@@ -112,7 +116,7 @@ const manuals = [
 export default defineConfig({
   lang: 'zh-CN',
   title: 'Code Nest 文档',
-  description: 'Code Nest v2.2.0 独立文档站',
+  description: 'Code Nest v2.2.1 文档工作线',
   base: process.env.VITEPRESS_BASE || '/',
   cleanUrls: true,
   lastUpdated: true,
@@ -128,7 +132,7 @@ export default defineConfig({
       { text: '参考', link: '/reference/api-routes' },
       { text: '手册', link: '/manuals/user-operations' },
       { text: '运维', link: '/operations/docker' },
-      { text: 'v2.2.0 计划', link: '/roadmap/v2.2.0-docs-plan' }
+      { text: 'v2.2.1 计划', link: '/roadmap/v2.2.1-docs-plan' }
     ],
     sidebar: {
       '/guide/': [{ text: '使用指南', items: guide }],
@@ -140,7 +144,10 @@ export default defineConfig({
       '/roadmap/': [
         {
           text: '文档路线图',
-          items: [{ text: 'v2.2.0 文档计划', link: '/roadmap/v2.2.0-docs-plan' }]
+          items: [
+            { text: 'v2.2.1 文档计划', link: '/roadmap/v2.2.1-docs-plan' },
+            { text: 'v2.2.0 文档计划', link: '/roadmap/v2.2.0-docs-plan' }
+          ]
         }
       ]
     },
@@ -163,7 +170,7 @@ export default defineConfig({
       }
     },
     footer: {
-      message: 'Code Nest v2.2.0 documentation module.',
+      message: 'Code Nest v2.2.1 documentation workline.',
       copyright: 'MIT Licensed.'
     }
   }

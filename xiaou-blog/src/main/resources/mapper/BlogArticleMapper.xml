@@ -208,6 +208,13 @@
         </if>
     </select>
 
+    <select id="selectByTagName" resultMap="BaseResultMap">
+        SELECT <include refid="Extended_Column_List"/>
+        FROM blog_article a
+        LEFT JOIN blog_category c ON a.category_id = c.id
+        WHERE a.tags LIKE CONCAT('%&quot;', #{tagName}, '&quot;%')
+    </select>
+
 </mapper>
 
 

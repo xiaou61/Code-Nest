@@ -4,7 +4,7 @@
 
 ## 推荐学习顺序
 
-这组模块可以按“无后端 -> 有运营内容 -> 正式公告”的顺序学习：
+这组模块可以按"无后端 -> 有运营内容 -> 正式公告"的顺序学习：
 
 1. 先读开发者工具，理解纯前端工具如何避免不必要的上传和后端依赖。
 2. 再读摸鱼工具，理解轻量内容模块为什么需要后台运营、缓存和定时任务。
@@ -12,23 +12,23 @@
 
 ## 源码地图
 
-| 能力 | 源码入口 |
-| --- | --- |
-| 开发者工具页面 | `vue3-user-front/src/views/dev-tools` |
-| 开发者工具导航 | `vue3-user-front/src/components/DevToolsNav.vue` |
-| 摸鱼用户端页面 | `vue3-user-front/src/views/moyu-tools` |
-| 摸鱼管理端页面 | `vue3-admin-front/src/views/moyu` |
-| 摸鱼后端 | `xiaou-moyu/src/main/java/com/xiaou/moyu` |
-| 摸鱼后台 API 封装 | `vue3-admin-front/src/api/moyu.js` |
-| 版本历史后端 | `xiaou-version/src/main/java/com/xiaou/version` |
-| 版本历史管理端 | `vue3-admin-front/src/views/system/version/index.vue` |
-| 版本历史 API 封装 | `vue3-admin-front/src/api/version.js` |
+| 能力 | 源码入口 | 说明 |
+| --- | --- | --- |
+| 开发者工具页面 | `vue3-user-front/src/views/dev-tools` | 4 个 Vue 组件，纯前端 |
+| 开发者工具导航 | `vue3-user-front/src/components/DevToolsNav.vue` | 公共导航栏 |
+| 摸鱼用户端页面 | `vue3-user-front/src/views/moyu-tools` | 多个工具页 |
+| 摸鱼管理端页面 | `vue3-admin-front/src/views/moyu` | 后台管理页 |
+| 摸鱼后端 | `xiaou-moyu/src/main/java/com/xiaou/moyu` | 7 个 Controller |
+| 摸鱼后台 API 封装 | `vue3-admin-front/src/api/moyu.js` | Axios 调用 |
+| 版本历史后端 | `xiaou-version/src/main/java/com/xiaou/version` | 版本管理 |
+| 版本历史管理端 | `vue3-admin-front/src/views/system/version/index.vue` | 版本 CRUD |
+| 版本历史 API 封装 | `vue3-admin-front/src/api/version.js` | Axios 调用 |
 
 ## 功能地图
 
 | 功能 | 用户端入口 | 管理端入口 | 后端模块 | 深入文档 |
 | --- | --- | --- | --- | --- |
-| 开发者工具 | `/dev-tools`、`/dev-tools/json`、`/dev-tools/text-diff`、`/dev-tools/translation` | 暂无后台 | 前端为主 | [开发者工具](/modules/dev-tools) |
+| 开发者工具 | `/dev-tools` 等 | 暂无后台 | 前端为主 | [开发者工具](/modules/dev-tools) |
 | 摸鱼工具首页 | `/moyu-tools` | `/moyu/*` | `xiaou-moyu` | [摸鱼工具](/modules/moyu) |
 | 程序员日历 | `/moyu-tools/calendar` | `/moyu/calendar-events` | `xiaou-moyu` | [摸鱼工具](/modules/moyu) |
 | 热榜 | `/moyu-tools/hot-topics` | 暂无独立后台 | `xiaou-moyu` | [摸鱼工具](/modules/moyu) |
@@ -39,11 +39,11 @@
 
 ## 三类能力的边界
 
-| 类别 | 主要目标 | 是否依赖后端 | 是否需要运营 |
-| --- | --- | --- | --- |
-| 开发者工具 | 即用即走，提高开发效率 | 当前大多不依赖 | 不需要 |
-| 摸鱼工具 | 轻量内容、娱乐、日常访问 | 依赖后端和 Redis | 需要 |
-| 版本历史 | 产品更新展示和公告 | 依赖后端 | 需要 |
+| 类别 | 主要目标 | 是否依赖后端 | 是否需要运营 | 数据存储 |
+| --- | --- | --- | --- | --- |
+| 开发者工具 | 即用即走，提高开发效率 | 当前大多不依赖 | 不需要 | localStorage |
+| 摸鱼工具 | 轻量内容、娱乐、日常访问 | 依赖后端和 Redis | 需要 | MySQL + Redis |
+| 版本历史 | 产品更新展示和公告 | 依赖后端 | 需要 | MySQL |
 
 开发者工具强调隐私和本地处理；摸鱼工具强调内容质量、缓存刷新和互动；版本历史强调发布流程、状态控制和文案准确。
 
@@ -51,11 +51,11 @@
 
 当前开发者工具主要是前端纯工具：
 
-| 工具 | 实现特点 |
-| --- | --- |
-| JSON 工具 | `JSON.parse`、`JSON.stringify`、格式化、压缩、校验 |
-| 文本比对 | 前端本地行级/LCS 比对 |
-| 聚合翻译 | 编码用户输入后跳转到第三方翻译页面 |
+| 工具 | 实现特点 | 登录要求 |
+| --- | --- | --- |
+| JSON 工具 | `JSON.parse`、`JSON.stringify`、格式化、压缩、校验 | 否 |
+| 文本比对 | 前端本地行级/LCS 比对 | 否 |
+| 聚合翻译 | 编码用户输入后跳转到第三方翻译页面 | 否 |
 
 设计原则：
 
@@ -68,15 +68,35 @@
 
 ## 摸鱼工具
 
-摸鱼工具包含多种轻量能力：
+摸鱼工具包含多种轻量能力。后端模块是 `xiaou-moyu`，有 7 个 Controller：
 
-| 能力 | 核心点 |
-| --- | --- |
-| 热榜 | Redis 缓存前缀 `moyu:hot-topic:`，15 分钟刷新 |
-| 薪资计算器 | 用户薪资配置、工作记录、开始/暂停/恢复/结束 |
-| 程序员日历 | 日历事件、用户收藏、日期维度内容 |
-| 每日内容 | 编程名言、技术提示、代码片段、历史上的今天 |
-| Bug 商店 | Bug 条目、分类、导入、浏览历史 |
+### 用户端 Controller
+
+| Controller | 路由前缀 | 能力 |
+| --- | --- | --- |
+| `HotTopicController` | `/user/moyu/hot-topic` | 热榜数据获取和刷新 |
+| `DailyContentController` | `/user/moyu/daily-content` | 每日内容（名言、提示、代码片段、历史） |
+| `DeveloperCalendarController` | `/user/moyu/calendar` | 程序员日历事件和收藏 |
+| `SalaryCalculatorController` | `/user/moyu/salary` | 薪资配置和工作记录 |
+| `BugStoreController` | `/user/moyu/bug-store` | Bug 浏览和浏览历史 |
+
+### 管理端 Controller
+
+| Controller | 路由前缀 | 能力 |
+| --- | --- | --- |
+| `AdminDailyContentController` | `/admin/moyu/daily-content` | 每日内容 CRUD |
+| `AdminDeveloperCalendarController` | `/admin/moyu/calendar` | 日历事件 CRUD |
+| `AdminBugStoreController` | `/admin/moyu/bug-store` | Bug 条目 CRUD + 批量导入 |
+
+### 各能力详情
+
+| 能力 | 核心点 | Redis 使用 | 定时任务 |
+| --- | --- | --- | --- |
+| 热榜 | 缓存前缀 `moyu:hot-topic:` | 15 分钟刷新 | 有 |
+| 薪资计算器 | 用户薪资配置、工作记录 | 无 | 无 |
+| 程序员日历 | 日历事件、用户收藏 | 无 | 无 |
+| 每日内容 | 编程名言、技术提示、代码片段、历史上的今天 | 无 | 无 |
+| Bug 商店 | Bug 条目、分类、导入、浏览历史 | 无 | 无 |
 
 摸鱼工具虽然轻，但后端状态不少。排查时要看三类东西：
 
@@ -88,16 +108,16 @@
 
 ## 版本历史
 
-版本历史面向所有用户，是“产品变更说明”的正式入口。
+版本历史面向所有用户，是"产品变更说明"的正式入口。
 
-| 字段/状态 | 说明 |
-| --- | --- |
-| 版本号 | 例如 `v2.2.0` |
-| 标题 | 更新主标题 |
-| 描述 | 简要说明 |
-| 更新类型 | `1` 重大、`2` 功能、`3` 修复、`4` 其他 |
-| 状态 | `0` 草稿、`1` 发布、`2` 隐藏 |
-| PRD 链接 | 可关联需求或说明文档 |
+| 字段/状态 | 说明 | 取值 |
+| --- | --- | --- |
+| 版本号 | 例如 `v2.2.0` | 字符串 |
+| 标题 | 更新主标题 | 字符串 |
+| 描述 | 简要说明 | 字符串 |
+| 更新类型 | 标注变更级别 | `1` 重大、`2` 功能、`3` 修复、`4` 其他 |
+| 状态 | 控制可见性 | `0` 草稿、`1` 发布、`2` 隐藏 |
+| PRD 链接 | 可关联需求或说明文档 | URL |
 
 写版本记录时建议遵循：
 
@@ -107,26 +127,18 @@
 - 不要把内部敏感配置、Key、真实用户数据写进版本说明。
 
 详细流程看 [版本历史](/modules/version-history)。
+如果你要继续按真实提交补版本说明，不只写用户公告，也建议接着看 [按 Git Log 重写版本更新记录](/guide/git-log-release-notes)。
+如果你已经确定这版要发什么，准备直接写 README 段、产品版本墙和团队交接，也可以直接套 [版本公告与发版交接模板](/guide/version-release-handoff-template)。
 
 ## 运营工作台视角
 
 | 运营动作 | 去哪里做 | 注意事项 |
 | --- | --- | --- |
-| 维护每日内容 | `/moyu/daily-content` | 检查类型、日期、启用状态 |
+| 维护每日内容 | `/moyu/daily-content` | 检查类型（名言/提示/代码/历史）、日期、启用状态 |
 | 维护日历事件 | `/moyu/calendar-events` | 注意日期和收藏关系 |
 | 维护 Bug 商店 | `/moyu/bug-store` | 导入后检查分类和技术标签 |
 | 发布版本 | `/system/version` | 先草稿检查，再发布 |
 | 查看工具问题 | 用户端工具页 | 多数问题在前端，无后台记录 |
-
-## 用户学习路径
-
-如果你要从源码学习这一组模块，建议这样读：
-
-1. 先读 [开发者工具](/modules/dev-tools)，理解“前端本地工具”怎么组织路由和组件。
-2. 再读 [摸鱼工具](/modules/moyu)，理解轻量内容模块如何做缓存、任务和用户状态。
-3. 最后读 [版本历史](/modules/version-history)，理解运营发布流和用户展示流。
-
-这样能看出 Code Nest 对三类小功能的不同处理方式：纯前端、后端运营内容、正式产品公告。
 
 ## 验证清单
 
@@ -162,4 +174,4 @@
 2. 摸鱼运营内容：更新 [摸鱼工具](/modules/moyu) 和数据表索引。
 3. 产品更新公告：更新 [版本历史](/modules/version-history)。
 
-如果新工具开始保存用户数据，就不能再按“纯前端工具”处理，必须补接口、表结构、隐私说明和异常排查。
+如果新工具开始保存用户数据，就不能再按"纯前端工具"处理，必须补接口、表结构、隐私说明和异常排查。

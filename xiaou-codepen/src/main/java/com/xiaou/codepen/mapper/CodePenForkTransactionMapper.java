@@ -5,6 +5,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * Fork交易记录Mapper
@@ -43,5 +44,11 @@ public interface CodePenForkTransactionMapper {
      * 查询用户是否已Fork过指定作品
      */
     CodePenForkTransaction selectByOriginalPenIdAndForkUserId(@Param("originalPenId") Long originalPenId, @Param("forkUserId") Long forkUserId);
+
+    /**
+     * 批量查询用户已购买的原作品ID
+     */
+    Set<Long> selectPurchasedOriginalPenIdsByForkUserId(@Param("forkUserId") Long forkUserId,
+                                                        @Param("originalPenIds") List<Long> originalPenIds);
 }
 

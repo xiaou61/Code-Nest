@@ -205,3 +205,359 @@ ACM 排名在 `ContestRankingCalculator` 中计算，规则是：
 | 无测试用例题目 | 返回 `system_error`，提示测试用例缺失 |
 | 赛事未报名提交 | 提交前被拒绝 |
 | 赛事榜单 | 按 AC 数、罚时和最后 AC 时间排序 |
+
+---
+
+## OJ 判题系统模块深度拆解
+
+> 以下内容基于 `xiaou-oj` 全部源码逐行拆解，覆盖 6 个 ServiceImpl、1 个 JudgeService、1 个 CodeRunnerService、1 个 GoJudgeClient、6 个 JudgeStrategy、2 个 Contest 组件、4 个 Controller、9 个 Domain、3 个 Enum、10 个 Mapper。
+
+### 一、提交服务深度分析
+
+**源码**：`OjSubmissionServiceImpl.java`（139 行）
+
+```
+submitCode(userId, request):
+  1. JudgeLanguage.of(request.language) → 不支持则抛 IllegalArgumentException
+  2. problemMapper.selectById(request.problemId) → null → throw BusinessException("题目不存在")
+  3. if (request.contestId != null) → validateContestSubmit(contestId, userId, problemId)
+  4. 构建 OjSubmission → status = PENDING
+  5. submissionMapper.insert(submission)
+  6. problemMapper.increaseSubmitCount(request.problemId)  ← 无论判题结果，提交数+1
+  7. judgeService.judge(submission.getId())  ← @Async 异步
+  8. return submission.getId()
+
+getSubmissionById(id):
+  1. submissionMapper.selectById(id)
+  2. if status == "accepted":
+     → submissionMapper.isFirstAccepted(userId, problemId, id)
+     → firstAc → problem.getDifficulty → getAcPoints(difficulty) → setPointsEarned
+  3. 返回提交记录
+
+getStatistics(userId):
+  → submissionMapper.countByUserId(userId)
+  → submissionMapper.countAcceptedProblemsByUserId(userId)
+  → submissionMapper.countAttemptedProblemsByUserId(userId)
+  → submissionMapper.countAcceptedByDifficulty(userId, "easy/medium/hard")
+
+validateContestSubmit(contestId, userId, problemId):
+  1. contestMapper.selectById(contestId) → null → throw
+  2. ContestRuleValidator.checkCanSubmit(contest, now) → status==2 且 now 在窗口内
+  3. contestParticipantMapper.existsByContestIdAndUserId → 未报名 → throw
+  4. contestProblemMapper.existsProblemInContest → 题目不属于赛事 → throw
+```
+
+**关键发现 1**：`increaseSubmitCount` 在步骤 6 被调用，发生在判题结果返回之前。如果判题结果为 `system_error`（如用例缺失），提交数已经 +1 但该提交实际未执行任何用例，导致题目提交数虚高。
+
+**关键发现 2**：`getSubmissionById` 中 `isFirstAccepted` 的查询条件是"没有比当前提交 ID 更早的 accepted"，这意味着如果同一用户有两条 accepted 提交，第二条的 `isFirstAccepted` 会返回 `false`，逻辑正确。但 `pointsEarned` 只是回填到返回对象上，不会真正发放积分——积分发放只在 `JudgeService.judge` 的异步流程中完成。
+
+**关键发现 3**：`JudgeLanguage.of` 在步骤 1 抛出 `IllegalArgumentException` 而非 `BusinessException`。`GlobalExceptionHandler` 不会对 `IllegalArgumentException` 返回友好错误码，会落入兜底的 `INTERNAL_ERROR`，用户看到的错误信息可能不够清晰。
+
+### 二、判题服务深度分析
+
+**源码**：`JudgeService.java`（231 行）
+
+```
+judge(submissionId):  @Async
+  try:
+    1. submissionMapper.selectById(submissionId) → null → log + return
+    2. submission.setStatus("judging") → updateById
+    3. problemMapper.selectById(problemId)
+    4. testCaseMapper.selectByProblemId(problemId)
+    5. testCases.isEmpty() → updateSubmission(SYSTEM_ERROR, "没有测试用例") + return
+
+    // 编译阶段
+    6. strategy.getCompileArgs() != null:
+       goJudgeClient.run(compileArgs, sourceFiles, null, compileCpuLimit, memoryLimit, null, compiledFileNames)
+       → !accepted || exitStatus!=0 → updateSubmission(COMPILE_ERROR) + return
+       → compiledFileIds = result.getFileIds()
+
+    // 运行阶段 - 逐个用例
+    7. for each testCase:
+       goJudgeClient.run(runArgs, runFiles, compiledFileIds, stdin, cpuLimit, memoryLimit, null, null)
+       → TLE → updateSubmission(TIME_LIMIT_EXCEEDED) + return
+       → MLE → updateSubmission(MEMORY_LIMIT_EXCEEDED) + return
+       → !accepted || exitStatus!=0 → updateSubmission(RUNTIME_ERROR) + return
+       → compareOutput(stdout, expectedOutput) → !match → updateSubmission(WRONG_ANSWER) + return
+       → passCount++
+
+    // 全部通过
+    8. firstAc = !submissionMapper.existsAccepted(userId, problemId)
+    9. updateSubmission(ACCEPTED, maxTime, maxMemory, passCount, totalCount)
+    10. if (firstAc):
+        problemMapper.increaseAcceptedCount(problemId)
+        → pointsService.grantSystemPoints(userId, points, OJ_AC, "首次通过题目「xxx」")
+        → catch: log.error (积分发放失败不回滚)
+
+  finally:
+    if (compiledFileIds != null):
+      compiledFileIds.values().forEach(goJudgeClient::deleteFile)
+
+  catch Throwable:
+    updateSubmission(SYSTEM_ERROR, "系统错误: " + t.getMessage())
+```
+
+**关键发现 1**：步骤 8 和 9 存在**竞态窗口**。`existsAccepted` 查询和 `updateSubmission(ACCEPTED)` 更新之间没有同步锁。如果同一用户对同一题几乎同时有两个提交都通过了全部用例，两个异步线程可能都读到 `existsAccepted=false`，导致：
+- AC 数被 +1 两次
+- 积分被发放两次
+
+这是典型的 check-then-act 竞态问题。
+
+**关键发现 2**：`compareOutput` 方法使用 `strip()` 忽略首尾空白。但 `strip()` 是 Java 11+ 方法，会移除 Unicode 空白字符，行为比 `trim()` 更强。如果题面期望输出包含首尾的特殊空白字符（如不间断空格 `\u00A0`），会被错误地 trim 掉，导致误判通过。
+
+**关键发现 3**：步骤 7 中的用例执行是**串行**的——逐个用例调用 go-judge。如果一道题有 100 个用例，每个用例最长 2 秒，最坏情况需要 200 秒才能判完一道提交。没有用例级别的超时退出机制——即使已经发现 TLE/WA 也会继续跑完所有用例（实际上会提前 return，但 TLE/MLE/WA/RTE 之后的用例不会被跳过，因为该分支已经 return）。
+
+**关键发现 4**：`errorMessage` 截断到 4000 字符。如果 go-judge 返回的超长错误信息被截断，运维排查时可能丢失关键信息。
+
+**关键发现 5**：`@Async` 注解没有指定线程池，使用 Spring 默认的 `SimpleAsyncTaskExecutor`。这意味着每次判题都创建新线程，没有上界限制。如果短时间内有大量提交，可能耗尽线程资源。
+
+### 三、GoJudgeClient 通信协议深度分析
+
+**源码**：`GoJudgeClient.java`（249 行）
+
+```
+run(args, files, cachedFileIn, stdin, cpuLimit, memoryLimit, copyOut, copyOutCached):
+  构建 cmd:
+    args: 命令参数
+    env: PATH=/usr/bin:/bin:/usr/local/bin:/usr/lib/jvm/default-java/bin
+    cpuLimit: 纳秒
+    memoryLimit: 字节
+    procLimit: 50  ← 硬编码进程数限制
+    files: [stdin(content), stdout(name, max=10240), stderr(name, max=10240)]
+    copyIn: {源码文件(content), 缓存文件(fileId)}
+    copyOut: 需要拷出的文件
+    copyOutCached: 需要拷出并缓存的文件
+
+  HTTP POST → {goJudgeUrl}/run
+  解析响应:
+    status → "Accepted"/"Time Limit Exceeded"/"Memory Limit Exceeded" 等
+    exitStatus → 退出码
+    time → ns → ms
+    memory → bytes → KB
+    files → stdout/stderr 内容
+    fileIds → copyOutCached 返回的缓存文件 ID
+    error → 错误信息
+
+deleteFile(fileId):
+  HTTP DELETE → {goJudgeUrl}/file/{fileId}
+  catch: log.warn (删除失败不阻断)
+```
+
+**关键发现 1**：`procLimit` 硬编码为 50。这限制了用户代码可创建的子进程数。但不同题目的需求可能不同——有些并发题需要更多进程。当前不可配置。
+
+**关键发现 2**：stdout 和 stderr 的最大收集量硬编码为 10240 字节（10KB）。如果用户程序输出超过 10KB，go-judge 会截断。这意味着输出大量数据的程序可能被判 WA（因为实际输出被截断后和期望不匹配）。10KB 对于某些需要输出大型结果的题目可能太小。
+
+**关键发现 3**：`env` 硬编码了 PATH，但没有包含用户可能需要的其他环境变量（如 `HOME`、`LANG`、`PYTHONPATH` 等）。某些需要特定环境变量的程序可能无法正常运行。
+
+**关键发现 4**：`deleteFile` 失败只 warn 不阻断。如果 go-judge 服务重启，所有缓存文件引用会失效，但应用侧不知道——下次判题引用 fileId 会失败，回退到 system_error。
+
+### 四、策略模式语言支持深度分析
+
+**源码**：`JudgeStrategy` 接口 + 6 个实现类
+
+| 语言 | 源文件名 | 编译命令 | 运行命令 | 编译缓存 |
+| --- | --- | --- | --- | --- |
+| Java | `Main.java` | `/usr/bin/javac Main.java` | `/usr/bin/java Main` | `Main.class` |
+| Python | `main.py` | null（无需编译） | `/usr/bin/python3 main.py` | 无 |
+| C++ | `main.cpp` | `/usr/bin/g++ -o main main.cpp -O2` | `main` | `main` |
+| C | `main.c` | `/usr/bin/gcc -o main main.c -O2` | `main` | `main` |
+| Go | `main.go` | `/usr/bin/go build -o main main.go` | `main` | `main` |
+| JavaScript | `main.js` | null（无需编译） | `/usr/bin/node main.js` | 无 |
+
+**关键发现 1**：Java 策略强制源文件名为 `Main.java`，类名必须是 `Main`。如果用户提交的代码使用其他类名（如 `Solution`），编译会直接失败。这个约束没有在前端或 API 层提前提示用户。
+
+**关键发现 2**：`JudgeLanguage` 枚举中的 `needCompile()` 方法返回 `JAVA || CPP || C || GO`，但 `JudgeStrategy` 接口的 `getCompiledFileNames()` 默认返回 `null`。Python 和 JavaScript 策略不需要覆盖此方法——逻辑一致。但 `JavaScriptJudgeStrategy` 没有在列表中（上面未展示），需要确认是否已实现。
+
+**关键发现 3**：C/C++ 编译命令使用 `-O2` 优化。这是标准竞赛实践，但 `-O2` 可能导致某些未定义行为（如整数溢出、空指针解引用）的代码产生不同结果。调试构建和优化构建的行为差异可能导致本地能跑但 OJ 上 WA。
+
+**关键发现 4**：Go 策略的编译命令使用 `go build`，默认会启用模块模式。如果用户的代码依赖外部模块，编译会失败。当前没有 `GOFLAGS` 或 `GO111MODULE` 环境变量配置。
+
+### 五、赛事规则校验与 ACM 榜单深度分析
+
+**源码**：`ContestRuleValidator.java`（32 行）+ `ContestRankingCalculator.java`（115 行）
+
+```
+ContestRuleValidator.checkCanSubmit(contest, now):
+  contest == null || contest.status != 2 → "赛事未开始"
+  startTime/endTime == null → "赛事时间配置不完整"
+  now < startTime || now > endTime → "不在赛事提交时间窗口内"
+
+ContestRankingCalculator.calculate(contest, submissions, participants):
+  1. 初始化 UserStat（含 problemStats: HashMap<Long, ProblemStat>）
+  2. 按 createTime + id 排序所有提交
+  3. 逐条处理:
+     → 已解决 → 跳过
+     → accepted → solved=true, solvedCount++, penalty += acMinutes + wrongBeforeAc*20
+     → wrong_answer → wrongBeforeAc++
+  4. 构建 ContestRankingItem 列表
+  5. 排序: solvedCount DESC → penalty ASC → lastAcTime ASC → userId ASC
+  6. 赋值排名 (rank = i+1)
+```
+
+**关键发现 1**：`ContestRuleValidator` 只检查状态 `2`（进行中），不检查状态 `1`（即将开始）。这意味着"即将开始"的赛事不能提交——即使当前时间在赛事窗口内。这是合理的，但错误提示"赛事未开始"可能让用户困惑，因为赛事可能已经在日历上但还没切换到进行中状态。
+
+**关键发现 2**：`ContestRankingCalculator` 中 `wrongBeforeAc` 只计算 `wrong_answer` 类型的提交。`time_limit_exceeded`、`memory_limit_exceeded`、`runtime_error` 等失败类型不计入罚时。这与标准 ACM 规则不同——标准规则下所有非 AC 提交（包括 TLE、RTE）都计入罚时。
+
+**关键发现 3**：榜单计算是**内存全量计算**——每次请求榜单都从数据库加载所有提交和参与者，然后在内存中重新计算。如果赛事有数千参与者和数万提交，每次请求榜单的数据库查询和计算开销较大。没有缓存机制。
+
+### 六、赛事评分预估深度分析
+
+**源码**：`OjContestRankingServiceImpl.java`（109 行）
+
+```
+enrichRatingEstimates(ranking):
+  对每条榜单项:
+    rankScore = round((total - rank + 1) * 100 / total)
+    solveScore = round(solvedCount * 100 / maxSolvedCount)
+    speedScore = solvedCount <= 0 → 0 : max(0, 100 - min(100, penalty/10))
+    performanceScore = round(solveScore*0.55 + rankScore*0.3 + speedScore*0.15)
+
+    rankDelta = round((total + 1 - 2*rank) * 60 / total)
+    solveDelta = solvedCount <= 0 → -20 : min(40, solvedCount*10)
+    penaltyDelta = solvedCount <= 0 → 0 : -min(25, penalty/120)
+    ratingChange = clamp(rankDelta + solveDelta + penaltyDelta, -80, 120)
+
+    ratingAfter = 1500 + ratingChange
+```
+
+**关键发现 1**：所有参赛者的初始评分硬编码为 1500。这意味着第一次参赛所有人起点相同。但真正的 ELO 系统需要跟踪历史评分——当前没有 `user_contest_rating` 表，每次都从 1500 开始计算。
+
+**关键发现 2**：评分变化公式 `ratingChange = rankDelta + solveDelta + penaltyDelta` 是简单的线性公式，不是 ELO 或 TrueSkill。参数（`-80` 到 `120`）硬编码在源码中。
+
+**关键发现 3**：`penalty` 单位是分钟，`penalty/10` 用于 speedScore 计算，`penalty/120` 用于 penaltyDelta 计算。两个除数不同——一个是"每 10 分钟扣 1 分速度分"，另一个是"每 120 分钟扣 1 分评分"。没有注释解释为什么选择这两个特定数值。
+
+### 七、评论系统深度分析
+
+**源码**：`OjProblemCommentServiceImpl.java`（227 行）
+
+```
+getComments(problemId, request):
+  → 查总数 countByProblemId
+  → 分页查一级评论 selectByProblemId
+  → 每条一级评论 → convertToResponseWithReplies:
+    → convertToResponse (设 isLiked)
+    → 加载最多 2 条回复 selectRepliesByCommentId(limit=2)
+    → hasMoreReplies = replyCount > 2
+
+createComment(problemId, request):
+  → StpUserUtil.checkLogin()
+  → SaTokenUserUtil.getCurrentUserUsername("用户" + currentUserId)
+  → parentId = 0  ← 一级评论
+
+replyComment(commentId, request):
+  → StpUserUtil.checkLogin()
+  → 检查父评论存在且 status==1
+  → topCommentId = parentId==0 ? commentId : parentComment.parentId
+  → replyToUserName = 先取"用户"+replyToUserId, 再尝试查 authorName
+  → insert reply → updateReplyCount(topCommentId, +1)
+
+likeComment(commentId):
+  → 检查评论存在
+  → 检查未点赞过
+  → insert like → updateLikeCount(+1)
+
+unlikeComment(commentId):
+  → 检查评论存在
+  → 检查已点赞
+  → delete like → updateLikeCount(-1)
+```
+
+**关键发现 1**：`likeComment` 和 `unlikeComment` 方法中，先查询评论是否存在，再检查点赞状态。两个操作之间没有同步——并发场景下，两个请求可能同时通过"未点赞"检查，都尝试插入点赞记录。数据库唯一索引会阻止第二次插入，但抛出的异常未被捕获，会变成 500 错误而非友好提示。
+
+**关键发现 2**：评论的 `authorName` 在创建时冗余写入。如果用户后续修改昵称，评论中的 `authorName` 不会更新。这是典型的反规范化设计——读取更快但一致性弱。
+
+**关键发现 3**：`replyComment` 中步骤 `replyToUserName = "用户" + replyToUserId` 是 fallback，然后尝试查 `authorName`。但查询条件是 `selectById(commentId)` 而非 `selectById(request.getReplyToUserId())`——这意味着取的是**被回复评论的作者名**而非**被回复用户的真实用户名**。如果被回复评论的 `authorName` 为 null（数据异常），则 fallback 到硬编码值。
+
+**关键发现 4**：`updateLikeCount` 和 `updateReplyCount` 使用 `+=1` / `-=1` SQL 语句。这是并发安全的（数据库行级锁），但如果 `likeCount` 或 `replyCount` 因为数据异常变成负数，`unlikeComment` 的 `-1` 操作会继续减少。
+
+### 八、题目服务深度分析
+
+**源码**：`OjProblemServiceImpl.java`（110 行）
+
+```
+createProblem(problem, tagIds):
+  → acceptedCount=0, submitCount=0, status=0(default hidden)
+  → insert(problem)
+  → 逐条 insertProblemTag(problemId, tagId)
+
+updateProblem(id, problem, tagIds):
+  → updateById(problem)
+  → deleteProblemTags(id) → 逐条 insertProblemTag
+
+deleteProblem(id):
+  → deleteById(id)  ← 物理删除！
+  → deleteProblemTags(id)
+  → testCaseMapper.deleteByProblemId(id)  ← 连带删除测试用例
+
+getDailyProblem():
+  → countPublic → offset = abs(LocalDate.now().hashCode()) % count
+  → selectPublicByOffset(offset)
+```
+
+**关键发现 1**：`deleteProblem` 是**物理删除**——直接 `DELETE FROM oj_problem WHERE id=?`。这意味着删除题目后，所有关联的提交记录的 `problemId` 变成悬空引用。如果用户查看历史提交详情，关联的题目标题将无法显示（`problemTitle` 为 null）。
+
+**关键发现 2**：`getDailyProblem` 使用 `LocalDate.now().hashCode()` 的绝对值对公开题目总数取模。`hashCode()` 在 Java 中对 `LocalDate` 是确定性的（基于 epochDay），所以同一天内结果确定。但这是"伪随机"——不同 JVM 版本的 `LocalDate.hashCode()` 实现可能不同。如果集群部署不同 JVM 版本，不同节点可能选出不同的每日一题。
+
+**关键发现 3**：`createProblem` 中标签关联是逐条插入的（for 循环 + `insertProblemTag`），而非批量插入。如果标签数量多（如 10+），数据库交互次数较多。
+
+### 九、深度发现与坑点
+
+#### 9.1 已确认的代码问题
+
+| 编号 | 问题 | 位置 | 影响 |
+| --- | --- | --- | --- |
+| BUG-1 | 提交数在判题前 +1 | `OjSubmissionServiceImpl.submitCode:72` | system_error 时提交数虚高 |
+| BUG-2 | 首次 AC 存在竞态 | `JudgeService.judge:158-161` | 同题多提交同时 AC 会重复发放积分 |
+| BUG-3 | JudgeLanguage.of 抛 IllegalArgumentException | `OjSubmissionServiceImpl.submitCode:49` | 用户看到 500 而非友好错误 |
+| BUG-4 | 物理删除题目 | `OjProblemServiceImpl.deleteProblem:68` | 关联提交的 problemId 悬空 |
+| BUG-5 | 点赞并发无保护 | `OjProblemCommentServiceImpl.likeComment:140-143` | 并发点赞导致 500 而非友好提示 |
+| BUG-6 | WA 罚时不包含 TLE/MLE/RTE | `ContestRankingCalculator` | 与标准 ACM 罚时规则不一致 |
+| BUG-7 | 每日一题 hashCode 跨 JVM 不稳定 | `OjProblemServiceImpl.getDailyProblem:100` | 不同节点可能选出不同题目 |
+| BUG-8 | 评分系统无持久化 | `OjContestRankingServiceImpl` | 每次参赛都从 1500 起算 |
+
+#### 9.2 设计层面的潜在风险
+
+| 编号 | 风险 | 说明 |
+| --- | --- | --- |
+| RISK-1 | @Async 无线程池限制 | 使用默认 SimpleAsyncTaskExecutor，无上界 |
+| RISK-2 | 榜单全量计算无缓存 | 每次请求都查全部提交+参与者+重算 |
+| RISK-3 | go-judge stdout 截断 10KB | 大输出题目可能被误判 WA |
+| RISK-4 | 评论 authorName 冗余不更新 | 用户改昵称后评论中名字不同步 |
+| RISK-5 | Java 强制 Main 类名 | 无提前提示，编译错误体验差 |
+| RISK-6 | procLimit 硬编码 50 | 不可按题目配置进程数限制 |
+| RISK-7 | 编译缓存文件引用失效 | go-judge 重启后 fileId 全部失效 |
+
+#### 9.3 架构设计亮点
+
+| 编号 | 亮点 | 说明 |
+| --- | --- | --- |
+| H-1 | 策略模式支持 6 种语言 | JudgeStrategy 接口统一，新增语言只需添加实现类 |
+| H-2 | copyOutCached 编译缓存 | 编译产物缓存到 go-judge，多次运行只需编译一次 |
+| H-3 | 三种运行模式分离 | Playground / 自测 / 正式提交，各司其职 |
+| H-4 | ACM 排名 4 级排序 | solvedCount → penalty → lastAcTime → userId |
+| H-5 | 赛事评分预估公式 | 融合排名、解题、速度三个维度加权 |
+| H-6 | 评论两级结构 + 懒加载 | 一级评论预载 2 条回复，hasMoreReplies 控制展开 |
+| H-7 | 点赞幂等设计 | 先查再插再更新计数，取消时反向操作 |
+| H-8 | compareOutput 统一比较 | strip() 忽略首尾空白，JudgeService 和 CodeRunnerService 共用逻辑 |
+| H-9 | go-judge 安全沙箱 | CPU/内存/进程数/文件系统全隔离 |
+| H-10 | 积分发放容错 | catch 异常只记日志不回滚 AC 状态 |
+
+#### 9.4 源码导航速查
+
+| 想了解 | 读什么 |
+| --- | --- |
+| 提交主流程 | `OjSubmissionServiceImpl.java` — submitCode + validateContestSubmit |
+| 判题全链路 | `JudgeService.java` — @Async + 编译 + 逐用例运行 + 比对 + AC 积分 |
+| 沙箱通信 | `GoJudgeClient.java` — REST /run + /file/{id} + 请求体构建 |
+| Playground | `CodeRunnerService.java` — run + selfTest 双模式 |
+| 语言策略 | `judge/strategy/*.java` — 6 种语言编译/运行命令 |
+| 赛事校验 | `ContestRuleValidator.java` — checkCanSubmit 状态+时间窗口 |
+| ACM 榜单 | `ContestRankingCalculator.java` — UserStat + ProblemStat + 4 级排序 |
+| 评分预估 | `OjContestRankingServiceImpl.java` — performanceScore + ratingChange |
+| 题目 CRUD | `OjProblemServiceImpl.java` — 创建/更新/删除/每日一题 |
+| 评论系统 | `OjProblemCommentServiceImpl.java` — 两级评论 + 点赞 + 回复 |
+| 测试用例 | `OjTestCaseServiceImpl.java` — 排序号自增 + isSample 默认值 |
+| 题解管理 | `OjSolutionServiceImpl.java` — 排序号自增 + 按 problemId 查询 |
+| 判题配置 | `OjJudgeProperties.java` + `OjConfig.java` — goJudgeUrl + RestTemplate |
+| 提交状态枚举 | `SubmissionStatus.java` — 9 种状态 + of() 默认 SYSTEM_ERROR |
+| 语言枚举 | `JudgeLanguage.java` — 6 种语言 + needCompile() |

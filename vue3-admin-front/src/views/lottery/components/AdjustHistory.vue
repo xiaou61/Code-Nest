@@ -93,6 +93,9 @@ const handleReset = () => {
 }
 
 const getChangeText = (oldProb, newProb) => {
+  if (!oldProb) {
+    return newProb > 0 ? '+100.00%' : '0.00%'
+  }
   const change = ((newProb - oldProb) / oldProb * 100).toFixed(2)
   return change > 0 ? `+${change}%` : `${change}%`
 }

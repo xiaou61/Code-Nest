@@ -105,7 +105,7 @@ public class CodePenUserController {
      * 我的作品列表
      */
     @PostMapping("/my-list")
-    public Result<List<CodePenDetailResponse>> getMyList(@RequestBody(required = false) CodePenListRequest request) {
+    public Result<List<CodePenDetailResponse>> getMyList(@Valid @RequestBody(required = false) CodePenListRequest request) {
         Integer status = request != null ? request.getStatus() : null;
         List<CodePenDetailResponse> list = codePenService.getMyList(currentUserIdRequired(), status);
         return Result.success(list);
@@ -287,10 +287,10 @@ public class CodePenUserController {
      */
     @Log(module = "代码共享器", type = Log.OperationType.INSERT, description = "创建收藏夹")
     @PostMapping("/folder/create")
-    public Result<Long> createFolder(@RequestBody CodePenFolder folder) {
+    public Result<Long> createFolder(@Valid @RequestBody FolderCreateRequest request) {
         Long folderId = folderService.createFolder(
-                folder.getFolderName(),
-                folder.getFolderDescription(),
+                request.getFolderName(),
+                request.getFolderDescription(),
                 currentUserIdRequired()
         );
         return Result.success(folderId);
@@ -301,11 +301,11 @@ public class CodePenUserController {
      */
     @Log(module = "代码共享器", type = Log.OperationType.UPDATE, description = "更新收藏夹")
     @PostMapping("/folder/update")
-    public Result<Boolean> updateFolder(@RequestBody CodePenFolder folder) {
+    public Result<Boolean> updateFolder(@Valid @RequestBody FolderUpdateRequest request) {
         boolean result = folderService.updateFolder(
-                folder.getId(),
-                folder.getFolderName(),
-                folder.getFolderDescription(),
+                request.getId(),
+                request.getFolderName(),
+                request.getFolderDescription(),
                 currentUserIdRequired()
         );
         return Result.success(result);
@@ -333,21 +333,10 @@ public class CodePenUserController {
      * 收藏夹内容列表
      */
     @PostMapping("/folder/items")
-    public Result<List<CodePenDetailResponse>> getFolderItems(@RequestBody CodePenFolder folder) {
+    public Result<List<CodePenDetailResponse>> getFolderItems(@Valid @RequestBody IdRequest request) {
         Long userId = currentUserIdRequired();
-        List<Long> penIds = folderService.getFolderItems(folder.getId(), userId);
-        List<CodePenDetailResponse> responses = new ArrayList<>();
-
-        for (Long penId : penIds) {
-            try {
-                CodePenDetailResponse detail = codePenService.getDetail(penId, userId);
-                responses.add(detail);
-            } catch (Exception e) {
-                log.warn("获取作品{}详情失败", penId, e);
-            }
-        }
-
-        return Result.success(responses);
+        List<Long> penIds = folderService.getFolderItems(request.getId(), userId);
+        return Result.success(codePenService.getDetailsByIds(penIds, userId));
     }
 
     // ========== 模板管理相关 ==========

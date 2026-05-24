@@ -2,7 +2,7 @@ package com.xiaou.blog.dto;
 
 import lombok.Data;
 
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -16,7 +16,7 @@ public class CategoryUpdateRequest {
     /**
      * 分类ID
      */
-    @NotNull(message = "分类ID不能为空")
+    @Positive(message = "分类ID必须为正数")
     private Long id;
     
     /**

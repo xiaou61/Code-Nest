@@ -220,3 +220,152 @@
 | 修改个人资料 | 写入当前登录用户，不需要前端传用户 ID |
 | 修改密码成功 | 当前会话退出，前端应跳登录 |
 | 上传头像 | 文件存储有记录，用户头像字段更新为访问 URL |
+
+---
+
+## 用户模块深度拆解
+
+以下内容来自对 xiaou-user 模块全部源码的逐行阅读，覆盖 3 个 ServiceImpl、4 个 Controller、1 个 Domain、1 个 Mapper。
+
+### 一、认证架构详解
+
+#### 1.1 Sa-Token 双端认证体系
+
+项目使用 Sa-Token 实现双端认证：用户端（`StpUserUtil`）和管理端（`StpAdminUtil`）使用独立的 Token 存储：
+
+| 端 | 工具类 | Login Type | Token 前缀 | 用途 |
+| --- | --- | --- | --- | --- |
+| 用户端 | `StpUserUtil` | `user` | `user:` | 普通用户操作 |
+| 管理端 | `StpAdminUtil` | `admin` | `admin:` | 后台管理操作 |
+
+**双端隔离**：用户 Token 和管理端 Token 存储在不同的 Redis 命名空间下，互不干扰。管理员可以同时以用户身份和管理员身份登录。
+
+#### 1.2 登录安全设计
+
+**防用户枚举**：登录失败时统一返回"用户名或密码错误"，不区分"用户不存在"和"密码错误"。已删除用户（status=2）也返回相同的模糊提示。
+
+```
+if (user == null):         throw "用户名或密码错误"
+if (user.status == 1):     throw "账户已被禁用"     ← 唯一区分的场景
+if (user.status == 2):     throw "用户名或密码错误"  ← 已删除不暴露
+if (!passwordMatch):       throw "用户名或密码错误"
+```
+
+**验证码一次性消费**：验证成功后立即从 Redis 删除，防止重放攻击。
+
+**密码修改强制重登**：`/user/password` 成功后调用 `StpUserUtil.logout()`，前端应跳转登录页。
+
+#### 1.3 验证码服务
+
+**源码**：`CaptchaServiceImpl`
+
+```
+generateCaptcha():
+  1. Hutool LineCaptcha: 120×40, 4字符, 5条干扰线
+  2. 生成 UUID captchaKey
+  3. Redis SET user:captcha:{key} → code, TTL=300s
+  4. 返回 { captchaKey, captchaImage(base64), expiresIn }
+
+verifyCaptcha(key, input):
+  1. Redis GET user:captcha:{key}
+  2. 不存在 → false (过期)
+  3. equalsIgnoreCase 比较
+  4. 成功 → 删除 Redis key (一次性)
+  5. 失败 → key 不删除, 可重试
+```
+
+**关键发现**：验证码输入错误时不会删除 Redis key，允许在有效期内多次尝试。如果需要防暴力破解，应添加错误次数限制。
+
+### 二、注册流程深度分析
+
+```
+register(request):
+  1. verifyCaptcha → 失败 throw
+  2. password == confirmPassword → 不一致 throw
+  3. username 唯一性检查
+  4. email 唯一性检查
+  5. phone 唯一性检查 (如果提供了手机号)
+  6. PasswordUtil.encode(password)  // BCrypt 加密
+  7. nickname 默认 = username
+  8. status = 0 (正常)
+  9. INSERT user_info
+  10. try { pointsService.createPointsAccountForNewUser(userId) } catch { warn }
+  11. try { NotificationUtil.sendSystemMessage(...) } catch { warn }
+```
+
+**事务边界**：`@Transactional` 覆盖步骤 1-9。步骤 10-11 是 try-catch 静默处理，失败不回滚注册。
+
+**唯一性竞态**：步骤 3-5 检查与步骤 9 INSERT 之间存在时间窗口，并发注册可能通过唯一性检查但 INSERT 时违反唯一约束。此时依赖数据库唯一索引抛异常，被外层 catch 转为"注册失败，请稍后重试"。
+
+### 三、管理端能力详解
+
+#### 3.1 用户状态管理
+
+| 操作 | 方法 | 说明 |
+| --- | --- | --- |
+| 启用 | `updateUserStatus(userId, 0)` | 恢复正常状态 |
+| 禁用 | `updateUserStatus(userId, 1)` | 不踢出已登录会话 |
+| 删除 | `deleteUser(userId)` | 逻辑删除（status=2），不踢出会话 |
+| 重置密码 | `resetUserPassword(userId, newPassword)` | 默认 `123456` |
+
+**关键发现 1**：禁用/删除用户不会强制其退出已登录的 Sa-Token 会话。被禁用的用户在 Token 过期前（7 天）仍可操作。
+
+**关键发现 2**：管理员重置密码的默认新密码是 `123456`，且通过 URL 参数传递（`@RequestParam`），这意味着密码会出现在服务器访问日志和浏览器历史中。
+
+#### 3.2 用户统计实现
+
+```java
+getUserStatistics():
+  // 执行 4 次分页查询，每次只取总数
+  totalUsers = getUserList(pageSize=1).total
+  activeUsers = getUserList(status=0, pageSize=1).total
+  disabledUsers = getUserList(status=1, pageSize=1).total
+  deletedUsers = getUserList(status=2, pageSize=1).total
+```
+
+**关键发现**：统计通过 4 次分页查询实现，每次只取 `pageSize=1` 来获取 total。这比直接 COUNT SQL 效率低，因为每次都需要执行完整的查询逻辑（包括 DTO 转换），只是丢弃了实际数据。
+
+### 四、深度发现与坑点
+
+#### 4.1 已确认的代码问题
+
+| 编号 | 问题 | 位置 | 影响 |
+| --- | --- | --- | --- |
+| BUG-1 | 禁用/删除不踢出已登录会话 | `updateUserStatus`/`deleteUser` | 被禁用用户在 Token 过期前仍可操作 |
+| BUG-2 | 重置密码通过 URL 参数传递 | `AdminUserController.resetPassword` | 密码出现在服务器日志 |
+| BUG-3 | 验证码错误不限制重试次数 | `CaptchaServiceImpl.verifyCaptcha` | 可暴力尝试 4 位验证码 |
+| BUG-4 | 统计使用 4 次分页查询 | `AdminUserController.getUserStatistics` | 性能差，应用 COUNT SQL |
+| BUG-5 | `/user/{userId}` 接口无权限校验 | `UserController.getUserInfo` | 任何登录用户可查看任意用户信息 |
+| BUG-6 | `getAllUsers` 使用 `Integer.MAX_VALUE` | `AdminUserController.getAllUsers` | 用户量大时 OOM 风险 |
+
+#### 4.2 设计层面的潜在风险
+
+| 编号 | 风险 | 说明 |
+| --- | --- | --- |
+| RISK-1 | 唯一性检查与 INSERT 竞态 | 并发注册可能依赖数据库异常而非业务校验 |
+| RISK-2 | 默认密码 123456 | 用户可能永远不修改，账号安全性低 |
+| RISK-3 | 用户端 ID 路径接口越权 | `/user/{userId}` 未校验当前登录用户是否等于路径 userId |
+| RISK-4 | 验证码日志打印明文 | `CaptchaServiceImpl.generateCaptcha` 打印 code | 泄露到日志文件 |
+
+#### 4.3 架构设计亮点
+
+| 编号 | 亮点 | 说明 |
+| --- | --- | --- |
+| H-1 | 防用户枚举 | 统一错误提示，不暴露用户存在性 |
+| H-2 | 注册副作用容错 | 积分/通知失败不回滚注册 |
+| H-3 | 密码修改强制重登 | 修改后立即 logout，安全性好 |
+| H-4 | 文件存储抽象 | 头像上传走 FileStorageService，可无缝迁移到 OSS |
+| H-5 | 验证码一次性消费 | 成功后删除 Redis key |
+| H-6 | 默认头像生成 | `AvatarUtils.getUserAvatar` 为无头像用户生成基于 ID 的默认头像 |
+
+#### 4.4 源码导航速查
+
+| 想了解 | 读什么 |
+| --- | --- |
+| 注册流程 | `UserInfoServiceImpl.register` — 完整 9 步 |
+| 登录流程 | `UserInfoServiceImpl.login` — 防枚举+会话创建 |
+| 验证码 | `CaptchaServiceImpl` — Redis 存储+一次性消费 |
+| 用户 CRUD | `UserInfoServiceImpl` — 管理端/用户端全部操作 |
+| 密码修改 | `UserInfoServiceImpl.changePassword` — 旧密码校验+强制重登 |
+| 头像上传 | `UserController.uploadAvatar` — 文件校验+FileStorageService |
+| 管理端 API | `AdminUserController` — CRUD+状态+密码重置+统计 |

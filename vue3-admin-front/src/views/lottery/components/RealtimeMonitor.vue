@@ -254,7 +254,7 @@ const loadMonitorData = async () => {
 // 查看奖品详情
 const viewPrizeDetail = async (row) => {
   try {
-    currentPrizeDetail.value = row
+    currentPrizeDetail.value = await lotteryAdminApi.getPrizeMonitor(row.prizeId)
     detailDialog.value = true
   } catch (error) {
     ElMessage.error(error.message || '加载失败')

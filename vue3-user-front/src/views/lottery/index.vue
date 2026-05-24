@@ -76,7 +76,7 @@
               'winner': winnerIndex === index && showWinner
             }">
             <!-- 中心抽奖按钮 -->
-            <div v-if="index === 4" class="draw-button-wrapper" @click="testClick">
+            <div v-if="index === 4" class="draw-button-wrapper">
               <el-button 
                 type="danger" 
                 :loading="drawing"
@@ -262,18 +262,16 @@ const loadInitialData = async () => {
       loadPointsBalance()
     ])
   } catch (error) {
-    console.error('加载初始数据失败', error)
+    ElMessage.error(error.message || '抽奖页初始化失败')
   }
 }
 
 // 加载积分余额
 const loadPointsBalance = async () => {
   try {
-    console.log('开始加载积分余额...')
     pointsBalance.value = await pointsApi.getPointsBalance()
-    console.log('积分余额加载成功:', pointsBalance.value)
   } catch (error) {
-    console.error('加载积分余额失败', error)
+    ElMessage.error(error.message || '加载积分余额失败')
   }
 }
 
@@ -306,11 +304,9 @@ const loadPrizeList = async () => {
 // 加载剩余次数
 const loadRemainingCount = async () => {
   try {
-    console.log('开始加载剩余次数...')
     remainingCount.value = await lotteryApi.getRemainingCount()
-    console.log('剩余次数加载成功:', remainingCount.value)
   } catch (error) {
-    console.error('加载剩余次数失败', error)
+    ElMessage.error(error.message || '加载剩余次数失败')
   }
 }
 
@@ -319,7 +315,7 @@ const loadStatistics = async () => {
   try {
     statistics.value = await lotteryApi.getStatistics()
   } catch (error) {
-    console.error('加载统计信息失败', error)
+    ElMessage.error(error.message || '加载统计信息失败')
   }
 }
 
@@ -328,7 +324,6 @@ const loadRules = async () => {
   try {
     rules.value = await lotteryApi.getRules()
   } catch (error) {
-    console.error('加载规则失败', error)
     rules.value = `
       <ul>
         <li>每次抽奖消耗 100 积分</li>
@@ -354,14 +349,7 @@ const loadRecords = async () => {
 
 // 执行抽奖
 const handleDraw = async () => {
-  console.log('抽奖按钮被点击')
-  console.log('canDraw:', canDraw.value)
-  console.log('userPoints:', userPoints.value)
-  console.log('remainingCount:', remainingCount.value)
-  console.log('drawing:', drawing.value)
-  
   if (!canDraw.value) {
-    console.warn('抽奖条件不满足')
     ElMessage.warning('今日抽奖次数已用完或积分不足')
     return
   }
@@ -371,10 +359,7 @@ const handleDraw = async () => {
   showWinner.value = false
   
   try {
-    console.log('开始调用抽奖 API')
-    // 调用抽奖接口
     drawResult.value = await lotteryApi.draw({ strategyType: 'ALIAS_METHOD' })
-    console.log('抽奖结果:', drawResult.value)
     
     // 找到中奖奖品在九宫格中的位置（排除中心按钮）
     const targetPrizeId = drawResult.value.prizeId
@@ -409,27 +394,10 @@ const handleDraw = async () => {
     }, 1000)
     
   } catch (error) {
-    console.error('抽奖失败:', error)
     drawing.value = false
     currentIndex.value = -1
     ElMessage.error(error.message || '抽奖失败')
   }
-}
-
-// 用于调试 - 打印按钮状态
-const debugButtonState = () => {
-  console.log('=== 按钮状态调试 ===')
-  console.log('userPoints:', userPoints.value)
-  console.log('remainingCount:', remainingCount.value)
-  console.log('drawing:', drawing.value)
-  console.log('canDraw:', canDraw.value)
-  console.log('pointsBalance:', pointsBalance.value)
-}
-window.debugLottery = debugButtonState
-
-// 测试点击事件
-const testClick = () => {
-  console.log('wrapper div 被点击了')
 }
 
 // 九宫格跑灯动画
@@ -501,19 +469,7 @@ const getPrizeLevelType = (level) => {
 }
 
 onMounted(() => {
-  console.log('=== 抽奖页面已挂载 ===')
   loadInitialData()
-  
-  // 3秒后自动打印状态
-  setTimeout(() => {
-    console.log('=== 3秒后自动状态检查 ===')
-    console.log('userPoints:', userPoints.value)
-    console.log('remainingCount:', remainingCount.value)
-    console.log('canDraw:', canDraw.value)
-    console.log('drawing:', drawing.value)
-    console.log('pointsBalance:', pointsBalance.value)
-    console.log('gridItems length:', gridItems.value.length)
-  }, 3000)
 })
 </script>
 

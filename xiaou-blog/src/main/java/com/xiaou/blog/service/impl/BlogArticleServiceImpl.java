@@ -565,8 +565,9 @@ public class BlogArticleServiceImpl implements BlogArticleService {
             response.setTags(JSONUtil.toList(article.getTags(), String.class));
         }
         
-        // 获取分类名称
-        if (article.getCategoryId() != null) {
+        if (article.getCategoryName() != null) {
+            response.setCategoryName(article.getCategoryName());
+        } else if (article.getCategoryId() != null) {
             BlogCategory category = blogCategoryMapper.selectById(article.getCategoryId());
             if (category != null) {
                 response.setCategoryName(category.getCategoryName());

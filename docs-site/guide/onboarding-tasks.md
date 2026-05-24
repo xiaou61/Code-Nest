@@ -180,12 +180,12 @@ Mapper：
 
 ## 文档维护任务包
 
-适合继续补 v2.2.0 文档、写模块页、补索引、维护手册或做版本交接的人。
+适合继续补当前文档工作线、写模块页、补索引、维护手册或做版本交接的人。
 
 | 项目 | 内容 |
 | --- | --- |
 | 目标 | 能让新增代码、文档索引、操作手册和验证记录保持一致 |
-| 先读 | [文档维护规范](/guide/documentation-maintenance)、[全功能覆盖矩阵](/reference/feature-coverage)、[核心链路教程](/manuals/core-workflows)、[v2.2.0 文档计划](/roadmap/v2.2.0-docs-plan) |
+| 先读 | [文档维护规范](/guide/documentation-maintenance)、[全功能覆盖矩阵](/reference/feature-coverage)、[核心链路教程](/manuals/core-workflows)、[v2.2.1 文档计划](/roadmap/v2.2.1-docs-plan) |
 | 推荐任务 | 任选一个模块页，检查它是否有入口、源码、API、表、流程、风险和验证清单 |
 | 输出 | 一份文档缺口清单，按“必须补、可以后补、无需补”分类 |
 

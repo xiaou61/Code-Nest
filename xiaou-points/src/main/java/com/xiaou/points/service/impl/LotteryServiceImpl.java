@@ -28,8 +28,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -114,18 +118,15 @@ public class LotteryServiceImpl implements LotteryService {
             
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            // 回滚库存
-            if (stockDeducted && prize != null) {
-                stockService.rollbackStock(prize.getId());
-            }
+            rollbackStockIfNeeded(stockDeducted, prize);
             throw new BusinessException("系统繁忙，请稍后再试");
+        } catch (BusinessException e) {
+            rollbackStockIfNeeded(stockDeducted, prize);
+            throw e;
         } catch (Exception e) {
-            log.error("抽奖失败", e);
-            // 回滚库存
-            if (stockDeducted && prize != null) {
-                stockService.rollbackStock(prize.getId());
-            }
-            throw new BusinessException("抽奖失败：" + e.getMessage());
+            log.error("抽奖失败, userId={}", userId, e);
+            rollbackStockIfNeeded(stockDeducted, prize);
+            throw new BusinessException("抽奖失败，请稍后再试");
         } finally {
             if (userLock.isHeldByCurrentThread()) {
                 userLock.unlock();
@@ -146,9 +147,7 @@ public class LotteryServiceImpl implements LotteryService {
         request.setUserId(userId);
         return PageHelper.doPage(request.getPage(), request.getSize(), () -> {
             List<LotteryDrawRecord> records = drawRecordMapper.selectByUserId(userId, request);
-            return records.stream()
-                    .map(this::convertToDrawResponse)
-                    .collect(Collectors.toList());
+            return convertToDrawResponses(records);
         });
     }
     
@@ -312,14 +311,25 @@ public class LotteryServiceImpl implements LotteryService {
      */
     private LotteryDrawResponse buildResponse(LotteryPrizeConfig prize, LotteryDrawRecord record) {
         LotteryDrawResponse response = new LotteryDrawResponse();
+        response.setId(record.getId());
         response.setRecordId(record.getId());
+        response.setUserId(record.getUserId());
         response.setPrizeId(prize.getId());
         response.setPrizeName(prize.getPrizeName());
         response.setPrizeLevel(prize.getPrizeLevel());
         response.setPrizePoints(prize.getPrizePoints());
         response.setPrizeIcon(prize.getPrizeIcon());
+        response.setStrategyType(record.getDrawStrategy());
+        response.setIp(record.getDrawIp());
+        response.setDevice(record.getDrawDevice());
         response.setDrawTime(record.getCreateTime());
         return response;
+    }
+
+    private void rollbackStockIfNeeded(boolean stockDeducted, LotteryPrizeConfig prize) {
+        if (stockDeducted && prize != null) {
+            stockService.rollbackStock(prize.getId());
+        }
     }
     
     /**
@@ -368,20 +378,38 @@ public class LotteryServiceImpl implements LotteryService {
     /**
      * 转换为抽奖响应
      */
-    private LotteryDrawResponse convertToDrawResponse(LotteryDrawRecord record) {
+    private List<LotteryDrawResponse> convertToDrawResponses(List<LotteryDrawRecord> records) {
+        Map<Long, LotteryPrizeConfig> prizeMap = buildPrizeMap(records);
+        return records.stream()
+                .map(record -> convertToDrawResponse(record, prizeMap.get(record.getPrizeId())))
+                .collect(Collectors.toList());
+    }
+
+    private LotteryDrawResponse convertToDrawResponse(LotteryDrawRecord record, LotteryPrizeConfig prize) {
         LotteryDrawResponse response = new LotteryDrawResponse();
         BeanUtil.copyProperties(record, response);
         response.setRecordId(record.getId());
         response.setDrawTime(record.getCreateTime());
         
-        // 获取奖品名称
-        LotteryPrizeConfig prize = prizeConfigMapper.selectById(record.getPrizeId());
         if (prize != null) {
             response.setPrizeName(prize.getPrizeName());
             response.setPrizeIcon(prize.getPrizeIcon());
         }
         
         return response;
+    }
+
+    private Map<Long, LotteryPrizeConfig> buildPrizeMap(List<LotteryDrawRecord> records) {
+        List<Long> prizeIds = records.stream()
+                .map(LotteryDrawRecord::getPrizeId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        if (prizeIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return prizeConfigMapper.selectBatchIds(prizeIds).stream()
+                .collect(Collectors.toMap(LotteryPrizeConfig::getId, Function.identity(), (left, right) -> left));
     }
 }
 

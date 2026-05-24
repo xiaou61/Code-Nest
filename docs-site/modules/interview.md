@@ -206,4 +206,310 @@ synchronized 是 JVM 内置锁，ReentrantLock 提供可中断、公平锁等更
 
 ## 学习建议
 
-先读 `InterviewQuestionSetServiceImpl`，理解分类、题单和 Markdown 导入；再读 `InterviewMasteryServiceImpl`，理解掌握度如何变成复习计划；最后看 `LearningCockpitService` 如何消费这些统计。这样就能从“题库 CRUD”理解到“学习闭环数据”的设计。
+先读 `InterviewQuestionSetServiceImpl`，理解分类、题单和 Markdown 导入；再读 `InterviewMasteryServiceImpl`，理解掌握度如何变成复习计划；最后看 `LearningCockpitService` 如何消费这些统计。这样就能从"题库 CRUD"理解到"学习闭环数据"的设计。
+
+---
+
+## 深度拆解
+
+### 一、题单创建与权限模型深度分析
+
+`InterviewQuestionSetServiceImpl.createQuestionSet` 的完整流程：
+
+```text
+1. 校验分类存在 → categoryMapper.selectById(categoryId)
+2. 获取创建人 → 优先 Admin 登录态，fallback User 登录态，双 null 则抛"请先登录"
+3. creatorName 空白兜底 → "系统"
+4. 构建 InterviewQuestionSet 对象
+   - type 默认 2（用户创建），visibility 默认 1（公开），status 默认 0（草稿）
+   - questionCount/viewCount/favoriteCount 全部初始化为 0
+5. insert → result <= 0 抛"创建题单失败"
+6. categoryService.updateQuestionSetCount(categoryId) → 重算分类下题单数
+7. 返回 questionSet.getId()
+```
+
+**双登录态设计**：`SaTokenUserUtil.getCurrentAdminId()` 优先取管理端 ID，取不到再 `getCurrentUserId()`。这意味着同一个接口既可被管理端调用也可被用户端调用，但 **没有角色校验**——任何登录用户都能创建题单。
+
+**权限检查 `hasAccessPermission`**：委托给 `questionSetMapper.hasAccessPermission(questionSetId, userId)`，SQL 层面判断公开题单或私有题单的创建者。但用户端 Controller 只在获取题目列表和题目详情时检查，**获取题单详情本身不检查权限**——任何登录用户都能看到私有题单的元信息（标题、描述、计数）。
+
+**更新题单的分类迁移**：`updateQuestionSet` 中如果 `categoryId` 变更，会同时更新旧分类和新分类的 `questionSetCount`，保证统计一致。
+
+**删除题单的级联**：`deleteQuestionSet` 先 `questionMapper.deleteByQuestionSetId(id)` 删除所有题目，再删题单，最后更新分类计数。但 **不删除** 学习记录、掌握度记录、收藏记录——会产生悬挂引用。
+
+### 二、Markdown 导入解析器深度分析
+
+`MarkdownParser` 的核心逻辑：
+
+```text
+parseMarkdown(markdownContent, questionSetId)
+  ├─ 空白检查 → errors.add("Markdown内容不能为空")
+  ├─ splitByQuestionHeaders(content)
+  │   ├─ 正则 ^## (.+)$ 定位所有 ## 标题位置
+  │   ├─ positions 为空 → throw RuntimeException("未找到题目标题")
+  │   └─ 按位置切分为 sections[]
+  ├─ for each section:
+  │   ├─ parseQuestionSection(section, questionSetId, sortOrder)
+  │   │   ├─ 提取标题: QUESTION_SPLIT_PATTERN.matcher(section) → group(1).trim()
+  │   │   ├─ 提取答案: section.substring(titleMatcher.end()).trim()
+  │   │   ├─ 答案空白 → throw RuntimeException("答案内容不能为空")
+  │   │   └─ 构建 InterviewQuestion (questionSetId, title, answer, sortOrder)
+  │   ├─ 成功 → successCount++, sortOrder++
+  │   └─ 异常 → failureCount++, errors.add(失败信息)
+  └─ return ParseResult(questions, errors, successCount, failureCount)
+```
+
+**导入服务层 `importMarkdownQuestions`**：
+
+```text
+1. 校验题单存在
+2. MarkdownParser.parseMarkdown → parseResult
+3. successCount == 0 → 抛业务异常（全部失败）
+4. overwrite == true → questionMapper.deleteByQuestionSetId 先清空
+5. 设置 createTime/updateTime → questionMapper.batchInsert 批量插入
+6. updateQuestionCount 重算题单的 questionCount
+7. 返回 insertCount
+```
+
+**关键细节**：
+- `validateMarkdown` 方法校验 200 题上限，但 **`importMarkdownQuestions` 没有调用 `validateMarkdown`**——200 题限制形同虚设
+- `splitByQuestionHeaders` 抛的是 `RuntimeException`，不是 `BusinessException`，会被外层 catch(Exception) 捕获后加入 errors
+- `previewParse` 传入 `questionSetId=null`，预览不实际导入
+- 正则 `^## (.+)$` 使用 `Pattern.MULTILINE`，`^` 和 `$` 匹配行首行尾而非字符串首尾——正确
+
+### 三、掌握度与间隔重复算法深度分析
+
+`InterviewMasteryServiceImpl.markMastery` 完整流程：
+
+```text
+1. 查询已有记录 → masteryMapper.selectByUserAndQuestion(userId, questionId)
+2. isReview = (existingRecord != null)
+3. reviewCount = isReview ? existingRecord.reviewCount + 1 : 0
+4. calculateNextReviewDays(masteryLevel, reviewCount)
+   ├─ baseInterval = BASE_INTERVALS[masteryLevel - 1]  // {1, 2, 4, 7}
+   ├─ multiplier = 2^min(reviewCount, 5)
+   ├─ days = baseInterval * multiplier
+   └─ return min(days, 60)
+5. nextReviewTime = now + nextReviewDays 天
+6. if 新建:
+   ├─ insert mastery_record (reviewCount=0)
+   └─ dailyStatsMapper.incrementLearnCount(userId, today)
+7. if 更新:
+   ├─ update mastery_record (reviewCount=reviewCount)
+   └─ dailyStatsMapper.incrementReviewCount(userId, today)
+8. insertHistory(userId, questionId, masteryLevel, isReview?1:0)
+9. return buildMasteryResponse(record, nextReviewDays)
+```
+
+**间隔重复公式详解**：
+
+| masteryLevel | 文案 | baseInterval | reviewCount=0 | reviewCount=1 | reviewCount=2 | reviewCount=3 | reviewCount=4 | reviewCount=5+ |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 不会 | 1 | 1天 | 2天 | 4天 | 8天 | 16天 | 32天 |
+| 2 | 模糊 | 2 | 2天 | 4天 | 8天 | 16天 | 32天 | 60天(封顶) |
+| 3 | 熟悉 | 4 | 4天 | 8天 | 16天 | 32天 | 60天(封顶) | 60天(封顶) |
+| 4 | 已掌握 | 7 | 7天 | 14天 | 28天 | 56天 | 60天(封顶) | 60天(封顶) |
+
+**封顶逻辑**：`min(days, 60)` 确保最长间隔不超过 60 天。`min(reviewCount, 5)` 限制指数增长上限为 `2^5 = 32` 倍。
+
+**首次标记 vs 重复标记**：
+- 首次：`reviewCount=0`，`incrementLearnCount`，历史 `isReview=0`
+- 重复：`reviewCount=existing+1`，`incrementReviewCount`，历史 `isReview=1`
+
+**MasteryMarkRequest.isReview 字段**：DTO 中有 `isReview` 字段但 **Service 层完全未使用**——实际判断是否复习靠的是 `existingRecord != null`，前端传入的 `isReview` 被忽略。
+
+### 四、每日统计与热力图深度分析
+
+**DailyStats 的 upsert 机制**：
+
+`incrementLearnCount` 和 `incrementReviewCount` 使用 MySQL `INSERT ... ON DUPLICATE KEY UPDATE`：
+
+```sql
+-- incrementLearnCount
+INSERT INTO interview_daily_stats (user_id, stat_date, learn_count, review_count, total_count, ...)
+VALUES (#{userId}, #{statDate}, 1, 0, 1, NOW(), NOW())
+ON DUPLICATE KEY UPDATE
+    learn_count = learn_count + 1,
+    total_count = total_count + 1,
+    update_time = NOW()
+```
+
+这依赖 `(user_id, stat_date)` 的唯一约束。如果缺少该唯一索引，会导致重复插入。
+
+**热力图 `getHeatmap` 流程**：
+
+```text
+1. dailyStatsMapper.selectByUserAndYear(userId, year) → yearStats
+2. 转换为 DailyData 列表（date, count=totalCount, level=calculateLevel, learnCount, reviewCount）
+3. totalDays = countTotalDays (totalCount > 0 的天数)
+4. currentStreak = calculateCurrentStreak(userId, today)
+5. longestStreak = calculateLongestStreak(yearStats)
+6. monthStats = 12 次查询 countMonthDays
+7. 返回 HeatmapResponse
+```
+
+**calculateLevel 热度等级**：
+
+| totalCount | level | 颜色（GitHub 风格） |
+| --- | --- | --- |
+| 0 | 0 | 无色 |
+| 1-5 | 1 | 浅绿 |
+| 6-15 | 2 | 中绿 |
+| 16-30 | 3 | 深绿 |
+| 31+ | 4 | 最深绿 |
+
+**连续学习天数计算**：
+
+`calculateCurrentStreak` 从今天开始往前逐日查询 `dailyStatsMapper.selectByUserAndDate`，直到某天 `totalCount == 0` 或 `stats == null` 停止。**性能风险**：如果用户连续学习 365 天，会执行 365 次单行查询。
+
+`calculateLongestStreak` 在内存中遍历 `yearStats` 列表，按日期连续性计算最长连续段——**但要求 yearStats 按 statDate 升序排列**（SQL 中 `ORDER BY stat_date ASC` 保证）。
+
+**monthStats 的 N+1 问题**：`getHeatmap` 中对 12 个月各调用一次 `countMonthDays`，共 12 次查询。可以合并为一次 `GROUP BY MONTH(stat_date)` 查询。
+
+### 五、复习列表与统计深度分析
+
+**复习统计 `getReviewStats`**：
+
+```text
+1. overdueCount = countOverdueReview (nextReviewTime < now, 题单 status=1)
+2. todayCount = countTodayReview (todayStart <= nextReviewTime < tomorrowStart, 题单 status=1)
+3. weekCount = countWeekReview (todayStart <= nextReviewTime < weekEnd, 题单 status=1)
+4. totalLearned = countTotalLearned (所有掌握度记录数)
+5. level1~4Count = countByMasteryLevel(userId, 1~4)
+```
+
+共 **7 次 SQL 查询**。其中 overdue/today/week 三个查询都 JOIN 了 `interview_question_set` 并过滤 `iqs.status = 1`，确保只统计已发布题单下的待复习题。
+
+**复习列表 `getReviewList`**：
+
+| type | 查询 | 排序 |
+| --- | --- | --- |
+| overdue | nextReviewTime < now | nextReviewTime ASC（最逾期排最前） |
+| today | todayStart <= nextReviewTime < tomorrowStart | nextReviewTime ASC |
+| week | todayStart <= nextReviewTime < weekEnd | nextReviewTime ASC |
+| all | overdue ∪ week（合并两个列表） | 无额外排序 |
+
+**all 模式的合并问题**：`result.addAll(overdue) + result.addAll(week)` 产生的是逾期在前、本周在后的大致有序列表，但逾期和本周可能有重叠（今天的题既在 overdue 也在 week），导致 **重复出现**。
+
+**SQL 层面**：所有复习查询都 LEFT JOIN 了 `interview_question` 和 `interview_question_set`，获取 `questionTitle`、`questionSetTitle`、`overdueDays`。如果题目或题单被删除，LEFT JOIN 结果为 null——`questionTitle` 和 `questionSetTitle` 为 null，但记录仍然返回。
+
+### 六、收藏系统深度分析
+
+`InterviewFavoriteServiceImpl` 支持两种收藏目标：
+
+| targetType | 目标 | 计数更新 | 通知 |
+| --- | --- | --- | --- |
+| 1 | 题单 | questionSetMapper.increaseFavoriteCount / decreaseFavoriteCount | 通知题单作者 |
+| 2 | 题目 | questionMapper.increaseFavoriteCount / decreaseFavoriteCount | 无 |
+
+**收藏幂等性**：`addFavorite` 先 `favoriteMapper.exists()` 检查，已收藏则抛"已经收藏过了"。但 **没有数据库唯一约束保护**——并发下可能突破 exists 检查导致重复插入。
+
+**取消收藏**：`removeFavorite` 先检查 exists，不存在抛"收藏记录不存在"。
+
+**计数一致性**：add 时 +1，remove 时 -1。如果 `increaseFavoriteCount` 或 `decreaseFavoriteCount` 使用 `UPDATE SET count = count + 1`，并发安全；如果使用 `SET count = 新值`，则不安全。
+
+**通知机制**：收藏题单时通过 `NotificationUtil.sendInterviewMessage` 通知题单创建者，catch 异常只 warn 不回滚。通知内容中用户名使用 `"用户" + userId` 硬编码拼接，**不是真实用户名**。
+
+**批量删除 `batchRemoveFavorites`**：按 ID 列表批量删除，但 **不回减** 对应目标的 favoriteCount——计数会永久偏高。
+
+### 七、学习记录深度分析
+
+`InterviewLearnRecordServiceImpl.recordLearn`：
+
+```text
+@Async
+recordLearn(userId, questionSetId, questionId)
+  ├─ 构建 InterviewLearnRecord
+  ├─ learnRecordMapper.insertIgnore(record)  // INSERT IGNORE 防重
+  └─ catch(Exception) → log.warn (不阻断主流程)
+```
+
+**异步写入**：`@Async` 注解使方法在独立线程执行。调用方（Controller）立即返回成功，学习记录在后台写入。
+
+**INSERT IGNORE**：依赖 `(user_id, question_id)` 唯一约束。如果缺少该约束，INSERT IGNORE 不会忽略重复，会插入多条。
+
+**容错设计**：外层 try-catch 吞掉所有异常，只 warn 日志。这意味着：
+- 数据库连接失败 → 静默丢失学习记录
+- 唯一约束缺失 → 重复插入但不会报错
+
+**查询方法**：`getLearnedQuestionIds`、`getLearnedCount`、`getTotalLearnedCount`、`isLearned` 都是同步查询，null 参数有防御性返回。
+
+### 八、随机抽题深度分析
+
+`InterviewQuestionServiceImpl.getRandomQuestions`：
+
+```text
+1. 校验 questionSetIds 非空、count > 0
+2. 逐个校验题单存在（不校验公开状态）
+3. questionMapper.selectByQuestionSetIds(ids) → allQuestions
+4. allQuestions 为空 → 返回空列表
+5. count >= allQuestions.size() → shuffle 全部返回
+6. 否则 → shuffle 后 subList(0, count)
+```
+
+**性能问题**：将所有题目加载到内存再 shuffle，如果题单下有数千题，内存开销大。数据库层 `ORDER BY RAND() LIMIT n` 更适合大数据量场景。
+
+**校验漏洞**：只校验题单存在，不校验题单是否已发布（status=1）——可以从下线题单抽题。
+
+### 九、深度发现与坑点
+
+#### 9.1 确认 BUG
+
+| 编号 | BUG | 位置 | 说明 |
+| --- | --- | --- | --- |
+| BUG-1 | Markdown 导入无 200 题限制 | `InterviewQuestionSetServiceImpl.importMarkdownQuestions` | `validateMarkdown` 校验了 200 上限但未被调用，可导入任意数量 |
+| BUG-2 | 删除题单不清理关联数据 | `InterviewQuestionSetServiceImpl.deleteQuestionSet` | 不删除 learn_record、mastery_record、favorite，产生悬挂引用 |
+| BUG-3 | 复习列表 all 模式重复 | `InterviewMasteryServiceImpl.getReviewList` | overdue 和 week 时间范围重叠，同一天逾期题会出现两次 |
+| BUG-4 | 批量删除收藏不回减计数 | `InterviewFavoriteServiceImpl.batchRemoveFavorites` | 只删除记录不 decreaseFavoriteCount，计数永久偏高 |
+| BUG-5 | MasteryMarkRequest.isReview 被忽略 | `InterviewMasteryServiceImpl.markMastery` | DTO 有 isReview 字段但 Service 用 existingRecord!=null 判断，前端传入值无效 |
+| BUG-6 | 随机抽题不校验题单状态 | `InterviewQuestionServiceImpl.getRandomQuestions` | 只校验题单存在，可从草稿/下线题单抽题 |
+| BUG-7 | 收藏通知用户名硬编码 | `InterviewFavoriteServiceImpl.addFavorite` | `"用户" + userId` 不是真实用户名 |
+| BUG-8 | calculateNextReviewDays 无越界保护 | `InterviewMasteryServiceImpl.calculateNextReviewDays` | `BASE_INTERVALS[masteryLevel - 1]` 若 masteryLevel=0 或 5 会 ArrayIndexOutOfBoundsException |
+
+#### 9.2 设计风险
+
+| 编号 | 风险 | 说明 |
+| --- | --- | --- |
+| RISK-1 | 连续学习天数逐日查询 | calculateCurrentStreak 最多 365 次单行 SELECT，应改为范围查询 |
+| RISK-2 | 热力图 12 次 monthStats 查询 | 可合并为一次 GROUP BY |
+| RISK-3 | 收藏无数据库唯一约束 | 并发下 exists 检查可被突破，导致重复收藏 |
+| RISK-4 | INSERT IGNORE 依赖唯一约束 | interview_learn_record 缺少 (user_id, question_id) 唯一约束则防重失效 |
+| RISK-5 | @Async 无线程池配置 | 使用 SimpleAsyncTaskExecutor，无上限可能 OOM |
+| RISK-6 | 随机抽题全量加载 | selectByQuestionSetIds 加载所有题目到内存，大数据量下性能差 |
+| RISK-7 | 题单详情无权限检查 | 用户端 getQuestionSetById 不检查私有题单权限，元信息泄露 |
+
+#### 9.3 架构设计亮点
+
+| 编号 | 亮点 | 说明 |
+| --- | --- | --- |
+| H-1 | 间隔重复算法 | 基于艾宾浩斯遗忘曲线，4 级掌握度 × 指数增长 × 60 天封顶，科学合理 |
+| H-2 | INSERT IGNORE 防重 | 学习记录用 INSERT IGNORE 避免重复，配合异步写入不阻断主流程 |
+| H-3 | DailyStats upsert | incrementLearnCount/ReviewCount 用 ON DUPLICATE KEY UPDATE 原子递增 |
+| H-4 | Markdown 批量导入 | 管理端一键导入，覆盖/追加双模式，解析容错（部分成功部分失败） |
+| H-5 | 复习查询 JOIN 题单状态 | overdue/today/week 查询都过滤 iqs.status=1，下线题单不计入复习 |
+| H-6 | 热力图 4 级热度 | calculateLevel 分 0/1-5/6-15/16-30/31+ 五档，GitHub 风格直观 |
+| H-7 | 收藏双目标类型 | targetType=1 题单 / 2 题目，一套服务支持两种收藏语义 |
+| H-8 | 分类计数实时重算 | updateQuestionSetCount 每次 COUNT 重算，避免增量计数漂移 |
+| H-9 | 双登录态创建 | 管理端和用户端共用 createQuestionSet，creatorId 优先取 Admin |
+| H-10 | 上下题导航 | getNextQuestion/getPrevQuestion 按 sortOrder 定位，刷题体验流畅 |
+
+#### 9.4 源码导航速查
+
+| 想了解 | 读什么 |
+| --- | --- |
+| 题单创建 | `InterviewQuestionSetServiceImpl.java` — createQuestionSet + 双登录态 |
+| Markdown 导入 | `InterviewQuestionSetServiceImpl.java` — importMarkdownQuestions + `MarkdownParser.java` |
+| 掌握度标记 | `InterviewMasteryServiceImpl.java` — markMastery + calculateNextReviewDays |
+| 间隔重复算法 | `InterviewMasteryServiceImpl.java` — BASE_INTERVALS + 2^min(reviewCount,5) + 60 天封顶 |
+| 复习统计 | `InterviewMasteryServiceImpl.java` — getReviewStats (7 次 SQL) |
+| 复习列表 | `InterviewMasteryServiceImpl.java` — getReviewList + overdue/today/week/all |
+| 热力图 | `InterviewMasteryServiceImpl.java` — getHeatmap + calculateCurrentStreak + calculateLongestStreak |
+| 热度等级 | `HeatmapResponse.java` — calculateLevel (0/1-5/6-15/16-30/31+) |
+| 每日统计 upsert | `InterviewDailyStatsMapper.xml` — incrementLearnCount / incrementReviewCount |
+| 学习记录 | `InterviewLearnRecordServiceImpl.java` — @Async + INSERT IGNORE |
+| 收藏系统 | `InterviewFavoriteServiceImpl.java` — addFavorite + removeFavorite + 通知 |
+| 随机抽题 | `InterviewQuestionServiceImpl.java` — getRandomQuestions (shuffle) |
+| 题目 CRUD | `InterviewQuestionServiceImpl.java` — createQuestion + batchDeleteQuestions |
+| 分类 CRUD | `InterviewCategoryServiceImpl.java` — 名称去重 + 级联检查 |
+| 掌握度 Mapper | `InterviewMasteryMapper.xml` — 复习查询 LEFT JOIN 题目+题单 |
+| 用户端题单 | `InterviewQuestionSetPublicController.java` — 权限检查 + 浏览计数 |
+| 掌握度接口 | `InterviewMasteryController.java` — mark/batch/review/heatmap |

@@ -33,6 +33,11 @@ public interface CodePenService {
      * 付费作品未购买时隐藏源码
      */
     CodePenDetailResponse getDetail(Long id, Long currentUserId);
+
+    /**
+     * 批量获取作品详情
+     */
+    List<CodePenDetailResponse> getDetailsByIds(List<Long> ids, Long currentUserId);
     
     /**
      * 分页查询作品列表

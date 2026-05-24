@@ -35,15 +35,18 @@ public class CodePenTagServiceImpl implements CodePenTagService {
     
     @Override
     public Long createTag(String tagName, String tagDescription) {
+        String normalizedTagName = normalizeTagName(tagName);
+        String normalizedDescription = normalizeTagDescription(tagDescription);
+
         // 检查标签是否已存在
-        CodePenTag existTag = tagMapper.selectByName(tagName);
+        CodePenTag existTag = tagMapper.selectByName(normalizedTagName);
         if (existTag != null) {
             throw new BusinessException("标签已存在");
         }
         
         CodePenTag tag = new CodePenTag();
-        tag.setTagName(tagName);
-        tag.setTagDescription(tagDescription);
+        tag.setTagName(normalizedTagName);
+        tag.setTagDescription(normalizedDescription);
         tagMapper.insert(tag);
         
         return tag.getId();
@@ -51,10 +54,25 @@ public class CodePenTagServiceImpl implements CodePenTagService {
     
     @Override
     public boolean updateTag(Long id, String tagName, String tagDescription) {
+        CodePenTag existingTag = tagMapper.selectById(id);
+        if (existingTag == null) {
+            throw new BusinessException("标签不存在");
+        }
+
+        String normalizedTagName = normalizeTagName(tagName);
+        String normalizedDescription = normalizeTagDescription(tagDescription);
+
+        if (!normalizedTagName.equals(existingTag.getTagName())) {
+            CodePenTag duplicateTag = tagMapper.selectByName(normalizedTagName);
+            if (duplicateTag != null && !duplicateTag.getId().equals(id)) {
+                throw new BusinessException("标签已存在");
+            }
+        }
+
         CodePenTag tag = new CodePenTag();
         tag.setId(id);
-        tag.setTagName(tagName);
-        tag.setTagDescription(tagDescription);
+        tag.setTagName(normalizedTagName);
+        tag.setTagDescription(normalizedDescription);
         return tagMapper.updateById(tag) > 0;
     }
     
@@ -93,6 +111,31 @@ public class CodePenTagServiceImpl implements CodePenTagService {
         log.info("标签合并成功，源标签ID：{}，目标标签ID：{}", sourceId, targetId);
         
         return true;
+    }
+
+    private String normalizeTagName(String tagName) {
+        if (tagName == null || tagName.trim().isEmpty()) {
+            throw new BusinessException("标签名称不能为空");
+        }
+        String normalized = tagName.trim();
+        if (normalized.length() > 50) {
+            throw new BusinessException("标签名称不能超过50个字符");
+        }
+        return normalized;
+    }
+
+    private String normalizeTagDescription(String tagDescription) {
+        if (tagDescription == null) {
+            return null;
+        }
+        String normalized = tagDescription.trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        if (normalized.length() > 200) {
+            throw new BusinessException("标签描述不能超过200个字符");
+        }
+        return normalized;
     }
 }
 

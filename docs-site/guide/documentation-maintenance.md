@@ -1,119 +1,205 @@
 # 文档维护规范
 
-这套 VitePress 文档站是 v2.2.0 的独立模块。之后每次新增功能、改接口、改表、改页面，都应该同步更新文档，避免代码和说明分叉。
+本页说明 Code Nest 文档站（`docs-site`）的日常维护流程，包括目录结构、各类型页面的定位和更新原则、校验方法，以及变更时必须同步检查的关联页面。
 
-## 新功能文档检查清单
+文档站的目标是让新人快速定位代码入口、让开发者在改功能时顺便补文档、让页面之间的导航链路不会断。
 
-| 检查项 | 要更新的位置 |
-| --- | --- |
-| 新用户页面 | [前端路由索引](/reference/frontend-routes)、对应模块页、用户端操作手册 |
-| 新管理页面 | [前端路由索引](/reference/frontend-routes)、对应模块页、管理端操作手册 |
-| 新 Controller 或路由前缀 | [API 路由索引](/reference/api-routes) |
-| 新数据表或字段 | [数据表索引](/reference/database-tables)、模块页 |
-| 新 WebSocket 事件 | [WebSocket 协议](/reference/websocket) |
-| 新错误码 | [响应体与错误码](/reference/response-errors) |
-| 新 AI Prompt、RAG、Schema 或回归 | [AI Schema 与治理](/reference/ai-schemas)、[AI Runtime](/modules/ai-runtime) |
-| 新 Markdown、富文本或 `v-html` 展示 | [前端渲染安全](/reference/frontend-rendering-security)、对应模块页 |
-| 新业务链路、部署配置或高风险修复 | [发布前验证](/guide/release-verification)、[验证记录与已知问题](/manuals/verified-scenarios) |
-| 新截图或补测结果 | 对应操作手册、[验证记录与已知问题](/manuals/verified-scenarios) |
-| 新模块 | [模块总览](/modules/)、[全功能覆盖矩阵](/reference/feature-coverage)、VitePress sidebar |
-| 新增一批文档同步批次 | [文档同步基线](/reference/docs-sync-baseline)、[v2.2.0 文档计划](/roadmap/v2.2.0-docs-plan) |
+## 目录结构
 
-如果不是单纯改文档，而是要从代码层面新增一个完整功能，先按 [功能开发流程](/guide/feature-development) 走一遍，再回到本页检查文档同步位置。
-
-## 模块页模板
-
-每个模块页都应该逐步补齐这些部分：
-
-1. 功能定位。
-2. 用户端入口。
-3. 管理端入口。
-4. API 前缀和 Controller。
-5. Service、Mapper、核心表。
-6. 核心流程。
-7. 状态机或关键枚举。
-8. 权限、安全和风控边界。
-9. 已知问题和验证方式。
-
-首版可以先写 1 到 6，后续每次改功能时补齐 7 到 9。
-
-如果这次补的是状态流转类文档，除了更新对应模块页，也建议同步看看 [模块状态机与生命周期索引](/reference/module-state-machines) 是否需要补一条总览入口。
-
-## 写作规则
-
-| 规则 | 说明 |
-| --- | --- |
-| 先读源码 | 不凭记忆写接口和表名 |
-| 用源码路径 | 关键结论尽量给出 `xiaou-*`、`vue3-*` 或 `sql/*` 路径 |
-| 少写口号 | 文档面向维护和交付，不写营销文案 |
-| 保持中文术语一致 | 同一个功能不要在不同页面混用多个名字 |
-| 不嵌入密钥 | 示例配置不得出现真实 token、API key、数据库密码 |
-| 审查 `v-html` | 新增内容渲染前先确认是否走 `renderMarkdown`、`sanitizeHtml` 或 `escapeHtml` |
-| 构建验证 | 每批文档变更都运行 `npm run build` |
-
-## 文档同步基线自动刷新
-
-当前文档站已经接入基线自动刷新脚本：
-
-```powershell
-cd docs-site
-npm run sync:baseline
+```text
+docs-site/
+├── .vitepress/
+│   └── config.mts        # 侧栏和导航配置
+├── guide/                 # 使用和流程指南
+│   ├── quick-start.md     # 新人快速开始
+│   ├── local-dev.md       # 本地开发环境搭建
+│   ├── deploy.md          # 独立部署
+│   ├── documentation-maintenance.md  # 本页
+│   ├── learning-paths.md  # 学习路径推荐
+│   ├── onboarding-tasks.md # 入职打卡任务
+│   ├── feature-development.md # 功能开发流程
+│   ├── release-verification.md  # 发布前验证
+│   ├── testing-regression.md    # 测试回归
+│   └── git-log-release-notes.md # Git 日志和发布说明
+├── modules/               # 按功能拆分的模块教程
+│   ├── index.md           # 模块总览与导航
+│   ├── auth.md            # 鉴权
+│   ├── blog.md            # 博客
+│   ├── chat.md            # 聊天
+│   ├── codepen.md         # 代码工坊
+│   ├── community-content.md  # 社区内容矩阵
+│   ├── community.md       # 社区互动
+│   ├── dashboard-logs.md  # 仪表盘与日志
+│   ├── dev-tools.md       # 开发工具
+│   ├── interview-and-growth.md # 面试与成长
+│   ├── interview.md       # 面试题库
+│   ├── flashcard.md       # 闪卡
+│   ├── knowledge.md       # 知识库
+│   ├── learning-assets.md # 学习资产
+│   ├── mock-interview-job-battle.md # 模拟面试与求职
+│   ├── moments.md         # 动态
+│   ├── moyu.md            # 摸鱼
+│   ├── notification.md    # 通知
+│   ├── oj.md              # OJ 判题
+│   ├── plan-team.md       # 计划与学习小组
+│   ├── points.md          # 积分与抽奖
+│   ├── resume.md          # 简历
+│   ├── sensitive.md       # 敏感词风控
+│   ├── sql-optimizer.md   # SQL 优化
+│   ├── system-ops.md      # 系统运营后台
+│   ├── tools-moyu-version.md  # 开发工具/摸鱼/版本
+│   ├── user-account.md    # 用户账户
+│   ├── file-storage.md    # 文件存储
+│   └── ai-runtime.md      # AI Runtime
+├── reference/             # 可查询的索引和参考
+│   ├── api-routes.md      # API 路由
+│   ├── database-tables.md # 数据表
+│   ├── frontend-routes.md # 前端路由
+│   ├── source-map.md      # 源码地图
+│   ├── ai-schemas.md      # AI Schema
+│   ├── websocket.md       # WebSocket 协议
+│   ├── response-errors.md # 响应码与错误
+│   ├── permission-boundaries.md # 权限边界
+│   ├── feature-coverage.md     # 功能覆盖矩阵
+│   ├── module-regression-matrix.md # 回归验证矩阵
+│   ├── module-state-machines.md # 状态机索引
+│   ├── statistics-ranking-counts.md # 统计与排名口径
+│   ├── docs-sync-baseline.md    # 文档同步基线
+│   ├── frontend-rendering-security.md # 前端渲染安全
+│   └── glossary.md        # 术语表
+├── architecture/          # 架构总览
+│   ├── overview.md
+│   ├── backend-modules.md
+│   ├── frontend-apps.md
+│   └── database.md
+├── operations/            # 运维操作
+│   ├── incident-response.md
+│   └── troubleshooting.md
+├── roadmap/               # 版本计划
+└── index.md               # 首页
 ```
 
-默认情况下：
+## 页面类型和定位
 
-1. `npm run dev` 前会自动刷新一次。
-2. `npm run build` 前会自动刷新一次。
-3. `npm run preview` 前会自动刷新一次。
+| 类型 | 目录 | 写给谁看 | 更新时机 |
+| --- | --- | --- | --- |
+| 指南页 | `guide/` | 新人或操作者 | 流程变更时 |
+| 模块页 | `modules/` | 开发者 | 功能新增或修改时 |
+| 参考页 | `reference/` | 查表用 | API/路由/表结构变更时 |
+| 架构页 | `architecture/` | 架构师或新人 | 大范围重构时 |
+| 运维页 | `operations/` | 值班和运维 | 故障复盘或流程调整时 |
+| 路线图 | `roadmap/` | 团队 | 版本迭代时 |
 
-这意味着 [文档同步基线](/reference/docs-sync-baseline) 页面会优先展示当前 Git `HEAD` 和工作区状态，而不是靠手工维护一组 SHA 文案。
+## 变更检查矩阵
 
-## 提交前验证
+当你改了一类页面，要同步检查的关联页面：
 
-```powershell
+| 改动位置 | 必须检查 |
+| --- | --- |
+| 模块页 | 源码地图、API 路由、前端路由、数据库表、术语表、模块总览 |
+| 新增 API | API 路由、权限边界、对应模块页 |
+| 新增前端路由 | 前端路由、对应模块页 |
+| 新增数据表 | 数据库表、对应模块页 |
+| 新增状态值 | 术语表、状态机索引 |
+| 新增权限 | 权限边界、鉴权模块页 |
+| 修改部署配置 | 部署指南、本地开发 |
+| 修改 WebSocket 协议 | WebSocket 协议页、聊天模块页 |
+| 修改 AI Schema | AI Schema 页、AI Runtime 模块页 |
+| 新增 v-html 使用 | 前端渲染安全 |
+
+## VitePress 构建和校验
+
+### 构建
+
+```bash
 cd docs-site
+npm ci
 npm run build
 ```
 
-如果这次只改 `docs-site/**`，上面的构建通常就是最低要求。如果同时改了后端、用户端、管理端、AI、OJ、聊天、文件上传或部署配置，要先按 [发布前验证](/guide/release-verification) 选择对应验证项，再提交。
+构建会检查：
 
-建议在提交前再执行：
+1. Markdown 链接是否存在目标文件。
+2. Vue 模板语法是否正确。
+3. 侧栏配置中引用的页面是否存在。
 
-```powershell
-git diff --check
-git status --short
-```
+### 常见构建错误
 
-如果这次准备提 PR，仓库根目录已经约定使用 `.github/pull_request_template.md`。不要只写“改了什么”，至少把验证范围、未验证边界和文档同步项勾清楚。
+| 错误 | 原因 | 修复 |
+| --- | --- | --- |
+| 死链接 | 链接指向不存在的页或标题 | 检查路径和文件名 |
+| Vue 模板编译失败 | 正文里有未转义尖括号 | 用 `&lt;` 和 `&gt;` 替换 |
+| 侧栏找不到文件 | config.mts 引用的路径与实际文件不一致 | 对齐路径 |
 
-## 推荐提交粒度
+### 尖括号转义
 
-| 类型 | 提交示例 |
+VitePress 用 Vue 编译 Markdown，尖括号会被当作 HTML 标签。以下内容必须转义：
+
+| 场景 | 错误写法 | 正确写法 |
+| --- | --- | --- |
+| Java 泛型 | `List&lt;String&gt;` | `List&lt;String&gt;` |
+| 路由参数 | `/dev-tools/&lt;toolName&gt;` | `/dev-tools/&lt;toolName&gt;` |
+| HTML 标签提及 | `&lt;script&gt;` | 用中文"脚本标签"或 `&lt;script&gt;` |
+| Vue 组件名 | `&lt;KeepAlive&gt;` | `&lt;KeepAlive&gt;` |
+
+### localhost 链接
+
+VitePress 会把 Markdown 代码块中的 localhost URL 也当作链接去验证。如果写示例命令，用环境变量替代：
+
+| 不推荐 | 推荐 |
 | --- | --- |
-| 新文档站骨架 | `docs: add standalone VitePress site` |
-| 模块覆盖 | `docs: expand feature module coverage` |
-| 参考索引 | `docs: add api and data reference indexes` |
-| 操作手册 | `docs: add operation manuals and workflow guides` |
-| 模块深化 | `docs: deepen oj and mock interview docs` |
+| `curl http://localhost:9999/api/health` | `curl ${BACKEND_HOST}/api/health`，再在注释中说明默认值 |
 
-## 文档站本地开发
+## 写作约定
 
-```powershell
-cd docs-site
-npm install
-npm run docs:dev
-```
+### 文件名和标题
 
-如果端口被占用，可以使用 VitePress 的端口参数：
+- 文件名使用 kebab-case，例如 `plan-team.md`。
+- 页面标题用中文，首行 `#` 后面直接跟标题，不加编号。
 
-```powershell
-npm run docs:dev -- --port 5178
-```
+### 模块页模板
 
-## 版本节奏
+每个模块页建议包含以下段落：
 
-1. 功能开发分支先改代码和文档。
-2. 合并前按 [发布前验证](/guide/release-verification) 跑后端、前端、文档和关键业务烟测。
-3. 发布版本时更新 [版本历史](/modules/version-history) 和 [v2.2.0 文档计划](/roadmap/v2.2.0-docs-plan)。
-4. 每次明显的文档批次完成后，更新 [文档同步基线](/reference/docs-sync-baseline)，写清当前对齐到的分支、SHA、时间和提交标题。
-5. 手册截图有变更时，先放入 `docs/manual-assets/<date>`，再更新文档站索引。
+1. **定位** — 一段话说清模块做什么、给谁用。
+2. **源码入口** — 控制器、服务、Mapper、前端组件的路径表。
+3. **API 一览** — 用户端和管理端的主要接口。
+4. **核心流程** — 关键业务的状态流转或调用链。
+5. **数据表** — 主要表名和字段概要。
+6. **常见坑** — 开发时容易踩的雷。
+7. **验证清单** — 改完代码后怎么验证。
+
+### 表格约定
+
+- 状态值表格至少列出 code 和含义。
+- API 表格至少列出方法、路径和用途。
+- 状态机图用文本表格或缩进列表，不用 Mermaid。
+
+### 交叉链接
+
+- 模块页之间用相对路径，例如 `[鉴权](/modules/auth)`。
+- 同一页面的标题链接用 `[标题](#标题锚点)`。
+- 不使用绝对 URL，避免 VitePress 死链接检查误报。
+
+## 同步脚本
+
+`sync:baseline` 脚本在 dev/build/preview 前自动执行，它会刷新：
+
+- 源码地图中的文件列表
+- API 路由索引
+- 前端路由索引
+- 数据库表索引
+
+如果脚本执行失败，构建也会失败。常见原因是 Java 源码路径变更后脚本中的 glob 模式没有更新。
+
+## 新增页面检查清单
+
+当你新增一个文档页面时：
+
+1. 确认页面放在正确的目录下（guide/modules/reference/architecture/operations）。
+2. 在 `.vitepress/config.mts` 的侧栏配置中添加条目。
+3. 在 `modules/index.md` 的总览表或对应索引页添加一行。
+4. 构建通过且无死链接。
+5. 搜索相关术语表，确保新术语已收录。
+6. 如果涉及新 API、新路由或新表，同步更新对应的参考页。
+7. 如果涉及新状态值，同步更新术语表的状态速查。

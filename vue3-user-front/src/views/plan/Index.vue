@@ -124,11 +124,11 @@
           <el-option label="已完成" :value="3" />
         </el-select>
         <el-select v-model="filterType" placeholder="全部类型" clearable @change="loadPlanList">
-          <el-option label="学习计划" :value="1" />
-          <el-option label="运动计划" :value="2" />
+          <el-option label="刷题计划" :value="1" />
+          <el-option label="学习计划" :value="2" />
           <el-option label="阅读计划" :value="3" />
-          <el-option label="编程计划" :value="4" />
-          <el-option label="其他计划" :value="99" />
+          <el-option label="运动计划" :value="4" />
+          <el-option label="其他计划" :value="5" />
         </el-select>
         <el-input 
           v-model="filterKeyword" 
@@ -458,10 +458,11 @@ const onCheckinSuccess = () => {
 // 获取计划类型文本
 const getPlanTypeText = (type) => {
   const typeMap = {
-    1: '学习',
-    2: '运动',
+    1: '刷题',
+    2: '学习',
     3: '阅读',
-    4: '编程',
+    4: '运动',
+    5: '其他',
     99: '其他'
   }
   return typeMap[type] || '其他'
@@ -470,10 +471,11 @@ const getPlanTypeText = (type) => {
 // 获取计划类型样式
 const getPlanTypeClass = (type) => {
   const classMap = {
-    1: 'type-study',
-    2: 'type-sport',
+    1: 'type-code',
+    2: 'type-study',
     3: 'type-read',
-    4: 'type-code',
+    4: 'type-sport',
+    5: 'type-other',
     99: 'type-other'
   }
   return classMap[type] || 'type-other'

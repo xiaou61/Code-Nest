@@ -26,6 +26,9 @@
 | 当前登录用户 | 后端从 Token 中解析出的用户 ID，不应由前端手动传入 | [用户账户与个人中心](/modules/user-account) |
 | `@RequireAdmin` | 管理端权限校验注解，用于保护后台接口 | [系统运营后台](/modules/system-ops) |
 | 逻辑删除 | 数据不物理删除，而是用字段标记不可见或失效 | [数据库与脚本](/architecture/database) |
+| `StpUserUtil` | Sa-Token 用户登录域操作工具类 | [鉴权与用户体系](/modules/auth) |
+| `StpAdminUtil` | Sa-Token 管理登录域操作工具类 | [鉴权与用户体系](/modules/auth) |
+| `AdminAuthAspect` | 管理端权限 AOP 切面，组合 `checkLogin` + `checkRole("admin")` | [鉴权与用户体系](/modules/auth) |
 
 ## 平台能力
 
@@ -37,7 +40,9 @@
 | 通知模板 | 用变量生成站内信或公告内容的后台配置 | [通知中心](/modules/notification) |
 | 积分流水 | 积分奖励、扣减、抽奖消费的可追溯记录 | [积分与抽奖](/modules/points) |
 | 敏感词策略 | 对命中文本执行放行、替换、拒绝或记录的规则 | [敏感词风控](/modules/sensitive) |
-| 操作日志 | 管理端关键动作的审计记录 | [仪表盘与日志](/modules/dashboard-logs) |
+| 操作日志 | 理理端关键动作的审计记录 | [仪表盘与日志](/modules/dashboard-logs) |
+| `@Log` | 操作日志注解，标记需要记录的管理端方法 | [仪表盘与日志](/modules/dashboard-logs) |
+| `safeCall` | 仪表盘聚合查询的兜底模式，失败时返回默认值并标记模块危险 | [仪表盘与日志](/modules/dashboard-logs) |
 
 ## AI Runtime
 
@@ -50,7 +55,9 @@
 | Graph | 多步骤 AI 编排流程，例如模拟面试、SQL 优化 | [AI Runtime](/modules/ai-runtime) |
 | Eval | AI 场景回归评估，用样例检查输出是否稳定 | [AI Schema 与治理](/reference/ai-schemas) |
 | 治理评分 | 从 Prompt、Schema、RAG、回归等维度衡量 AI 场景健康度 | [AI Runtime](/modules/ai-runtime) |
-| RAG sidecar | 独立运行的知识库召回服务，不是 Spring Boot 主应用的一部分 | [Docker 与服务部署](/operations/docker) |
+| RAG sidecar | 独立运行的知识库召回服务，不是 Spring Boot 主应用的一部分 | [独立部署](/guide/deploy) |
+| `langchain4j` | AI 模块使用的 LLM 调用框架 | [AI Runtime](/modules/ai-runtime) |
+| `langgraph4j` | AI 多步骤编排框架 | [AI Runtime](/modules/ai-runtime) |
 
 ## OJ 与实时通信
 
@@ -77,6 +84,8 @@
 | SM-2 | 闪卡间隔重复算法，用评分决定下次复习时间 | [闪卡](/modules/flashcard) |
 | 内容矩阵 | 社区、动态、博客、代码工坊等内容发布能力的统称 | [社区与内容矩阵](/modules/community-content) |
 | 热度口径 | 浏览、点赞、评论、收藏等指标如何合成排序分数 | [社区与内容矩阵](/modules/community-content) |
+| CodePen | 代码工坊模块，支持在线写代码和分享 | [代码工坊](/modules/codepen) |
+| 求职作战台 | JD 解析、简历匹配和计划生成的求职辅助能力 | [模拟面试与求职作战](/modules/mock-interview-job-battle) |
 
 ## 运维与交付
 
@@ -84,11 +93,13 @@
 | --- | --- | --- |
 | `/api` 上下文 | 后端统一上下文路径，本地前端代理也围绕它配置 | [本地开发](/guide/local-dev) |
 | CORS Origin | 浏览器页面来源地址，后端和 WebSocket 都需要正确放行 | [常见问题排查](/operations/troubleshooting) |
-| Actuator | Spring Boot 暴露健康检查和指标的能力 | [监控与观测](/operations/monitoring) |
-| Prometheus | 拉取和存储监控指标的组件 | [监控与观测](/operations/monitoring) |
-| Grafana | 展示监控面板和图表的组件 | [监控与观测](/operations/monitoring) |
+| Actuator | Spring Boot 暴露健康检查和指标的能力 | [独立部署](/guide/deploy) |
+| Prometheus | 拉取和存储监控指标的组件 | [独立部署](/guide/deploy) |
+| Grafana | 展示监控面板和图表的组件 | [独立部署](/guide/deploy) |
 | 发布前验证 | 合并或发布前按变更范围执行构建、测试和烟测 | [发布前验证](/guide/release-verification) |
 | 验证记录 | 对真实验证结果、已知问题和补测优先级的沉淀 | [验证记录与已知问题](/manuals/verified-scenarios) |
+| Spring Profile | 后端配置分组：dev、docker、prod、sec | [独立部署](/guide/deploy) |
+| `application-sec.yml` | 密钥覆盖配置文件，不提交仓库，通过 `optional:import` 加载 | [鉴权与用户体系](/modules/auth) |
 
 ## 文档维护
 
@@ -99,3 +110,141 @@
 | 操作手册 | 基于真实截图和核心链路整理的使用手册 | [核心链路教程](/manuals/core-workflows) |
 | 覆盖矩阵 | 用来检查功能是否有入口、API、表和文档的总表 | [全功能覆盖矩阵](/reference/feature-coverage) |
 | 文档同步 | 代码变更后同步模块页、索引、手册和验证记录 | [文档维护规范](/guide/documentation-maintenance) |
+| `sync:baseline` | 文档站基线自动刷新脚本，在 dev/build/preview 前自动执行 | [文档同步基线](/reference/docs-sync-baseline) |
+
+## 前端技术
+
+| 术语 | 含义 | 先看 |
+| --- | --- | --- |
+| `renderMarkdown` | 用户端和管理端的统一 Markdown 渲染函数 | [前端渲染安全](/reference/frontend-rendering-security) |
+| `sanitizeHtml` | DOMPurify 净化函数，禁止脚本、iframe 等危险标签 | [前端渲染安全](/reference/frontend-rendering-security) |
+| `escapeHtml` | 纯文本 HTML 转义函数，用 `textContent` 实现 | [前端渲染安全](/reference/frontend-rendering-security) |
+| `manualChunks` | Vite 代码分割策略，按依赖类型拆分 chunk | [独立部署](/guide/deploy) |
+| `keepAlive` | Vue 路由缓存配置，开发工具页需要此属性 | [前端路由索引](/reference/frontend-routes) |
+| `requiresAuth` | 路由元信息，标记页面是否需要登录 | [前端路由索引](/reference/frontend-routes) |
+
+## 状态值速查
+
+本节列出源码中定义的关键状态值。完整定义见对应模块页。
+
+### 通用状态（StatusEnum）
+
+| code | 名称 | 用途 |
+| --- | --- | --- |
+| 0 | 正常 | 通用启用状态 |
+| 1 | 禁用 | 通用停用状态 |
+| 2 | 已删除 | 逻辑删除 |
+
+### 计划状态（PlanStatus）
+
+| code | 名称 | 说明 |
+| --- | --- | --- |
+| 0 | 已删除 | 逻辑删除 |
+| 1 | 进行中 | 用户正在执行 |
+| 2 | 已暂停 | 用户主动暂停 |
+| 3 | 已完成 | 所有打卡完成 |
+| 4 | 已过期 | 超过截止日期 |
+
+### 小组状态（TeamStatus）
+
+| code | 名称 | 说明 |
+| --- | --- | --- |
+| 0 | 已解散 | 组长解散或到期 |
+| 1 | 正常 | 可以加入 |
+| 2 | 已满员 | 达到最大人数 |
+
+### 成员角色（MemberRole）
+
+| code | 名称 | 说明 |
+| --- | --- | --- |
+| 1 | 组长 | 创建者，最高权限 |
+| 2 | 管理员 | 组长任命的管理角色 |
+| 3 | 成员 | 普通成员 |
+
+### OJ 提交状态（SubmissionStatus）
+
+| value | 名称 | 说明 |
+| --- | --- | --- |
+| pending | 等待判题 | 提交后等待沙箱处理 |
+| judging | 判题中 | go-judge 正在执行 |
+| accepted | 通过 | 全部测试点通过 |
+| wrong_answer | 答案错误 | 输出与期望不符 |
+| time_limit_exceeded | 超时 | 执行超过时间限制 |
+| memory_limit_exceeded | 超内存 | 使用超过内存限制 |
+| runtime_error | 运行错误 | 执行过程中崩溃 |
+| compile_error | 编译错误 | 编译阶段失败 |
+| system_error | 系统错误 | 后端或沙箱异常 |
+
+### 积分类型（PointsType）
+
+| code | 名称 | 说明 |
+| --- | --- | --- |
+| 1 | 后台发放 | 管理员手动发放 |
+| 2 | 打卡积分 | 每日打卡获得 |
+| 3 | 抽奖消耗 | 参与抽奖扣减 |
+| 4 | 抽奖奖励 | 抽奖中奖获得 |
+| 5 | OJ通过 | 首次通过题目获得 |
+
+### 动态状态（MomentStatus）
+
+| code | 名称 | 说明 |
+| --- | --- | --- |
+| 0 | 已删除 | 逻辑删除 |
+| 1 | 正常 | 正常可见 |
+| 2 | 审核中 | 等待管理审核 |
+
+### 闪卡掌握度（MasteryLevel）
+
+| code | 名称 | 说明 |
+| --- | --- | --- |
+| 1 | 新卡 | 还未学习过 |
+| 2 | 学习中 | 正在复习 |
+| 3 | 已掌握 | 完全掌握 |
+
+### 模拟面试会话状态（SessionStatusEnum）
+
+| code | 名称 | 说明 |
+| --- | --- | --- |
+| 0 | 进行中 | AI 问答还在继续 |
+| 1 | 已完成 | 正常结束 |
+| 2 | 已中断 | 异常或手动中断 |
+
+### 响应状态码（ResultCode）
+
+| code | 名称 | 说明 |
+| --- | --- | --- |
+| 200 | 操作成功 | 正常返回 |
+| 400 | 请求参数错误 | 客户端参数校验失败 |
+| 401 | 未授权访问 | Token 缺失或无效 |
+| 403 | 访问被禁止 | 权限不足 |
+| 500 | 系统内部错误 | 后端异常 |
+| 601 | 参数校验失败 | 业务参数不合法 |
+| 701 | Token无效 | Sa-Token 校验失败 |
+| 702 | Token已过期 | 超过有效期 |
+| 703 | 权限不足 | 角色或权限不满足 |
+| 801 | 文件上传失败 | 文件模块异常 |
+
+### 学习资产候选状态（LearningAssetCandidateStatus）
+
+| value | 名称 | 说明 |
+| --- | --- | --- |
+| DRAFT | 待确认 | 用户还未决定是否保留 |
+| SELECTED | 已选中 | 用户确认保留 |
+| REVIEWING | 审核中 | 等待管理员审核 |
+| PUBLISHED | 已发布 | 审核通过并发布 |
+| DISCARDED | 已丢弃 | 用户主动丢弃 |
+| REJECTED | 已驳回 | 管理员驳回 |
+
+## 缩写对照
+
+| 缩写 | 全称 | 用途 |
+| --- | --- | --- |
+| DTO | Data Transfer Object | 接层间数据传输对象，见各模块 `dto/` 目录 |
+| VO | Value Object | 视图对象，用于前端展示响应 |
+| PO | Persistent Object | 持久化对象，对应数据库表，见 `domain/` 目录 |
+| QO | Query Object | 查询参数对象，封装分页、筛选条件 |
+| BO | Business Object | 业务逻辑层对象 |
+| Mapper | MyBatis Mapper | 数据访问层，见 `mapper/` 目录和 XML 映射文件 |
+| Service | 业务服务层 | 核心业务逻辑，见 `service/impl/` 目录 |
+| Controller | 控制器层 | HTTP 入口，见 `controller/` 目录 |
+| AOP | Aspect-Oriented Programming | 切面编程，`AdminAuthAspect` 和 `@Log` 是例子 |

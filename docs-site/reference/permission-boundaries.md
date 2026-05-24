@@ -1,305 +1,215 @@
-# 权限注解与角色边界索引
+# 权限与安全边界
 
-这页专门回答一个很容易让维护者误判的问题：
+这页回答两个核心问题：
 
-**Code Nest 里的权限，到底是在哪一层真正生效的？**
+1. **谁能做什么？** ——管理端和用户端的权限校验机制、粒度、差距。
+2. **改权限相关代码后最低该回归什么？**
 
-只看路由前缀不够，只看前端菜单也不够，只看数据库里有 `sys_permission` 也不等于后端已经按按钮级做强校验。
+如果你只是想查"某个接口到底有没有鉴权"，可以跳到 [Controller 鉴权分布](#controller-鉴权分布)。
 
-这页和相邻文档的分工是：
+## 双端鉴权架构
 
-- [鉴权与用户体系](/modules/auth)：讲登录域、Token、登录流程和当前用户怎么拿。
-- [权限与安全边界](/guide/security-boundaries)：讲更广义的安全边界。
-- [API 路由索引](/reference/api-routes)：讲接口按业务域怎么分。
-- 本页：讲**权限到底在代码哪一层生效、哪些前缀是混合态、哪里最容易被误判**。
+项目使用 Sa-Token 实现用户端和管理端分仓鉴权：
 
-## 先记住一句真相
+| 端 | 工具类 | Token 名 | 登录方式 | Session 隔离 |
+| --- | --- | --- | --- | --- |
+| 用户端 | `StpUserUtil` | `userToken` | 手机号/邮箱/用户名 + 密码 | 独立 Session |
+| 管理端 | `StpAdminUtil` | `adminToken` | 用户名 + 密码 | 独立 Session |
 
-在当前仓库状态下，后端最稳定的强校验主要有三类：
+两端 Token 互相隔离——用户端 Token 不能访问管理端接口，反之亦然。同一个人可以同时持有两端的登录态。
 
-1. **登录域拦截**：`/auth/**` 和 `/user/**` 由 `SaTokenConfig` 做基础登录拦截。
-2. **管理员方法级校验**：后台高风险接口大量依赖 `@RequireAdmin`。
-3. **当前用户归属校验**：很多用户接口虽然前缀看着像公开接口，但会在 Controller 或 Service 里通过 `StpUserUtil` 再做登录和归属限制。
+## 管理端权限机制
 
-所以判断权限时，不要只看 URL，也不要只看菜单，要看**拦截器 + 注解 + 当前用户 + 资源归属**是不是都接住了。
+### @RequireAdmin 注解
 
-## 当前项目里的 5 种权限生效方式
+所有管理端权限校验统一通过 `@RequireAdmin` 注解实现。切面 `AdminAuthAspect` 的拦截逻辑：
 
-| 方式 | 典型代码 | 适合解决什么 | 最常见误区 |
-| --- | --- | --- | --- |
-| 路径级拦截 | `SaTokenConfig` + `SaRouter.match("/auth/**")`、`SaRouter.match("/user/**")` | 给整类接口加基础登录门槛 | 以为所有 `/community/**`、`/oj/**`、`/file/**` 都会自动拦 |
-| 管理员注解 | `@RequireAdmin` + `AdminAuthAspect` | 后台高风险写操作、后台查询、运营接口 | 只在前端隐藏按钮，后端方法没加注解 |
-| 用户登录态读取 | `StpUserUtil.checkLogin()`、`StpUserUtil.getLoginIdAsLong()` | 用户侧需要明确当前人的接口 | 让前端传 `userId`，后端直接信 |
-| 资源归属校验 | `selectByIdAndUserId`、当前用户比对、业务 owner 判断 | “登录了也不代表能看所有数据” 的场景 | 只校验登录，不校验是不是自己的资源 |
-| 公开读 + 登录写混合模式 | 同一前缀下部分接口公开、部分接口必须登录 | 内容、OJ、文件、版本、公开卡组等 | 以为一个前缀只能有一种权限模型 |
+1. `StpAdminUtil.checkLogin()` —— 检查管理端登录态
+2. `StpAdminUtil.checkRole("admin")` —— 检查 admin 角色
+3. 未通过 → 返回 `Result.error(ResultCode.UNAUTHORIZED)`
 
-## 路径前缀只是第一层，不是全部真相
+**注意**：这个切面只检查"管理端是否登录且拥有 admin 角色"，不检查细粒度的权限码。
 
-`SaTokenConfig` 当前做了两段最核心的路径级拦截：
+### 权限注解使用现状
 
-| 路径 | 默认行为 | 例外 |
+| 注解 | 使用情况 | 说明 |
 | --- | --- | --- |
-| `/auth/**` | 默认要求管理员登录 | `/auth/login`、`/auth/register`、`/auth/refresh` 放行 |
-| `/user/**` | 默认要求普通用户登录 | `/user/auth/login`、`/user/auth/register`、`/user/auth/refresh`、用户名/邮箱检查放行 |
+| `@RequireAdmin` | 约 270 个方法 | 管理端接口统一入口守卫 |
+| `@SaCheckRole` | **未使用** | Sa-Token 角色注解在源码中不存在 |
+| `@SaCheckPermission` | **未使用** | Sa-Token 权限注解在源码中不存在 |
 
-同时放行：
+**关键结论**：当前项目不存在细粒度的后端 RBAC 校验。所有管理端接口只要持有管理员登录态即可访问，没有"运营只能看不能改"或"内容管理员只能管帖子不能管用户"这类角色区分。
 
-- `/captcha/**`
-- `/v3/api-docs/**`
-- `/swagger-ui/**`
+### @RequireAdmin 方法分布
 
-这意味着：
+| 模块 | Controller 类 | 方法数 | 主要职责 |
+| --- | --- | --- | --- |
+| xiaou-user | AdminUserController | 10 | 用户 CRUD、禁用、密码重置、统计 |
+| xiaou-blog | BlogAdminController | 13 | 文章、分类、标签管理 |
+| xiaou-codepen | CodePenAdminController | 17 | 作品、模板、文件夹、标签管理 |
+| xiaou-community | CommunityPostAdminController | 6 | 帖子管理 |
+| xiaou-community | CommunityCommentAdminController | 3 | 评论管理 |
+| xiaou-community | CommunityUserAdminController | 6 | 用户状态管理 |
+| xiaou-community | AdminCommunityTagController | 5 | 标签管理 |
+| xiaou-community | AdminCommunityCategoryController | 6 | 分类管理 |
+| xiaou-interview | InterviewQuestionSetController | 8 | 题单管理 |
+| xiaou-interview | InterviewQuestionController | 11 | 题目管理 |
+| xiaou-interview | InterviewCategoryController | 5 | 分类管理 |
+| xiaou-filestorage | AdminSystemController | 5 | 系统配置管理 |
+| xiaou-filestorage | AdminStorageController | 10 | 存储配置管理 |
+| xiaou-filestorage | AdminMigrationController | 7 | 迁移任务管理 |
+| xiaou-filestorage | AdminFileController | 1 | 文件管理 |
+| xiaou-moment | AdminMomentController | 5 | 动态管理 |
+| xiaou-knowledge | AdminKnowledgeMapController | 7 | 图谱管理 |
+| xiaou-knowledge | AdminKnowledgeNodeController | 7 | 节点管理 |
+| xiaou-notification | AdminNotificationController | 9 | 通知管理 |
+| xiaou-moyu | AdminDailyContentController | 11 | 每日内容管理 |
+| xiaou-moyu | AdminDeveloperCalendarController | 9 | 开发者日历管理 |
+| xiaou-moyu | AdminBugStoreController | 6 | Bug 库管理 |
+| xiaou-chat | ChatAdminController | 8 | 聊天管理 |
+| xiaou-points | AdminPointsController | 6 | 积分管理 |
+| xiaou-points | AdminLotteryController | 22 | 抽奖配置、监控、风控、应急 |
+| xiaou-sensitive | SensitiveWordAdminController | 2 | 敏感词管理 |
+| xiaou-sensitive | SensitiveWhitelistController | 8 | 白名单管理 |
+| xiaou-sensitive | SensitiveVersionController | 3 | 版本管理 |
+| xiaou-sensitive | SensitiveStrategyController | 4 | 策略管理 |
+| xiaou-version | VersionHistoryAdminController | 12 | 版本发布管理 |
+| xiaou-system | DashboardController | 1 | 仪表盘总览 |
+| xiaou-system | LogController | 8 | 日志查询、清理 |
+| xiaou-system | AiConfigController | 20 | AI 配置、调试、回归、RAG 管理 |
+| xiaou-ai | AiGovernanceController | 1 | AI 治理总览 |
+| xiaou-oj | OjProblemController | 6 | 题目管理 |
+| xiaou-oj | OjContestController | 6 | 赛事管理 |
+| xiaou-oj | OjSolutionController | 3 | 题解管理 |
+| xiaou-oj | OjTestCaseController | 4 | 测试用例管理 |
+| xiaou-mock-interview | AdminMockInterviewController | 2 | 模拟面试管理 |
+| xiaou-learning-asset | AdminLearningAssetController | 5 | 学习资产审核 |
+| xiaou-resume | ResumeTemplateAdminController | 5 | 简历模板管理 |
+| xiaou-resume | ResumeAnalyticsAdminController | 2 | 简历分析 |
 
-1. `/auth/**` 和 `/user/**` 的基础边界相对清晰。
-2. 但很多历史业务前缀，例如 `/community/**`、`/oj/**`、`/resume/**`、`/file/**`、`/version/**`，**不能只靠前缀判断权限**。
+## 用户端权限机制
 
-## `@RequireAdmin` 解决什么，没解决什么
+### StpInterfaceImpl 实现
 
-`@RequireAdmin` 是当前后台最重要的一道硬门槛。
+`StpInterfaceImpl` 实现 Sa-Token 的 `StpInterface` 接口：
 
-它的实际运行方式是：
+| 端 | `getPermissionList()` | `getRoleList()` |
+| --- | --- | --- |
+| 管理端 (`loginType = "admin"`) | 从数据库查询权限列表 | 从数据库查询角色列表 |
+| 用户端 (`loginType = "user"`) | 返回 `Collections.emptyList()` | 返回 `Collections.emptyList()` |
 
-1. 命中标注了 `@RequireAdmin` 的方法。
-2. `AdminAuthAspect` 先执行 `StpAdminUtil.checkLogin()`。
-3. 再执行 `StpAdminUtil.checkRole("admin")`。
-4. 未登录通常会转成“请先登录”，角色不满足则返回注解里的业务提示。
+**关键发现**：用户端始终返回空权限和空角色列表。这意味着 `@SaCheckRole` 和 `@SaCheckPermission` 对用户端无效——用户端的所有权限控制必须由业务代码自行实现。
 
-## 当前后端权限颗粒度的现实情况
+### 用户端资源归属校验
 
-这点很重要，很多人第一次读到这里都会默认想错。
+用户端接口的"只能操作自己的数据"不是通过注解实现的，而是在 Service 层手动校验：
 
-当前仓库里：
-
-- 登录响应会从数据库组装管理员的 `roles` 和 `permissions`，用于前端菜单和按钮展示。
-- 但 Sa-Token 运行时的 `StpInterfaceImpl`，当前返回的是固定基础值：
-  - `admin` 登录域得到 `admin` 角色/权限
-  - `user` 登录域得到 `user` 角色/权限
-
-这意味着当前后端真正稳定生效的强校验，更接近：
-
-```text
-是不是 admin 登录域
-+ 是否命中 @RequireAdmin
-+ 是否在业务代码里又做了当前用户或资源归属校验
+```java
+// 典型模式
+Long userId = StpUserUtil.getLoginIdAsLong();
+UserPlan plan = planMapper.selectById(planId);
+if (!plan.getUserId().equals(userId)) {
+    throw new BusinessException(ResultCode.FORBIDDEN);
+}
 ```
 
-而不是“已经普遍按 `sys_permission.permission_code` 做了后端按钮级强鉴权”。
+不同模块的归属校验严格程度不同：
 
-所以如果你要新增真正细粒度的后台权限，不要只新增数据库 permission_code 和前端按钮显示，还要补后端显式校验逻辑。
-
-## 4 类最常见的权限模型
-
-### 1. 纯后台管理员模型
-
-这种最简单：
-
-- 前缀常是 `/admin/**`、`/auth/**`、`/log/**`
-- 方法上基本都有 `@RequireAdmin`
-- 典型模块有用户后台、AI 配置、日志、版本管理、积分后台、通知后台、OJ 后台
-
-适合这类模型的场景：
-
-- 查询后台数据
-- 新增、编辑、删除运营内容
-- 版本发布、敏感词策略、库存配置、AI 配置
-
-#### 新增这类接口时最低要求
-
-1. 方法加 `@RequireAdmin`
-2. 高风险操作补 `@Log`
-3. 前端按钮控制和后端强校验同时存在
-
-### 2. 纯用户登录态模型
-
-这种通常依赖：
-
-- `/user/**` 路径级拦截
-- 或方法里显式 `StpUserUtil.checkLogin()`
-- 再通过 `StpUserUtil.getLoginIdAsLong()` 拿当前用户
-
-典型场景：
-
-- 我的资料
-- 我的计划
-- 我的积分、抽奖、通知、聊天
-- 模拟面试和求职作战台
-
-#### 新增这类接口时最低要求
-
-1. 不信任前端传来的 `userId`
-2. 所有“我的数据”都由后端自己取当前用户
-3. 如果资源是按人归属的，再补一层 owner 校验
-
-### 3. 公开读、登录写的混合模型
-
-这是 Code Nest 里最容易看错的一类。
-
-比如：
-
-- 列表和详情可以公开
-- 但发帖、点赞、收藏、提交、评论需要登录
-
-典型模块：
-
-- 社区
-- OJ
-- 博客
-- 版本历史
-- 闪卡公开卡组
-
-这种模型的关键不是“统一前缀”，而是**同一个前缀下，不同方法权限完全不同**。
-
-### 4. 公开文件读取 + 登录管理的混合模型
-
-文件模块又比一般混合模型多一层：
-
-- 上传、删除、列表、存在性检查需要登录
-- 读取时还要看 `is_public`
-- 如果文件有业务归属，业务层还可能继续做归属限制
-
-所以“文件 URL 打得开”不等于“这个人业务上就有权限看”。
-
-## 真实例子：为什么不能只看前缀
-
-### 例子 1：`/file/**` 不是全公开，也不是全私有
-
-`FileController` 当前模式是：
-
-| 接口类型 | 权限方式 |
-| --- | --- |
-| 上传、删除、列表、exists | 调 `isAuthenticated()`，要求用户或管理员任一登录 |
-| 下载、文件信息、URL、批量 URL | 先查文件状态，再走 `canReadFile(fileInfo)` |
-
-`canReadFile(fileInfo)` 的规则是：
-
-- `is_public = 1` 可以匿名读
-- 否则需要当前请求是已登录用户或已登录管理员
-
-也就是说，文件模块天然就是“公开读 + 登录读 + 登录写”混合态。
-
-### 例子 2：`/oj/**` 同时有公开运行和登录提交
-
-`OjSubmissionController` 虽然统一挂在 `/oj` 下，但权限不是一种：
-
-| 接口 | 权限 |
-| --- | --- |
-| `/oj/run` | 当前可直接运行 |
-| `/oj/test` | 当前可直接自测 |
-| `/oj/submit` | 通过 `StpUserUtil.getLoginIdAsLong()` 要求用户登录 |
-| `/oj/submissions/my` | 通过当前用户拿我的提交 |
-| `/oj/statistics/me` | 通过当前用户拿个人统计 |
-
-所以 `"/oj"` 前缀不等于“全部公开”或“全部登录”。
-
-### 例子 3：`/community/posts` 列表公开，写操作靠业务层再拦
-
-`CommunityPostController` 里：
-
-- `/community/posts/list`
-- `/community/posts/{id}`
-- `/community/posts/hot`
-
-这些是公开读接口。
-
-但：
-
-- 发帖
-- 点赞
-- 取消点赞
-- 收藏
-- 取消收藏
-
-虽然路径仍是 `/community/posts/**`，真正的登录校验会继续在 Service 里调用 `StpUserUtil.checkLogin()` 和 `StpUserUtil.getLoginIdAsLong()`。
-
-这就是典型的“前缀看起来公开，写操作其实在业务层做登录门槛”。
-
-### 例子 4：`/version/**` 基本公开，后台管理单走 `/admin/version`
-
-`VersionHistoryController` 里的时间线、详情、搜索、最新版本都是公开展示接口。
-
-而后台创建、发布、隐藏、删除则全部在 `/admin/version`，并由 `@RequireAdmin` 守住。
-
-这是另一种更清晰的分层：
-
-- 用户看公开版本
-- 管理端做发布动作
-
-## 一张速查总表
-
-| 模型 | 典型前缀 | 主要校验点 | 代表模块 |
-| --- | --- | --- | --- |
-| 管理员专用 | `/admin/**`、`/auth/**`、`/log/**` | `@RequireAdmin`、管理员登录域 | 用户后台、日志、AI 配置、版本后台、积分后台 |
-| 用户专用 | `/user/**` | `StpUserUtil.checkLogin()`、当前用户 ID | 计划、通知、聊天、成长闭环、学习资产 |
-| 公开读 + 登录写 | `/community/**`、`/oj/**`、`/resume/**`、`/blog/**` | 公开接口 + 业务层登录校验 | 社区、OJ、博客、简历 |
-| 公开文件 + 登录管理 | `/file/**` | `is_public`、登录态、业务归属 | 文件存储 |
-
-## 新增接口时怎么判断该放哪种模型
-
-先问自己 5 个问题：
-
-1. 这是后台运营动作，还是普通用户动作？
-2. 这是“所有人可看”，还是“只有登录人可看”，还是“只有资源 owner 可看”？
-3. 前缀本身能表达权限，还是要在方法里补一层？
-4. 是否需要同时做登录校验和资源归属校验？
-5. 是否需要操作日志或失败态提示？
-
-### 一个简单判断法
-
-| 如果你要做的是 | 优先模型 |
-| --- | --- |
-| 后台配置、审核、发布、删除 | 管理员专用 |
-| 我的列表、我的资料、我的行为记录 | 用户专用 |
-| 公共广场、内容详情、榜单、公开卡组 | 公开读 |
-| 点赞、收藏、发帖、提交、报名、导出我的内容 | 登录写或 owner 校验 |
-
-## 最容易漏的 6 个坑
-
-| 坑 | 后果 | 更稳的做法 |
+| 模块 | 归属校验方式 | 严格程度 |
 | --- | --- | --- |
-| 只加前端按钮隐藏，不加后端限制 | 直接调接口还能成功 | 后端补 `@RequireAdmin` 或业务校验 |
-| 只校验登录，不校验 owner | 登录用户能改别人的资源 | 查询时带 `userId`，或二次比对归属 |
-| 只看前缀，不看方法 | 误把混合接口当成统一权限模型 | 按具体 Controller 方法判断 |
-| 只建 permission_code，不补后端校验 | 菜单看似受控，接口实际不受控 | 明确增加后端 `checkPermission` 或等价逻辑 |
-| 用户接口信任前端传 `userId` | 越权访问 | 后端统一从 `StpUserUtil` 取 |
-| 文件可访问就认为业务可看 | 私密业务泄漏 | 文件层和业务层分开判断 |
+| 计划 | `userId` 比对 | 严格 |
+| 小组 | 成员表关联校验 | 严格 |
+| 博客 | `userId` 比对 | 严格 |
+| 社区帖子 | `userId` 比对 | 严格 |
+| 代码工坊 | `userId` 比对 | 严格 |
+| 闪卡 | `deckId` 归属 `userId` | 严格 |
+| 聊天 | ws-ticket 签发绑定 `userId` | 严格 |
+| 文件 | `is_public` 字段 + 归属判断 | 需逐接口审查 |
 
-## 验证权限时最低该跑什么
+## Controller 鉴权分布
 
-每次权限相关改动，至少验证这 4 类请求：
+### 无需鉴权的公开接口
 
-1. **未登录访问**
-2. **错误登录域访问**
-3. **正确角色/正确 owner 访问**
-4. **正确登录但错误 owner 访问**
+| 路径模式 | 说明 |
+| --- | --- |
+| `/captcha/**` | 验证码 |
+| `/user/auth/login`、`/user/auth/register` | 用户登录注册 |
+| `/auth/login` | 管理端登录 |
+| `/pub/**` | 公开资源（博客列表、闪卡公开卡组、知识图谱公开图谱） |
+| `/version`（GET） | 版本历史公开查看 |
+| `/community/posts`（GET） | 社区帖子公开列表 |
+| `/oj/problems`（GET） | OJ 题目公开列表 |
 
-如果是后台接口，再补：
+### 用户端鉴权接口
 
-5. **普通管理员或缺权限按钮场景**
+用户端接口通过 `StpUserUtil.checkLogin()` 或 `StpUserUtil.getLoginIdAsLong()` 校验。Sa-Token 配置了拦截器白名单，未登录访问受保护接口会触发 `NotLoginException`。
 
-如果是文件或内容类接口，再补：
+### 管理端鉴权接口
 
-6. **公开资源和私有资源各一条**
+所有 `/admin/**` 路径的写操作都标注了 `@RequireAdmin`。部分查询接口（如仪表盘统计）也标注了 `@RequireAdmin`，确保非管理员无法看到管理端数据。
 
-## 和现有页面怎么配合
+## 操作日志
 
-推荐这样串着看：
+`@Log` 注解与 `@RequireAdmin` 经常成对出现，对管理端增删改操作做审计：
 
-1. 先看本页，搞清项目里权限到底在哪层生效。
-2. 再看 [鉴权与用户体系](/modules/auth)，理解两套登录域和 `@RequireAdmin`。
-3. 接着看 [权限与安全边界](/guide/security-boundaries)，把文件、渲染、敏感词、WebSocket 一起纳入风险判断。
-4. 然后回到 [API 路由索引](/reference/api-routes)，按业务前缀定位具体 Controller。
-5. 最后配合 [响应体与错误码](/reference/response-errors) 和 [模块最小回归矩阵](/reference/module-regression-matrix) 写验证结论。
+| 属性 | 说明 | 默认值 |
+| --- | --- | --- |
+| `module` | 操作模块 | `""` |
+| `type` | SELECT / INSERT / UPDATE / DELETE / EXPORT / IMPORT / CLEAN / OTHER | OTHER |
+| `description` | 操作描述 | `""` |
+| `saveRequestData` | 是否保存请求参数 | true |
+| `saveResponseData` | 是否保存响应数据 | true |
 
-## 一句话总结
+**敏感字段过滤**：`password`、`oldPassword`、`newPassword`、`confirmPassword`、`token`、`accessToken`、`secret`、`apiKey` 会被替换为 `******`。当前过滤字段列表硬编码在 `LogAspect` 中，不可配置。
 
-如果你想判断一个接口到底安不安全，不要只问“它在哪个前缀下”，而要连续问：
+## 安全风险与改进建议
 
-```text
-谁能调用 ->
-靠哪层拦 ->
-当前人怎么拿 ->
-资源归属怎么判 ->
-失败时返回什么
-```
+### 当前已知风险
 
-把这五个问题答清楚，权限边界通常就不会看错。
+| 编号 | 风险 | 严重程度 | 说明 |
+| --- | --- | --- | --- |
+| RISK-1 | 管理端无角色分级 | 中 | 所有管理员等同，无运营/超管区分 |
+| RISK-2 | 用户端无注解级权限 | 中 | `@SaCheckRole` / `@SaCheckPermission` 完全未使用 |
+| RISK-3 | X-Forwarded-For 可伪造 | 中 | 攻击者可绕过基于 IP 的限流和审计 |
+| RISK-4 | DEFAULT_PASSWORD = "123456" | 中 | 批量创建账号时弱密码风险 |
+| RISK-5 | 敏感字段过滤硬编码 | 低 | 新增敏感参数需改切面代码 |
+| RISK-6 | 日志异步写入无兜底 | 低 | DB 异常时操作日志丢失 |
+| RISK-7 | StpInterfaceImpl 用户端空实现 | 低 | 未来补用户端权限时需改造 |
+| RISK-8 | SaTokenUserUtil 跨端查询是 TODO 桩 | 低 | getUsernameById 等返回硬编码值 |
+
+### 改进路径
+
+| 改进 | 优先级 | 工作量 | 前置条件 |
+| --- | --- | --- | --- |
+| 管理端角色分级 | P1 | 大 | 需设计角色体系 + 菜单权限映射 |
+| 补 `@SaCheckPermission` | P2 | 大 | 需定义权限码字典 + 改 StpInterfaceImpl |
+| Nginx IP 信任配置 | P1 | 小 | 部署配置变更 |
+| 敏感字段可配置化 | P3 | 小 | 改 LogAspect 读取配置 |
+| 日志写入兜底 | P3 | 中 | 加本地文件或 MQ 备份 |
+| SaTokenUserUtil 跨端查询实现 | P2 | 中 | 需跨模块调用用户服务 |
+
+## 验证清单
+
+| 验证点 | 怎么验证 | 预期结果 |
+| --- | --- | --- |
+| 双端鉴权隔离 | 用户端 Token 访问管理端接口 | 返回 401 |
+| 管理端权限拦截 | 未登录访问 `@RequireAdmin` 接口 | 返回 401 |
+| 非管理员角色 | 普通 admin 角色之外的账号访问管理端接口 | 取决于是否有 admin 角色 |
+| 资源归属校验 | A 用户的 Token 操作 B 用户的数据 | 返回 403 或 404 |
+| 操作日志记录 | 调用 `@Log` 标注的接口 | `sys_operation_log` 有对应记录 |
+| 密码参数过滤 | 修改密码接口的日志记录 | 密码字段显示为 `******` |
+| 公开接口 | 未登录访问 `/pub/**` | 正常返回数据 |
+
+## 源码导航
+
+| 想了解 | 读什么 |
+| --- | --- |
+| @RequireAdmin 注解 | `xiaou-common/src/main/java/com/xiaou/common/annotation/RequireAdmin.java` |
+| 管理端权限切面 | `xiaou-common/src/main/java/com/xiaou/common/aspect/AdminAuthAspect.java` |
+| @Log 注解 | `xiaou-common/src/main/java/com/xiaou/common/annotation/Log.java` |
+| 操作日志切面 | `xiaou-common/src/main/java/com/xiaou/common/aspect/LogAspect.java` |
+| Sa-Token 用户端 | `xiaou-common/src/main/java/com/xiaou/common/satoken/StpUserUtil.java` |
+| Sa-Token 管理端 | `xiaou-common/src/main/java/com/xiaou/common/satoken/StpAdminUtil.java` |
+| 用户上下文 | `xiaou-common/src/main/java/com/xiaou/common/satoken/SaTokenUserUtil.java` |
+| 权限接口实现 | `xiaou-common/src/main/java/com/xiaou/common/satoken/StpInterfaceImpl.java` |
+| Sa-Token 配置 | `xiaou-common/src/main/java/com/xiaou/common/config/SaTokenConfig.java` |

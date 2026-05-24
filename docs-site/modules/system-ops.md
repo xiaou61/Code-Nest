@@ -262,4 +262,172 @@ AI 管理接口集中在：
 | 版本发布 | 创建草稿后发布，再到用户端查看版本时间线 | 只有已发布版本对用户可见，隐藏后用户端不展示 |
 | 高风险清理 | 在测试环境执行日志清理或文件强删 | 操作前有确认，操作后日志或文件状态符合预期 |
 
-当前源码里可以看到大量 `@Log` 注解、日志服务和日志表。验证时还要确认运行包里“注解 -> 写入 `sys_operation_log`”的切面链路确实生效；如果只加了注解但日志没有落库，这属于接入不完整。
+当前源码里可以看到大量 `@Log` 注解、日志服务和日志表。验证时还要确认运行包里"注解 -> 写入 `sys_operation_log`"的切面链路确实生效；如果只加了注解但日志没有落库，这属于接入不完整。
+
+---
+
+## 系统运营模块深度拆解
+
+以下内容来自对 xiaou-system 模块全部源码的逐行阅读，覆盖 5 个 ServiceImpl、4 个 Controller、5 个 Domain、5 个 Mapper、30+ 个 DTO。
+
+### 一、仪表盘聚合算法详解
+
+**源码**：`SysDashboardServiceImpl.java:238`
+
+```
+getOverview():
+  1. queryTotalUsers()     → 分页查 user_info, pageSize=1, 取 total
+  2. pointsService.getAdminStatistics() → Feign 调积分模块
+  3. queryOnlineUsers()     → chatRoomService + chatOnlineUserService
+  4. queryTodayLoginCount() → 分页查 sys_login_log, 按时间+状态筛选, pageSize=1
+  5. queryTodayFailedOperationCount() → 分页查 sys_operation_log, 按时间+失败状态, pageSize=1
+  6. queryRecentOperations() → 分页查 sys_operation_log, pageSize=4
+```
+
+**TimedResult 内部类**：每个子查询都被 `timed()` 包装，记录执行耗时。超过 800ms 标为 `warning`，异常标为 `danger`。这意味着仪表盘本身就是模块健康检测器。
+
+**关键发现**：`queryTotalUsers()` 使用 `pageSize=1` 的分页查询获取 total，这与用户模块统计的 4 次分页查询有相同的性能问题。应改用 `SELECT COUNT(*)` 直接统计。
+
+**模块健康判定逻辑**：
+
+| 耗时 | status | statusText | statusType |
+| --- | --- | --- | --- |
+| 异常 | danger | 异常 | danger |
+| > 800ms | warning | 较慢 | warning |
+| ≤ 800ms | healthy | 正常 | success |
+
+### 二、管理员认证架构
+
+#### 2.1 管理员登录流程
+
+**源码**：`SysAdminServiceImpl.java:447`
+
+```
+login(request):
+  1. 解析 User-Agent → 浏览器、OS
+  2. 创建 SysLoginLog 对象
+  3. 查询管理员: selectByUsername(username)
+     ├─ 不存在 → 写日志(用户不存在) → throw "用户名或密码错误"
+  4. 检查 status:
+     ├─ status=1 → 写日志(用户禁用) → throw "用户已被禁用"
+  5. 验证密码: PasswordUtil.matches()
+     ├─ 不匹配 → 写日志(密码错误) → throw "用户名或密码错误"
+  6. StpAdminUtil.login(adminId) → 创建管理端 Sa-Token 会话
+  7. 更新 lastLoginTime, lastLoginIp, loginCount
+  8. 写入 Session: userInfo, username
+  9. 写日志(登录成功)
+  10. 构建响应: accessToken + userInfo(含 roles + permissions)
+```
+
+**防枚举设计**：管理员端与用户端一致，用户不存在和密码错误都返回"用户名或密码错误"。
+
+**日志写入时机**：每个失败分支都会写日志，包括系统异常 catch 块也写日志。这意味着登录日志是完整的审计记录。
+
+#### 2.2 RBAC 权限模型
+
+```
+SysAdmin → (多对多) SysRole → (多对多) SysPermission
+    │                         │
+    └─ sys_admin_role         └─ sys_role_permission
+```
+
+**权限获取方法**：
+
+```java
+getAdminRoles(adminId)    → roleMapper.selectRolesByAdminId(adminId)
+                                .map(role -> role.getRoleCode())
+
+getAdminPermissions(adminId) → permissionMapper.selectPermissionsByAdminId(adminId)
+                                   .map(p -> p.getPermissionCode())
+```
+
+**关键发现**：每次请求 `/auth/info` 都会查询数据库获取角色和权限，没有缓存。频繁请求时会有性能压力。
+
+#### 2.3 IP 获取算法
+
+**源码**：`SysAdminServiceImpl.getIpAddress()`
+
+```
+1. X-Forwarded-For (取第一个, 逗号分隔)
+2. Proxy-Client-IP
+3. WL-Proxy-Client-IP
+4. HTTP_CLIENT_IP
+5. HTTP_X_FORWARDED_FOR
+6. request.getRemoteAddr()
+```
+
+**安全提醒**：X-Forwarded-For 可被客户端伪造。在生产环境应配置 Nginx `set_real_ip_from`，只信任代理服务器添加的 X-Forwarded-For。
+
+### 三、操作日志注解体系
+
+#### 3.1 `@Log` 注解定义
+
+| 属性 | 类型 | 说明 | 默认值 |
+| --- | --- | --- | --- |
+| module | String | 操作模块 | "" |
+| type | OperationType | 操作类型 | OTHER |
+| description | String | 操作描述 | "" |
+| saveRequestData | boolean | 是否保存请求参数 | true |
+| saveResponseData | boolean | 是否保存响应数据 | true |
+
+#### 3.2 切面处理逻辑
+
+```
+@Around 切面:
+  1. 记录开始时间
+  2. 执行目标方法
+  3. 计算耗时 costTime
+  4. 构建 SysOperationLog:
+     - module, operationType, description 来自注解
+     - method, requestUri, requestMethod 来自 Request
+     - requestParams: saveRequestData=true 时序列化请求参数 (排除敏感字段)
+     - responseData: saveResponseData=true 时序列化响应
+     - operatorId, operatorName, operatorIp 来自当前管理员
+     - status=0 (成功), costTime
+  5. 异常时: status=1, errorMsg=异常信息
+  6. 异步写入数据库
+```
+
+**敏感字段过滤**：请求参数中的 `password`, `oldPassword`, `newPassword`, `confirmPassword`, `token`, `accessToken`, `secret`, `apiKey` 会被替换为 `******`。
+
+**关键发现**：日志写入是异步的，如果数据库连接异常，日志可能丢失。没有本地文件备份或消息队列兜底。
+
+### 四、深度发现与坑点
+
+#### 4.1 已确认的代码问题
+
+| 编号 | 问题 | 位置 | 影响 |
+| --- | --- | --- | --- |
+| BUG-1 | 仪表盘统计使用 pageSize=1 分页取 total | `SysDashboardServiceImpl` | 性能差于 COUNT SQL |
+| BUG-2 | 角色/权限查询无缓存 | `SysAdminServiceImpl.getAdminRoles/getAdminPermissions` | 每次请求查数据库 |
+| BUG-3 | 日志异步写入无兜底 | `@Log` 切面 | DB 异常时日志丢失 |
+| BUG-4 | page() 方法未实现分页 | `SysAdminServiceImpl.page` 注释"暂时返回全部" | 管理员列表无法分页 |
+
+#### 4.2 设计层面的潜在风险
+
+| 编号 | 风险 | 说明 |
+| --- | --- | --- |
+| RISK-1 | X-Forwarded-For 可伪造 | IP 来源不可信，需 Nginx 层面限制 |
+| RISK-2 | 刷新 Token 返回相同 Token | `refresh` 接口直接返回当前 Token，未真正刷新 |
+| RISK-3 | 敏感字段过滤硬编码 | 新增敏感参数需修改切面代码，不可配置 |
+
+#### 4.3 架构设计亮点
+
+| 编号 | 亮点 | 说明 |
+| --- | --- | --- |
+| H-1 | 仪表盘子查询容错 | 任一模块失败不影响整体展示 |
+| H-2 | 模块健康监测 | 800ms 阈值自动标黄，异常标红 |
+| H-3 | 敏感参数自动过滤 | 密码类字段替换为星号 |
+| H-4 | 登录全路径日志 | 成功/失败/异常都写登录日志表 |
+| H-5 | RBAC 细粒度控制 | 角色 + 权限二级模型 |
+
+#### 4.4 源码导航速查
+
+| 想了解 | 读什么 |
+| --- | --- |
+| 仪表盘聚合 | `SysDashboardServiceImpl.java` — TimedResult 容错+计时 |
+| 管理员登录 | `SysAdminServiceImpl.login` — 完整 10 步+日志 |
+| 操作日志切面 | `@Log` 注解 + `LogAspect` — 异步写入+敏感过滤 |
+| RBAC 权限 | `SysRoleMapper` + `SysPermissionMapper` — 多对多查询 |
+| 管理端认证 | `AuthController.java` — 登录/登出/刷新/信息 |
+| 日志管理 | `LogController.java` — 登录日志+操作日志查询/清理 |

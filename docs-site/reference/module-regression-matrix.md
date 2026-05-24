@@ -77,7 +77,67 @@
 | --- | --- | --- | --- | --- |
 | [开发者工具](/modules/dev-tools) | 至少一项核心工具输入输出、复制或下载动作、路由打开 | 非法输入、空输入、超长输入 | 前端本地逻辑、浏览器 API | 模块页、[前端路由索引](/reference/frontend-routes)、操作手册 |
 | [摸鱼工具](/modules/moyu) | 至少一个工具页、一个数据列表或计算器、后台配置或统计 | 空数据、缓存过期、未登录限制或非法输入 | Redis、工具表、定时任务 | 模块页、[数据表索引](/reference/database-tables)、验证记录 |
-| [版本历史](/modules/version-history) | 版本列表、详情、后台新增或编辑、状态流转 | 重复版本号、未发布版本公开可见、排序错误 | 版本表、后台权限 | 模块页、[数据表索引](/reference/database-tables)、[v2.2.0 文档计划](/roadmap/v2.2.0-docs-plan) |
+| [版本历史](/modules/version-history) | 版本列表、详情、后台新增或编辑、状态流转 | 重复版本号、未发布版本公开可见、排序错误 | 版本表、后台权限 | 模块页、[数据表索引](/reference/database-tables)、[v2.2.1 文档计划](/roadmap/v2.2.1-docs-plan)、[按 Git Log 重写版本更新记录](/guide/git-log-release-notes) |
+
+## 快速断点设置
+
+按模块快速设置断点的参考位置：
+
+| 模块 | Java 断点推荐 | 前端断点推荐 |
+| --- | --- | --- |
+| 鉴权与用户体系 | \`AuthController.login()\`、\`AdminAuthAspect.checkLogin()\` | \`stores/user.js login()\` |
+| 用户账户 | \`UserController.getUserInfo()\` | \`views/profile/\` 组件 mounted |
+| 系统运营后台 | \`AuthController.adminLogin()\` | \`layout/\` 侧边栏渲染 |
+| 面试题库 | \`InterviewUserController.list()\` | \`views/interview/\` |
+| 模拟面试与求职 | \`MockInterviewUserController.createSession()\` | \`views/mock-interview/\` |
+| OJ 判题 | \`OjUserController.submit()\`、\`OjJudgeServiceImpl.judge()\` | \`views/oj/\` |
+| 社区帖子 | \`CommunityUserController.createPost()\` | \`views/community/\` |
+| IM 聊天 | \`ChatUserController.getWsTicket()\` | \`views/chat/\` WebSocket 连接 |
+| 积分与抽奖 | \`LotteryServiceImpl.draw()\` | \`views/lottery/\` |
+| 敏感词风控 | \`SensitiveCheckService.check()\` | 无前端断点（后端拦截） |
+| AI Runtime | \`AiInterviewServiceImpl.evaluate()\` | \`views/mock-interview/\` |
+
+> **提示**：后端断点在 IntelliJ IDEA 中设置。前端断点在浏览器 DevTools Sources 面板中设置，或使用 \`debugger\` 语句。
+
+## 回归执行脚本参考
+
+### 后端快速接口验证
+
+```bash
+# 检查后端健康
+curl ${BACKEND_HOST}/api/actuator/health
+
+# 检查认证
+curl -X POST ${BACKEND_HOST}/api/user/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"test","password":"test"}'
+
+# 检查面试题库列表
+curl ${BACKEND_HOST}/api/user/interview/question-sets/list \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# 检查社区帖子列表
+curl ${BACKEND_HOST}/api/user/community/posts/list \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+> `BACKEND_HOST` 默认为 `http://localhost:9999`，可在 `application.yml` 中修改。
+
+### 前端快速页面验证
+
+```bash
+# 用户端首页加载（默认 http://localhost:3001）
+curl ${USER_FRONT_HOST}/
+
+# 管理端首页加载（默认 http://localhost:3000）
+curl ${ADMIN_FRONT_HOST}/
+
+# 检查 Vite 代理连通性
+curl ${USER_FRONT_HOST}/api/actuator/health
+curl ${ADMIN_FRONT_HOST}/api/actuator/health
+```
+
+> `USER_FRONT_HOST` 默认 `http://localhost:3001`，`ADMIN_FRONT_HOST` 默认 `http://localhost:3000`。
 
 ## 最后一个判断原则
 

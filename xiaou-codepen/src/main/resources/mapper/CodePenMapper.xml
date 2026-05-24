@@ -97,6 +97,15 @@
         WHERE id = #{id}
     </select>
 
+    <select id="selectByIds" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM code_pen
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
     <select id="selectByIdWithoutCode" parameterType="java.lang.Long" resultMap="WithoutCodeResultMap">
         SELECT <include refid="Without_Code_Column_List"/>
         FROM code_pen

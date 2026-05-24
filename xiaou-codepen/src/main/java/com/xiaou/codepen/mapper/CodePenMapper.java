@@ -24,6 +24,11 @@ public interface CodePenMapper {
      * 根据ID查询作品
      */
     CodePen selectById(Long id);
+
+    /**
+     * 根据ID列表批量查询作品
+     */
+    List<CodePen> selectByIds(@Param("ids") List<Long> ids);
     
     /**
      * 根据ID查询作品（不包含代码，用于列表展示）

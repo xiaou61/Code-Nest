@@ -1,0 +1,85 @@
+name: Feature Request
+description: Propose a new feature or improvement.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please describe the user problem first. A strong proposal explains who benefits, why it matters, and how success will be verified.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user or maintainer problem should this solve?
+      placeholder: As a ..., I want ..., so that ...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+      description: What should be added or changed?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What other approaches were considered?
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected Area
+      multiple: true
+      options:
+        - Backend API
+        - User frontend
+        - Admin frontend
+        - Database / SQL
+        - Auth / permission
+        - File storage
+        - WebSocket / chat
+        - AI Runtime / RAG
+        - OJ / judge
+        - Documentation
+        - Deployment / CI
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: How will we know this is done?
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility and Migration
+      description: Does this require database, API, config, permission, or UI migration?
+    validations:
+      required: false
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks
+      description: List security, performance, data, UX, or rollout risks.
+    validations:
+      required: false
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues.
+          required: true
+        - label: I have described the user value and acceptance criteria.
+          required: true

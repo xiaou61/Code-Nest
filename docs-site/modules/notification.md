@@ -222,4 +222,348 @@
 | 模板变量替换 | `{username}` 等变量被替换为传入参数 |
 | 传空 `receiverId` 发个人消息 | 放弃发送并记录警告，不写脏数据 |
 
-如果你想把“一个动作成功后应该回到哪里”整体串起来，可以继续看 [事件、通知与回流索引](/reference/event-backflow-index)。这页会把通知中心和其他回流类型放到同一张总表里。
+如果你想把"一个动作成功后应该回到哪里"整体串起来，可以继续看 [事件、通知与回流索引](/reference/event-backflow-index)。这页会把通知中心和其他回流类型放到同一张总表里。
+
+---
+
+## 通知模块深度拆解
+
+> 以下内容基于 `xiaou-notification` + `xiaou-common` 通知相关全部源码（2 个 ServiceImpl、2 个 Controller、5 个 Domain、4 个枚举、1 个 Mapper XML、1 个 AsyncConfig、1 个 CacheUtil、7 个 DTO）逐行拆解。
+
+### 一、双层服务架构
+
+通知模块采用"公共底座 + 业务模块"双层架构：
+
+```
+xiaou-common (公共底座)
+  ├── NotificationService     — 基础 CRUD：发送、已读、删除
+  ├── NotificationUtil        — 静态工具入口，所有业务模块调用
+  ├── NotificationCacheUtil   — Redis 未读数缓存
+  ├── NotificationAsyncConfig — 线程池配置
+  ├── NotificationMapper      — 数据访问
+  └── Domain/Enum             — 实体和枚举定义
+
+xiaou-notification (业务模块)
+  ├── NotificationUserService  — 用户侧：列表、未读数、详情、已读、删除
+  ├── NotificationAdminService — 管理侧：统计、公告、批量发送、模板 CRUD
+  ├── NotificationController   — 用户端 REST 接口
+  └── AdminNotificationController — 管理端 REST 接口
+```
+
+**关键设计**：`NotificationUtil` 使用**静态方法 + @Autowired setter**注入 Spring Bean。这意味着所有业务模块只需 `NotificationUtil.sendSystemMessage(userId, title, content)` 一行代码，无需注入任何 Bean。
+
+```java
+// NotificationUtil 的注入模式
+private static NotificationService notificationService;
+
+@Autowired
+public void setNotificationService(NotificationService notificationService) {
+    NotificationUtil.notificationService = notificationService;
+}
+```
+
+**问题**：静态方法 + Spring 注入存在时序风险。如果 Spring 容器初始化未完成时业务代码调用 `NotificationUtil`，会抛 `NullPointerException`。正常 Spring Boot 启动流程中不会出现这个问题，但在单元测试或手动调用时需注意。
+
+### 二、公告与个人消息的阅读状态双轨机制
+
+这是通知模块最核心的设计差异：
+
+#### 2.1 个人消息已读
+
+```
+个人消息已读:
+  UPDATE notification
+  SET status = 'READ', read_time = NOW(), updated_time = NOW()
+  WHERE id = #{id}
+    AND (receiver_id = #{userId} OR receiver_id IS NULL)
+    AND status = 'UNREAD'
+```
+
+- 直接修改主表 `status` 字段
+- 因为个人消息只有一个接收者，修改主表不影响其他人
+
+#### 2.2 公告已读
+
+```
+公告已读:
+  1. 检查 readRecordMapper.selectByUserAndNotification(userId, messageId)
+     → 已有记录 → return true（幂等）
+  2. 无记录 → INSERT notification_user_read_record
+     (userId, notificationId, readTime=NOW(), createdTime=NOW())
+```
+
+- 公告主表 `status` 保持 `UNREAD` 不变
+- 每个"读过"的用户都有一条 `notification_user_read_record`
+- 查询时用 LEFT JOIN 判断"是否已读"
+
+#### 2.3 双轨查询 SQL（核心）
+
+`selectByUserIdWithReadRecord` 是最关键的 SQL：
+
+```sql
+SELECT n.*,
+       CASE
+         WHEN n.receiver_id IS NULL AND r.id IS NOT NULL THEN 'read'
+         WHEN n.receiver_id IS NULL AND r.id IS NULL THEN 'UNREAD'
+         ELSE n.status
+       END as status,
+       CASE
+         WHEN n.receiver_id IS NULL AND r.id IS NOT NULL THEN r.read_time
+         ELSE n.read_time
+       END as read_time
+FROM notification n
+LEFT JOIN notification_user_read_record r
+  ON n.id = r.notification_id AND r.user_id = #{userId}
+WHERE n.status != 'DELETED'
+  AND (n.receiver_id = #{userId} OR n.receiver_id IS NULL)
+```
+
+**关键发现**：公告的已读状态通过 CASE 表达式**动态计算**，而不是存储在主表中。这意味着：
+- 同一条公告，用户 A 看到 `UNREAD`，用户 B 看到 `read`
+- 公告主表永远不会变成 `READ` 状态
+
+#### 2.4 未读数统计 SQL
+
+```sql
+SELECT COUNT(*)
+FROM notification n
+LEFT JOIN notification_user_read_record r
+  ON n.id = r.notification_id AND r.user_id = #{userId}
+WHERE n.status != 'DELETED'
+  AND (
+    (n.receiver_id = #{userId} AND n.status = 'UNREAD')   -- 个人未读
+    OR
+    (n.receiver_id IS NULL AND r.id IS NULL)              -- 公告未读（没阅读记录）
+  )
+```
+
+**坑点**：这个 LEFT JOIN 在通知量大时性能不佳——每次查未读数都要 JOIN 阅读记录表。如果公告数量很多（几千条），每个用户都要做一次 LEFT JOIN + 过滤。
+
+### 三、全部标记已读的实现缺陷
+
+**源码**：`NotificationUserService.markAllAsRead()`
+
+```java
+public boolean markAllAsRead() {
+    Long userId = StpUserUtil.getLoginIdAsLong();
+    List<Notification> unreadMessages = notificationService.getUserMessages(
+        userId, NotificationStatusEnum.UNREAD.getCode(), null
+    );
+    if (unreadMessages != null && !unreadMessages.isEmpty()) {
+        List<Long> messageIds = unreadMessages.stream()
+            .map(Notification::getId).toList();
+        return notificationService.batchMarkAsRead(messageIds, userId);
+    }
+    return true;
+}
+```
+
+**关键问题**：
+
+1. `getUserMessages` 调用的是 `selectByUserIdWithReadRecord`，但**传入 `status = "UNREAD"`**。这个 SQL 的 WHERE 条件里用 CASE 表达式计算状态，然后在 IF 条件里用 `#{status}` 过滤 CASE 结果。问题在于 CASE 返回的是小写 `'read'`（不是 `'READ'`），而传入的是大写 `'UNREAD'`。这会导致**公告的已读记录无法被正确过滤**——因为 CASE 返回的 `'read'` 不等于 `'UNREAD'`，所以已读公告不会出现在结果里，但**未读公告也不会被全部标记已读**，因为 CASE 返回 `'UNREAD'`（大写），确实匹配。
+
+2. 更严重的是：`getUserMessages` 返回**全量未读消息**（没有 LIMIT），如果某用户有几千条未读消息，全部加载到内存再提取 ID 列表，可能造成内存压力。注释写着"限制1000条以免性能问题"但代码里**没有实现这个限制**。
+
+3. `batchMarkAsRead` 内部对每个 messageId 逐一查询 `notificationMapper.selectById`，然后判断是个人消息还是公告分别处理。这是典型的 **N+1 查询**——先拿全部 ID，再逐条查详情。
+
+### 四、管理员删除实现
+
+**源码**：`NotificationAdminService.deleteMessage()`
+
+```java
+public boolean deleteMessage(Long messageId) {
+    Notification notification = notificationMapper.selectById(messageId);
+    if (notification != null) {
+        int result = notificationMapper.deleteMessage(messageId, notification.getReceiverId());
+        return result > 0;
+    }
+    return false;
+}
+```
+
+**关键发现**：管理员删除使用 `deleteMessage` SQL，但这条 SQL 的 WHERE 条件是 `WHERE id = #{id} AND receiver_id = #{userId}`。管理员传的 `userId` 是 `notification.getReceiverId()`，也就是消息接收者。
+
+对于**公告**（`receiverId = null`），`WHERE id = #{id} AND receiver_id = null` 在 SQL 中应该是 `WHERE id = #{id} AND receiver_id IS NULL`，但 MyBatis 参数 `#{userId}` 为 null 时，生成的 SQL 是 `receiver_id = null`，MySQL 中 `= null` 不等于 `IS NULL`。这意味着**管理员可能无法删除公告**。
+
+对于**个人消息**（`receiverId = 具体用户ID`），管理员传的是接收者 ID，所以可以正常删除。
+
+### 五、模板消息双重降级机制
+
+**源码**：`NotificationUtil.sendTemplateMessage()`
+
+```
+sendTemplateMessage(receiverId, templateCode, params):
+  try:
+    1. notificationTemplateMapper.selectByCode(templateCode)
+    2. 如果找到模板 → processTemplate(titleTemplate, params) + processTemplate(contentTemplate, params)
+    3. sendPersonalMessage(receiverId, title, content, "TEMPLATE")
+  catch Exception:
+    1. 使用硬编码备用模板 getTemplateTitle(templateCode) + getTemplateContent(templateCode)
+    2. processTemplate(备用模板, params)
+    3. sendPersonalMessage(receiverId, title, content, "TEMPLATE")
+```
+
+**关键发现**：模板消息有**双层降级**：
+1. 数据库没有模板 → 使用硬编码备用模板
+2. 数据库查询异常 → 也使用硬编码备用模板
+
+硬编码备用模板列表：
+
+| templateCode | 标题模板 | 内容模板 |
+| --- | --- | --- |
+| `WELCOME` | 欢迎加入{platform} | 亲爱的{username}，欢迎加入我们的平台！ |
+| `COMMUNITY_LIKE` | 您的帖子收到点赞 | 您的帖子《{postTitle}》收到了{likerName}的点赞 |
+| `COMMUNITY_COMMENT` | 您的帖子收到评论 | 您的帖子《{postTitle}》收到了{commenterName}的评论 |
+| `INTERVIEW_FAVORITE` | 收藏提醒 | 您收藏的面试题《{questionTitle}》已更新 |
+| `SYSTEM_MAINTENANCE` | 系统维护通知 | 系统将于{maintenanceTime}进行维护，预计耗时{duration} |
+
+模板变量使用简单的 `String.replace`，格式是 `{key}`。不是 SpEL、不是 FreeMarker，是最简单的字符串替换。如果模板中有 `{key}` 但参数里没有对应 key，`{key}` 会被替换为空字符串（因为 `entry.getValue() != null ? entry.getValue().toString() : ""`）。
+
+### 六、异步线程池配置
+
+**源码**：`NotificationAsyncConfig`
+
+| 参数 | 值 | 说明 |
+| --- | --- | --- |
+| 核心线程数 | 5 | 日常并发 |
+| 最大线程数 | 20 | 高峰扩容 |
+| 队列容量 | 100 | 缓冲任务 |
+| 线程名前缀 | `notification-` | 日志辨识 |
+| KeepAlive | 60s | 扩容线程空闲回收 |
+| 拒绝策略 | CallerRunsPolicy | 队列满时由调用线程执行 |
+| 等待关闭 | true + 30s | 优雅停机 |
+
+**关键发现**：`CallerRunsPolicy` 意味着如果线程池和队列都满了，发送通知的请求会由**调用方线程**（通常是业务线程）执行。这是合理的——通知不应该丢失，宁可慢一点也不能不发。但如果通知量持续很高，业务线程被阻塞可能导致主流程超时。
+
+### 七、未读数缓存策略
+
+**源码**：`NotificationCacheUtil`
+
+| 维度 | Redis Key | TTL | 说明 |
+| --- | --- | --- | --- |
+| 未读数 | `notification:unread:{userId}` | 30 分钟 | 减少数据库查询 |
+
+缓存读写流程：
+
+```
+getUnreadCount(userId):
+  1. Redis GET notification:unread:{userId}
+  2. 缓存命中 → 返回
+  3. 缓存未命中 → DB 查询 countUnreadWithReadRecord
+  4. Redis SET notification:unread:{userId}, TTL=30min
+  5. 返回
+
+sendPersonalMessage 成功后:
+  → Redis DEL notification:unread:{userId}（清缓存）
+```
+
+**关键发现**：
+1. 只有 `sendPersonalMessage` 成功后才清缓存。公告发送成功后**不清缓存**——因为公告是全站的，无法逐用户清缓存。
+2. `markAsRead` 和 `deleteMessage` 后**不清缓存**——这意味着用户标记已读后，缓存的未读数不会立即更新，要等 30 分钟 TTL 过期后才会重新查 DB。
+3. 缓存清除失败不影响主流程（catch 后静默处理）。
+
+### 八、用户偏好配置被硬禁用
+
+**源码**：`NotificationUtil.isUserAcceptType()`
+
+```java
+private static boolean isUserAcceptType(Long userId, String type) {
+    // 强制所有用户接受所有类型的消息
+    return true;
+}
+```
+
+`NotificationConfigMapper` 有完整的配置 CRUD（按用户和类型查询是否启用），但 `isUserAcceptType` 直接返回 `true`。这意味着 `notification_config` 表的数据**完全不被使用**——用户无法真正关闭某种类型的通知。
+
+注释说"现已强制所有用户接受所有类型的消息"，说明这是一个有意的产品决策，但代码层面保留了 `NotificationConfigMapper` 的完整接口，后续如果要恢复用户偏好功能，只需把 `isUserAcceptType` 改为查 DB 即可。
+
+### 九、消息详情自动已读
+
+**源码**：`NotificationUserService.getMessageDetail()`
+
+```java
+public Notification getMessageDetail(Long messageId) {
+    Notification notification = notificationService.getMessageById(messageId);
+    if (notification != null) {
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        if (notification.getReceiverId() == null || notification.getReceiverId().equals(userId)) {
+            if (NotificationStatusEnum.UNREAD.getCode().equals(notification.getStatus())) {
+                notificationService.markAsRead(messageId, userId);
+            }
+            return notification;
+        }
+    }
+    return null;
+}
+```
+
+**关键发现**：
+1. 查看详情时自动标记已读——这是"读即标记"模式，用户无法"看了但不标记已读"
+2. 权限检查只看 `receiverId == null`（公告）或 `receiverId == userId`（个人消息），不看消息类型
+3. 对于公告，`notification.getStatus()` 永远是 `UNREAD`（公告主表不改状态），所以每次查看公告详情都会触发 `markAsRead` → 写阅读记录
+4. 返回的 `notification` 对象里的 `status` 字段仍然是主表值（`UNREAD`），没有用 CASE 表达式计算"该用户视角的已读状态"——前端可能拿到公告 `status = "UNREAD"` 但实际已读
+
+### 十、统计口径差异
+
+**源码**：`NotificationAdminService.getStatistics()`
+
+有两种统计模式：
+
+| 模式 | 触发条件 | 计算方式 |
+| --- | --- | --- |
+| 默认统计 | `startTime` 和 `endTime` 都为 null | `countTodayMessages` + `countMonthMessages` + `countByType`（全量） |
+| 时间范围统计 | `startTime` 和 `endTime` 都有值 | `countByTimeRangeAndType`（按范围） |
+
+**关键发现**：
+1. 默认统计的 `announcementCount` 是**全量**统计（不限时间），不是"今日公告数"。这意味着 `todayTotal` 是今日发送数，但 `announcementCount` 是历史上所有公告数——口径不一致。
+2. 时间范围统计时，`todayTotal` 和 `monthTotal` 置为 0，避免混淆。
+3. `unreadTotal` 不受时间范围限制——始终是全站所有未读消息数。
+4. `countByType` 和 `countByTimeRangeAndType` 的统计不区分个人消息的 `READ`/`UNREAD` 状态——只要没 `DELETED` 就计入。
+
+### 十一、深度发现与坑点
+
+#### 11.1 已确认的代码问题
+
+| 编号 | 问题 | 位置 | 影响 |
+| --- | --- | --- | --- |
+| BUG-1 | 全部标记已读无数量限制 | `NotificationUserService.markAllAsRead` | 大量未读消息时内存压力 |
+| BUG-2 | 全部标记已读 N+1 查询 | `NotificationService.batchMarkAsRead` | 逐条 selectById 判断消息类型 |
+| BUG-3 | 公告 CASE 表达式返回小写 'read' | `NotificationMapper.xml:182` | 与传入大写 'UNREAD' 过滤条件不一致 |
+| BUG-4 | 管理员删除公告可能失败 | `NotificationAdminService.deleteMessage` | `receiver_id = null` vs `IS NULL` |
+| BUG-5 | 详情返回公告主表 status=UNREAD | `NotificationUserService.getMessageDetail` | 前端看到已读公告仍显示 UNREAD |
+| BUG-6 | markAsRead/delete 后不清缓存 | `NotificationUserService` | 缓存未读数 30 分钟后才更新 |
+
+#### 11.2 设计层面的潜在风险
+
+| 编号 | 风险 | 说明 |
+| --- | --- | --- |
+| RISK-1 | 未读数 LEFT JOIN 性能 | 公告量大时，每次查未读数都 JOIN 阅读记录表 |
+| RISK-2 | NotificationUtil 静态注入时序 | Spring 容器初始化前调用可能 NPE |
+| RISK-3 | CallerRunsPolicy 阻塞业务线程 | 通知量持续高时业务线程可能被占 |
+| RISK-4 | 公告无 TTL 清理机制 | 公告永远存在，`notification` 表无限增长 |
+| RISK-5 | 阅读记录无 TTL 清理机制 | `notification_user_read_record` 无限增长 |
+| RISK-6 | 模板变量简单字符串替换 | 不支持条件逻辑、循环等高级模板功能 |
+
+#### 11.3 架构设计亮点
+
+| 编号 | 亮点 | 说明 |
+| --- | --- | --- |
+| H-1 | 公告阅读记录双轨 | 公告不改主表状态，用阅读记录表实现多人独立已读 |
+| H-2 | 静态工具类入口 | 业务模块一行代码发通知，无需注入 Bean |
+| H-3 | 模板双重降级 | DB 查不到或异常时，自动使用硬编码备用模板 |
+| H-4 | 参数兜底 | 非法类型退回 PERSONAL，非法优先级退回 LOW，空 receiverId 放弃发送 |
+| H-5 | CallerRunsPolicy | 队列满时由调用线程执行，保证通知不丢失 |
+| H-6 | 未读数 Redis 缓存 | 30 分钟 TTL，减少频繁 LEFT JOIN 查询 |
+| H-7 | 通知不影响主流程 | 所有发送方法都 try-catch，失败只记录日志 |
+
+#### 11.4 源码导航速查
+
+| 想了解 | 读什么 |
+| --- | --- |
+| 静态工具入口 | `NotificationUtil.java` — 所有 sendXxx 方法 + 模板降级 |
+| 基础 CRUD | `NotificationService.java` — 发送、已读、删除 |
+| 公告阅读记录 | `NotificationMapper.xml:163-208` — LEFT JOIN + CASE 表达式 |
+| 用户侧接口 | `NotificationUserService.java` — 列表、未读数、详情自动已读 |
+| 管理侧接口 | `NotificationAdminService.java` — 统计、公告、批量、模板 |
+| 线程池配置 | `NotificationAsyncConfig.java` — 5/20/100/CallerRunsPolicy |
+| 缓存策略 | `NotificationCacheUtil.java` — Redis 30min TTL |
