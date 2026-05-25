@@ -24,7 +24,7 @@
 | 用户登录域 | 普通用户使用的登录态，与管理端隔离 | [用户账户与个人中心](/modules/user-account) |
 | 管理登录域 | 管理员使用的登录态，与用户端隔离 | [鉴权与用户体系](/modules/auth) |
 | 当前登录用户 | 后端从 Token 中解析出的用户 ID，不应由前端手动传入 | [用户账户与个人中心](/modules/user-account) |
-| `@RequireAdmin` | 管理端权限校验注解，用于保护后台接口 | [系统运营后台](/modules/system-ops) |
+| `@RequireAdmin` | 管理端权限校验注解，用于保护后台接口 | [权限注解与角色边界索引](/reference/permission-boundaries)、[系统运营后台](/modules/system-ops) |
 | 逻辑删除 | 数据不物理删除，而是用字段标记不可见或失效 | [数据库与脚本](/architecture/database) |
 | `StpUserUtil` | Sa-Token 用户登录域操作工具类 | [鉴权与用户体系](/modules/auth) |
 | `StpAdminUtil` | Sa-Token 管理登录域操作工具类 | [鉴权与用户体系](/modules/auth) |
@@ -68,7 +68,7 @@
 | 提交状态机 | OJ 提交从等待、运行到 AC/WA/CE/TLE 等结果的流转 | [OJ 判题系统](/modules/oj) |
 | ACM 排名 | 赛事中按过题数、罚时等规则计算的排名 | [OJ 判题系统](/modules/oj) |
 | WebSocket | 聊天室实时通信通道 | [WebSocket 协议](/reference/websocket) |
-| ws-ticket | 聊天连接前申请的一次性 WebSocket 票据 | [IM 聊天室](/modules/chat) |
+| ws-ticket | 聊天连接前申请的一次性 WebSocket 票据 | [WebSocket 协议](/reference/websocket)、[IM 聊天室](/modules/chat) |
 | ACK | 服务端确认消息已被接收或落库的事件 | [WebSocket 协议](/reference/websocket) |
 | tempId | 前端乐观消息的临时 ID，用来把失败态和真实消息关联起来 | [IM 聊天室](/modules/chat) |
 
@@ -209,6 +209,16 @@
 | 1 | 已完成 | 正常结束 |
 | 2 | 已中断 | 异常或手动中断 |
 
+### 通知状态（NotificationStatusEnum）
+
+| code | 名称 | 说明 |
+| --- | --- | --- |
+| UNREAD | 未读 | 新消息，未查看 |
+| READ | 已读 | 用户已查看 |
+| DELETED | 已删除 | 用户已删除 |
+
+> 通知状态使用字符串 code（非整数），流转方向为 UNREAD → READ → DELETED。
+
 ### 响应状态码（ResultCode）
 
 | code | 名称 | 说明 |
@@ -217,12 +227,29 @@
 | 400 | 请求参数错误 | 客户端参数校验失败 |
 | 401 | 未授权访问 | Token 缺失或无效 |
 | 403 | 访问被禁止 | 权限不足 |
+| 404 | 资源不存在 | 请求资源未找到 |
+| 405 | 请求方法不支持 | HTTP 方法不被允许 |
+| 408 | 请求超时 | 客户端请求超时 |
+| 409 | 数据冲突 | 请求与当前状态冲突 |
+| 415 | 不支持的媒体类型 | Content-Type 不匹配 |
+| 429 | 请求过于频繁 | 触发限流 |
 | 500 | 系统内部错误 | 后端异常 |
+| 503 | 服务不可用 | 服务暂时不可用 |
+| 600 | 业务处理失败 | 通用业务错误 |
 | 601 | 参数校验失败 | 业务参数不合法 |
+| 602 | 数据不存在 | 查询的目标数据缺失 |
+| 603 | 数据已存在 | 重复创建 |
+| 604 | 操作不被允许 | 当前状态不允许此操作 |
 | 701 | Token无效 | Sa-Token 校验失败 |
 | 702 | Token已过期 | 超过有效期 |
 | 703 | 权限不足 | 角色或权限不满足 |
+| 704 | 账户已被禁用 | 账户被管理员禁用 |
+| 705 | 登录失败 | 用户名或密码错误 |
 | 801 | 文件上传失败 | 文件模块异常 |
+| 802 | 文件下载失败 | 文件模块异常 |
+| 803 | 文件不存在 | 请求的文件未找到 |
+| 804 | 文件类型不支持 | 上传文件格式不被允许 |
+| 805 | 文件大小超出限制 | 上传文件超过大小限制 |
 
 ### 学习资产候选状态（LearningAssetCandidateStatus）
 

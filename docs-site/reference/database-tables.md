@@ -4,6 +4,51 @@
 
 如果你已经定位到具体表，想理解 `status`、`user_id`、`is_deleted`、`file_id`、积分、通知、OJ、AI 等字段怎么读，继续看 [数据库字段阅读指南](/reference/database-field-guide)。
 
+## 表统计总览
+
+基线脚本包含 136 张表，加上增量脚本后共 142 张表，按业务域分布：
+
+| 业务域 | 表数量 | 模块 | 表前缀 |
+| --- | --- | --- | --- |
+| 账号与权限 | 8 | xiaou-user, xiaou-system | `user_info`, `sys_*` |
+| 面试题库 | 8 | xiaou-interview | `interview_*` |
+| 模拟面试与求职 | 9 | xiaou-mock-interview | `mock_interview_*`, `career_loop_*`, `job_battle_*` |
+| 成长与计划 | 7 | xiaou-plan | `growth_autopilot_*`, `user_plan`, `plan_*`, `learning_cockpit_*` |
+| 学习小组 | 11 | xiaou-team | `study_team_*` |
+| 闪卡 | 8 | xiaou-flashcard | `flashcard_*` |
+| 学习资产与知识图谱 | 6 | xiaou-learning-asset, xiaou-knowledge, xiaou-sql-optimizer | `learning_asset_*`, `knowledge_*`, `sql_*` |
+| OJ | 11 | xiaou-oj | `oj_*` |
+| 社区 | 10 | xiaou-community | `community_*` |
+| 动态 | 5 | xiaou-moment | `moment*` |
+| 博客 | 4 | xiaou-blog | `blog_*` |
+| 代码工坊 | 8 | xiaou-codepen | `code_pen_*` |
+| 简历 | 6 | xiaou-resume | `resume_*` |
+| 文件存储 | 6 | xiaou-filestorage | `file_*`, `storage_config` |
+| 通知 | 4 | xiaou-notification | `notification_*` |
+| 聊天 | 5 | xiaou-chat | `chat_*` |
+| 积分与抽奖 | 7 | xiaou-points | `user_points_*`, `user_checkin_*`, `lottery_*`, `user_lottery_*` |
+| 敏感词 | 11 | xiaou-sensitive | `sensitive_*` |
+| 摸鱼工具 | 7 | xiaou-moyu | `developer_calendar_*`, `daily_content`, `user_calendar_*`, `user_salary_*`, `work_record`, `bug_*`, `user_bug_*` |
+| 版本历史 | 1 | xiaou-version | `version_history` |
+
+## 索引策略
+
+项目使用 MyBatis-Plus，主键索引由 `BIGINT AUTO_INCREMENT` 自动创建。额外索引策略：
+
+| 索引类型 | 适用场景 | 典型表 |
+| --- | --- | --- |
+| `user_id` 单列索引 | 所有含 `user_id` 的表，用于按用户查询 | 几乎所有业务表 |
+| `user_id + question_id` 联合唯一索引 | 一对一关系表，防止重复记录 | `interview_mastery_record`, `interview_favorite` |
+| `user_id + moment_id` 联合唯一索引 | 互动关系表，防止重复点赞/收藏 | `moment_likes`, `moment_favorites` |
+| `user_id + post_id` 联合唯一索引 | 社区互动关系表 | `community_post_like`, `community_post_collect` |
+| `status` 单列索引 | 状态筛选（已发布/草稿/删除） | `community_post`, `blog_article`, `code_pen`, `version_history` |
+| `category_id` 单列索引 | 分类筛选 | `community_post`, `interview_question_set` |
+| `created_time` 单列索引 | 时间范围查询和排序 | `chat_messages`, `sys_operation_log`, `moment_views` |
+| `room_id` 单列索引 | 聊天室消息查询 | `chat_messages` |
+| `problem_id` 单列索引 | OJ 提交和测试用例查询 | `oj_submission`, `oj_test_case` |
+
+> **新增表时**：至少为 `user_id`、`status`、`created_time` 三个字段创建索引（如果表中有这些字段）。互动关系表（点赞、收藏等）必须为 `user_id + 目标_id` 创建联合唯一索引。
+
 ## 使用方式
 
 | 任务 | 推荐入口 |
@@ -289,7 +334,7 @@ grep -r "user_points_balance" --include="*.xml" xiaou-*/
 
 | 文件 | 说明 |
 | --- | --- |
-| `sql/MySql/code_nest.sql` | 主库基线脚本（97 表 + 1 视图） |
+| `sql/MySql/code_nest.sql` | 主库基线脚本（136 表，加上增量共 142 表） |
 | `sql/v1.2.0/` ~ `sql/v1.8.4/` | 版本增量脚本 |
 | `xiaou-*/src/main/java/**/domain/` | 实体类目录 |
 | `xiaou-*/src/main/java/**/mapper/` | Mapper 接口目录 |

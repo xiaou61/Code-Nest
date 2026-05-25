@@ -1,114 +1,355 @@
 # 用户端操作手册
 
-本页把用户端页面、入口、截图素材和真实验证链路统一整理。原始手册位于 `docs/Code-Nest-本地全功能截图测试与操作手册-2026-04-24.md`，截图源目录为 `docs/manual-assets/2026-04-24/user`。
+本页记录用户端各模块的操作流程和对应的后端接口。用户端接口前缀为 `/api/user/`，需要用户端 Token（`Authorization: Bearer <user-token>`）。
 
-## 本地入口
+如果你需要管理端操作，看 [管理端操作手册](/manuals/admin-operations)。如果你在排查问题，看 [常见问题排查](/operations/troubleshooting)。
 
-| 项 | 值 |
-| --- | --- |
-| 用户端地址 | `http://localhost:3001` |
-| 登录页 | `http://localhost:3001/login` |
-| 注册页 | `http://localhost:3001/register` |
-| 后端 API | `http://localhost:9999/api` |
-| 截图目录 | `docs/manual-assets/2026-04-24/user` |
+## 登录与注册
 
-## 登录与首页
+### 注册
 
-| 页面 | 地址 | 截图 |
-| --- | --- | --- |
-| 登录 | `/login` | `00-login.png` |
-| 注册 | `/register` | `00-register.png` |
-| 首页 | `/` | `01-home.png` |
+```bash
+# 获取验证码
+curl http://localhost:9999/api/captcha/image
+# 返回: {"code":200,"data":{"captchaKey":"xxx","captchaImage":"base64..."}}
 
-登录注册页面依赖用户端验证码。验证码明文会出现在后端日志中，可用关键字 `生成验证码成功` 查找。
+# 注册
+curl -X POST http://localhost:9999/api/user/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"newuser","password":"pass123","captchaKey":"xxx","captchaCode":"1234"}'
+# 期望: {"code":200}
+```
 
-## 学习成长
+### 登录
 
-| 页面 | 地址 | 主要能力 | 截图 |
+```bash
+curl -X POST http://localhost:9999/api/user/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"test","password":"test123"}'
+# 返回: {"code":200,"data":{"token":"xxx","userInfo":{...}}}
+```
+
+用户端使用 `StpUserUtil`（loginType="user"），Token 存储在 Redis db4。
+
+> **提示**：开发环境验证码明文会出现在后端日志中，可用关键字 `生成验证码成功` 查找。
+
+## 个人中心
+
+### 查看资料
+
+```bash
+curl http://localhost:9999/api/user/profile \
+  -H "Authorization: Bearer <user-token>"
+# 返回: {"code":200,"data":{"id":123,"username":"test","nickname":"...","avatar":"...",...}}
+```
+
+### 修改资料
+
+```bash
+curl -X PUT http://localhost:9999/api/user/profile \
+  -H "Authorization: Bearer <user-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"nickname":"新昵称","bio":"个人简介"}'
+# 期望: {"code":200}
+```
+
+### 修改头像
+
+```bash
+# 上传头像文件
+curl -X POST http://localhost:9999/api/file \
+  -H "Authorization: Bearer <user-token>" \
+  -F "file=@avatar.png"
+# 返回: {"code":200,"data":{"url":"/api/files/xxx.png"}}
+
+# 更新头像 URL
+curl -X PUT http://localhost:9999/api/user/profile \
+  -H "Authorization: Bearer <user-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"avatar":"/api/files/xxx.png"}'
+```
+
+## 面试题学习
+
+### 浏览题单
+
+```bash
+curl "http://localhost:9999/api/user/interview/question-sets?page=1&size=20" \
+  -H "Authorization: Bearer <user-token>"
+# 返回: {"code":200,"data":{"records":[...],"total":N}}
+```
+
+### 标记掌握度
+
+```bash
+curl -X POST http://localhost:9999/api/user/interview/mastery/mark \
+  -H "Authorization: Bearer <user-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"questionId":456,"level":"FAMILIAR"}'
+# 期望: {"code":200}
+```
+
+### 收藏题目
+
+```bash
+curl -X POST http://localhost:9999/api/user/interview/favorite \
+  -H "Authorization: Bearer <user-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"questionId":456}'
+# 期望: {"code":200}
+```
+
+## OJ 刷题
+
+### 浏览题目
+
+```bash
+curl "http://localhost:9999/api/user/oj/problem/list?page=1&size=20" \
+  -H "Authorization: Bearer <user-token>"
+# 返回: {"code":200,"data":{"records":[...],"total":N}}
+```
+
+### 查看题目详情
+
+```bash
+curl http://localhost:9999/api/user/oj/problem/1 \
+  -H "Authorization: Bearer <user-token>"
+# 返回: {"code":200,"data":{"id":1,"title":"...","description":"...",...}}
+```
+
+### 提交代码
+
+```bash
+curl -X POST http://localhost:9999/api/user/oj/submit \
+  -H "Authorization: Bearer <user-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"problemId":1,"language":"JAVA","code":"public class Solution {...}"}'
+# 返回: {"code":200,"data":{"submissionId":"xxx"}}
+```
+
+提交后状态为 PENDING，异步判题完成后变为 AC/WA/CE 等。
+
+### 自测运行
+
+```bash
+curl -X POST http://localhost:9999/api/user/oj/run \
+  -H "Authorization: Bearer <user-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"language":"JAVA","code":"public class Main {...}","input":"1 2"}'
+# 返回: {"code":200,"data":{"output":"3","exitCode":0}}
+```
+
+### 查看提交记录
+
+```bash
+curl http://localhost:9999/api/user/oj/submission/xxx \
+  -H "Authorization: Bearer <user-token>"
+# 返回: {"code":200,"data":{"status":"ACCEPTED","timeUsed":100,...}}
+```
+
+### 赛事报名
+
+```bash
+# 报名参赛
+curl -X POST http://localhost:9999/api/user/oj/contest/register/1 \
+  -H "Authorization: Bearer <user-token>"
+# 期望: {"code":200}
+
+# 查看赛事排名
+curl http://localhost:9999/api/user/oj/contest/rank/1 \
+  -H "Authorization: Bearer <user-token>"
+```
+
+## 模拟面试
+
+### 创建会话
+
+```bash
+curl -X POST http://localhost:9999/api/user/mock-interview/session \
+  -H "Authorization: Bearer <user-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"interviewType":"TECHNICAL","position":"Java后端开发","difficulty":"MEDIUM"}'
+# 返回: {"code":200,"data":{"sessionId":"xxx"}}
+```
+
+### 作答
+
+```bash
+curl -X POST http://localhost:9999/api/user/mock-interview/answer \
+  -H "Authorization: Bearer <user-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"sessionId":"xxx","questionId":"q1","answer":"HashMap基于数组+链表+红黑树..."}'
+# 返回: {"code":200,"data":{"feedback":"...","nextQuestion":{...}}}
+```
+
+AI 会评估答案质量并决定是否追问。
+
+### 查看报告
+
+```bash
+curl http://localhost:9999/api/user/mock-interview/report/xxx \
+  -H "Authorization: Bearer <user-token>"
+# 返回: {"code":200,"data":{"summary":"...","score":85,"suggestions":[...]}}
+```
+
+## 聊天室
+
+### 获取 ws-ticket
+
+```bash
+curl http://localhost:9999/api/user/chat/ws-ticket \
+  -H "Authorization: Bearer <user-token>"
+# 返回: {"code":200,"data":{"ticket":"xxx"}}
+```
+
+ws-ticket 一次性使用，60 秒过期，32 字节 SecureRandom Base64 URL-safe 编码。
+
+### 连接 WebSocket
+
+```text
+ws://localhost:9999/api/ws/chat?ticket=<ticket>
+```
+
+连接成功后收到 `CONNECT` 帧。
+
+### 消息协议
+
+| 操作 | type 字段 | 方向 | 说明 |
 | --- | --- | --- | --- |
-| 面试题库 | `/interview` | 题单列表、分类筛选、学习入口 | `02-interview.png` |
-| 随机抽题 | `/interview/random` | 随机题目训练 | `53-interview-random.png` |
-| 题单详情 | `/interview/question-sets/:id` | 题目列表、学习进度 | `36-interview-question-set-detail.png` |
-| 题目学习 | `/interview/questions/:setId/:questionId` | 答案展开、掌握度标记、上一题下一题 | `37` 到 `41` 系列 |
-| 面试收藏 | `/interview/favorites` | 收藏题目列表 | `54-interview-favorites.png` |
-| 智能复习 | `/interview/review` | 掌握度复习 | `55-interview-review.png` |
-| OJ | `/oj` | 题目列表、难度、标签 | `03-oj.png` |
-| OJ 题目 | `/oj/problem/:id` | 题面、代码编辑、运行提交 | `42-oj-problem-detail.png` |
-| 我的提交 | `/oj/my-submissions` | 提交记录 | `43-oj-my-submissions.png` |
-| 提交详情 | `/oj/submission/:id` | 判题结果和错误信息 | `44-oj-submission-detail.png` |
-| 赛事中心 | `/oj/contests` | 赛事列表 | `82-oj-contests-list.png` |
-| 赛事详情 | `/oj/contests/:id` | 报名、赛事题目、榜单 | `45-oj-contest-detail.png` |
-| 做题统计 | `/oj/statistics` | 个人做题数据 | `56-oj-statistics.png` |
-| 排行榜 | `/oj/ranking` | 用户排行 | `57-oj-ranking.png` |
-| 练习场 | `/oj/playground` | 独立代码运行 | `27-oj-playground.png` |
-| AI 模拟面试 | `/mock-interview` | 方向选择和入口 | `04-mock-interview.png` |
-| 面试配置 | `/mock-interview/config` | 难度、题量、风格 | `80`、`81` 系列 |
-| 面试会话 | `/mock-interview/session?sessionId=...` | 作答、追问、评分反馈 | `99` 到 `101` 系列 |
-| 面试报告 | `/mock-interview/report?sessionId=...` | 总结、评分、学习建议、转资产 | `102`、`106`、`107` |
-| 面试历史 | `/mock-interview/history` | 历史会话回流 | `28`、`103` |
-| 求职作战台 | `/job-battle` | JD 解析、简历匹配、计划 | `05-job-battle.png` |
-| 岗位匹配引擎 | `/job-match-engine` | 多岗位匹配排序 | `58-job-match-engine.png` |
-| 求职闭环 | `/career-loop` | 阶段追踪和动作清单 | `06-career-loop.png` |
-| 学习驾驶舱 | `/learning-cockpit` | 成长分、能力雷达、今日任务 | `07-learning-cockpit.png` |
-| 学习资产 | `/learning-assets` | 资产转化记录、发布状态 | `08`、`108`、`109`、`116` |
-| SQL 优化 | `/sql-optimizer/workbench` | SQL 分析、改写、对比 | `09-sql-optimizer.png` |
-| 计划打卡 | `/plan` | 计划、每日打卡、复盘 | `15-plan.png` |
-| 学习小组 | `/team` | 小组广场、加入、讨论 | `16-team.png` |
-| 创建小组 | `/team/create` | 新建小组 | `83-team-create.png` |
-| 我的小组 | `/team/my` | 已加入小组 | `75-team-my.png` |
-| 小组详情 | `/team/:id` | 任务、打卡、讨论 | `52`、`98` |
-| 闪卡 | `/flashcard` | 公开卡组和学习入口 | `21-flashcard.png` |
-| 我的卡组 | `/flashcard/my` | 私有卡组 | `33-flashcard-my.png` |
-| 卡组详情 | `/flashcard/deck/:id` | 卡组信息 | `50-flashcard-deck-detail.png` |
-| 闪卡学习 | `/flashcard/study/:deckId` | 记忆复习 | `51-flashcard-study-complete.png` |
-| 卡组和卡片编辑 | `/flashcard/deck/create`、`/flashcard/deck/:id/edit`、`/flashcard/deck/:deckId/cards` | 创建、编辑、维护卡片 | `73`、`74`、`84`、`85` |
-| 知识图谱 | `/knowledge`、`/knowledge/maps/:id` | 图谱列表和图谱学习 | `18`、`76` |
+| 发送文本 | `MESSAGE` | C→S→C | content 为文本内容 |
+| 发送图片 | `IMAGE` | C→S→C | content 为图片 URL |
+| 消息确认 | `MESSAGE_ACK` | S→C | 包含 messageId 和 timestamp |
+| 撤回 | `RECALL` | C→S→C | 携带 messageId |
+| 输入中 | `TYPING` | C→S→C | 提示其他用户正在输入 |
+| 系统消息 | `SYSTEM` | S→C | 公告、禁言通知等 |
+| 错误 | `ERROR` | S→C | 包含 code 和 message |
+
+### 限流
+
+连续快速发送消息会触发限流，收到 `ERROR` 事件：
+
+```json
+{
+  "type": "ERROR",
+  "code": "RATE_LIMITED",
+  "message": "发送过于频繁，请稍后再试"
+}
+```
+
+此时前端应将乐观消息标记为失败态。
+
+## 积分系统
+
+### 签到
+
+```bash
+curl -X POST http://localhost:9999/api/user/points/sign-in \
+  -H "Authorization: Bearer <user-token>"
+# 返回: {"code":200,"data":{"earned":10,"total":110}}
+```
+
+> **已知问题**：签到按钮文案可能不更新，因为 `todayCheckedIn` 和 `hasCheckedToday` 字段不一致。
+
+### 查看积分余额
+
+```bash
+curl http://localhost:9999/api/user/points/balance \
+  -H "Authorization: Bearer <user-token>"
+# 返回: {"code":200,"data":{"balance":110}}
+```
+
+### 抽奖
+
+```bash
+curl -X POST http://localhost:9999/api/user/lottery/draw \
+  -H "Authorization: Bearer <user-token>"
+# 返回: {"code":200,"data":{"prize":"xxx","pointsCost":50}}
+```
+
+## 通知中心
+
+```bash
+# 未读数量
+curl http://localhost:9999/api/user/notification/unread-count \
+  -H "Authorization: Bearer <user-token>"
+
+# 通知列表
+curl "http://localhost:9999/api/user/notification/list?page=1&size=20" \
+  -H "Authorization: Bearer <user-token>"
+
+# 标记已读
+curl -X POST http://localhost:9999/api/user/notification/read/xxx \
+  -H "Authorization: Bearer <user-token>"
+```
 
 ## 内容创作
 
-| 页面 | 地址 | 主要能力 | 截图 |
-| --- | --- | --- | --- |
-| 简历管理 | `/resume` | 简历列表、保存回流 | `10`、`95` |
-| 简历模板 | `/resume/templates` | 模板中心 | `29-resume-templates.png` |
-| 简历编辑器 | `/resume/editor` | 创建和编辑简历 | `59-resume-editor.png` |
-| 技术社区 | `/community` | 帖子列表 | `11-community.png` |
-| 发帖 | `/community/create` | 发布帖子 | `30-community-create.png` |
-| 帖子详情 | `/community/posts/:id` | 评论、点赞、AI 摘要 | `47`、`92` |
-| 我的收藏和帖子 | `/community/collections`、`/community/my-posts` | 收藏和个人内容 | `60`、`61`、`91` |
-| 用户主页 | `/community/users/:userId` | 用户社区资料 | `62-community-user-profile.png` |
-| 博客 | `/blog` | 开通博客、文章列表 | `19`、`87`、`88` |
-| 博客编辑器 | `/blog/editor` | Markdown 写作 | `31-blog-editor.png` |
-| 博客主页和文章详情 | `/blog/:userId`、`/blog/:userId/article/:articleId` | 公开博客展示 | `48`、`71`、`89` |
-| 代码广场 | `/codepen` | 在线作品广场 | `20-codepen.png` |
-| 代码编辑器 | `/codepen/editor` | HTML/CSS/JS 在线编辑 | `32-codepen-editor.png` |
-| 我的作品和详情 | `/codepen/my`、`/codepen/:id` | 发布回流、点赞、详情 | `49`、`72`、`96`、`97` |
+### 社区发帖
 
-## 社交互动与工具
+```bash
+curl -X POST http://localhost:9999/api/user/community/post \
+  -H "Authorization: Bearer <user-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Spring Boot 3 新特性","content":"...","categoryId":1,"tagIds":[1,2]}'
+```
 
-| 页面 | 地址 | 主要能力 | 截图 |
-| --- | --- | --- | --- |
-| 动态广场 | `/moments` | 发布、点赞、收藏、评论 | `12`、`93`、`94` |
-| 动态用户主页和收藏 | `/moments/user/:userId`、`/moments/my-favorites` | 用户主页、收藏列表 | `63`、`64` |
-| 聊天室 | `/chat` | WebSocket 消息、图片、撤回、公告、禁言、踢出 | `13`、`104` 到 `115` |
-| 通知中心 | `/notification` | 系统通知、已读未读 | `22-notification.png` |
-| 我的积分 | `/points` | 余额、签到、流水 | `14`、`86` |
-| 幸运抽奖 | `/lottery` | 抽奖和记录 | `17`、`90` |
-| 个人中心 | `/profile` | 资料维护 | `23-profile.png` |
-| 程序员工具 | `/dev-tools` | 工具合集 | `24-dev-tools.png` |
-| JSON 工具 | `/dev-tools/json` | JSON 格式化 | `34-dev-tools-json.png` |
-| 文本比对 | `/dev-tools/text-diff` | 文本 diff | `65-dev-tools-text-diff.png` |
-| 聚合翻译 | `/dev-tools/translation` | 翻译工具 | `66-dev-tools-translation.png` |
-| 摸鱼工具 | `/moyu-tools` | 工具合集 | `25-moyu-tools.png` |
-| 今日热榜 | `/moyu-tools/hot-topics` | 多平台热榜 | `35-moyu-hot-topics.png` |
-| 时薪计算器 | `/moyu-tools/salary-calculator` | 薪资和摸鱼统计 | `67-moyu-salary-calculator.png` |
-| 程序员日历 | `/moyu-tools/calendar` | 事件日历 | `68-moyu-calendar.png` |
-| 每日内容 | `/moyu-tools/daily-content` | 每日语录/文章 | `69-moyu-daily-content.png` |
-| Bug 商店 | `/moyu-tools/bug-store` | Bug 资产库 | `70-moyu-bug-store.png` |
-| 版本历史 | `/version-history` | 版本墙 | `26-version-history.png` |
+### 博客发布
+
+```bash
+curl -X POST http://localhost:9999/api/user/blog/publish \
+  -H "Authorization: Bearer <user-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"我的第一篇博客","contentMarkdown":"# Hello World\n...","categoryId":1}'
+```
+
+### CodePen 保存
+
+```bash
+curl -X POST http://localhost:9999/api/user/codepen/save \
+  -H "Authorization: Bearer <user-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"CSS 动画","html":"<div>...</div>","css":"div { animation: ... }","js":"","isPublic":true}'
+```
+
+### 动态发布
+
+```bash
+curl -X POST http://localhost:9999/api/user/moment/publish \
+  -H "Authorization: Bearer <user-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"content":"今天学了 Java 集合框架","imageUrls":["/api/files/xxx.png"]}'
+```
 
 ## 验证口径
 
 1. 直达页面只证明路由和页面渲染正常。
 2. 带参数详情页优先从列表点击进入，避免本地数据 ID 不一致。
-3. 写操作以“接口返回成功、页面回流、数据库或后台可见”三者同时成立为完整闭环。
+3. 写操作以"接口返回成功、页面回流、数据库或后台可见"三者同时成立为完整闭环。
 4. 依赖外部服务的功能需要额外确认 sidecar 或 go-judge 可用。
+5. 内容类操作必须同时验证：用户端回流 + 管理端可见 + 通知到达。
+
+## 安全注意
+
+| 场景 | 风险 | 防护 |
+| --- | --- | --- |
+| userId 伪造 | 用户篡改请求中的 userId | 后端从 Sa-Token 会话取 userId，不信任前端传参 |
+| 内容 XSS | Markdown/HTML 注入 | DOMPurify 净化 + 管理端渲染安全检查 |
+| 文件类型绕持 | 上传 .exe/.sh | 文件类型白名单 + 后缀校验 |
+| ws-ticket 复用 | 同一 ticket 连两次 | Redis 一次性消费，二次连接被拒绝 |
+| Token 跨端 | 用户端 Token 调管理端 | loginType 隔离，返回 703 |
+
+## 错误码速查
+
+| 错误码 | 含义 | 说明 |
+| --- | --- | --- |
+| 701 | Token 无效或缺失 | 检查 Header 格式 |
+| 702 | Token 已过期 | 重新登录 |
+| 703 | 权限不足 | 跨端调用 |
+| 704 | 账号被封禁 | 联系管理员 |
+| 705 | 登录失败 | 用户名或密码错误 |
+| 801 | 文件为空 | 检查上传文件 |
+| 802 | 文件过大 | 超过 100MB |
+| 803 | 文件类型不支持 | 检查白名单 |
+| 805 | 上传路径不合法 | 检查文件名 |
+
+更多排查流程见 [常见问题排查](/operations/troubleshooting) 和 [问题定位流程](/operations/diagnosis-flow)。

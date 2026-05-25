@@ -11,7 +11,7 @@
 | 后端聚合应用 | 9999 | `xiaou-application` | `xiaou-application/target/*.jar` | MySQL、Redis |
 | 用户端 | 3001（dev）/ Nginx（prod） | `vue3-user-front` | `vue3-user-front/dist` | 后端 API |
 | 管理端 | 3000（dev）/ Nginx（prod） | `vue3-admin-front` | `vue3-admin-front/dist` | 后端 API |
-| 文档站 | 5174（dev）/ Nginx（prod） | `docs-site` | `docs-site/.vitepress/dist` | 无 |
+| 文档站 | 5175（dev）/ Nginx（prod） | `docs-site` | `docs-site/.vitepress/dist` | 无 |
 | go-judge 沙箱 | 5050 | `docker/go-judge` | Docker 镜像 | 后端 OJ 模块 |
 | RAG sidecar | 18080 | `llamaindex-service` | Docker 镜像 | 后端 AI 模块 |
 | Prometheus | 9090 | `docker/monitoring` | Docker 容器 | 后端 Actuator |
@@ -36,7 +36,7 @@ java -jar xiaou-application/target/xiaou-application-*.jar
 
 | Profile | 配置文件 | 用途 | 关键差异 |
 | --- | --- | --- | --- |
-| `dev`（默认） | `application-dev.yml` | 本地开发 | P6Spy SQL 日志、本地 MySQL/Redis |
+| `dev`（默认） | `application-dev.yml` | 本地开发 | P6Spy SQL 日志、localhost MySQL/Redis |
 | `docker` | `application-docker.yml` | Docker 容器 | 环境变量注入 MySQL/Redis 地址 |
 | `prod` | `application-prod.yml` | 生产环境 | 关闭调试端点、外部化密钥 |
 | `sec` | `application-sec.yml` | 密钥覆盖 | JWT 密钥、第三方 API Key（不提交仓库） |
@@ -53,7 +53,9 @@ Docker 环境下通过 `SPRING_PROFILES_ACTIVE=docker` 激活。
 | Redis 地址 | `127.0.0.1:6379` | `XIAOU_REDIS_ADDRESS` | 业务 DB=3，Sa-Token DB=4 |
 | AI Provider | `openai-compatible` | `XIAOU_AI_PROVIDER` | 需配置 `XIAOU_AI_BASE_URL` 和 `XIAOU_AI_API_KEY` |
 | RAG Endpoint | `localhost:18080` | `XIAOU_AI_RAG_ENDPOINT` | 默认关闭，`XIAOU_AI_RAG_ENABLED=true` 开启 |
-| go-judge URL | 外部 IP:5050 | — | OJ 沙箱服务地址 |
+| go-judge URL | 远端示例:5050 | — | OJ 沙箱服务地址 |
+| JWT Secret | 开发默认占位 | `XIAOU_JWT_SECRET` | 生产必须覆盖 |
+| CORS Origins | localhost:3000,3001,5173,5175 等 | `XIAOU_CORS_ALLOWED_ORIGIN_PATTERNS` | HTTP 和 WebSocket 共用；5173 为旧版 Vite 默认端口，仍保留在代码回退值中 |
 
 ### Docker 部署后端
 
@@ -62,15 +64,36 @@ Docker 环境下通过 `SPRING_PROFILES_ACTIVE=docker` 激活。
 ```dockerfile
 # 阶段1：Maven 构建
 FROM maven:3.9.11-eclipse-temurin-17 AS builder
+WORKDIR /build
+COPY . .
+RUN mvn -pl xiaou-application -am clean package -DskipTests
+
 # 阶段2：JRE 运行
 FROM eclipse-temurin:17-jre
+WORKDIR /app
+ENV TZ=Asia/Shanghai
+ENV SPRING_PROFILES_ACTIVE=docker
+COPY --from=builder /build/xiaou-application/target/xiaou-application-*.jar /app/app.jar
 EXPOSE 9999
+ENTRYPOINT ["sh", "-c", "java ${JAVA_OPTS} -jar /app/app.jar"]
 ```
 
-启动命令支持通过 `JAVA_OPTS` 传递 JVM 参数：
+关键点：
+- 构建阶段使用 Maven 3.9.11 + JDK 17，执行 `mvn -pl xiaou-application -am clean package -DskipTests`
+- 运行阶段使用 JRE 17，只拷贝 jar 文件，不包含源码和 Maven
+- 通过 `JAVA_OPTS` 传递 JVM 参数（如 `-Xms512m -Xmx1024m`）
+- 默认激活 `docker` profile，所有敏感配置通过环境变量注入
+
+单独构建示例：
 
 ```bash
-docker run --env-file docker/env/example.env -p 9999:9999 code-nest-backend
+docker build -f docker/Dockerfile -t code-nest-api:local .
+```
+
+运行时必须提供数据库、Redis、AI 等环境变量：
+
+```bash
+docker run --env-file docker/env/example.env -p 9999:9999 code-nest-api:local
 ```
 
 环境变量示例见 `docker/env/example.env`，启动时通过 `--env-file` 注入。
@@ -98,29 +121,20 @@ npm run build        # 产物 → dist/
 | `vendor-element` | Element Plus | 两者 |
 | `vendor-monaco` | Monaco Editor | 用户端 |
 | `vendor-graph` | @antv/g6 | 两者 |
+| `vendor-charts` | ECharts、D3 | 管理端 |
 | `vendor-markdown` | markdown-it + highlight.js + DOMPurify | 两者 |
 | `vendor-vue` | Vue 核心 | 两者 |
 | `vendor-router` | vue-router | 两者 |
 | `vendor-state` | Pinia + @vueuse | 两者 |
+| `vendor-utils` | axios + lodash + js-cookie + nprogress | 两者 |
 
-### Vite 代理配置
+### Vite 代理配置（仅开发模式）
 
-开发模式下，两个前端都通过 Vite proxy 将 `/api` 请求转发到后端：
-
-```js
-// vite.config.js（两前端相同结构）
-server: {
-  proxy: {
-    '/api': {
-      target: 'http://localhost:9999',
-      changeOrigin: true,
-      secure: false
-    }
-  }
-}
-```
+开发模式下，两个前端都通过 Vite proxy 将 `/api` 请求转发到后端。用户端端口 3001，管理端端口 3000。
 
 生产环境不需要代理，由 Nginx 统一处理。
+
+> **重要**：前端代理不加 `rewrite`，因为后端 `server.servlet.context-path=/api` 已经包含 `/api` 前缀。
 
 ### Nginx 前端配置
 
@@ -140,9 +154,28 @@ server {
         proxy_pass http://127.0.0.1:9999;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # WebSocket 代理（聊天室需要）
+    location /api/ws/ {
+        proxy_pass http://127.0.0.1:9999;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # 静态缓存策略
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
     }
 }
 ```
+
+> **重要**：聊天 WebSocket 必须单独配置 `/api/ws/` 的 Upgrade 代理，否则连接会失败。
 
 管理端配置相同，只是 `root` 指向管理端产物目录。
 
@@ -180,13 +213,7 @@ server {
 
 ### 子路径部署
 
-如果文档站部署在子路径，例如：
-
-```text
-https://example.com/code-nest-docs/
-```
-
-构建时设置：
+如果文档站部署在子路径，例如 `https://example.com/code-nest-docs/`，构建时设置：
 
 ```bash
 VITEPRESS_BASE=/code-nest-docs/ npm run build
@@ -196,11 +223,50 @@ VITEPRESS_BASE=/code-nest-docs/ npm run build
 
 ## Docker Compose 服务
 
+### AI 联调 Compose
+
+`docker/ai/docker-compose.yml` 会启动：
+
+| 服务 | 说明 |
+| --- | --- |
+| `mysql` | MySQL 8.0，首次启动导入 `code_nest.sql` 和 `code_nest_data.sql` |
+| `redis` | Redis 7，开启 AOF |
+| `llamaindex-service` | RAG sidecar，挂载样例知识文件 |
+| `code-nest` | 后端容器，依赖前三个服务健康后启动 |
+
+使用步骤：
+
+```bash
+cp docker/ai/.env.example docker/ai/.env
+```
+
+在 `docker/ai/.env` 中填写真实 AI 配置后，在仓库根目录执行：
+
+```bash
+docker compose -f docker/ai/docker-compose.yml --env-file docker/ai/.env up -d --build
+```
+
+常用地址：
+
+| 地址 | 说明 |
+| --- | --- |
+| `http://127.0.0.1:9999/api` | 后端 API |
+| `http://127.0.0.1:9999/api/swagger-ui.html` | Swagger |
+| `http://127.0.0.1:18080/health` | RAG sidecar 健康检查 |
+
+清理：
+
+```bash
+docker compose -f docker/ai/docker-compose.yml --env-file docker/ai/.env down
+# -v 会删除 MySQL、Redis、RAG volume，谨慎使用
+docker compose -f docker/ai/docker-compose.yml --env-file docker/ai/.env down -v
+```
+
 ### go-judge（OJ 沙箱）
 
 ```bash
 cd docker/go-judge
-docker-compose up -d
+docker compose up -d --build
 ```
 
 | 配置 | 值 | 说明 |
@@ -209,13 +275,26 @@ docker-compose up -d
 | 并发 | 4 | `GOJUDGE_PARALLELISM` |
 | 内存限制 | 1G | Docker 资源限制 |
 | CPU 限制 | 2.0 | Docker 资源限制 |
+| privileged | true | 沙箱需要特权模式 |
 | 支持语言 | Java、C/C++、Python3、Go、Node.js | 预装编译器 |
+
+验证编译器：
+
+```bash
+docker exec go-judge javac -version
+docker exec go-judge gcc --version
+docker exec go-judge python3 --version
+docker exec go-judge go version
+docker exec go-judge node --version
+```
+
+后端配置项是 `oj.judge.goJudgeUrl`，默认指向远端示例地址。部署时需要覆盖到本地 go-judge 地址。
 
 ### 监控栈（Prometheus + Grafana）
 
 ```bash
 cd docker/monitoring
-docker-compose up -d
+docker compose up -d
 ```
 
 | 服务 | 端口 | 说明 |
@@ -228,20 +307,25 @@ Prometheus 采集后端的 `/api/actuator/prometheus` 端点。Grafana 推荐 Da
 - Spring Boot 2.1 Statistics（ID: 11378）
 - JVM Micrometer（ID: 4701）
 
-### AI RAG sidecar
+## CORS 配置
 
-```bash
-cd docker/ai
-docker-compose up -d
+后端 CORS 通过 `xiaou.cors.allowed-origin-patterns` 控制，环境变量为 `XIAOU_CORS_ALLOWED_ORIGIN_PATTERNS`。
+
+这个配置同时影响：
+- 普通 HTTP 接口的 CORS 响应头
+- 聊天室 WebSocket 握手的 Origin 校验
+
+生产配置示例：
+
+```text
+XIAOU_CORS_ALLOWED_ORIGIN_PATTERNS=https://www.example.com,https://admin.example.com
 ```
 
-独立 LlamaIndex 知询服务，后端通过 `XIAOU_AI_RAG_ENDPOINT` 连接。
+> **重要**：这里要填浏览器页面所在的前端域名，不是后端 API 域名。如果用户端和管理端分别在不同域名，两个域名都要写进去。
 
 ## GitHub Pages 思路
 
 这部分只是保留一种可选示例，**不是当前仓库默认启用的部署方式**。如果团队不打算让文档站自动部署到 Pages，可以完全不加这一段 workflow。
-
-如果后面真的要接入，再按团队策略单独创建 workflow；下面只是一个最小构建示例：
 
 ```yaml
 name: Docs Site
@@ -277,7 +361,7 @@ jobs:
 
 1. **MySQL** — 导入 `sql/MySql/code_nest.sql`。
 2. **Redis** — 默认端口 6379，无需特殊配置。
-3. **后端** — `java -jar xiaou-application-*.jar`，等待健康检查通过。
+3. **后端** — `java -jar xiaou-application-*.jar`，等待 `/api/actuator/health` 返回 `UP`。
 4. **go-judge**（可选）— `docker/go-judge/docker-compose up -d`。
 5. **RAG sidecar**（可选）— `docker/ai/docker-compose up -d`。
 6. **前端** — Nginx 或 `npm run dev`。
@@ -294,9 +378,12 @@ jobs:
 2. `npm ci && npm run build` 在两个前端和文档站都通过。
 3. 如果部署到子路径，`VITEPRESS_BASE` 与访问路径一致。
 4. 静态服务器启用了 `try_files` 或等价的 SPA 回退规则。
-5. `code-nest-mark.svg` 等静态资源在发布环境能访问。
-6. 发布后打开首页、模块页、搜索和至少一个深层路由。
-7. 后端健康检查返回 `UP`。
-8. Redis 连接正常（Sa-Token 登录依赖 Redis）。
-9. AI 配置已通过环境变量注入（`XIAOU_AI_API_KEY` 等）。
-10. 敏感配置（JWT 密钥、数据库密码）已通过 `application-sec.yml` 或环境变量覆盖，不使用默认值。
+5. Nginx 配置了 `/api/ws/` 的 WebSocket Upgrade 代理。
+6. `XIAOU_CORS_ALLOWED_ORIGIN_PATTERNS` 只包含真实前端域名。
+7. `XIAOU_JWT_SECRET`、数据库密码、AI API Key 不使用默认值。
+8. Redis 开启持久化（AOF 或 RDB），否则 Sa-Token 登录态会在 Redis 重启后丢失。
+9. `code-nest-mark.svg` 等静态资源在发布环境能访问。
+10. 发布后打开首页、模块页、搜索和至少一个深层路由。
+11. 后端健康检查返回 `UP`。
+12. AI 配置已通过环境变量注入（`XIAOU_AI_API_KEY` 等）。
+13. go-judge 独立部署并限制资源，不和主后端共享高权限容器。

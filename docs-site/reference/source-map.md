@@ -36,7 +36,7 @@ Code-Nest/
 ├── xiaou-version/         # 版本历史模块
 ├── vue3-user-front/       # 用户端 Vue3 前端 (3001 端口)
 ├── vue3-admin-front/      # 管理端 Vue3 前端 (3000 端口)
-├── docs-site/             # VitePress 文档站 (5174 端口)
+├── docs-site/             # VitePress 文档站 (5175 端口)
 ├── sql/                   # 数据库脚本
 ├── pom.xml                # Maven 父 POM
 └── README.md
@@ -379,7 +379,7 @@ vue3-admin-front/
 ```
 sql/
 ├── MySql/
-│   └── code_nest.sql         # 主库基线 (97 表 + 1 视图)
+│   └── code_nest.sql         # 主库基线 (136 表，加上增量共 142 表)
 ├── v1.2.0/                   # 基础表结构
 ├── v1.2.1/                   # 知识图谱、敏感词
 ├── v1.3.0/                   # Bug 商店、薪资计算器

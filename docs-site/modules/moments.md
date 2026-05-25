@@ -167,6 +167,52 @@ likeCount * 2 + commentCount * 3 + viewCount * 0.1
 | `UserProfile.vue` | 用户动态主页，展示该用户的公开动态 |
 | `MyFavorites.vue` | 我的收藏页，需要登录 |
 
+## 发布频率限制实现
+
+`MomentServiceImpl.checkPublishFrequency()` 实现频率限制：
+
+```text
+1. 查询最近 5 分钟内该用户发布的动态数量
+2. 如果 count >= 3，抛出 BusinessException("发布过于频繁，请稍后再试")
+```
+
+频率限制参数：
+
+| 参数 | 值 | 说明 |
+|------|----|------|
+| 时间窗口 | 5 分钟 | `LocalDateTime.now().minusMinutes(5)` |
+| 最大条数 | 3 条 | 超过即拒绝 |
+| 检测时机 | 发布前 | `publishMoment()` 方法开头 |
+
+## 批量查询优化
+
+`MomentServiceImpl.convertToMomentListResponseBatch()` 实现了 8 步批量查询优化，避免 N+1：
+
+| 步骤 | 操作 | 优化 |
+|------|------|------|
+| 1 | 收集所有用户 ID | Set 去重 |
+| 2 | `userInfoApiService.getSimpleUserInfoBatch()` | 一次查所有用户信息 |
+| 3 | 获取当前用户 ID | 判断登录态 |
+| 4 | `momentLikeMapper.selectLikedMomentIds()` | 批量查点赞状态 |
+| 5 | `momentFavoriteMapper.selectFavoritedMomentIds()` | 批量查收藏状态 |
+| 6 | 每条动态取 3 条评论 | Map 缓存 |
+| 7 | 评论用户批量查信息 | 一次查所有评论用户 |
+| 8 | 遍历转换 | 使用 Map 取值而非逐条查询 |
+
+**关键**：如果新增动态列表字段涉及跨模块数据，必须参照此批量模式，不能逐条查询外部服务。
+
+## 管理端统计实现
+
+`MomentServiceImpl.getStatistics()` 计算动态统计：
+
+| 统计项 | 来源方法 | 说明 |
+|--------|---------|------|
+| 总动态数 | `momentMapper.selectCount()` | 按时间范围筛选 |
+| 总点赞数 | `momentMapper.selectTotalLikes()` | 所有动态点赞总和 |
+| 总评论数 | `momentCommentMapper.selectCount()` | 按时间范围筛选 |
+| 活跃用户数 | `momentMapper.selectActiveUsersCount()` | 发过动态的用户数 |
+| 每日统计 | `getDailyStatistics()` | 按天循环统计（默认最近 7 天） |
+
 ## 常见坑
 
 | 问题 | 原因 | 建议 |

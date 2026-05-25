@@ -73,6 +73,90 @@ const html = renderMarkdown(content)
 
 注意：当前 `MarkdownIt` 开启了 `html: true`，所以原始 HTML 会先被 Markdown 解析，再由 DOMPurify 净化。以后如果想允许更多标签或属性，应先评估 XSS 风险，再调整 `sanitizeOptions`。
 
+### MarkdownIt 配置
+
+`markdown.js` 中 MarkdownIt 初始化配置：
+
+| 配置项 | 值 | 安全影响 |
+| --- | --- | --- |
+| `html` | `true` | 允许 Markdown 中嵌入原始 HTML（依赖 DOMPurify 净化） |
+| `linkify` | `true` | 自动识别 URL 并转为链接 |
+| `typographer` | `true` | 引号、标点自动替换 |
+| `breaks` | `true` | 换行符转为 `br` |
+
+自定义渲染规则（CSS 类名注入）：
+
+| 规则 | 输出 | 说明 |
+| --- | --- | --- |
+| `heading_open` | `&lt;h1 class="markdown-heading markdown-h1"&gt;` | 标题加 CSS 类 |
+| `paragraph_open` | `&lt;p class="markdown-paragraph"&gt;` | 段落加 CSS 类 |
+| `blockquote_open` | `&lt;blockquote class="markdown-blockquote"&gt;` | 引用加 CSS 类 |
+| `bullet_list_open` | `&lt;ul class="markdown-list"&gt;` | 无序列表加 CSS 类 |
+| `ordered_list_open` | `&lt;ol class="markdown-list markdown-ordered-list"&gt;` | 有序列表加 CSS 类 |
+| `list_item_open` | `&lt;li class="markdown-list-item"&gt;` | 列表项加 CSS 类 |
+| `table_open` | `&lt;div class="markdown-table-wrapper"&gt;&lt;table class="markdown-table"&gt;` | 表格加包裹和 CSS 类 |
+| `link_open` | 添加 `target="_blank"` 和 `rel="noopener noreferrer"` | 外链安全 |
+
+### DOMPurify 配置
+
+`sanitizeOptions` 是 DOMPurify 的核心配置：
+
+| 配置项 | 值 | 说明 |
+| --- | --- | --- |
+| `USE_PROFILES` | `{ html: true }` | 允许 HTML 标签（默认白名单） |
+| `ADD_ATTR` | `['target', 'rel']` | 额外允许的属性（配合链接外链规则） |
+| `FORBID_TAGS` | `['script', 'style', 'iframe', 'object', 'embed']` | 完全禁止的标签 |
+| `FORBID_ATTR` | `['onerror', 'onload', 'onclick', 'onmouseover', 'style']` | 完全禁止的属性（事件属性 + 内联样式） |
+
+DOMPurify 默认白名单允许的标签（USE_PROFILES: html=true 时）：
+
+| 类别 | 允许的标签 |
+| --- | --- |
+| 基础结构 | `p`, `br`, `hr`, `div`, `span`, `h1-h6` |
+| 列表 | `ul`, `ol`, `li`, `dl`, `dt`, `dd` |
+| 表格 | `table`, `thead`, `tbody`, `tr`, `th`, `td`, `caption` |
+| 格式化 | `b`, `i`, `em`, `strong`, `a`, `img`, `pre`, `code`, `blockquote`, `sub`, `sup` |
+| 其他 | `abbr`, `cite`, `dfn`, `mark`, `small`, `del`, `ins` |
+
+被 FORBID_TAGS 显式禁止后，即使默认白名单里有也不会生效。
+
+### highlight.js 语言白名单
+
+`markdown.js` 只注册以下语言，不整包导入 `highlight.js`：
+
+| 语言 | 注册别名 | 说明 |
+| --- | --- | --- |
+| bash | `bash`, `shell`, `sh` | Shell 命令 |
+| c | `c` | C 语言 |
+| cpp | `cpp`, `c++` | C++ 语言 |
+| css | `css` | CSS |
+| go | `go`, `golang` | Go 语言 |
+| java | `java` | Java 语言 |
+| javascript | `javascript`, `js` | JavaScript |
+| json | `json` | JSON |
+| markdown | `markdown`, `md` | Markdown |
+| plaintext | `plaintext`, `text` | 纯文本 |
+| python | `python`, `py` | Python |
+| sql | `sql` | SQL |
+| typescript | `typescript`, `ts` | TypeScript |
+| xml | `xml`, `html`, `vue` | XML/HTML/Vue |
+
+代码高亮处理流程：
+
+```text
+Markdown 代码块 (```lang)
+  → MarkdownIt highlight 回调
+  → normalizedLang = lang.toLowerCase()
+  → if hljs.getLanguage(normalizedLang):
+      → hljs.highlight(str, { language: normalizedLang }).value
+      → 输出 &lt;pre class="hljs"&gt;&lt;code class="language-{lang}"&gt;
+  → else:
+      → md.utils.escapeHtml(str)
+      → 输出 &lt;pre class="hljs"&gt;&lt;code&gt;
+```
+
+不支持的语言代码块不会报错，而是 fallback 到纯文本转义。
+
 ## 纯文本进入 v-html
 
 有些内容不是 Markdown，只是为了保留换行或插入少量标签才使用 `v-html`。这类场景必须先转义用户文本，再把换行替换成 `br`，最后再净化。

@@ -6,7 +6,31 @@
 
 如果你看到的是"接口成功，但后续通知、统计、ACK 或日志没有跟上"，那通常不只是错误码问题，也可以继续看 [事件、通知与回流索引](/reference/event-backflow-index)。
 
-## 统一响应体
+## Result 类实现
+
+`Result&lt;T&gt;` 是泛型响应包装类，核心字段和工厂方法：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `code` | `Integer` | 业务状态码，成功为 200 |
+| `message` | `String` | 面向前端提示的消息 |
+| `data` | `T` | 响应数据，可能为对象、数组、分页对象或 null |
+| `timestamp` | `Long` | `System.currentTimeMillis()`，构造时自动填充 |
+
+工厂方法速查：
+
+| 方法 | 参数 | 返回 code |
+| --- | --- | --- |
+| `Result.success()` | 无 | 200 |
+| `Result.success(T data)` | data 对象 | 200 |
+| `Result.success(String message, T data)` | 自定义消息 + data | 200 |
+| `Result.error()` | 无 | 500 |
+| `Result.error(String message)` | 自定义消息 | 500 |
+| `Result.error(Integer code, String message)` | 自定义 code + message | 自定义 |
+| `Result.result(ResultCode resultCode)` | 枚举 | 枚举 code |
+| `Result.result(ResultCode resultCode, T data)` | 枚举 + data | 枚举 code |
+
+判断方法：`isSuccess()` 检查 `ResultCode.SUCCESS.getCode().equals(this.code)`。
 
 ```json
 {
@@ -42,7 +66,7 @@
 
 ## ResultCode 完整枚举
 
-`ResultCode.java` 定义了全站所有业务状态码，共 21 个枚举值：
+`ResultCode.java` 定义了全站所有业务状态码，共 27 个枚举值：
 
 ### 成功码
 
@@ -218,6 +242,55 @@
 1. **Sa-Token 异常统一返回 HTTP 200**：所有 `NotLoginException`、`NotPermissionException`、`NotRoleException`、`DisableServiceException` 都返回 HTTP 200 + 业务状态码。这样前端只需在响应拦截器里处理 `code`，不需要同时处理 HTTP 状态码和业务状态码两套逻辑。
 2. **参数校验异常优先返回字段级 message**：`MethodArgumentNotValidException` 和 `BindException` 会取 `FieldError.getDefaultMessage()`，而不是笼统的"参数校验失败"。
 3. **未捕获异常不暴露堆栈**：`Exception` 兜底只返回"系统内部错误，请联系管理员"，堆栈信息只写在服务端日志里。
+
+### GlobalExceptionHandler 实现模式
+
+`GlobalExceptionHandler` 使用 `@RestControllerAdvice` + `@ExceptionHandler` 组合，核心模式：
+
+| 处理模式 | 适用异常 | @ResponseStatus | 说明 |
+| --- | --- | --- | --- |
+| `HttpStatus.OK` (HTTP 200) + 业务 code | Sa-Token 异常族、BusinessException | `@ResponseStatus(HttpStatus.OK)` | 前端只看业务 code |
+| `HttpStatus.BAD_REQUEST` (HTTP 400) + 业务 code | 参数校验、绑定、类型转换 | `@ResponseStatus(HttpStatus.BAD_REQUEST)` | HTTP 状态和业务 code 双表达 |
+| HTTP 标准状态 + 业务 code | 方法不支持(405)、文件超限(413)、路由不存在(404) | 对应 HTTP 状态码 | 两套编码语义一致 |
+| `HttpStatus.INTERNAL_SERVER_ERROR` (HTTP 500) + code 500 | 未捕获 Exception | `@ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)` | 兜底保护 |
+
+日志级别策略：
+
+| 异常类型 | 日志级别 | 是否打印堆栈 |
+| --- | --- | --- |
+| `BusinessException` | `log.warn` | 不打印 |
+| `NotLoginException` | `log.warn` | 不打印 |
+| `NotPermissionException` / `NotRoleException` | `log.warn` | 不打印 |
+| 参数校验异常 | `log.error` | 不打印 |
+| Spring MVC 框架异常 | `log.error` | 不打印 |
+| 未捕获 Exception | `log.error` | 打印堆栈 |
+
+### NotLoginException 分流实现
+
+源码中 `NotLoginException` 处理使用 `switch(e.getType())` 按 6 种子类型分流：
+
+```text
+NOT_TOKEN     → code 701, message "未提供Token，请先登录"
+INVALID_TOKEN → code 701, message "Token无效，请重新登录"
+TOKEN_TIMEOUT → code 702, message "Token已过期，请重新登录"
+BE_REPLACED   → code 702, message "Token已被顶替，请重新登录"
+KICK_OUT      → code 702, message "已被踢下线，请重新登录"
+default       → code 701, message "登录状态已失效，请重新登录"
+```
+
+每个子类型都额外记录请求 URI：`log.warn("请求地址'{}',Token验证失败: {}", requestURI, e.getMessage())`。
+
+### 参数校验异常 message 提取
+
+三种参数校验异常的 message 提取方式不同：
+
+| 异常类型 | 提取方式 | 兜底 message |
+| --- | --- | --- |
+| `MethodArgumentNotValidException` | `e.getBindingResult().getFieldError().getDefaultMessage()` | "参数校验失败" |
+| `BindException` | `e.getBindingResult().getFieldError().getDefaultMessage()` | "参数绑定失败" |
+| `ConstraintViolationException` | `e.getConstraintViolations().iterator().next().getMessage()` | "参数校验失败" |
+
+前两种取 `FieldError`（字段级错误），第三种取 `ConstraintViolation`（约束级错误）。如果 BindingResult 没有 FieldError，则使用兜底文案。
 
 ## 前端处理建议
 

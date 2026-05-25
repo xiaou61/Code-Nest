@@ -12,7 +12,7 @@
 | 新增后台管理页 | 审核列表、配置页、运营统计 | 管理端路由、后台接口、权限和日志 |
 | 新增 AI 场景 | 新 Prompt、RAG 检索、结构化输出 | AI Runtime、Schema、回归 |
 | 新增内容发布类型 | 新动态类型、新社区内容、新作品形态 | 内容矩阵、敏感词、通知、文件 |
-| 新增积分规则 | 发帖奖励、任务奖励、消费扣减 | 积分账户、流水、幂等 |
+| 新增积分规则 | 发帖奖励、任务奖励、消费扣减 | 积分账户、流水、幂等 → 详见 [幂等回滚与补偿](/reference/idempotency-rollbacks-compensation) |
 | 新增文件使用场景 | 附件、封面、导出文件 | 文件存储、访问权限、URL 回流 |
 | 新增 WebSocket 事件 | 输入中、在线态、实时通知 | ws-ticket、事件协议、前端状态 |
 | 新增运维配置 | 环境变量、Nginx、监控指标 | Docker、监控、发布前验证 |
@@ -105,7 +105,7 @@
 | 步骤 | 做什么 |
 | --- | --- |
 | 1 | 确认积分类型和业务动作 |
-| 2 | 判断是否需要幂等键，避免重复奖励 |
+| 2 | 判断是否需要幂等键，避免重复奖励 → 详见 [幂等回滚与补偿](/reference/idempotency-rollbacks-compensation) |
 | 3 | 写入积分流水 |
 | 4 | 更新用户余额 |
 | 5 | 失败时保证事务回滚 |
@@ -174,6 +174,112 @@
 1. 本地配置可启动。
 2. Docker 或 Nginx 示例能说明用途。
 3. 配置缺失时有明确错误或降级说明。
+
+## 代码模式速查
+
+以下是每种场景中最常用的代码模式，可以直接复制后替换业务名。
+
+### Controller 注解模式
+
+```java
+// 用户端 Controller — StpUserUtil 鉴权
+@RestController
+@RequestMapping("/user/your-module")
+public class YourUserController {
+    @PostMapping("/create")
+    public Result<Long> create(@RequestBody YourCreateRequest request) {
+        Long userId = StpUserUtil.getLoginIdAsLong();  // 用户端身份
+        return Result.success(yourService.create(userId, request));
+    }
+}
+
+// 管理端 Controller — @RequireAdmin + @Log
+@RestController
+@RequestMapping("/admin/your-module")
+public class YourAdminController {
+    @RequireAdmin
+    @Log(module = "你的模块", type = Log.OperationType.INSERT, description = "创建XX")
+    @PostMapping("/create")
+    public Result<Long> create(@Validated @RequestBody YourCreateRequest request) {
+        return Result.success(yourService.create(request));
+    }
+}
+```
+
+### Service 异常模式
+
+```java
+@Service
+@RequiredArgsConstructor
+public class YourServiceImpl implements YourService {
+    private final YourMapper yourMapper;
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long create(YourCreateRequest request) {
+        // 1. 唯一性校验
+        if (yourMapper.selectByName(request.getName()) != null) {
+            throw new BusinessException("名称已存在");
+        }
+
+        // 2. 转换实体
+        YourEntity entity = new YourEntity();
+        BeanUtil.copyProperties(request, entity);
+
+        // 3. 设置创建人
+        entity.setCreatedBy(StpAdminUtil.getLoginIdAsLong());
+
+        // 4. 插入
+        int result = yourMapper.insert(entity);
+        if (result <= 0) {
+            throw new BusinessException("创建失败");
+        }
+
+        return entity.getId();
+    }
+}
+```
+
+### 统一返回体
+
+```java
+// 成功
+return Result.success(data);
+return Result.success();
+
+// 失败
+throw new BusinessException("业务错误消息");
+throw new BusinessException(ResultCode.DATA_NOT_EXIST);  // 响应码详见 → [响应与错误码](/reference/response-errors)
+return Result.error(ResultCode.PARAM_VALIDATE_ERROR.getCode(), "参数错误");  // → [响应与错误码](/reference/response-errors)
+```
+
+### 分页查询模式
+
+```java
+@Override
+public PageResult<YourResponse> getList(YourQueryRequest request) {
+    return PageHelper.doPage(request.getPageNum(), request.getPageSize(), () -> {
+        List<YourEntity> list = yourMapper.selectByPage(request);
+        return list.stream().map(this::convertToResponse).collect(Collectors.toList());
+    });
+}
+```
+
+### 状态流转模式
+
+```java
+// 状态校验 + 更新
+public boolean publish(Long id) {
+    YourEntity entity = yourMapper.selectById(id);
+    if (entity == null) {
+        throw new BusinessException("记录不存在");
+    }
+    if (entity.getStatus() != 0) {  // 只有草稿可以发布
+        throw new BusinessException("只有草稿状态可以发布");
+    }
+    return yourMapper.updateStatus(id, 1, StpAdminUtil.getLoginIdAsLong()) > 0;
+}
+```
 
 ## 二开提交前自检
 

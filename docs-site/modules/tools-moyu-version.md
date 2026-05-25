@@ -98,6 +98,117 @@
 | 每日内容 | 编程名言、技术提示、代码片段、历史上的今天 | 无 | 无 |
 | Bug 商店 | Bug 条目、分类、导入、浏览历史 | 无 | 无 |
 
+### 用户端接口清单
+
+#### 热榜 `/moyu/hot-topic`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/moyu/hot-topic/categories` | 获取热榜分类列表 |
+| GET | `/moyu/hot-topic/data/{platform}` | 获取指定平台热榜数据 |
+| GET | `/moyu/hot-topic/data/all` | 获取所有平台热榜数据 |
+| POST | `/moyu/hot-topic/refresh` | 手动刷新热榜缓存 |
+
+#### 每日内容 `/moyu/daily-content`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/moyu/daily-content/today` | 获取今日内容 |
+| GET | `/moyu/daily-content/type/{contentType}` | 按类型获取内容 |
+| GET | `/moyu/daily-content/random/{contentType}` | 随机获取指定类型内容 |
+| GET | `/moyu/daily-content/recommend` | 获取推荐内容 |
+| GET | `/moyu/daily-content/popular` | 获取热门内容 |
+| GET | `/moyu/daily-content/language/{language}` | 按语言获取内容 |
+| POST | `/moyu/daily-content/{contentId}/view` | 记录浏览 |
+| POST | `/moyu/daily-content/{contentId}/like` | 点赞 |
+| POST | `/moyu/daily-content/{contentId}/toggle-collection` | 切换收藏 |
+| GET | `/moyu/daily-content/collections` | 获取收藏列表 |
+
+#### 程序员日历 `/moyu/developer-calendar`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/moyu/developer-calendar/today` | 获取今日日历事件 |
+| GET | `/moyu/developer-calendar/month/{year}/{month}` | 获取月度事件 |
+| GET | `/moyu/developer-calendar/events/{date}` | 获取指定日期事件 |
+| GET | `/moyu/developer-calendar/events/type/{eventType}` | 按类型获取事件 |
+| GET | `/moyu/developer-calendar/events/major` | 获取重大事件 |
+| GET | `/moyu/developer-calendar/preference` | 获取用户偏好 |
+| POST | `/moyu/developer-calendar/preference` | 设置用户偏好 |
+| POST | `/moyu/developer-calendar/events/{eventId}/toggle-collection` | 切换事件收藏 |
+| GET | `/moyu/developer-calendar/collections/events` | 获取收藏事件列表 |
+
+#### 薪资计算器 `/moyu/salary-calculator`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/moyu/salary-calculator/data` | 获取薪资数据 |
+| GET | `/moyu/salary-calculator/config` | 获取薪资配置 |
+| POST | `/moyu/salary-calculator/config` | 保存薪资配置 |
+| DELETE | `/moyu/salary-calculator/config` | 删除薪资配置 |
+| POST | `/moyu/salary-calculator/work-time` | 记录工作时间 |
+
+#### Bug 商店 `/moyu/bug-store`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/moyu/bug-store/random` | 随机获取 Bug |
+
+### 管理端接口清单
+
+#### 每日内容管理 `/admin/moyu/daily-content`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/admin/moyu/daily-content/list` | 内容列表 |
+| GET | `/admin/moyu/daily-content/type/{contentType}` | 按类型查询 |
+| GET | `/admin/moyu/daily-content/{id}` | 内容详情 |
+| POST | `/admin/moyu/daily-content` | 创建内容 |
+| PUT | `/admin/moyu/daily-content/{id}` | 更新内容 |
+| DELETE | `/admin/moyu/daily-content/{id}` | 删除内容 |
+| POST | `/admin/moyu/daily-content/batch-delete` | 批量删除 |
+| POST | `/admin/moyu/daily-content/{id}/status` | 更新状态 |
+| GET | `/admin/moyu/daily-content/statistics` | 统计数据 |
+| GET | `/admin/moyu/daily-content/collections/statistics` | 收藏统计 |
+| GET | `/admin/moyu/daily-content/popular-ranking` | 热门排行 |
+
+#### 日历事件管理 `/admin/moyu/developer-calendar`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/admin/moyu/developer-calendar/events` | 事件列表 |
+| GET | `/admin/moyu/developer-calendar/events/type/{eventType}` | 按类型查询 |
+| GET | `/admin/moyu/developer-calendar/events/{id}` | 事件详情 |
+| POST | `/admin/moyu/developer-calendar/events` | 创建事件 |
+| PUT | `/admin/moyu/developer-calendar/events/{id}` | 更新事件 |
+| DELETE | `/admin/moyu/developer-calendar/events/{id}` | 删除事件 |
+| POST | `/admin/moyu/developer-calendar/events/batch-delete` | 批量删除 |
+| POST | `/admin/moyu/developer-calendar/events/{id}/status` | 更新状态 |
+| GET | `/admin/moyu/developer-calendar/events/statistics` | 统计数据 |
+
+#### Bug 商店管理 `/admin/moyu/bug-store`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/admin/moyu/bug-store/list` | Bug 列表 |
+| GET | `/admin/moyu/bug-store/{id}` | Bug 详情 |
+| POST | `/admin/moyu/bug-store` | 创建 Bug |
+| PUT | `/admin/moyu/bug-store/{id}` | 更新 Bug |
+| DELETE | `/admin/moyu/bug-store/{id}` | 删除 Bug |
+| POST | `/admin/moyu/bug-store/batch-import` | 批量导入 |
+
+### 缓存与外部数据源
+
+| 工具 | 外部数据源 | 缓存 Key | 缓存 TTL | 刷新方式 |
+|------|-----------|---------|---------|---------|
+| 热榜 | 各平台热榜 API | `moyu:hot-topic:{platform}` | 15 分钟 | 定时任务 + 手动刷新 |
+| 每日内容 | 数据库 | 无 | — | 实时查询 |
+| 程序员日历 | 数据库 | 无 | — | 实时查询 |
+| Bug 商店 | 数据库 | 无 | — | 实时查询 |
+| 薪资计算器 | 数据库 | 无 | — | 实时查询 |
+
+热榜是唯一使用外部 API 和 Redis 缓存的摸鱼工具。其他工具的数据都来自数据库，实时查询。
+
 摸鱼工具虽然轻，但后端状态不少。排查时要看三类东西：
 
 1. 数据库内容是否存在并启用。

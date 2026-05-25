@@ -15,7 +15,7 @@ Code-Nest 有两个独立的 Vue 3 前端应用：用户端和管理端。两者
 | 图表 | ECharts | ECharts |
 | 代码编辑器 | CodeMirror 6 | — |
 | API 前缀 | `/api/user/` | `/api/admin/` |
-| 开发端口 | 5173 | 5174 |
+| 开发端口 | 3001 | 3000 |
 | 认证方式 | StpUserUtil (用户 Token) | StpAdminUtil (管理 Token) |
 
 ## 用户端
@@ -97,7 +97,7 @@ vue3-user-front/
 ```javascript
 // vite.config.js
 server: {
-  port: 5173,
+  port: 3001,
   proxy: {
     '/api': {
       target: 'http://localhost:9999',
@@ -225,12 +225,12 @@ vue3-admin-front/
 # 用户端
 cd vue3-user-front
 npm install
-npm run dev2    # 端口 5173
+npm run dev2    # 端口 3001
 
 # 管理端
 cd vue3-admin-front
 npm install
-npm run dev     # 端口 5174
+npm run dev     # 端口 3000
 ```
 
 ### 生产构建

@@ -58,10 +58,10 @@ xiaou-application (聚合启动)
 | 包 | 职责 |
 |----|------|
 | `config/` | SaTokenConfig, RedisConfig, CorsConfig, MybatisPlusConfig, RestTemplateConfig, AiProperties, NotificationAsyncConfig, LocalFileResourceConfig |
-| `satoken/` | AdminAuthAspect (@RequireAdmin 切面) |
-| `exception/` | GlobalExceptionHandler, BusinessException, ResultCode |
+| `satoken/` | AdminAuthAspect (@RequireAdmin 切面) → 详见 [权限注解与角色边界索引](/reference/permission-boundaries) |
+| `exception/` | GlobalExceptionHandler, BusinessException, ResultCode → 详见 [响应与错误码](/reference/response-errors) |
 | `enums/` | StatusEnum, NotificationStatusEnum |
-| `domain/` | Result 统一响应体 |
+| `domain/` | Result 统一响应体 → 详见 [响应与错误码](/reference/response-errors) |
 | `utils/` | 通用工具类 |
 
 #### xiaou-user-api
@@ -77,7 +77,7 @@ com.xiaou.user.api
 
 #### xiaou-sensitive-api
 
-敏感词检测接口契约模块。
+敏感词检测接口契约模块（实现详见 [敏感词风控](/modules/sensitive)）。
 
 ```text
 com.xiaou.sensitive.api
@@ -92,7 +92,7 @@ com.xiaou.sensitive.api
 
 | 维度 | 说明 |
 |------|------|
-| API 前缀 | `/api/user/auth/` (认证), `/api/user/` (用户信息), `/api/admin/user/` (管理) |
+| API 前缀 | `/api/user/auth` (认证), `/api/user` (用户信息), `/api/admin/user` (管理), `/api/captcha` (验证码) |
 | Controller | UserAuthController, UserController, AdminUserController |
 | 核心功能 | 注册/登录/登出、个人信息管理、管理员用户管理 |
 | 实现接口 | `xiaou-user-api` 的 UserInfoApiService |
@@ -102,7 +102,7 @@ com.xiaou.sensitive.api
 
 | 维度 | 说明 |
 |------|------|
-| API 前缀 | `/api/admin/` (系统管理) |
+| API 前缀 | `/api/auth` (管理端认证), `/api/admin/dashboard` (仪表盘), `/api/log` (日志), `/api/admin/ai/config` (AI 配置管理) |
 | Controller | AuthController (管理端认证), DashboardController, LogController, AiConfigController |
 | 核心功能 | 管理员登录、仪表盘统计、操作日志、AI 配置管理 |
 | 关键表 | `system_log` |
@@ -112,8 +112,8 @@ com.xiaou.sensitive.api
 
 | 维度 | 说明 |
 |------|------|
-| API 前缀 | `/api/sensitive/` |
-| Controller | SensitiveController |
+| API 前缀 | `/api/sensitive` (检测), `/api/sensitive/strategy` (策略), `/api/sensitive/whitelist` (白名单), `/api/sensitive/stats` (统计), `/api/admin/sensitive` (管理) |
+| Controller | SensitiveCheckController, SensitiveStrategyController, SensitiveWhitelistController, SensitiveStatsController, AdminSensitiveController |
 | 核心功能 | 敏感词检测（DFA 算法）、敏感词库管理 |
 | 实现接口 | `xiaou-sensitive-api` 的 SensitiveCheckService |
 
@@ -123,8 +123,8 @@ com.xiaou.sensitive.api
 
 | 维度 | 说明 |
 |------|------|
-| API 前缀 | `/api/ai/` (用户), `/api/admin/ai/` (管理) |
-| Controller | AiController, AiGovernanceController |
+| API 前缀 | `/api/admin/ai/config` (管理), `/api/admin/ai/governance` (治理) |
+| Controller | AiConfigController (在 xiaou-system), AiGovernanceController |
 | 核心功能 | Prompt 编排与注册、RAG 知识检索、LangGraph4j 图执行、结构化输出 |
 | 包结构 | `controller/`, `service/`, `dto/`, `domain/`, `mapper/`, `rag/`, `graph/`, `prompt/`, `schema/`, `runner/` |
 | 特色 | 目录式 Prompt 注册、RAG Profile 配置、AI 回归测试框架 (18 用例) |
@@ -134,9 +134,9 @@ com.xiaou.sensitive.api
 
 | 维度 | 说明 |
 |------|------|
-| API 前缀 | `/api/oj/` (用户), `/api/admin/oj/` (管理) |
-| Controller | OjUserController, OjAdminController |
-| 核心功能 | 题目 CRUD、代码提交判题、Judge0 沙箱执行、提交记录查询 |
+| API 前缀 | `/api/oj` (用户/公开), `/api/oj/contests` (赛事), `/api/admin/oj/problems` (题目管理), `/api/admin/oj/contests` (赛事管理) |
+| Controller | OjUserController, OjContestUserController, OjProblemAdminController, OjContestAdminController, OjSubmissionAdminController |
+| 核心功能 | 题目 CRUD、代码提交判题、Judge0 沙箱执行、提交记录查询、赛事管理 |
 | 包结构 | `controller/`, `service/`, `dto/`, `domain/`, `mapper/`, `enums/` |
 | 状态机 | SubmissionStatus: PENDING → JUDGING → AC/WA/TLE/MLE/CE/RE/SE |
 | @RequireAdmin 方法 | OjAdminController 中 |
@@ -145,8 +145,8 @@ com.xiaou.sensitive.api
 
 | 维度 | 说明 |
 |------|------|
-| API 前缀 | `/api/chat/` (用户) |
-| Controller | ChatUserController |
+| API 前缀 | `/api/user/chat` (用户), `/api/admin/chat` (管理) |
+| Controller | ChatUserController, ChatAdminController |
 | 核心功能 | 一对一/群组聊天、消息收发、历史记录、消息撤回、WebSocket 实时推送 |
 | 包结构 | `controller/`, `service/`, `dto/`, `domain/`, `mapper/`, `config/`, `websocket/` |
 | 特色 | STOMP + WebSocket 实时通信，聊天记录分页查询 |
@@ -156,7 +156,7 @@ com.xiaou.sensitive.api
 
 | 维度 | 说明 |
 |------|------|
-| API 前缀 | `/api/plan/` (用户) |
+| API 前缀 | `/api/user/plan` (用户), `/api/user/plan/autopilot` (自动驾驶) |
 | Controller | UserPlanController, UserGrowthAutopilotController |
 | 核心功能 | 计划创建/编辑/删除、计划签到、成长自动导航 (AI 生成) |
 | 包结构 | `controller/`, `service/`, `dto/`, `domain/`, `mapper/` |
@@ -167,7 +167,7 @@ com.xiaou.sensitive.api
 
 | 维度 | 说明 |
 |------|------|
-| API 前缀 | `/api/team/` (用户), `/api/admin/team/` (管理) |
+| API 前缀 | `/api/user/team` (用户) |
 | Controller | UserTeamController |
 | 核心功能 | 小组创建/加入/退出、签到、讨论、任务、排行榜、统计 |
 | 包结构 | `controller/`, `service/`, `dto/`, `domain/`, `mapper/` |
@@ -178,7 +178,7 @@ com.xiaou.sensitive.api
 
 | 维度 | 说明 |
 |------|------|
-| API 前缀 | `/api/blog/` (用户), `/api/admin/blog/` (管理) |
+| API 前缀 | `/api/user/blog` (用户), `/api/admin/blog` (管理) |
 | Controller | BlogUserController, BlogAdminController |
 | 核心功能 | 文章发布/编辑、分类管理、标签管理、文章列表/搜索 |
 | @RequireAdmin 方法 | BlogAdminController 中 |
@@ -187,7 +187,7 @@ com.xiaou.sensitive.api
 
 | 维度 | 说明 |
 |------|------|
-| API 前缀 | `/api/codepen/` (用户), `/api/admin/codepen/` (管理) |
+| API 前缀 | `/api/user/code-pen` (用户), `/api/admin/code-pen` (管理) |
 | Controller | CodePenUserController, CodePenAdminController |
 | 核心功能 | 在线代码编辑、Fork、标签、文件夹管理 |
 | 包结构 | `controller/`, `service/`, `dto/`, `domain/`, `mapper/` |
@@ -197,15 +197,15 @@ com.xiaou.sensitive.api
 
 | 维度 | 说明 |
 |------|------|
-| API 前缀 | `/api/community/` (用户), `/api/admin/community/` (管理) |
+| API 前缀 | `/api/community/posts` (帖子), `/api/community/comments` (评论), `/api/community/user` (用户行为), `/api/admin/community/posts` (管理) |
 | 核心功能 | 问题发布、回答、采纳、点赞 |
 
 #### xiaou-points — 积分与抽奖
 
 | 维度 | 说明 |
 |------|------|
-| API 前缀 | `/api/points/` (用户), `/api/admin/points/` (管理) |
-| Controller | AdminPointsController, AdminLotteryController |
+| API 前缀 | `/api/user/points` (积分), `/api/user/lottery` (抽奖), `/api/admin/points` (积分管理), `/api/admin/lottery` (抽奖管理) |
+| Controller | UserPointsController, UserLotteryController, AdminPointsController, AdminLotteryController |
 | 核心功能 | 积分获取/消费/查询、抽奖、管理端风控 |
 | @RequireAdmin 方法 | 28 个 (Points×6 + Lottery×22) |
 | 特色 | 抽奖风控 (风险用户检测)、实时监控、奖品发放 |
@@ -214,7 +214,7 @@ com.xiaou.sensitive.api
 
 | 维度 | 说明 |
 |------|------|
-| API 前缀 | `/api/notification/` |
+| API 前缀 | `/api/notification` (用户), `/api/admin/notification` (管理) |
 | 核心功能 | 通知创建、已读/未读、通知列表 |
 | 状态 | UNREAD → READ → DELETED (单向流转) |
 
@@ -222,7 +222,7 @@ com.xiaou.sensitive.api
 
 | 维度 | 说明 |
 |------|------|
-| API 前缀 | `/api/moyu/` (用户), `/api/admin/moyu/` (管理) |
+| API 前缀 | `/api/moyu/bug-store` 等 (用户), `/api/admin/moyu/bug-store` 等 (管理) |
 | Controller | AdminBugStoreController |
 | 核心功能 | Bug 商店 (小游戏)、题目管理 |
 | @RequireAdmin 方法 | AdminBugStoreController 中 |
@@ -231,7 +231,7 @@ com.xiaou.sensitive.api
 
 | 维度 | 说明 |
 |------|------|
-| API 前缀 | `/api/file/` |
+| API 前缀 | `/api/file` (文件操作), `/api/admin/file` (文件管理), `/api/admin/storage` (存储策略), `/api/admin/migration` (迁移) |
 | 核心功能 | 文件上传/下载、本地存储/S3 兼容切换 |
 | 配置 | LocalFileResourceConfig (本地文件资源映射) |
 
@@ -239,15 +239,15 @@ com.xiaou.sensitive.api
 
 | 模块 | API 前缀 | 核心功能 |
 |------|----------|----------|
-| xiaou-interview | `/api/interview/` | 面试题库管理 |
-| xiaou-mock-interview | `/api/mock-interview/` | 模拟面试/求职对战 |
-| xiaou-moment | `/api/moment/` | 朋友圈动态发布 |
-| xiaou-flashcard | `/api/flashcard/` | 闪卡记忆与复习 |
-| xiaou-knowledge | `/api/knowledge/` | 知识库管理 |
-| xiaou-learning-asset | `/api/learning-asset/` | 学习资源管理 |
-| xiaou-resume | `/api/resume/` | 简历编辑 |
-| xiaou-version | `/api/version/` | 版本历史记录 |
-| xiaou-sql-optimizer | `/api/sql-optimizer/` | SQL 优化建议 |
+| xiaou-interview | `/api/interview/categories` (公开), `/api/admin/interview/*` (管理) | 面试题库管理 |
+| xiaou-mock-interview | `/api/user/mock-interview` (用户), `/api/user/job-battle` (求职作战台), `/api/user/career-loop` (求职闭环), `/api/admin/mock-interview` (管理) | 模拟面试/求职对战 |
+| xiaou-moment | `/api/user/moments` (用户), `/api/admin/moments` (管理) | 朋友圈动态发布 |
+| xiaou-flashcard | `/api/flashcard/deck` (卡组), `/api/flashcard/card` (卡片), `/api/flashcard/study` (学习), `/api/pub/flashcard/deck` (公开) | 闪卡记忆与复习 |
+| xiaou-knowledge | `/api/pub/knowledge/maps` (公开), `/api/admin/knowledge/maps` (管理) | 知识库管理 |
+| xiaou-learning-asset | `/api/user/learning-assets` (用户), `/api/admin/learning-assets` (管理) | 学习资源管理 |
+| xiaou-resume | `/api/resume` (用户), `/api/admin/resume` (管理) | 简历编辑 |
+| xiaou-version | `/api/version` (公开), `/api/admin/version` (管理) | 版本历史记录 |
+| xiaou-sql-optimizer | `/api/user/sql-optimizer` (用户) | SQL 优化建议 |
 
 ## 统一包结构约定
 
@@ -285,16 +285,20 @@ com.xiaou.{module}
 
 ## API 前缀分配
 
-所有模块遵循统一的 API 前缀约定：
+所有模块的 API 前缀由 `server.servlet.context-path=/api` 加上 Controller 的 `@RequestMapping` 组成。实际前缀按路由分层：
 
-| 模式 | 前缀 | 鉴权 | 说明 |
-|------|------|------|------|
-| 用户端 | `/api/{module}/` | StpUserUtil | 需登录，资源归属校验 |
-| 管理端 | `/api/admin/{module}/` | @RequireAdmin | 需管理员角色 |
-| 公开接口 | `/api/{module}/public/` | 无 | 无需登录 |
-| 认证接口 | `/api/user/auth/` | 无 | 登录/注册 |
-| 管理认证 | `/api/admin/auth/` | 无 | 管理员登录 |
-| WebSocket | `/ws` | STOMP | 聊天实时通信 |
+| 模式 | 完整前缀示例 | Controller 前缀 | 鉴权 | 说明 |
+|------|------|------|------|------|
+| 用户端 | `/api/user/chat`、`/api/user/blog`、`/api/user/plan` | `/user/{module}` | StpUserUtil | 需登录，资源归属校验 |
+| 管理端 | `/api/admin/chat`、`/api/admin/blog`、`/api/admin/points` | `/admin/{module}` | @RequireAdmin → 详见 [权限注解与角色边界索引](/reference/permission-boundaries) | 需管理员角色 |
+| 公开接口 | `/api/community`、`/api/oj`、`/api/interview/categories` | `/community`、`/oj`、`/interview/**` | 按方法判断 | 部分无需登录 |
+| 用户认证 | `/api/user/auth` | `/user/auth` | 无 | 登录/注册 |
+| 管理认证 | `/api/auth` | `/auth` | 无 | 管理员登录 |
+| 验证码 | `/api/captcha` | `/captcha` | 无 | 图形验证码 |
+| 平台公共能力 | `/api/file`、`/api/notification`、`/api/version` | `/file`、`/notification`、`/version` | 按方法判断 | 上传需登录，读取可匿名 |
+| WebSocket | `/ws` | — | STOMP | 聊天实时通信 |
+
+> 各模块的详细端点列表见 [API 路由索引](/reference/api-routes)。下表只列每个模块的主前缀。
 
 ## 模块间调用频次
 
@@ -303,7 +307,7 @@ com.xiaou.{module}
 | 调用方 | 接口 | 频次 | 场景 |
 |--------|------|------|------|
 | 几乎所有模块 | UserInfoApiService | 极高 | 展示用户昵称/头像 |
-| 内容类模块 | SensitiveCheckService | 高 | 内容发布前审查 |
+| 内容类模块 | SensitiveCheckService → 详见 [敏感词风控](/modules/sensitive) | 高 | 内容发布前审查 |
 | team/plan | points Service | 中 | 签到积分奖励 |
 | plan | ai Service | 低 | 成长自动导航 |
 | 多模块 | notification Service | 中 | 站内通知推送 |
@@ -337,4 +341,4 @@ CodeNestApplication.java (@SpringBootApplication)
 | `xiaou-application/.../application-dev.yml` | 开发环境配置 (MySQL/Redis/AI) |
 | `xiaou-common/src/main/java/com/xiaou/common/` | 全局公共代码 |
 | `xiaou-user-api/src/main/java/com/xiaou/user/api/` | 用户信息接口契约 |
-| `xiaou-sensitive-api/src/main/java/com/xiaou/sensitive/api/` | 敏感词检测接口契约 |
+| `xiaou-sensitive-api/src/main/java/com/xiaou/sensitive/api/` | 敏感词检测接口契约 → 详见 [敏感词风控](/modules/sensitive) |

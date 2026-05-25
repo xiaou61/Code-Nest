@@ -50,18 +50,98 @@
 
 一句话判断：要讨论就发社区，要记录状态就发动态，要写长文就用博客，要展示代码作品就用 CodePen，要复用成学习材料就进学习资产。
 
-## 内容生命周期
+## 内容发布链路详解
 
-虽然各模块状态值不同，但生命周期可以统一理解为：
+虽然各模块状态值不同，但生命周期可以统一理解为以下链路：
 
-1. 用户创建内容（草稿/直接发布）。
-2. 服务端校验登录态、用户状态、字段合法性和敏感词。
-3. 内容进入草稿、正常、审核中或发布态。
-4. 用户产生互动：点赞、收藏、评论、浏览、Fork。
-5. 系统按互动计算热度或统计（Redis + 定时任务）。
-6. 管理端可以运营内容、评论、分类、标签和用户状态。
-7. 高价值内容可以进入学习资产转化流程。
-8. 学习资产审核后发布为闪卡、练习计划、知识节点候选或题目候选。
+### 社区帖子发布链
+
+`CommunityPostServiceImpl.createPost()` 的完整校验和写入流程：
+
+```text
+1. checkUserBanStatus()           → 禁言检查
+2. StpUserUtil.checkLogin()       → 登录态校验
+3. categoryId → getById → status  → 分类是否启用
+4. insert community_post           → 写入帖子（status=1 已发布）
+5. incrementPostCount()           → 更新用户发帖数统计
+6. updatePostCount(categoryId, 1) → 更新分类下帖子数量
+7. tagIds(最多5个) → 验证标签启用 → batchInsert → updatePostCount
+```
+
+**注意**：帖子发布目前不经过敏感词检测，内容安全由编辑器和展示层处理。但评论发布会经过 `SensitiveWordUtils.checkText()`。
+
+### 评论发布链
+
+`CommunityCommentServiceImpl.createComment()` 流程：
+
+```text
+1. checkUserBanStatus()                   → 禁言检查
+2. StpUserUtil.checkLogin()               → 登录态校验
+3. selectById(postId)                     → 帖子是否存在
+4. SensitiveWordUtils.checkText(content,  → 敏感词检测
+     "community", postId, currentUserId)
+5. !sensitiveResult.getAllowed()          → 包含高风险词则拒绝
+6. content = sensitiveResult.getProcessedText()  → 使用处理后文本
+7. insert community_comment               → 写入评论（status=1）
+8. updateCommentCount(postId, 1)          → 更新帖子评论数
+9. incrementCommentCount()                → 更新用户评论数统计
+10. NotificationUtil.sendCommunityMessage() → 通知帖子作者或被回复用户
+```
+
+**关键**：回复评论也走 `SensitiveWordUtils.checkText()`，但模块名同样是 `"community"`。
+
+### 互动链路
+
+| 操作 | Service 方法 | 写入 | 更新统计 | 通知 |
+|------|-------------|------|---------|------|
+| 点赞帖子 | `likePost()` | `community_post_like` | likeCount+1, 用户点赞数+1 | 通知帖子作者 |
+| 取消点赞 | `unlikePost()` | 删除 like 记录 | likeCount-1, 用户点赞数-1 | 无 |
+| 收藏帖子 | `collectPost()` | `community_post_collect` | collectCount+1, 用户收藏数+1 | 通知帖子作者 |
+| 取消收藏 | `uncollectPost()` | 删除 collect 记录 | collectCount-1, 用户收藏数-1 | 无 |
+| 点赞评论 | `likeComment()` | `community_comment_like` | likeCount+1, 用户点赞数+1 | 通知评论作者 |
+| 回复评论 | `replyComment()` | `community_comment` | replyCount+1, commentCount+1, 用户评论数+1 | 通知被回复用户 |
+
+所有互动操作都先调用 `checkUserBanStatus()` 防止禁言用户继续互动。
+
+### 评论结构
+
+评论采用两级树结构：
+
+```text
+一级评论 (parentId = 0)
+  └─ 二级回复 (parentId = 一级评论 ID)
+      └─ replyToId = 被回复的二级评论 ID
+      └─ replyToUserId = 被回复用户 ID
+      └─ replyToUserName = 被回复用户名
+```
+
+`convertToResponseWithReplies()` 会为每条一级评论预加载最多 2 条回复，并标记 `hasMoreReplies`。
+
+### 热度公式源码
+
+`CommunityPostServiceImpl.convertToResponse()` 中热度计算：
+
+```text
+hotScore = likeCount × 3.0 + commentCount × 5.0 + collectCount × 8.0 + viewCount × 0.1
+```
+
+动态广场热度公式在 `xiaou-moment` 中：
+
+```text
+hotScore = like × 2 + comment × 3 + view × 0.1
+```
+
+### 缓存策略
+
+`CommunityCacheServiceImpl` 管理社区缓存：
+
+| 缓存项 | Redis Key | TTL | 更新触发 |
+|--------|-----------|-----|---------|
+| 帖子详情 | `community:post:{id}` | 默认 | 帖子下架/删除时 evict |
+| 搜索关键词 | `community:search:keywords` | 默认 | 列表查询时异步记录 |
+| 热门帖子 | `community:hot:list` | 默认 | `CommunityHotPostTask` 定时刷新 |
+
+`CommunityHotPostTask` 是定时任务，定期从数据库重算热门帖子并写入 Redis Sorted Set。
 
 ## 状态速查
 
@@ -127,6 +207,61 @@
 | 评论层级膨胀 | 社区评论固定为两级树 | `xiaou-community` |
 | AI 摘要失败 | 社区摘要有开关和缓存，失败不能阻断帖子展示 | `xiaou-community` |
 | 付费 Fork | CodePen 需要积分扣减、作者收益和作品复制在事务内一致 | `xiaou-codepen` |
+
+## 内容类型积分规则
+
+各内容类型与积分的联动方式不同：
+
+| 内容类型 | 积分消耗 | 积分获得 | 说明 |
+|---------|---------|---------|------|
+| 社区帖子 | 无 | 无直接积分 | 发帖不消耗也不获得积分 |
+| 社区评论 | 无 | 无直接积分 | 评论不消耗也不获得积分 |
+| 动态 | 无 | 无直接积分 | 发布动态无积分联动 |
+| 博客开通 | 消耗积分 | — | 开通博客主页需要积分成本 |
+| 博客发布 | 消耗积分 | — | 发布文章需要积分成本 |
+| CodePen 发布 | 无 | 无直接积分 | 发布作品无积分联动 |
+| CodePen Fork | 消耗积分 | 作者获得收益 | 付费 Fork：买家扣减 → 作者收益 → 作品复制，事务内一致 |
+
+**关键约束**：CodePen 付费 Fork 涉及三方积分变动，必须在 `@Transactional` 内完成，任一环节失败则全部回滚。
+
+## 社区接口清单
+
+### 用户端
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/community/posts/list` | 分页查询帖子列表 |
+| GET | `/community/posts/{id}` | 帖子详情（浏览量 +1） |
+| POST | `/community/posts` | 创建帖子 |
+| POST | `/community/posts/{id}/like` | 点赞帖子 |
+| DELETE | `/community/posts/{id}/like` | 取消点赞 |
+| POST | `/community/posts/{id}/collect` | 收藏帖子 |
+| DELETE | `/community/posts/{id}/collect` | 取消收藏 |
+| GET | `/community/posts/hot` | 获取热门帖子 |
+| POST | `/community/posts/{postId}/comments` | 获取帖子评论列表 |
+| POST | `/community/posts/{postId}/comments/create` | 发表评论 |
+| POST | `/community/comments/{id}/like` | 点赞评论 |
+| DELETE | `/community/comments/{id}/like` | 取消点赞评论 |
+| POST | `/community/comments/{id}/reply` | 回复评论 |
+| POST | `/community/comments/{id}/replies` | 获取评论回复列表 |
+
+### 管理端
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/admin/community/posts` | 管理端帖子列表 |
+| PUT | `/admin/community/posts/{id}/top` | 置顶帖子 |
+| PUT | `/admin/community/posts/{id}/cancel-top` | 取消置顶 |
+| PUT | `/admin/community/posts/{id}/disable` | 下架帖子 |
+| DELETE | `/admin/community/posts/{id}` | 删除帖子 |
+| GET | `/admin/community/comments` | 管理端评论列表 |
+| DELETE | `/admin/community/comments/{id}` | 删除评论 |
+| GET | `/admin/community/categories` | 分类列表 |
+| POST | `/admin/community/categories` | 创建分类 |
+| PUT | `/admin/community/categories/{id}` | 更新分类 |
+| GET | `/admin/community/tags` | 标签列表 |
+| POST | `/admin/community/tags` | 创建标签 |
+| PUT | `/admin/community/tags/{id}` | 更新标签 |
 
 ## 管理端运营视角
 

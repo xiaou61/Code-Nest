@@ -9,8 +9,8 @@
 | 能力 | 核心类 | 被谁使用 |
 | --- | --- | --- |
 | 统一响应 | `Result`、`ResultCode`、`PageResult` | 所有 Controller |
-| 双端鉴权 | `StpUserUtil`、`StpAdminUtil`、`SaTokenConfig`、`StpInterfaceImpl` | 所有需要登录的接口 |
-| 管理端权限 | `@RequireAdmin`、`AdminAuthAspect` | 管理端接口 |
+| 双端鉴权 | `StpUserUtil`、`StpAdminUtil`、`SaTokenConfig`、`StpInterfaceImpl` | 所有需要登录的接口 → 详见 [鉴权与用户体系](/modules/auth) |
+| 管理端权限 | `@RequireAdmin`、`AdminAuthAspect` | 管理端接口 → 详见 [权限注解与角色边界索引](/reference/permission-boundaries) |
 | 操作日志 | `@Log`、`LogAspect` | 管理端增删改接口 |
 | 异常体系 | `BusinessException`、`GlobalExceptionHandler`、AI 异常族 | 所有 Service |
 | 并发工具 | `ConcurrentUtils`、`ThreadPoolUtils` | 敏感词、通知、迁移等异步场景 |
@@ -31,8 +31,8 @@
 ## 推荐学习顺序
 
 1. 先看 `Result` + `ResultCode` + `GlobalExceptionHandler`，理解全站 API 响应格式和异常如何变成错误码。
-2. 再看 `StpUserUtil` + `StpAdminUtil` + `SaTokenConfig`，理解双端鉴权的分仓设计。
-3. 接着看 `@RequireAdmin` + `AdminAuthAspect`，理解管理端权限是怎么切面拦截的。
+2. 再看 `StpUserUtil` + `StpAdminUtil` + `SaTokenConfig`，理解双端鉴权的分仓设计（配合 [鉴权与用户体系](/modules/auth)）。
+3. 接着看 `@RequireAdmin` + `AdminAuthAspect`，理解管理端权限是怎么切面拦截的（配合 [权限注解与角色边界索引](/reference/permission-boundaries)）。
 4. 然后看 `ConcurrentUtils` 和 `ThreadPoolUtils`，理解全站并发工具的设计与边界。
 5. 最后看 `Constants`、`PasswordUtil`、`IPUtil`、`DateHelper` 等小工具，补齐全局认知。
 
@@ -82,7 +82,7 @@ Result.error(ResultCode)   → { "code": xxx, "message": "错误描述", "data":
 
 ## 双端鉴权
 
-项目使用 Sa-Token 实现用户端和管理端分仓鉴权：
+项目使用 Sa-Token 实现用户端和管理端分仓鉴权（详见 [鉴权与用户体系](/modules/auth)）：
 
 | 端 | 工具类 | Token 名 | Session 存储 | 登录方式 |
 | --- | --- | --- | --- | --- |
@@ -91,11 +91,11 @@ Result.error(ResultCode)   → { "code": xxx, "message": "错误描述", "data":
 
 两端 Token 互相隔离——用户端 Token 不能访问管理端接口，反之亦然。
 
-`StpInterfaceImpl` 实现 Sa-Token 的 `StpInterface` 接口，提供权限和角色加载。当前实现从数据库查询管理员的角色和权限列表，用户端直接返回空列表。
+`StpInterfaceImpl` 实现 Sa-Token 的 `StpInterface` 接口，提供权限和角色加载。当前实现从数据库查询管理员的角色和权限列表，用户端直接返回空列表。细粒度权限边界见 [权限注解与角色边界索引](/reference/permission-boundaries)。
 
 ## 管理端权限拦截
 
-`@RequireAdmin` 注解标注在 Controller 方法上，`AdminAuthAspect` 切面拦截：
+`@RequireAdmin` 注解标注在 Controller 方法上，`AdminAuthAspect` 切面拦截（完整执行链路和分布见 [权限注解与角色边界索引](/reference/permission-boundaries)）：
 
 1. 检查当前请求是否持有管理端登录态（`StpAdminUtil.isLogin()`）
 2. 未登录 → 返回 `Result.error(ResultCode.UNAUTHORIZED)`
@@ -565,9 +565,9 @@ getIpAddress(request):
 | 熔断 | `ConcurrentUtils.java` — CircuitBreaker 三状态转换 |
 | 线程池 | `ThreadPoolUtils.java` — 4 个预配置池 + 自定义池 + 并行执行 |
 | 重试 | `ThreadPoolUtils.java` — 指数退避 + 条件重试 |
-| 双端鉴权 | `StpUserUtil.java` + `StpAdminUtil.java` + `SaTokenConfig.java` |
-| 权限加载 | `StpInterfaceImpl.java` — 管理端 RBAC + 用户端空列表 |
-| 管理端拦截 | `RequireAdmin.java` + `AdminAuthAspect.java` |
+| 双端鉴权 | `StpUserUtil.java` + `StpAdminUtil.java` + `SaTokenConfig.java` → 详见 [鉴权与用户体系](/modules/auth) |
+| 权限加载 | `StpInterfaceImpl.java` — 管理端 RBAC + 用户端空列表 → 详见 [权限注解与角色边界索引](/reference/permission-boundaries) |
+| 管理端拦截 | `RequireAdmin.java` + `AdminAuthAspect.java` → 详见 [权限注解与角色边界索引](/reference/permission-boundaries) |
 | 操作日志 | `Log.java` + `LogAspect.java` — 异步写入 + 敏感过滤 |
 | 统一响应 | `Result.java` + `ResultCode.java` + `PageResult.java` |
 | 异常体系 | `BusinessException.java` + `GlobalExceptionHandler.java` + `ai/*.java` |

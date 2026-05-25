@@ -40,6 +40,36 @@ ws://<host>/api/ws/chat?ticket=<one-time-ticket>
 
 连接前，用户端先调用 `POST /api/user/chat/ws-ticket` 换取一次性票据。票据由 `ChatWebSocketTicketService` 写入 Redis，TTL 为 60 秒，握手时被 `SaTokenWebSocketInterceptor` 消费，消费后立即删除。校验成功后，服务端会把 `userId`、`username` 写入 WebSocket session attributes。
 
+## ws-ticket 生命周期
+
+`ChatWebSocketTicketService` 的票据实现细节：
+
+| 参数 | 值 | 说明 |
+| --- | --- | --- |
+| Key 前缀 | `xiaou:chat:ws-ticket:` | Redis Key 前缀 |
+| 随机字节长度 | 32 字节 | `SecureRandom` 生成 |
+| 编码方式 | Base64 URL-safe（无填充） | 确保只含 `[A-Za-z0-9_-]` |
+| TTL | 60 秒 | 创建时写入 Redis |
+| 最大长度 | 128 字符 | 校验时检查 |
+| 合法字符 | `[A-Za-z0-9_-]+` | 正则校验 |
+| 消费策略 | 读取 + 立即删除 | 一次性使用 |
+
+票据生命周期流程：
+
+```text
+createTicket(userId)
+  → SecureRandom(32 bytes) → Base64 URL-safe → ticket string
+  → Redis SET xiaou:chat:ws-ticket:{ticket} = userId, TTL=60s
+  → return ticket
+
+consumeTicket(ticket)
+  → 校验 ticket 非空、非空白、长度 ≤ 128、匹配正则
+  → Redis GET + DEL xiaou:chat:ws-ticket:{ticket}
+  → 返回 userId（如已过期或已消费则返回 null）
+```
+
+**注意**：票据被消费后会立即从 Redis 删除，即使 60 秒 TTL 未到期也不能复用。重复连接需要重新申请。
+
 ## 消息格式
 
 ```json
@@ -145,12 +175,60 @@ private static final ConcurrentHashMap<String, WebSocketSession> SESSIONS;
 
 ### 限流机制
 
-| 事件类型 | 限流规则 | 实现 |
-|----------|----------|------|
-| MESSAGE | 10 秒 8 条 | Redis 固定窗口 |
-| TYPING | 10 秒 12 次 | Redis 固定窗口 |
+`ChatRateLimitService` 使用 Redis 固定窗口计数限流：
 
-超限时服务端返回 `ERROR` 事件，`code=RATE_LIMITED`。
+| 事件类型 | 配置项 | 默认值 | 限流规则 | Redis Key |
+|----------|--------|--------|----------|-----------|
+| MESSAGE | `xiaou.chat.rate-limit.message-limit` | 8 | 10 秒 8 条 | `xiaou:chat:rate-limit:message:{userId}` |
+| MESSAGE | `xiaou.chat.rate-limit.message-window-seconds` | 10 | — | — |
+| TYPING | `xiaou.chat.rate-limit.typing-limit` | 12 | 10 秒 12 次 | `xiaou:chat:rate-limit:typing:{userId}` |
+| TYPING | `xiaou.chat.rate-limit.typing-window-seconds` | 10 | — | — |
+
+限流可通过 `xiaou.chat.rate-limit.enabled`（默认 `true`）全局开关。
+
+实现逻辑：
+
+```text
+tryAcquire(bucket, userId, limit, windowSeconds)
+  → if !enabled → 直接放行
+  → Redis INCR key → count
+  → if count == 1 → Redis EXPIRE key, windowSeconds
+  → if count > limit → 返回 RateLimitResult.rejected(message, retryAfterSeconds)
+  → else → 返回 RateLimitResult.allowed(remaining)
+```
+
+超限时服务端返回 `ERROR` 事件，`code=RATE_LIMITED`，附带 `retryAfterSeconds` 和 `message`。
+
+### WebSocketConfig CORS 配置
+
+`WebSocketConfig` 通过 `@Value` 读取允许的跨域来源：
+
+| 配置项 | 默认值 |
+| --- | --- |
+| `xiaou.cors.allowed-origin-patterns` | `http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,http://localhost:5173,http://127.0.0.1:5173` （5173 为旧版 Vite 默认端口，仍保留在 `@Value` 回退值中） |
+
+多个 pattern 以逗号分隔，注册时解析为数组传入 `setAllowedOriginPatterns()`。
+
+### SaTokenWebSocketInterceptor 握手流程
+
+`SaTokenWebSocketInterceptor.beforeHandshake()` 实现 4 步握手校验：
+
+```text
+1. 从 URI 查询参数提取 ticket
+   → UriComponentsBuilder.fromUri(uri).build().getQueryParams().getFirst("ticket")
+2. 消费票据
+   → chatWebSocketTicketService.consumeTicket(ticket)
+   → Redis GET + DEL → userId（票据无效则返回 null，握手拒绝）
+3. 获取用户名
+   → StpUserUtil.stpLogic.getSessionByLoginId(userId).get("username")
+   → 获取失败时降级为 "用户{userId}"
+4. 写入 session attributes
+   → attributes.put("userId", userId)
+   → attributes.put("username", username)
+   → 返回 true（握手通过）
+```
+
+握手失败时返回 `false`，Spring 会拒绝 WebSocket 升级，客户端收到 403 或连接失败。
 
 ## 在线状态
 
@@ -221,6 +299,73 @@ private static final ConcurrentHashMap<String, WebSocketSession> SESSIONS;
 4. 集群部署时需要关注 WebSocket session 的节点内存态，目前 `SESSIONS` 是本地 `ConcurrentHashMap`。
 5. 聊天图片上传走 REST `/api/user/chat/upload-image`，不走 WebSocket。
 6. 消息撤回仅限发送者本人，2 分钟内可撤回。
+
+## 客户端重连流程
+
+连接断开后的重连需要重新走完整票据流程，不能复用旧 ticket：
+
+```text
+连接断开（网络异常 / 服务端关闭 / 心跳超时）
+  │
+  ├─ 检测断开
+  │   ├─ WebSocket onclose 事件
+  │   └─ 心跳 PONG 超时（连续未收到 PONG）
+  │
+  ├─ 清理本地状态
+  │   ├─ 标记所有乐观消息为失败
+  │   ├─ 清空在线用户列表
+  │   └─ 显示"连接断开"提示
+  │
+  ├─ 延迟重连（指数退避）
+  │   ├─ 第 1 次：1 秒后重连
+  │   ├─ 第 2 次：2 秒后重连
+  │   ├─ 第 3 次：4 秒后重连
+  │   ├─ 最大间隔：30 秒
+  │   └─ 重连前先检查登录态
+  │
+  └─ 重连流程
+      ├─ POST /api/user/chat/ws-ticket → 获取新 ticket
+      ├─ WS /api/ws/chat?ticket=newTicket → 建立新连接
+      └─ 收到 CONNECT → 重置退避计数器
+```
+
+重连失败场景处理：
+
+| 场景 | 前端处理 |
+| --- | --- |
+| 获取 ticket 失败（401） | 跳转登录页 |
+| 获取 ticket 失败（5xx） | 继续退避重试 |
+| 握手被拒绝（ticket 无效） | 重新获取 ticket 再试 |
+| 重连超过最大次数 | 显示"无法连接聊天室"并停止重试 |
+
+## ChatWebSocketHandler 消息处理流程
+
+`ChatWebSocketHandler.handleTextMessage()` 按消息类型分流：
+
+```text
+收到 WebSocket 消息
+  → JSONUtil.toBean(payload, WebSocketMessage.class)
+  → 解析 type 字段
+  →
+  ├─ HEARTBEAT → updateHeartbeat(sessionId) + 发送 PONG
+  ├─ TYPING    → tryAcquireTyping(userId) → 广播 TYPING 给其他用户
+  └─ MESSAGE   → handleChatMessage(session, wsMessage)
+      ├─ 解析 ChatMessageRequest
+      ├─ tryAcquireMessage(userId) → 限流检查
+      │   └─ 超限 → sendError(RATE_LIMITED)
+      ├─ chatMessageService.sendMessage() → 持久化
+      │   └─ 异常 → sendError(MESSAGE_REJECTED)
+      ├─ 广播 MESSAGE 给其他在线用户（排除发送者）
+      └─ 给发送者发送 MESSAGE_ACK（含 realId 替换 tempId）
+```
+
+传输异常处理（`handleTransportError`）：
+
+| 异常消息 | 日志级别 | 处理 |
+| --- | --- | --- |
+| "你的主机中的软件中止了一个已建立的连接" | `debug` | 客户端正常断开，不打印堆栈 |
+| "Connection reset" / "Broken pipe" | `debug` | 同上 |
+| 其他异常 | `error` | 打印堆栈 |
 
 ## 验证清单
 

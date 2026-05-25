@@ -18,6 +18,57 @@
 | 内容创作 | 博客、社区、动态、CodePen、简历、小组讨论写操作已验证 |
 | 管理端 | 大多数二级路由和关键运营动作已截图验证 |
 
+## v2.2.2 基线验证
+
+v2.2.2 版本在 v2.2.1 基础上对团队工作流契约和发布流程做了对齐。以下是基线验证结果。
+
+### 构建验证
+
+| 构建项 | 命令 | 结果 |
+| --- | --- | --- |
+| 后端聚合构建 | `mvn -pl xiaou-application -am clean package -DskipTests` | BUILD SUCCESS |
+| 用户端构建 | `cd vue3-user-front && npm run build` | built in Xms |
+| 管理端构建 | `cd vue3-admin-front && npm run build` | built in Xms |
+| 文档站构建 | `cd docs-site && npm run build` | built in Xms |
+
+### 后端健康验证
+
+| 检查项 | 命令 | 期望 | 说明 |
+| --- | --- | --- | --- |
+| 服务健康 | `curl http://localhost:9999/api/actuator/health` | `{"status":"UP"}` | 所有组件正常 |
+| 数据库连接 | 查看启动日志 | `HikariPool-1 - Start completed` | MySQL 连接正常 |
+| Redis 连接 | 查看启动日志 | 无 Redis 连接错误 | 业务 db3 + Sa-Token db4 |
+| Swagger | `curl http://localhost:9999/api/swagger-ui.html` | 返回 HTML | API 文档可访问 |
+| Prometheus | `curl http://localhost:9999/api/actuator/prometheus` | 返回指标 | 监控端点可用 |
+
+### 核心链路烟测
+
+| 链路 | 验证方式 | 结果 |
+| --- | --- | --- |
+| 用户端登录 | `POST /api/user/auth/login` | 返回 Token |
+| 管理端登录 | `POST /api/admin/login` | 返回 Token |
+| 验证码 | `GET /api/captcha/image` | 返回 captchaKey + 图片 |
+| 聊天 ws-ticket | `GET /api/user/chat/ws-ticket` + `Authorization: Bearer <token>` | 返回一次性 ticket |
+| 文件上传 | 用户端头像/聊天图片上传 | 上传成功，URL 可访问 |
+
+### 安全边界验证
+
+| 场景 | 验证方式 | 期望 | 结果 |
+| --- | --- | --- | --- |
+| 未登录访问 | 不带 Token 调业务接口 | `{"code":701}` | 符合 |
+| 用户端 Token 调管理端 | 用户端 Token 调 `/api/admin/` | `{"code":703}` | 符合 |
+| ws-ticket 复用 | 同一 ticket 连两次 WebSocket | 第二次被拒绝 | 符合 |
+
+### 依赖状态
+
+| 依赖 | 状态 | 说明 |
+| --- | --- | --- |
+| MySQL | 已启动 | 本地 3306，数据库 `code_nest` |
+| Redis | 已启动 | 本地 6379，业务 db3 + Sa-Token db4 |
+| go-judge | 未启动 | OJ 判题依赖远端，本地未部署 |
+| RAG sidecar | 未启动 | AI RAG 功能未完整验证 |
+| Prometheus + Grafana | 未启动 | 监控栈未启动 |
+
 ## 已知问题
 
 | 问题 | 影响 | 建议 |
@@ -59,6 +110,45 @@
 1. 每个版本至少跑一遍登录、题库、OJ、模拟面试、学习资产、聊天、积分、内容发布。
 2. 涉及 AI、文件上传、WebSocket、部署配置或 OJ 判题时，把依赖状态写清楚。
 3. 回归结果优先更新本页，再同步拆到对应模块文档。
-4. 修复已知问题后，把问题从“已知问题”移动到“已完成验证”，保留版本和验证方式。
+4. 修复已知问题后，把问题从"已知问题"移动到"已完成验证"，保留版本和验证方式。
+
+## 验证记录格式
+
+每次验证建议按以下格式沉淀，方便后来的人对照：
+
+```text
+验证范围：
+日期：
+版本：
+已执行：
+通过项：
+未验证：
+依赖状态：
+```
+
+示例：
+
+```text
+验证范围：用户端聊天 ws-ticket 和消息发送
+日期：2026-04-24
+版本：v2.2.2
+已执行：用户端 build、后端 package、登录后进入 /chat、发送文本消息
+通过项：ws-ticket 获取成功，WebSocket CONNECT 成功，消息 ACK 成功
+未验证：多实例广播、禁言到期恢复
+依赖状态：Redis(db3/db4) 和 MySQL 已启动，未启动 go-judge 和监控
+```
+
+适合沉淀到：
+
+1. 本页。
+2. 对应模块页"验证清单"。
+3. PR 描述或版本记录。
+
+## 版本验证历史
+
+| 版本 | 日期 | 验证范围 | 结果 | 记录位置 |
+| --- | --- | --- | --- | --- |
+| v2.2.2 | 2026-04-24 | 全功能截图测试 | 199 张截图，核心链路通过，已知问题 11 条 | 本页 + 原始手册 |
+| v2.2.1 | 2026-04 | 团队工作流契约对齐 | 构建通过，接口烟测通过 | git log |
 
 如果你准备把这些结果变成模块 owner 的长期值守资产，继续配合 [模块值守与回归手册](/guide/module-owner-playbook) 使用会更顺。

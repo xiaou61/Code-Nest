@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: Code Nest
-  text: v2.2.1 项目文档工作线
-  tagline: 面向开发者成长社区、AI Runtime、OJ、内容矩阵和运营后台的全量开发与运维手册。
+  text: v2.2.2 项目文档
+  tagline: 面向开发者成长社区的全量开发与运维手册 — 后端 15 个模块、前端双端、文档站独立部署。
   image:
     src: /code-nest-mark.svg
     alt: Code Nest
@@ -13,53 +13,81 @@ hero:
       text: 快速开始
       link: /guide/quick-start
     - theme: alt
-      text: 学习路线
-      link: /guide/learning-paths
-    - theme: alt
-      text: 按模块学习
-      link: /guide/module-learning-paths
-    - theme: alt
-      text: 上手任务
-      link: /guide/onboarding-tasks
+      text: 架构总览
+      link: /architecture/overview
     - theme: alt
       text: 查看模块
       link: /modules/
 
 features:
-  - title: 独立部署
-    details: 文档站位于 docs-site，可单独安装依赖、构建和发布，不耦合 Maven 与前端业务构建。
-  - title: 全量功能地图
-    details: 按用户端、管理端、后端模块、数据库脚本和运维组件建立统一导航。
-  - title: 双路线学习
-    details: 既可以按后端、前端、AI/OJ、运维等角色学习，也可以按账号、安全、学习、内容和平台能力等模块系统串读。
-  - title: 可执行任务包
-    details: 每个角色都有半天以内的小练习，输出源码入口、风险判断、验证命令和文档缺口。
-  - title: 持续维护
-    details: v2.2.0 已完成文档中心骨架，v2.2.1 继续补版本节奏、维护入口和持续写作机制。
+  - title: 学习与成长
+    details: 面试题库 + 掌握度追踪、计划打卡、学习小组（排行/贡献/讨论）、闪卡、知识图谱、成长自动驾驶
+  - title: OJ 判题
+    details: 多语言支持、go-judge 沙箱隔离、ACM/IOI 赛制、竞赛排名、首次 AC 积分奖励
+  - title: AI Runtime
+    details: 结构化 AI 对话、RAG 知识库增强、多模型切换、Schema 校验回归、Token 用量与成本监控
+  - title: 内容与创作
+    details: Markdown 博客、社区帖子、动态广场、代码工坊（Fork/收益/模板）、简历系统
+  - title: 积分与抽奖
+    details: 多来源积分发放与流水、概率可调抽奖、库存与限制规则、熔断降级、风险检测与黑名单
+  - title: 平台运营
+    details: Sa-Token 双登录域隔离、@RequireAdmin 权限、操作/登录日志审计、管理端仪表盘、文件存储、敏感词风控
 ---
+
+## 项目技术栈
+
+| 层 | 技术 | 版本 |
+| --- | --- | --- |
+| 后端框架 | Spring Boot | 3.4.4 |
+| 运行时 | JDK | 17 |
+| ORM | MyBatis-Plus | 3.5.x |
+| 鉴权 | Sa-Token | 1.39.x |
+| 缓存 | Redis 7.x + Redisson | — |
+| 数据库 | MySQL | 8.0+ |
+| 前端 | Vue 3 + Vite + Element Plus | — |
+| 文档站 | VitePress 2.x | — |
+| 判题沙箱 | go-judge | 独立 Docker 容器 |
+| 监控 | Prometheus + Grafana | Docker Compose |
+
+## 文档导航
+
+| 你想做什么 | 去哪里 |
+| --- | --- |
+| 从零搭建本地开发环境 | [快速开始](/guide/quick-start) |
+| 了解整体架构和模块划分 | [架构总览](/architecture/overview) |
+| 按模块深入学习 | [模块总览](/modules/) |
+| 理解双登录域和权限模型 | [鉴权与用户体系](/modules/auth) |
+| 查看 API 接口清单 | [API 路由索引](/reference/api-routes) |
+| 查看数据库表结构 | [数据表索引](/reference/database-tables) |
+| 排查线上或本地问题 | [问题定位流程](/operations/diagnosis-flow) |
+| 处理线上事故 | [事故响应](/operations/incident-response) |
+| 理解安全边界 | [权限与安全边界](/guide/security-boundaries) |
+| 查看环境变量清单 | [环境变量](/operations/env-vars) |
+| 查看用户端操作接口 | [用户端操作手册](/manuals/user-operations) |
+| 查看管理端操作接口 | [管理端操作手册](/manuals/admin-operations) |
+| 走一遍核心业务链路 | [核心链路教程](/manuals/core-workflows) |
+| 部署到生产环境 | [独立部署](/guide/deploy) |
+| 开发一个新功能 | [功能开发流程](/guide/feature-development) |
+
+## 关键端口速查
+
+| 组件 | 端口 | 说明 |
+| --- | --- | --- |
+| 后端 API | 9999 | `server.port`，context-path `/api` |
+| 用户端 dev | 3001 | `vue3-user-front` 开发服务器 |
+| 管理端 dev | 3000 | `vue3-admin-front` 开发服务器 |
+| 文档站 dev | 5175 | `docs-site` VitePress 开发服务器 |
+| MySQL | 3306 | 数据库 `code_nest`，142 张表 |
+| Redis | 6379 | db3 业务缓存 + db4 Sa-Token 会话 |
+| go-judge | 5050 | OJ 判题沙箱（Docker 容器） |
+| RAG Sidecar | 18080 | AI 知识库检索（可选） |
 
 ## 使用检查
 
-第一次打开文档站时，建议先确认：
+第一次打开文档站时，建议先确认以下 5 个入口能正常使用：
 
-1. 从“快速开始”能启动并构建文档站。
-2. 从“学习路线”能按角色找到第一批要读的文档。
-3. 从“按模块学习”能看到账号、安全、学习、OJ、AI、内容和后台的连续阅读顺序。
-4. 从“模块学习任务模板”能看到每一站的作业单、过关标准和回写模板。
-5. 从“模块结业案例”能看到跨模块的标准示范拆解。
-6. 从“模块学习评审表”能按统一 rubric 对作业做自评或带教评审。
-7. 从“带教执行剧本”能看到 3 天游或 5 天游的每日交付物和评审节奏。
-8. 从“带教交付模板包”能直接复制日报、评审、返工和结业模板。
-9. 从“首个真实任务接入”能知道第一单该接什么、不该先碰什么。
-10. 从“首单任务题库”能直接挑一条可分配的 L0/L1/L2 任务。
-11. 从“模块接手升级路线”能判断做完首单后，什么时候可以继续接模块、怎么逐级升级。
-12. 从“模块接手检查清单”能知道真正接手一个模块时，第一天和第一周该盘什么。
-13. 从“模块接手样例包”能看到内容类、状态机类、高风险外部依赖类模块各自怎么写接手记录。
-14. 从“模块值守与回归手册”能知道已经接住模块以后，日常怎么守、怎么回归、怎么交接。
-15. 从“上手任务”能选择一个角色任务包，并看到输出模板。
-16. 从“查看模块”能进入全量模块总览。
-17. 本地搜索能找到核心模块，例如 OJ、AI Runtime、文件存储。
-18. 从“文档同步基线”能看出当前文档站至少同步到了哪个 commit。
-19. 从“模块最小回归矩阵”能快速查到改完某个模块最低应该回归什么。
-20. 模块页能继续跳到 API、数据表、源码地图和操作手册。
-21. 从“v2.2.1 文档计划”能看出当前工作线在继续补什么，而不是只看到历史建设阶段。
+1. [快速开始](/guide/quick-start) — 能启动并构建文档站。
+2. [模块总览](/modules/) — 能看到所有业务模块并点击进入。
+3. [API 路由索引](/reference/api-routes) — 能找到核心模块的接口清单。
+4. [问题定位流程](/operations/diagnosis-flow) — 遇到问题能找到排查入口。
+5. [文档同步基线](/reference/docs-sync-baseline) — 能看出当前文档站同步到了哪个 commit。

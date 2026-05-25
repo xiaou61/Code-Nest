@@ -116,7 +116,7 @@ const manuals = [
 export default defineConfig({
   lang: 'zh-CN',
   title: 'Code Nest 文档',
-  description: 'Code Nest v2.2.1 文档工作线',
+  description: 'Code Nest v2.2.2 文档工作线',
   base: process.env.VITEPRESS_BASE || '/',
   cleanUrls: true,
   lastUpdated: true,
@@ -170,7 +170,7 @@ export default defineConfig({
       }
     },
     footer: {
-      message: 'Code Nest v2.2.1 documentation workline.',
+      message: 'Code Nest v2.2.2 documentation workline.',
       copyright: 'MIT Licensed.'
     }
   }

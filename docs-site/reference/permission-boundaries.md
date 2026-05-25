@@ -30,6 +30,38 @@
 
 **注意**：这个切面只检查"管理端是否登录且拥有 admin 角色"，不检查细粒度的权限码。
 
+### AdminAuthAspect 源码级拆解
+
+`AdminAuthAspect` 是 `@RequireAdmin` 的实际执行切面，基于 `@Around` 环绕通知：
+
+```text
+拦截流程：
+  @Pointcut("@annotation(com.xiaou.common.annotation.RequireAdmin)")
+  → around(ProceedingJoinPoint)
+  → 获取方法上的 RequireAdmin 注解（读取自定义 message）
+  → try:
+      StpAdminUtil.checkLogin()       → 管理端登录态校验
+      StpAdminUtil.checkRole("admin") → admin 角色校验
+      StpAdminUtil.getLoginIdAsLong() → 获取管理员 ID（用于日志）
+      → 验证通过 → joinPoint.proceed() → 继续执行方法
+  → catch:
+      NotLoginException → throw BusinessException("请先登录")
+      NotRoleException  → throw BusinessException(requireAdmin.message())
+      BusinessException  → 直接抛出（不二次包装）
+      Exception          → throw BusinessException("权限验证失败")
+```
+
+关键实现细节：
+
+| 行为 | 实现 | 说明 |
+| --- | --- | --- |
+| 切点定义 | `@annotation(RequireAdmin.class)` | 只拦截标注了 `@RequireAdmin` 的方法 |
+| 登录态校验 | `StpAdminUtil.checkLogin()` | 管理端独立 StpLogic，不检查用户端 |
+| 角色校验 | `StpAdminUtil.checkRole("admin")` | 硬编码角色名 `"admin"` |
+| 自定义 message | `requireAdmin.message()` | 注解支持 `message` 属性，用于权限不足时的提示文案 |
+| 异常转换 | Sa-Token 异常 → `BusinessException` | 原始 Sa-Token 异常被包装为业务异常，最终被 `GlobalExceptionHandler` 以 HTTP 200 + 业务码 600 返回前端 |
+| 日志 | `log.debug` 记录管理员 ID、类名、方法名 | 通过后记录验证通过信息 |
+
 ### 权限注解使用现状
 
 | 注解 | 使用情况 | 说明 |
@@ -95,10 +127,10 @@
 
 | 端 | `getPermissionList()` | `getRoleList()` |
 | --- | --- | --- |
-| 管理端 (`loginType = "admin"`) | 从数据库查询权限列表 | 从数据库查询角色列表 |
-| 用户端 (`loginType = "user"`) | 返回 `Collections.emptyList()` | 返回 `Collections.emptyList()` |
+| 管理端 (`loginType = "admin"`) | 返回硬编码 `["admin"]` | 返回硬编码 `["admin"]` |
+| 用户端 (`loginType = "user"`) | 返回硬编码 `["user"]` | 返回硬编码 `["user"]` |
 
-**关键发现**：用户端始终返回空权限和空角色列表。这意味着 `@SaCheckRole` 和 `@SaCheckPermission` 对用户端无效——用户端的所有权限控制必须由业务代码自行实现。
+**关键发现**：两端都返回硬编码字符串列表，**没有数据库查询**。源码注释中标注了"可根据实际业务从数据库查询"的位置，但目前未实现。这意味着 `@SaCheckRole` 和 `@SaCheckPermission` 对任何端都只能做固定字符串比对，无法支持动态权限或角色分级。
 
 ### 用户端资源归属校验
 
@@ -143,6 +175,26 @@ if (!plan.getUserId().equals(userId)) {
 ### 用户端鉴权接口
 
 用户端接口通过 `StpUserUtil.checkLogin()` 或 `StpUserUtil.getLoginIdAsLong()` 校验。Sa-Token 配置了拦截器白名单，未登录访问受保护接口会触发 `NotLoginException`。
+
+### SaTokenConfig 白名单配置
+
+项目**不使用** `@SaIgnore` 注解，所有路径放行统一在 `SaTokenConfig.java` 中配置。白名单路径通过 `SaRouter.notMatch()` 和 `excludePathPatterns` 两处生效：
+
+| 白名单路径 | 放行原因 | 涉及模块 |
+| --- | --- | --- |
+| `/captcha/**` | 验证码图片接口 | xiaou-user |
+| `/user/auth/login`、`/user/auth/register` | 用户登录注册 | xiaou-user |
+| `/auth/login` | 管理端登录 | xiaou-system |
+| `/pub/**` | 公开资源（博客、闪卡公开卡组、知识图谱公开图谱） | 多模块 |
+| `/version` | 版本历史公开查看 | xiaou-version |
+| `/community/posts` | 社区帖子公开列表 | xiaou-community |
+| `/oj/problems` | OJ 题目公开列表 | xiaou-oj |
+| `/error` | Spring Boot 默认错误页 | 框架 |
+| `/actuator/**` | 监控指标端点 | 运维 |
+| `/swagger-ui/**`、`/v3/api-docs/**` | OpenAPI 文档 | 开发 |
+| `/ws/chat` | WebSocket 端点（走 Interceptor 鉴权） | xiaou-chat |
+
+> **新增加路径放行时**：只改 `SaTokenConfig.java`，不要在 Controller 上加 `@SaIgnore`。两端点 `/actuator` 和 `/swagger-ui` 在生产环境建议通过 profile 关闭。
 
 ### 管理端鉴权接口
 

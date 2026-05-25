@@ -2,6 +2,40 @@
 
 本页是 v2.2.0 文档站的"覆盖检查表"。每一行至少要能回答：用户从哪里进、后台从哪里管、后端走哪个前缀、核心数据落在哪些表、文档写在哪里。
 
+## API 端点统计总览
+
+基于源码扫描，项目共有 **757 个 REST 端点**（@GetMapping/@PostMapping/@PutMapping/@DeleteMapping/@PatchMapping），分布在 **97 个 Controller 类**中。加上 WebSocket 端点和 IndexController，总计约 760 个入口。
+
+| 模块 | 用户端端点 | 管理端端点 | 公开端点 | 合计 | Controller 数 |
+| --- | --- | --- | --- | --- | --- |
+| xiaou-user | 17 | 10 | 2 | 29 | 4 |
+| xiaou-system | 9 | 30 | 0 | 39 | 4 |
+| xiaou-interview | 27 | 24 | 2 | 53 | 7 |
+| xiaou-mock-interview | 39 | 8 | 0 | 47 | 5 |
+| xiaou-plan | 17 | 0 | 0 | 17 | 2 |
+| xiaou-team | 61 | 0 | 0 | 61 | 1 |
+| xiaou-flashcard | 17 | 0 | 3 | 20 | 4 |
+| xiaou-oj | 23 | 21 | 0 | 44 | 8 |
+| xiaou-community | 26 | 24 | 2 | 52 | 10 |
+| xiaou-moment | 13 | 5 | 0 | 18 | 2 |
+| xiaou-blog | 16 | 13 | 0 | 29 | 2 |
+| xiaou-codepen | 34 | 19 | 0 | 53 | 2 |
+| xiaou-resume | 10 | 7 | 0 | 17 | 4 |
+| xiaou-filestorage | 9 | 22 | 0 | 31 | 5 |
+| xiaou-notification | 6 | 9 | 0 | 15 | 2 |
+| xiaou-chat | 5 | 8 | 0 | 13 | 2 |
+| xiaou-points | 11 | 32 | 0 | 43 | 4 |
+| xiaou-sensitive | 0 | 12 | 51 | 63 | 9 |
+| xiaou-moyu | 30 | 26 | 0 | 56 | 7 |
+| xiaou-version | 5 | 12 | 0 | 17 | 2 |
+| xiaou-knowledge | 5 | 16 | 0 | 21 | 3 |
+| xiaou-learning-asset | 8 | 7 | 0 | 15 | 2 |
+| xiaou-sql-optimizer | 11 | 0 | 0 | 11 | 1 |
+| xiaou-ai | 0 | 1 | 0 | 1 | 1 |
+| xiaou-application | 1 | 0 | 0 | 1 | 2 |
+
+> 端点数统计不含 @RequestMapping 类级注解，只统计方法级 @Get/Post/Put/Delete/PatchMapping。WebSocket 端点 /ws/chat 未计入。
+
 ## 账号与平台基础
 
 | 功能 | 用户入口 | 管理入口 | API 前缀 | 核心表 | 文档 |
@@ -151,6 +185,20 @@
 2. **`@RequireAdmin` 只做登录域 + admin 角色校验**：切面实现是先 `StpAdminUtil.checkLogin()` 再 `StpAdminUtil.checkRole("admin")`，并不按 `permission_code` 鉴权。
 3. **部分模块注解有自定义 message**：如 `AdminUserController` 和 `AdminPointsController` 带有 `message = "...需要管理员权限"`，大部分模块直接使用默认 message。
 4. **`@Log` 注解伴随高频**：高风险写操作（批量删除、清空、导入导出）同时标注 `@Log`。
+
+## Controller 层级分布
+
+项目 Controller 按包路径分为三类：
+
+| 层级 | 包路径 | 鉴权方式 | 典型类 |
+| --- | --- | --- | --- |
+| admin | `controller/admin/` | `@RequireAdmin` | `AdminUserController`、`BlogAdminController` |
+| user | `controller/user/` | `StpUserUtil.checkLogin()` + 归属校验 | `UserPlanController`、`CodePenUserController` |
+| pub | `controller/pub/` | SaTokenConfig 白名单放行 | `CommunityPostController`、`OjProblemPublicController` |
+| api | `controller/api/` | 服务间调用，不走用户鉴权 | `SensitiveWordController` |
+| 根 | `controller/` | 混合，部分需登录部分公开 | `DeveloperCalendarController`、`DailyContentController` |
+
+> **新增 Controller 时**：管理端放 `controller/admin/`，用户端放 `controller/user/`，公开接口放 `controller/pub/`，不要混用。
 
 ## 未覆盖和高风险功能
 
