@@ -7,7 +7,9 @@ on:
       - ".github/workflows/docs-site.yml"
   push:
     branches:
-      - v2.2.0
+      - main
+      - master
+      - "v*"
     paths:
       - "docs-site/**"
       - ".github/workflows/docs-site.yml"

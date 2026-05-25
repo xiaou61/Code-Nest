@@ -56,3 +56,8 @@ llamaindex-service/data/knowledge-base.json
 docker/ai/.env
 __pycache__/
 *.pyc
+
+# Local generated artifacts and scratch files
+/_write_*.cjs
+/nul
+/docs-site/build_output.txt
