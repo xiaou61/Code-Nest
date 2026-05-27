@@ -1,10 +1,11 @@
 {
   "name": "code-nest-docs-site",
-  "version": "2.2.0",
+  "version": "2.2.2",
   "private": true,
   "type": "module",
   "scripts": {
     "sync:baseline": "node ./scripts/generate-docs-sync-baseline.mjs",
+    "postinstall": "npm run sync:baseline",
     "predev": "npm run sync:baseline",
     "dev": "vitepress dev . --host 0.0.0.0",
     "prebuild": "npm run sync:baseline",
@@ -13,6 +14,6 @@
     "preview": "vitepress preview . --host 0.0.0.0"
   },
   "devDependencies": {
-    "vitepress": "next"
+    "vitepress": "2.0.0-alpha.17"
   }
 }
