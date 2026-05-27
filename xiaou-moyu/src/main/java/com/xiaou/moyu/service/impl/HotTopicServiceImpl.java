@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 /**
@@ -33,29 +34,32 @@ public class HotTopicServiceImpl implements HotTopicService {
     
     private final RedisUtil redisUtil;
     private final RestTemplate restTemplate;
+    private final AtomicBoolean refreshing = new AtomicBoolean(false);
     
     /**
      * 热榜API基础URL
      */
     @Value("${hot-topic.api.base-url:http://113.44.190.45:9996/api}")
     private String baseUrl;
+
+    @Value("${hot-topic.api.cache-expire-minutes:15}")
+    private long cacheExpireMinutes;
+
+    @Value("${hot-topic.api.stale-cache-expire-minutes:1440}")
+    private long staleCacheExpireMinutes;
     
     /**
      * Redis缓存键前缀
      */
     private static final String CACHE_KEY_PREFIX = "hot_topics:";
-    
-    /**
-     * 缓存过期时间（秒）15分钟
-     */
-    private static final long CACHE_EXPIRE_TIME = 15 * 60;
+    private static final String STALE_CACHE_KEY_PREFIX = "hot_topics:stale:";
     
     @Override
     public HotTopicResponse getHotTopicCategories() {
         try {
             // 先从缓存获取
             String cacheKey = CACHE_KEY_PREFIX + "categories";
-            String cachedData = (String) redisUtil.get(cacheKey);
+            String cachedData = getCachedData(cacheKey);
             
             if (StrUtil.isNotBlank(cachedData)) {
                 return JSONUtil.toBean(cachedData, HotTopicResponse.class);
@@ -66,13 +70,13 @@ public class HotTopicServiceImpl implements HotTopicService {
             
             if (response != null) {
                 // 存入缓存
-                redisUtil.set(cacheKey, JSONUtil.toJsonStr(response), CACHE_EXPIRE_TIME);
+                cacheHotTopicData(cacheKey, JSONUtil.toJsonStr(response));
             }
             
             return response;
         } catch (Exception e) {
             log.error("获取热榜分类信息失败", e);
-            return null;
+            return getStaleData(CACHE_KEY_PREFIX + "categories", HotTopicResponse.class);
         }
     }
     
@@ -81,7 +85,7 @@ public class HotTopicServiceImpl implements HotTopicService {
         try {
             // 先从缓存获取
             String cacheKey = CACHE_KEY_PREFIX + "data:" + platform;
-            String cachedData = (String) redisUtil.get(cacheKey);
+            String cachedData = getCachedData(cacheKey);
             
             if (StrUtil.isNotBlank(cachedData)) {
                 return JSONUtil.toBean(cachedData, HotTopicData.class);
@@ -93,13 +97,13 @@ public class HotTopicServiceImpl implements HotTopicService {
             
             if (data != null) {
                 // 存入缓存
-                redisUtil.set(cacheKey, JSONUtil.toJsonStr(data), CACHE_EXPIRE_TIME);
+                cacheHotTopicData(cacheKey, JSONUtil.toJsonStr(data));
             }
             
             return data;
         } catch (Exception e) {
             log.error("获取热榜数据失败, platform: {}", platform, e);
-            return null;
+            return getStaleData(CACHE_KEY_PREFIX + "data:" + platform, HotTopicData.class);
         }
     }
     
@@ -129,6 +133,10 @@ public class HotTopicServiceImpl implements HotTopicService {
     @Override
     @Async("hotTopicExecutor")
     public void refreshHotTopicData() {
+        if (!refreshing.compareAndSet(false, true)) {
+            log.info("热榜数据刷新正在执行，跳过本次触发");
+            return;
+        }
         int totalCount = HotTopicEnum.values().length;
         
         try {
@@ -144,7 +152,7 @@ public class HotTopicServiceImpl implements HotTopicService {
                             
                             if (data != null) {
                                 String cacheKey = CACHE_KEY_PREFIX + "data:" + platform.getCode();
-                                redisUtil.set(cacheKey, JSONUtil.toJsonStr(data), CACHE_EXPIRE_TIME);
+                                cacheHotTopicData(cacheKey, JSONUtil.toJsonStr(data));
                                 return true;
                             }
                             return false;
@@ -167,6 +175,8 @@ public class HotTopicServiceImpl implements HotTopicService {
             }
         } catch (Exception e) {
             log.error("热榜数据刷新异常: {}", e.getMessage());
+        } finally {
+            refreshing.set(false);
         }
     }
     
@@ -207,7 +217,7 @@ public class HotTopicServiceImpl implements HotTopicService {
                         HotTopicData data = restTemplate.getForObject(url, HotTopicData.class);
                         
                         if (data != null) {
-                            redisUtil.set(cacheKey, JSONUtil.toJsonStr(data), CACHE_EXPIRE_TIME);
+                            cacheHotTopicData(cacheKey, JSONUtil.toJsonStr(data));
                             successCount++;
                         }
                     } else {
@@ -227,5 +237,39 @@ public class HotTopicServiceImpl implements HotTopicService {
         } catch (Exception e) {
             log.error("热榜数据初始化异常: {}", e.getMessage());
         }
+    }
+
+    private String getCachedData(String cacheKey) {
+        Object cachedData = redisUtil.get(cacheKey);
+        return cachedData instanceof String ? (String) cachedData : null;
+    }
+
+    private void cacheHotTopicData(String cacheKey, String jsonData) {
+        redisUtil.set(cacheKey, jsonData, cacheExpireSeconds());
+        redisUtil.set(toStaleCacheKey(cacheKey), jsonData, staleCacheExpireSeconds());
+    }
+
+    private <T> T getStaleData(String cacheKey, Class<T> clazz) {
+        String staleData = getCachedData(toStaleCacheKey(cacheKey));
+        if (StrUtil.isBlank(staleData)) {
+            return null;
+        }
+        log.warn("使用热榜兜底缓存: {}", cacheKey);
+        return JSONUtil.toBean(staleData, clazz);
+    }
+
+    private String toStaleCacheKey(String cacheKey) {
+        if (cacheKey.startsWith(CACHE_KEY_PREFIX)) {
+            return STALE_CACHE_KEY_PREFIX + cacheKey.substring(CACHE_KEY_PREFIX.length());
+        }
+        return STALE_CACHE_KEY_PREFIX + cacheKey;
+    }
+
+    private long cacheExpireSeconds() {
+        return Math.max(1, cacheExpireMinutes) * 60;
+    }
+
+    private long staleCacheExpireSeconds() {
+        return Math.max(cacheExpireMinutes, staleCacheExpireMinutes) * 60;
     }
 }
