@@ -77,7 +77,7 @@ public class LotteryServiceImpl implements LotteryService {
         boolean stockDeducted = false;
         
         try {
-            if (!userLock.tryLock(3, 10, TimeUnit.SECONDS)) {
+            if (!userLock.tryLock(3, TimeUnit.SECONDS)) {
                 throw new BusinessException("操作过于频繁，请稍后再试");
             }
             
@@ -99,7 +99,7 @@ public class LotteryServiceImpl implements LotteryService {
                 log.warn("奖品{}库存不足，抽奖失败", prize.getId());
                 throw new BusinessException("奖品库存不足");
             }
-            stockDeducted = true;
+            stockDeducted = isLimitedStock(prize);
             
             // 7. 发放奖励
             issueReward(userId, prize);
@@ -330,6 +330,10 @@ public class LotteryServiceImpl implements LotteryService {
         if (stockDeducted && prize != null) {
             stockService.rollbackStock(prize.getId());
         }
+    }
+
+    private boolean isLimitedStock(LotteryPrizeConfig prize) {
+        return prize.getTotalStock() != null && prize.getTotalStock() >= 0;
     }
     
     /**

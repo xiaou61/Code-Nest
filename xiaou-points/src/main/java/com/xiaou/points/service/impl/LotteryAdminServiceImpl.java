@@ -10,10 +10,13 @@ import com.xiaou.points.dto.lottery.admin.*;
 import com.xiaou.points.mapper.*;
 import com.xiaou.points.service.LotteryAdminService;
 import com.xiaou.points.service.LotteryNormalizeService;
+import com.xiaou.points.service.LotteryStockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -43,6 +46,7 @@ public class LotteryAdminServiceImpl implements LotteryAdminService {
     private final LotteryAdjustHistoryMapper adjustHistoryMapper;
     private final UserLotteryLimitMapper userLimitMapper;
     private final LotteryNormalizeService normalizeService;
+    private final LotteryStockService stockService;
     
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -54,6 +58,17 @@ public class LotteryAdminServiceImpl implements LotteryAdminService {
         if (config.getCurrentProbability() == null) {
             config.setCurrentProbability(config.getBaseProbability());
         }
+
+        LotteryPrizeConfig existingConfig = config.getId() != null ? prizeConfigMapper.selectById(config.getId()) : null;
+        if (config.getId() != null && existingConfig == null) {
+            throw new BusinessException("奖品不存在");
+        }
+
+        if (isLimitedStock(config)) {
+            config.setCurrentStock(resolveStockForSave(config, existingConfig));
+        } else {
+            config.setCurrentStock(-1);
+        }
         
         if (config.getId() == null) {
             // 新增
@@ -64,6 +79,7 @@ public class LotteryAdminServiceImpl implements LotteryAdminService {
             prizeConfigMapper.updateById(config);
             log.info("管理员{}更新奖品配置：{}", adminId, config.getPrizeName());
         }
+        evictStockCacheAfterCommit(config.getId());
     }
     
     @Override
@@ -437,6 +453,38 @@ public class LotteryAdminServiceImpl implements LotteryAdminService {
         stats.setAvgDrawPerUser(BigDecimal.ZERO);
         statisticsMapper.insert(stats);
         return stats;
+    }
+
+    private boolean isLimitedStock(LotteryPrizeConfig config) {
+        return config.getTotalStock() != null && config.getTotalStock() >= 0;
+    }
+
+    private Integer resolveStockForSave(LotteryPrizeConfig config, LotteryPrizeConfig existingConfig) {
+        if (existingConfig != null
+                && isLimitedStock(existingConfig)
+                && existingConfig.getCurrentStock() != null
+                && existingConfig.getCurrentStock() >= 0) {
+            return Math.min(existingConfig.getCurrentStock(), config.getTotalStock());
+        }
+        return config.getDailyStock() != null && config.getDailyStock() >= 0
+                ? Math.min(config.getDailyStock(), config.getTotalStock())
+                : config.getTotalStock();
+    }
+
+    private void evictStockCacheAfterCommit(Long prizeId) {
+        if (prizeId == null) {
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            stockService.evictStockCache(prizeId);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                stockService.evictStockCache(prizeId);
+            }
+        });
     }
     
     /**
