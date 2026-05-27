@@ -393,3 +393,13 @@ tryAcquire(bucket, userId, limit, windowSeconds)
 | `xiaou-chat/.../controller/user/ChatUserController.java` | 用户端 REST API (`/api/user/chat`) |
 | `xiaou-chat/.../controller/admin/ChatAdminController.java` | 管理端 REST API (`/api/admin/chat`) |
 | `vue3-user-front/src/views/chat/Index.vue` | 前端聊天页面 |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [IM 聊天室](/modules/chat) | WebSocket 主要使用场景 |
+| [响应体与错误码](/reference/response-errors) | 消息协议格式 |
+| [鉴权与用户体系](/modules/auth) | WebSocket 鉴权方式 |
+| [源码地图](/reference/source-map) | WebSocket 相关代码位置 |

@@ -312,3 +312,13 @@ docker compose -f docker/ai/docker-compose.yml --env-file docker/ai/.env down -v
 docker compose -f docker/go-judge/docker-compose.yml down -v
 docker compose -f docker/monitoring/docker-compose.yml down -v
 ```
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [快速开始](/guide/quick-start) | 快速搭建指南 |
+| [本地开发](/guide/local-dev) | 开发环境配置 |
+| [环境变量总表](/operations/env-vars) | 配置项说明 |
+| [Docker 与服务部署](/operations/docker) | Docker 环境 |

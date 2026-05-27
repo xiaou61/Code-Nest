@@ -487,3 +487,13 @@ dailyEarnings = workHours × hourlyRate
 | 热榜定时任务 | `HotTopicTask.java` — 初始化+定时刷新 |
 | 热榜枚举 | `HotTopicEnum.java` — 平台代码/名称/分类 |
 | 日期反序列化 | `FlexibleDateDeserializer.java` — 灵活日期格式处理 |
+
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 摸鱼工具模块依赖公共底座的统一响应和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 间接依赖 | 部分工具可能需要用户登录态 |
+| [工具、摸鱼与版本](/modules/tools-moyu-version) | 强依赖 | 摸鱼工具与工具模块紧密关联 |
+| [系统运营后台](/modules/system-ops) | 间接依赖 | 工具管理可能在管理端 |

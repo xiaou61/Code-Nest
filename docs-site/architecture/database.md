@@ -290,3 +290,14 @@ sql/
 | `sql/v1.7.1/study_team.sql` | 学习小组增量脚本示例 |
 | `xiaou-common/.../config/MybatisPlusConfig.java` | MyBatis-Plus 配置 (分页/自动填充) |
 | `xiaou-application/.../application-dev.yml` | 数据源配置 (P6Spy 代理) |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [架构总览](/architecture/overview) | 整体架构和部署拓扑 |
+| [后端模块](/architecture/backend-modules) | 后端 Maven 子模块详解 |
+| [数据表索引](/reference/database-tables) | 全部 142 张表清单 |
+| [数据库字段阅读指南](/reference/database-field-guide) | 命名规范和类型说明 |
+| [模块总览](/modules/) | 各模块的数据表分布 |

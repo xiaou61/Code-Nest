@@ -380,3 +380,15 @@ public class VersionHistoryServiceImpl implements VersionHistoryService {
 | 只验证成功路径 | 线上失败态不可控 | 至少补登录失效、权限不足、空态、外部依赖失败 |
 | 自己实现横切能力 | 文件、通知、敏感词、积分逻辑分叉 | 优先复用平台能力 |
 | 文档只写功能介绍 | 无法帮助维护 | 写源码位置、流程、表、常见坑和验证清单 |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [常见二开场景](/guide/extension-scenarios) | 典型扩展场景示例 |
+| [测试与回归](/guide/testing-regression) | 测试策略和回归方法 |
+| [发布前验证](/guide/release-verification) | 发布检查清单 |
+| [API 路由索引](/reference/api-routes) | 新增接口后更新索引 |
+| [前端路由索引](/reference/frontend-routes) | 新增页面后更新索引 |
+| [数据表索引](/reference/database-tables) | 新增表后更新索引 |

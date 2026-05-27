@@ -486,3 +486,13 @@ manualChunks: {
 | `vue3-user-front/src/stores/user.js` | 用户端 Pinia Store（Token/用户信息） |
 | `vue3-admin-front/src/stores/user.js` | 管理端 Pinia Store（Token 刷新/广播） |
 | `vue3-user-front/src/utils/command-history.js` | 命令面板历史持久化 |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [前端应用](/architecture/frontend-apps) | 前端架构设计 |
+| [API 路由索引](/reference/api-routes) | 后端接口清单 |
+| [前端渲染安全](/reference/frontend-rendering-security) | XSS 防护规范 |
+| [模块总览](/modules/) | 各模块功能说明 |

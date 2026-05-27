@@ -328,3 +328,14 @@ views/{module}/
 | `vue3-admin-front/src/router/index.js` | 管理端路由 |
 | `vue3-admin-front/src/utils/request.js` | 管理端 Axios 封装 |
 | `vue3-admin-front/src/views/` | 管理端页面组件 |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [架构总览](/architecture/overview) | 整体架构和部署拓扑 |
+| [后端模块](/architecture/backend-modules) | 后端 Maven 子模块详解 |
+| [前端路由索引](/reference/frontend-routes) | 用户端和管理端路由表 |
+| [前端渲染安全](/reference/frontend-rendering-security) | XSS 防护和安全规范 |
+| [本地开发](/guide/local-dev) | 前端开发环境搭建 |

@@ -252,3 +252,14 @@ JSON 工具的核心是三步：
 2. [前端路由索引](/reference/frontend-routes) 的路由表。
 3. [模块最小回归矩阵](/reference/module-regression-matrix) 的开发者工具行。
 4. [工具、摸鱼与版本](/modules/tools-moyu-version) 的功能地图。
+
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 开发者工具模块依赖公共底座的统一响应和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 部分工具需要用户登录态 |
+| [用户账户与个人中心](/modules/user-account) | 间接依赖 | 用户工具使用记录依赖用户信息 |
+| [工具、摸鱼与版本](/modules/tools-moyu-version) | 强依赖 | 开发者工具与工具模块紧密关联 |
+| [系统运营后台](/modules/system-ops) | 间接依赖 | 工具管理可能在管理端 |

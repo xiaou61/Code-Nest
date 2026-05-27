@@ -390,3 +390,13 @@ curl "http://localhost:9999/api/admin/oj/submission/list?page=1&size=20" \
 | 6 | 操作日志 | `GET /api/admin/log/list` | 返回操作记录 |
 
 更多管理端截图和详细操作见 [验证记录与已知问题](/manuals/verified-scenarios)。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [用户端操作手册](/manuals/user-operations) | 用户端操作 |
+| [核心链路教程](/manuals/core-workflows) | 核心业务流程 |
+| [端到端业务链路图](/manuals/business-flow-map) | 业务链路图 |
+| [验证记录与已知问题](/manuals/verified-scenarios) | 验证记录 |

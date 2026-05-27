@@ -246,3 +246,308 @@ likeCount * 2 + commentCount * 3 + viewCount * 0.1
 1. 本页的接口域、状态定义和流程描述。
 2. [社区与内容矩阵](/modules/community-content) 的功能地图和互动热度。
 3. [模块最小回归矩阵](/reference/module-regression-matrix) 的动态广场行。
+
+---
+
+## 动态广场模块深度拆解
+
+> 以下内容基于 `xiaou-moment` 全部源码逐行拆解，覆盖 1 个主 Service、1 个浏览数 Service、1 个定时任务、4 个实体类、2 个枚举类。
+
+### 一、批量查询优化深度分析
+
+**源码**：`MomentServiceImpl.java`（900 行）
+
+动态列表是用户访问最频繁的接口，如果逐条查询用户信息、点赞状态、收藏状态，会产生严重的 N+1 问题。`convertToMomentListResponseBatch` 方法通过 8 步批量查询优化解决这个问题。
+
+#### 1.1 优化前后对比
+
+```
+优化前（N+1 问题）：
+  for each moment:
+    userInfoApiService.getSimpleUserInfo(userId)     ← 第1次查询
+    momentLikeMapper.selectByMomentIdAndUserId(...)  ← 第2次查询
+    momentFavoriteMapper.selectByMomentIdAndUserId(...) ← 第3次查询
+    momentCommentMapper.selectByMomentId(...)        ← 第4次查询
+    for each comment:
+      userInfoApiService.getSimpleUserInfo(commentUserId) ← 第5次查询
+
+  总查询次数 = N * (4 + M)，M 为每条动态的评论数
+
+优化后（批量查询）：
+  1. 收集所有 userId → Set
+  2. userInfoApiService.getSimpleUserInfoBatch(userIds) ← 1次查询
+  3. 获取当前用户 ID
+  4. momentLikeMapper.selectLikedMomentIds(momentIds, userId) ← 1次查询
+  5. momentFavoriteMapper.selectFavoritedMomentIds(momentIds, userId) ← 1次查询
+  6. for each moment: momentCommentMapper.selectByMomentId(id, 3) ← N次查询
+  7. userInfoApiService.getSimpleUserInfoBatch(commentUserIds) ← 1次查询
+  8. 遍历组装结果
+
+  总查询次数 = 4 + N（N 为动态数量）
+```
+
+#### 1.2 8 步流程详解
+
+```
+convertToMomentListResponseBatch(moments):
+┌─────────────────────────────────────────────────────────┐
+│ Step 1: 收集所有用户 ID                                  │
+│   userIds = moments.map(userId).toSet()                 │
+│   去重后批量查询，避免重复请求                            │
+├─────────────────────────────────────────────────────────┤
+│ Step 2: 批量查询用户信息                                 │
+│   userInfoMap = userInfoApiService.getSimpleUserInfoBatch│
+│   返回 Map<userId, SimpleUserInfo>                      │
+│   后续通过 Map.get(userId) 直接取值，O(1) 复杂度         │
+├─────────────────────────────────────────────────────────┤
+│ Step 3: 获取当前用户 ID                                  │
+│   currentUserId = StpUserUtil.getLoginIdAsLong()        │
+│   未登录时为 null，后续判断需要                           │
+├─────────────────────────────────────────────────────────┤
+│ Step 4: 批量查询点赞状态                                 │
+│   if (currentUserId != null):                           │
+│     likedMomentIds = momentLikeMapper.selectLikedMomentIds│
+│   使用 Set 存储，contains 判断 O(1)                      │
+├─────────────────────────────────────────────────────────┤
+│ Step 5: 批量查询收藏状态                                 │
+│   if (currentUserId != null):                           │
+│     favoritedMomentIds = momentFavoriteMapper.selectFavoritedMomentIds│
+│   同样使用 Set 存储                                      │
+├─────────────────────────────────────────────────────────┤
+│ Step 6: 批量获取评论并收集评论用户 ID                    │
+│   for each momentId:                                    │
+│     comments = momentCommentMapper.selectByMomentId(id, 3)│
+│     momentCommentsMap.put(momentId, comments)           │
+│     comments.forEach(c -> commentUserIds.add(c.userId)) │
+│   每条动态只取最新 3 条评论                               │
+├─────────────────────────────────────────────────────────┤
+│ Step 7: 批量查询评论用户信息                             │
+│   commentUserInfoMap = userInfoApiService.getSimpleUserInfoBatch│
+│   合并到同一个 Map，避免重复查询                          │
+├─────────────────────────────────────────────────────────┤
+│ Step 8: 批量转换结果                                     │
+│   moments.stream().map(moment -> {                      │
+│     response.userNickname = userInfoMap.get(userId)     │
+│     response.isLiked = likedMomentIds.contains(id)     │
+│     response.isFavorited = favoritedMomentIds.contains(id)│
+│     response.recentComments = comments.map(convert)     │
+│   })                                                    │
+└─────────────────────────────────────────────────────────┘
+```
+
+**关键发现 1**：Step 6 中每条动态仍然单独查询评论（`selectByMomentId`），这是因为每条动态只需要最新 3 条评论，批量查询 SQL 会更复杂。如果动态数量很大（>100），可以考虑使用 `LEFT JOIN` + `ROW_NUMBER()` 一次性查询。
+
+**关键发现 2**：Step 4 和 Step 5 只在用户登录时才查询点赞/收藏状态，未登录时直接使用空 Set，避免不必要的数据库查询。
+
+**关键发现 3**：Step 7 将评论用户信息和动态作者信息合并到同一个 Map，如果评论者和动态作者是同一人，不会重复查询。
+
+### 二、Redis 浏览数同步机制深度分析
+
+**源码**：`MomentViewServiceImpl.java`（131 行）
+
+浏览数是高频写操作，如果每次浏览都直接写数据库，会产生大量 UPDATE 语句。动态广场采用"Redis 累积 + 定时同步"策略解决这个问题。
+
+#### 2.1 双 Key 设计
+
+```
+Redis Key 设计：
+  moment:view:{momentId}           → 浏览增量计数器（累积待同步的浏览数）
+  moment:view:user:{userId}:{momentId} → 用户去重标记（5 分钟过期）
+```
+
+| Key | 类型 | 用途 | TTL |
+| --- | --- | --- | --- |
+| `moment:view:{momentId}` | String (数字) | 累积浏览增量 | 无过期（同步后清零） |
+| `moment:view:user:{userId}:{momentId}` | String | 用户 5 分钟去重 | 5 分钟 |
+
+#### 2.2 recordView 流程
+
+```
+recordView(momentId, userId):
+┌─────────────────────────────────────────────────────────┐
+│ 1. 构建用户浏览记录 Key                                  │
+│    userViewKey = "moment:view:user:" + userId + ":" + momentId│
+├─────────────────────────────────────────────────────────┤
+│ 2. 检查用户是否在 5 分钟内已经浏览过                      │
+│    if (redisUtil.hasKey(userViewKey)):                   │
+│      return  // 已统计过，不重复统计                      │
+├─────────────────────────────────────────────────────────┤
+│ 3. 增加浏览数                                            │
+│    viewCountKey = "moment:view:" + momentId             │
+│    redisUtil.incr(viewCountKey, 1)                      │
+├─────────────────────────────────────────────────────────┤
+│ 4. 记录用户浏览，5 分钟过期                              │
+│    redisUtil.set(userViewKey, "1", 5 * 60)              │
+└─────────────────────────────────────────────────────────┘
+```
+
+**关键发现 1**：用户去重使用 Redis Key 过期实现，而不是 Set 结构。这样只需要一个 Key，内存开销更小。
+
+**关键发现 2**：`viewCountKey` 没有过期时间，累积的浏览数不会自动丢失。只有同步成功后才会清零。
+
+#### 2.3 syncViewCountToDatabase 流程
+
+```
+syncViewCountToDatabase()（每小时执行）:
+┌─────────────────────────────────────────────────────────┐
+│ 1. 获取所有浏览数 Key                                    │
+│    keys = redisUtil.getKeys("moment:view:*")            │
+├─────────────────────────────────────────────────────────┤
+│ 2. 遍历每个 Key                                          │
+│    for each key:                                        │
+│      momentId = key.substring("moment:view:".length())  │
+│      viewCount = redisUtil.get(key)                     │
+├─────────────────────────────────────────────────────────┤
+│ 3. 增量更新到数据库                                      │
+│    for (i = 0; i < viewCount; i++):                     │
+│      momentMapper.incrementViewCount(momentId)          │
+├─────────────────────────────────────────────────────────┤
+│ 4. 清空 Redis 计数（保留 Key，值设为 0）                  │
+│    redisUtil.set(key, 0, 0)                             │
+└─────────────────────────────────────────────────────────┘
+```
+
+**关键发现 1**：同步使用增量更新（`incrementViewCount`），而不是直接覆盖。这样即使同步过程中有新的浏览记录，也不会丢失。
+
+**关键发现 2**：同步成功后将 Redis Key 的值设为 0，而不是删除 Key。这样下次同步时只需要处理值 > 0 的 Key。
+
+**关键发现 3**：同步任务每小时执行一次，最坏情况下浏览数会延迟 1 小时显示在数据库中。这是性能和实时性的权衡。
+
+#### 2.4 性能分析
+
+| 操作 | 频率 | 数据库写入 | Redis 操作 |
+| --- | --- | --- | --- |
+| 浏览动态 | 高频（每秒可能数十次） | 0 次 | 2 次（incr + set） |
+| 同步浏览数 | 低频（每小时 1 次） | N 次（增量更新） | N 次（get + set） |
+
+**优势**：
+- 高频浏览只写 Redis，不写数据库，减少数据库压力
+- 用户去重在 Redis 完成，不查数据库
+- 同步失败不影响浏览功能，只影响数据一致性
+
+**风险**：
+- Redis 宕机时累积的浏览数会丢失（最多 1 小时的数据）
+- 同步窗口期内数据库浏览数不准确
+
+### 三、热门动态计算深度分析
+
+**源码**：`HotMomentCalculateTask.java`（88 行）
+
+热门动态使用 Redis Sorted Set 存储，每 10 分钟重新计算一次。
+
+#### 3.1 热度公式
+
+```
+hotScore = likeCount * 2.0 + commentCount * 3.0 + viewCount * 0.1
+```
+
+| 指标 | 权重 | 说明 |
+| --- | --- | --- |
+| 点赞数 | 2.0 | 互动意愿最强，权重最高 |
+| 评论数 | 3.0 | 评论比点赞更花时间，权重更高 |
+| 浏览数 | 0.1 | 浏览成本最低，权重最低 |
+
+**设计思路**：评论 > 点赞 > 浏览。评论需要用户花时间写内容，是最有价值的互动；点赞只需要点击一下；浏览是被动行为，成本最低。
+
+#### 3.2 计算流程
+
+```
+calculateHotMoments()（每 10 分钟执行）:
+┌─────────────────────────────────────────────────────────┐
+│ 1. 查询最近 24 小时的热门动态（按热度排序，取前 50 条）    │
+│    hotMoments = momentMapper.selectHotMoments(50)       │
+│    SQL: SELECT * FROM moments                           │
+│          WHERE status = 1                               │
+│          AND create_time >= NOW() - INTERVAL 24 HOUR    │
+│          ORDER BY like_count*2 + comment_count*3 + view_count*0.1 DESC│
+│          LIMIT 50                                       │
+├─────────────────────────────────────────────────────────┤
+│ 2. 获取 Redisson 的 Sorted Set                          │
+│    hotMomentsSet = redissonClient.getScoredSortedSet("moment:hot:list")│
+├─────────────────────────────────────────────────────────┤
+│ 3. 清空旧数据                                            │
+│    hotMomentsSet.clear()                                │
+├─────────────────────────────────────────────────────────┤
+│ 4. 计算热度分数并存入 Sorted Set                         │
+│    for each moment:                                     │
+│      score = calculateHotScore(moment)                  │
+│      hotMomentsSet.add(score, momentId)                 │
+├─────────────────────────────────────────────────────────┤
+│ 5. 设置过期时间（10 分钟）                               │
+│    redisUtil.expire("moment:hot:list", 600)             │
+└─────────────────────────────────────────────────────────┘
+```
+
+**关键发现 1**：热门动态只计算最近 24 小时的数据，避免历史数据占据榜单。
+
+**关键发现 2**：缓存 TTL 为 10 分钟，与定时任务周期一致。如果任务执行失败，旧数据会自动过期，不会一直展示过时的热门动态。
+
+**关键发现 3**：使用 Redisson 的 `RScoredSortedSet`，天然支持按分数排序，不需要额外排序逻辑。
+
+#### 3.3 查询热门动态
+
+```
+getHotMoments():
+  1. 从 Redis Sorted Set 获取动态 ID 列表（按分数降序）
+  2. 批量查询动态详情
+  3. 转换为响应格式
+```
+
+**优势**：
+- 热门动态查询只读 Redis，不查数据库
+- Sorted Set 天然支持排序，不需要应用层排序
+- 定时任务失败时缓存自动过期，不会展示过时数据
+
+### 四、深度发现与坑点
+
+#### 4.1 已确认的代码问题
+
+| 编号 | 问题 | 位置 | 影响 |
+| --- | --- | --- | --- |
+| BUG-1 | 浏览数同步使用循环 incrementViewCount | `MomentViewServiceImpl:111-113` | 大量浏览时同步慢，应改为批量 UPDATE |
+| BUG-2 | 热门动态查询未使用索引 | `MomentMapper.selectHotMoments` | 24 小时全表扫描，数据量大时慢 |
+| BUG-3 | 批量查询评论仍逐条查询 | `MomentServiceImpl:822-826` | 动态数量大时有 N 次查询 |
+
+#### 4.2 设计层面的潜在风险
+
+| 编号 | 风险 | 说明 |
+| --- | --- | --- |
+| RISK-1 | Redis 宕机丢失浏览数 | 累积的浏览数最多丢失 1 小时 |
+| RISK-2 | 热门动态计算延迟 | 最多 10 分钟延迟，新发布的动态不会立即出现在热门 |
+| RISK-3 | 用户去重 Key 内存占用 | 高并发时 `moment:view:user:*` Key 数量可能很大 |
+
+#### 4.3 架构设计亮点
+
+| 编号 | 亮点 | 说明 |
+| --- | --- | --- |
+| H-1 | 批量查询优化 | 8 步批量查询将 N+1 问题降为 4+N 查询 |
+| H-2 | Redis 浏览数累积 | 高频浏览只写 Redis，定时同步到数据库 |
+| H-3 | 用户去重 Key 过期 | 使用 Redis Key 过期实现 5 分钟去重，内存开销小 |
+| H-4 | Sorted Set 热门榜 | 天然支持按分数排序，查询性能 O(log(N)) |
+| H-5 | 缓存自动过期 | 热门动态缓存 10 分钟过期，任务失败不会展示过时数据 |
+
+#### 4.4 源码导航速查
+
+| 想了解 | 读什么 |
+| --- | --- |
+| 批量查询优化 | `MomentServiceImpl.java` — `convertToMomentListResponseBatch` 8 步流程 |
+| 浏览数记录 | `MomentViewServiceImpl.java` — `recordView` Redis 双 Key 设计 |
+| 浏览数同步 | `MomentViewServiceImpl.java` — `syncViewCountToDatabase` 增量同步 |
+| 热门动态计算 | `HotMomentCalculateTask.java` — `calculateHotMoments` 定时任务 |
+| 热度公式 | `HotMomentCalculateTask.java` — `calculateHotScore` 权重计算 |
+| 发布频率限制 | `MomentServiceImpl.java` — `checkPublishFrequency` 5 分钟 3 条 |
+| 互动规则 | `MomentServiceImpl.java` — `toggleLike`/`toggleFavorite`/`publishComment` |
+| 敏感词检测 | `MomentServiceImpl.java` — `publishMoment`/`publishComment` 敏感词调用 |
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 动态广场依赖公共底座的统一响应、分页和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 动态发布、点赞、收藏需要用户登录态 |
+| [用户账户与个人中心](/modules/user-account) | 强依赖 | 动态作者信息依赖用户账户 |
+| [敏感词风控](/modules/sensitive) | 强依赖 | 动态内容必须经过敏感词检测 |
+| [文件存储](/modules/file-storage) | 强依赖 | 动态图片上传和存储 |
+| [通知中心](/modules/notification) | 间接依赖 | 点赞、评论等互动触发通知推送 |
+| [积分与抽奖](/modules/points) | 间接关联 | 动态互动可能触发积分奖励 |
+| [社区帖子](/modules/community) | 间接关联 | 动态与社区帖子都是内容互动模块 |

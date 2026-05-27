@@ -648,3 +648,13 @@ SaRouter.match("/user/**")
 <!-- ❌ 错误：直接渲染原始内容 -->
 <div v-html="content"></div>
 ```
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [鉴权与用户体系](/modules/auth) | Sa-Token 鉴权 |
+| [权限注解与角色边界索引](/reference/permission-boundaries) | 权限注解详解 |
+| [前端渲染安全](/reference/frontend-rendering-security) | XSS 防护 |
+| [敏感词风控](/modules/sensitive) | 内容安全 |

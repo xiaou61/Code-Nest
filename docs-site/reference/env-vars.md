@@ -162,3 +162,13 @@ xiaou:
 | `xiaou-chat/.../service/impl/ChatMessageServiceImpl.java` | 消息限制 @Value |
 | `xiaou-sensitive/.../scheduler/SensitiveSourceSyncScheduler.java` | 同步 @Value |
 | `xiaou-moyu/.../service/impl/HotTopicServiceImpl.java` | 热榜 API @Value |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [Docker 与服务部署](/operations/docker) | 部署配置 |
+| [本地完整启动剧本](/guide/startup-playbook) | 本地启动配置 |
+| [架构总览](/architecture/overview) | 技术栈说明 |
+| [独立部署](/guide/deploy) | 生产环境部署 |

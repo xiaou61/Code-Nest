@@ -226,3 +226,13 @@ WHERE status = 'RUNNING'
 | Job Battle 阶段 | `xiaou-ai/src/main/java/com/xiaou/ai/graph/jobbattle/JobBattleState.java` |
 | 面试会话状态 | 模块页 [模拟面试与求职作战台](/modules/mock-interview-job-battle) |
 | 学习资产状态 | 模块页 [学习资产](/modules/learning-assets) |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [模块依赖地图](/reference/module-dependencies) | 模块间依赖 |
+| [模块最小回归矩阵](/reference/module-regression-matrix) | 回归测试 |
+| [事件、通知与回流索引](/reference/event-backflow-index) | 事件触发 |
+| [模块总览](/modules/) | 各模块状态机 |

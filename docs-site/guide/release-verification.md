@@ -374,3 +374,12 @@ mvn -pl xiaou-ai -am "-Dtest=AiSceneRegressionEvalTest" "-Dsurefire.failIfNoSpec
 | 文件上传 | 后端构建 + 上传 + `/api/files/**` 访问 |
 | WebSocket | 后端构建 + 用户端构建 + ws-ticket + ACK/失败态 |
 | 安全边界 | 701/703/705 + 私有文件 + ws-ticket 复用 + 文件类型 |
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [测试与回归](/guide/testing-regression) | 测试策略 |
+| [模块最小回归矩阵](/reference/module-regression-matrix) | 回归测试覆盖 |
+| [独立部署](/guide/deploy) | 部署流程 |
+| [版本公告与交接模板](/guide/version-release-handoff-template) | 版本交接 |

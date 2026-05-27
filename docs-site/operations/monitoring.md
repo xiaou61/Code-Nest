@@ -272,3 +272,13 @@ OJ 判题异常：
 3. 能定位问题的日志字段或管理端排查入口。
 
 如果模块调用外部服务，例如 AI、RAG、go-judge、对象存储，还要补“外部服务不可用时怎么降级”。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [Docker 与服务部署](/operations/docker) | Docker 部署 |
+| [告警 Runbook](/operations/alert-runbooks) | 告警处理 |
+| [事故响应](/operations/incident-response) | 事故处理 |
+| [问题定位流程](/operations/diagnosis-flow) | 问题排查 |

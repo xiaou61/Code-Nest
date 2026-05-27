@@ -211,3 +211,13 @@
 | WebSocket 鉴权 | ws-ticket 签发后的连接鉴权依赖 Redis TTL | 确保 ticket 一次性且 TTL 合理 |
 
 这页解决的是"功能落在哪里"。如果你接下来要判断"改完某个模块最低该回归什么"，继续看 [模块最小回归矩阵](/reference/module-regression-matrix) 会更直接。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [模块总览](/modules/) | 各模块功能说明 |
+| [模块最小回归矩阵](/reference/module-regression-matrix) | 回归测试覆盖 |
+| [全功能覆盖矩阵](/reference/feature-coverage) | 功能覆盖情况 |
+| [前端路由索引](/reference/frontend-routes) | 用户端入口 |

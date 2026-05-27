@@ -414,3 +414,14 @@ cd docs-site && npm run build
 | 本地开发细节 | [本地开发环境](/guide/local-dev) |
 | 部署到服务器 | [Docker 与服务部署](/operations/docker) |
 | 查看所有模块 | [模块总览](/modules/) |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [本地开发](/guide/local-dev) | 详细开发环境配置 |
+| [本地完整启动剧本](/guide/startup-playbook) | 完整启动步骤 |
+| [架构总览](/architecture/overview) | 了解整体架构 |
+| [模块总览](/modules/) | 各业务模块介绍 |
+| [Docker 与服务部署](/operations/docker) | 生产环境部署 |

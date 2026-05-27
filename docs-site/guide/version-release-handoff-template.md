@@ -291,3 +291,13 @@ README 一般不必保留：
 1. 用户看得懂这版更新了什么。
 2. 维护者看得懂这版为什么这样写。
 3. 下一个接手的人看得懂哪些已经验证、哪些还没验证。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [版本交付实战样例](/guide/version-release-worked-examples) | 交付样例 |
+| [Git Log 版更新记录](/guide/git-log-release-notes) | 更新日志 |
+| [发布前验证](/guide/release-verification) | 发布检查 |
+| [独立部署](/guide/deploy) | 部署流程 |

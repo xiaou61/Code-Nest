@@ -607,3 +607,16 @@ public void checkAllStorageHealth() {
 | 统计服务 | `FileStatisticsServiceImpl.java` — 模块/类型/趋势/热门 |
 | 健康检查 | `StorageHealthServiceImpl.java` — 简化版无缓存无定时 |
 | 系统设置 | `FileSystemSettingServiceImpl.java` — 内存5分钟缓存 |
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 文件存储依赖公共底座的 LocalFileResourceConfig、Redis 和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 文件上传和私有文件访问需要登录态 |
+| [用户账户与个人中心](/modules/user-account) | 被依赖 | 用户头像上传和存储依赖文件模块 |
+| [IM 聊天室](/modules/chat) | 被依赖 | 聊天图片和附件上传依赖文件模块 |
+| [简历系统](/modules/resume) | 被依赖 | 简历导出 PDF 依赖文件模块 |
+| [社区帖子](/modules/community) | 间接依赖 | 帖子图片附件可能依赖文件模块 |
+| [系统运营后台](/modules/system-ops) | 被依赖 | 文件管理和存储配置在管理端 |
+| [Docker 与服务部署](/operations/docker) | 参考 | 本地存储目录挂载和云存储配置 |

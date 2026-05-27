@@ -306,3 +306,13 @@
 如果你还需要日报、返工通知和结业结论的现成模板，直接配合 [带教交付模板包](/guide/onboarding-deliverable-templates) 使用。
 
 如果评审已经稳定通过，准备判断“是不是可以继续接手一个模块”，下一步继续看 [模块接手升级路线](/guide/module-ownership-ladder)。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [模块学习任务模板](/guide/module-learning-workbook) | 学习任务 |
+| [模块结业案例](/guide/module-learning-capstone) | 结业案例 |
+| [按模块学习路线](/guide/module-learning-paths) | 学习路线 |
+| [模块总览](/modules/) | 各模块功能 |

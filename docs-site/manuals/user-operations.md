@@ -353,3 +353,12 @@ curl -X POST http://localhost:9999/api/user/moment/publish \
 | 805 | 上传路径不合法 | 检查文件名 |
 
 更多排查流程见 [常见问题排查](/operations/troubleshooting) 和 [问题定位流程](/operations/diagnosis-flow)。
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [管理端操作手册](/manuals/admin-operations) | 管理端操作 |
+| [核心链路教程](/manuals/core-workflows) | 核心业务流程 |
+| [端到端业务链路图](/manuals/business-flow-map) | 业务链路图 |
+| [验证记录与已知问题](/manuals/verified-scenarios) | 验证记录 |

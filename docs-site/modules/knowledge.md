@@ -334,3 +334,14 @@
 | 浏览计数 | `KnowledgeNodeServiceImpl.java` — incrementViewCount |
 | 图谱域 | `KnowledgeMap.java` — Status(DRAFT/PUBLISHED/HIDDEN) + nodeCount + viewCount |
 | 节点域 | `KnowledgeNode.java` — parentId + levelDepth + sortOrder + nodeType |
+
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 知识图谱模块依赖公共底座的统一响应、分页和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 图谱创建和管理需要用户登录态 |
+| [用户账户与个人中心](/modules/user-account) | 强依赖 | 用户图谱数据依赖用户信息 |
+| [题库与成长闭环](/modules/interview-and-growth) | 强依赖 | 知识图谱与学习成长紧密关联 |
+| [系统运营后台](/modules/system-ops) | 被依赖 | 图谱管理界面在管理端 |

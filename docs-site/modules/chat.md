@@ -484,3 +484,16 @@ public boolean isUserBanned(Long userId, Long roomId) {
 | 定时任务 | `ChatScheduledTask.java` — 清理超时+自动解禁 |
 | WebSocket 配置 | `WebSocketConfig.java` — 端点注册+CORS |
 | 消息协议 | `WebSocketMessage.java` — 消息类型常量+数据结构 |
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 聊天室依赖公共底座的 Redis、并发工具和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | WebSocket 连接需要用户登录态，管理端需要管理员权限 |
+| [用户账户与个人中心](/modules/user-account) | 强依赖 | 聊天用户信息展示依赖用户账户 |
+| [敏感词风控](/modules/sensitive) | 强依赖 | 聊天消息必须经过敏感词检测 |
+| [文件存储](/modules/file-storage) | 强依赖 | 图片消息上传和存储 |
+| [通知中心](/modules/notification) | 间接依赖 | 被@或收到重要消息可能触发通知推送 |
+| [系统运营后台](/modules/system-ops) | 被依赖 | 聊天管理界面在管理端 |
+| [WebSocket 协议](/reference/websocket) | 参考 | WebSocket 协议和消息格式定义 |

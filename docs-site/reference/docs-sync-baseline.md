@@ -210,3 +210,13 @@ grep -r "v-html" vue3-user-front/src/ | grep -v "renderMarkdown\|sanitizeHtml\|e
 | \`xiaou-common/.../config/SaTokenConfig.java\` | 白名单配置基线 |
 | \`vue3-user-front/src/utils/markdown.js\` | 前端渲染安全基线 |
 | \`vue3-admin-front/src/utils/markdown.js\` | 管理端渲染安全基线 |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [文档维护规范](/guide/documentation-maintenance) | 文档维护流程 |
+| [版本公告与交接模板](/guide/version-release-handoff-template) | 版本交接 |
+| [Git Log 版更新记录](/guide/git-log-release-notes) | 更新日志 |
+| [架构总览](/architecture/overview) | 项目版本信息 |

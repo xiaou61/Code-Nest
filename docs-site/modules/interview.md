@@ -513,3 +513,16 @@ recordLearn(userId, questionSetId, questionId)
 | 掌握度 Mapper | `InterviewMasteryMapper.xml` — 复习查询 LEFT JOIN 题目+题单 |
 | 用户端题单 | `InterviewQuestionSetPublicController.java` — 权限检查 + 浏览计数 |
 | 掌握度接口 | `InterviewMasteryController.java` — mark/batch/review/heatmap |
+
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 面试题库模块依赖公共底座的统一响应、分页和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 题目学习和掌握度追踪需要用户登录态 |
+| [用户账户与个人中心](/modules/user-account) | 强依赖 | 用户学习数据依赖用户信息 |
+| [积分与抽奖](/modules/points) | 间接关联 | 学习行为可能触发积分奖励 |
+| [题库与成长闭环](/modules/interview-and-growth) | 强依赖 | 面试题库与成长闭环紧密关联 |
+| [闪卡](/modules/flashcard) | 强依赖 | 闪卡可以从题库导入题目 |
+| [系统运营后台](/modules/system-ops) | 被依赖 | 题库管理界面在管理端 |

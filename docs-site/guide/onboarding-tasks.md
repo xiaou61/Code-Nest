@@ -232,3 +232,13 @@ Mapper：
 | 接口能找到但表找不到 | 继续看 Service、Mapper 和数据表索引，不只停在 Controller |
 | 文档和源码不一致 | 以源码为准，修正文档，并在路线图或验证记录写清楚校准内容 |
 | 验证链路太多 | 先按测试与回归页选最低验证，再把没跑的依赖明确写出来 |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [带教执行剧本](/guide/onboarding-execution-playbook) | 执行剧本 |
+| [带教交付模板包](/guide/onboarding-deliverable-templates) | 交付模板 |
+| [首个真实任务接入](/guide/first-real-task) | 首个任务 |
+| [首单任务题库](/guide/first-task-backlog) | 任务题库 |

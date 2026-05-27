@@ -203,3 +203,13 @@ VitePress 会把 Markdown 代码块中的 localhost URL 也当作链接去验证
 5. 搜索相关术语表，确保新术语已收录。
 6. 如果涉及新 API、新路由或新表，同步更新对应的参考页。
 7. 如果涉及新状态值，同步更新术语表的状态速查。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [文档同步基线](/reference/docs-sync-baseline) | 文档版本追踪 |
+| [Git Log 版更新记录](/guide/git-log-release-notes) | 更新日志 |
+| [版本公告与交接模板](/guide/version-release-handoff-template) | 版本交接 |
+| [功能开发流程](/guide/feature-development) | 开发流程 |

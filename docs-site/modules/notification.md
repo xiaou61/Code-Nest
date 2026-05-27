@@ -567,3 +567,15 @@ public Notification getMessageDetail(Long messageId) {
 | 管理侧接口 | `NotificationAdminService.java` — 统计、公告、批量、模板 |
 | 线程池配置 | `NotificationAsyncConfig.java` — 5/20/100/CallerRunsPolicy |
 | 缓存策略 | `NotificationCacheUtil.java` — Redis 30min TTL |
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 通知中心依赖公共底座的 NotificationUtil、Redis 和异步线程池 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 用户侧通知需要用户登录态，管理侧需要管理员权限 |
+| [用户账户与个人中心](/modules/user-account) | 强依赖 | 通知接收者关联用户账户 |
+| [社区帖子](/modules/community) | 被依赖 | 点赞、评论等互动触发通知推送 |
+| [动态广场](/modules/moments) | 被依赖 | 动态互动触发通知推送 |
+| [积分与抽奖](/modules/points) | 被依赖 | 中奖通知可能通过通知中心推送 |
+| [系统运营后台](/modules/system-ops) | 被依赖 | 公告和批量消息发送在管理端 |

@@ -311,3 +311,13 @@ default       → code 701, message "登录状态已失效，请重新登录"
 | 业务异常 | `xiaou-common/src/main/java/com/xiaou/common/exception/BusinessException.java` |
 | 全局异常拦截 | `xiaou-common/src/main/java/com/xiaou/common/exception/GlobalExceptionHandler.java` |
 | AI 异常族 | `xiaou-common/src/main/java/com/xiaou/common/exception/ai/*.java` |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [公共底座](/modules/common) | Result 和 ResultCode 实现 |
+| [鉴权与用户体系](/modules/auth) | Token 相关错误码 |
+| [权限注解与角色边界索引](/reference/permission-boundaries) | 权限错误处理 |
+| [API 路由索引](/reference/api-routes) | 接口清单 |

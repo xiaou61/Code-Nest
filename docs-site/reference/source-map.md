@@ -449,3 +449,13 @@ docs-site/
 | 前端状态管理 | `vue3-{app}/src/stores/` |
 | Vite 代理配置 | `vue3-{app}/vite.config.js` |
 | Axios 请求封装 | `vue3-{app}/src/utils/request.js` |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [后端模块](/architecture/backend-modules) | Maven 子模块结构 |
+| [前端应用](/architecture/frontend-apps) | 前端项目结构 |
+| [模块依赖地图](/reference/module-dependencies) | 模块间依赖关系 |
+| [API 路由索引](/reference/api-routes) | 接口清单 |

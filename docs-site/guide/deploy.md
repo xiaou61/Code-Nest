@@ -387,3 +387,12 @@ jobs:
 11. 后端健康检查返回 `UP`。
 12. AI 配置已通过环境变量注入（`XIAOU_AI_API_KEY` 等）。
 13. go-judge 独立部署并限制资源，不和主后端共享高权限容器。
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [Docker 与服务部署](/operations/docker) | Docker 部署详解 |
+| [环境变量总表](/operations/env-vars) | 配置项说明 |
+| [监控与观测](/operations/monitoring) | 生产监控 |
+| [发布前验证](/guide/release-verification) | 发布检查清单 |

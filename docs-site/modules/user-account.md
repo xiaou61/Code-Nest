@@ -369,3 +369,16 @@ getUserStatistics():
 | 密码修改 | `UserInfoServiceImpl.changePassword` — 旧密码校验+强制重登 |
 | 头像上传 | `UserController.uploadAvatar` — 文件校验+FileStorageService |
 | 管理端 API | `AdminUserController` — CRUD+状态+密码重置+统计 |
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 用户账户依赖公共底座的 Sa-Token 鉴权、密码工具和统一响应 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 用户登录、Token 管理依赖鉴权模块 |
+| [积分与抽奖](/modules/points) | 强依赖 | 用户注册时自动创建积分账户 |
+| [通知中心](/modules/notification) | 强依赖 | 注册欢迎通知、资料变更通知 |
+| [文件存储](/modules/file-storage) | 强依赖 | 用户头像上传和存储 |
+| [社区帖子](/modules/community) | 被依赖 | 用户主页、发帖统计依赖用户信息 |
+| [IM 聊天室](/modules/chat) | 被依赖 | 聊天用户信息展示依赖用户账户 |
+| [系统运营后台](/modules/system-ops) | 被依赖 | 用户管理界面在管理端 |

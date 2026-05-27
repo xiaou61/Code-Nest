@@ -187,3 +187,13 @@ git log --oneline --decorate --grep="docs: update"
 4. 把这句话和关键提交表同步到 [版本历史](/modules/version-history) 或产品版本墙草稿里。
 
 做到这一步，通常就已经比“凭印象写一段更新说明”稳很多了。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [版本公告与交接模板](/guide/version-release-handoff-template) | 版本交接模板 |
+| [版本交付实战样例](/guide/version-release-worked-examples) | 交付样例 |
+| [文档维护规范](/guide/documentation-maintenance) | 文档维护 |
+| [文档同步基线](/reference/docs-sync-baseline) | 版本追踪 |

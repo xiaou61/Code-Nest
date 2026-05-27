@@ -443,3 +443,13 @@ npm run dev
 | `sql/` | 增量版本脚本目录 |
 | `docker/Dockerfile` | 后端 Docker 镜像（两阶段构建） |
 | `docker/env/example.env` | Docker 环境变量示例 |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [快速开始](/guide/quick-start) | 快速搭建指南 |
+| [本地完整启动剧本](/guide/startup-playbook) | 完整启动步骤 |
+| [架构总览](/architecture/overview) | 技术栈说明 |
+| [Docker 与服务部署](/operations/docker) | Docker 环境 |

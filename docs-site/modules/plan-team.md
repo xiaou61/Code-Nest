@@ -1355,3 +1355,15 @@ growth_autopilot_goal (1) ──→ (N) growth_autopilot_task
 | 重排时物理删除 todo | `deleteTodoFromDate` 是 DELETE 不是 UPDATE | 已删除的任务不可恢复，与计划的软删除策略不一致 |
 | 每周投入时长 clamp | 传入 50 → 实际存储 40（MAX_WEEKLY_HOURS） | 前端应做预校验，避免用户困惑 |
 | 提醒去重不完善 | `countByPlanIdAndDate` 只按 planId+date 去重 | 同一计划同一天只生成一组开始+截止提醒，如果手动刷新可能重复 |
+
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 计划打卡模块依赖公共底座的统一响应、分页和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 计划管理和打卡需要用户登录态 |
+| [用户账户与个人中心](/modules/user-account) | 强依赖 | 用户计划数据依赖用户信息 |
+| [积分与抽奖](/modules/points) | 间接关联 | 打卡行为可能触发积分奖励 |
+| [题库与成长闭环](/modules/interview-and-growth) | 强依赖 | 计划打卡与成长闭环紧密关联 |
+| [系统运营后台](/modules/system-ops) | 被依赖 | 计划管理界面在管理端 |

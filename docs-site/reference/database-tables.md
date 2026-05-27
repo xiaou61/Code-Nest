@@ -339,3 +339,13 @@ grep -r "user_points_balance" --include="*.xml" xiaou-*/
 | `xiaou-*/src/main/java/**/domain/` | 实体类目录 |
 | `xiaou-*/src/main/java/**/mapper/` | Mapper 接口目录 |
 | `xiaou-*/src/main/resources/mapper/` | Mapper XML 目录 |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [数据库字段阅读指南](/reference/database-field-guide) | 命名规范和类型说明 |
+| [数据库与脚本](/architecture/database) | 数据库设计和版本管理 |
+| [模块依赖地图](/reference/module-dependencies) | 模块间依赖关系 |
+| [源码地图](/reference/source-map) | Mapper 文件位置 |

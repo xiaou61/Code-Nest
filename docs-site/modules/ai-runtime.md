@@ -615,3 +615,16 @@ parseKeywords(keywordsObj):
 | 社区摘要 | `AiCommunityServiceImpl.java` — chatWithFallback + keywords 双格式 |
 | 场景支撑 | `InterviewSceneSupport.java` / `JobBattleSceneSupport.java` / `SqlOptimizeSceneSupport.java` |
 | 执行支撑 | `AiExecutionSupport.java` — chatWithFallback 通用模式 |
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | AI Runtime 依赖公共底座的 AiProperties、异常体系和并发工具 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | AI 管理接口需要管理员权限（@RequireAdmin） |
+| [题库与成长闭环](/modules/interview-and-growth) | 被依赖 | 模拟面试、求职作战台使用 AI Runtime 进行出题和评价 |
+| [SQL 优化工作台](/modules/sql-optimizer) | 被依赖 | SQL 分析和优化建议依赖 AI Runtime |
+| [社区帖子](/modules/community) | 被依赖 | 帖子 AI 摘要功能依赖 AI Runtime |
+| [系统运营后台](/modules/system-ops) | 被依赖 | AI 配置和治理页面在管理端 |
+| [AI Schema 与治理](/reference/ai-schemas) | 参考 | 结构化输出契约和 Prompt 规范 |
+| [Docker 与服务部署](/operations/docker) | 参考 | RAG sidecar 和 AI 联调 Docker Compose 配置 |

@@ -462,3 +462,15 @@
 | 分享记录 | `ResumeShare.java` — shareCode + expireTime + accessCount(未使用) |
 | 统计记录 | `ResumeAnalytics.java` — view/export/share/uniqueVisitors(未使用) |
 | 模板 | `ResumeTemplate.java` — category + tags(逗号) + techStack(逗号) + rating(预留) |
+
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 简历模块依赖公共底座的统一响应、分页和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 简历创建、编辑和导出需要用户登录态 |
+| [用户账户与个人中心](/modules/user-account) | 强依赖 | 用户简历数据依赖用户信息 |
+| [文件存储](/modules/file-storage) | 强依赖 | 简历导出 PDF 和 Word 依赖文件模块 |
+| [积分与抽奖](/modules/points) | 间接关联 | 简历导出可能消耗积分 |
+| [系统运营后台](/modules/system-ops) | 被依赖 | 简历管理界面在管理端 |

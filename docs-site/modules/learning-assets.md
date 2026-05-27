@@ -524,3 +524,15 @@ else:
 | 转化记录域 | `LearningAssetRecord.java` — sourceHash + summaryText + failReason |
 | 候选域 | `LearningAssetCandidate.java` — dedupeKey + confidenceScore + contentJson |
 | 发布日志域 | `LearningAssetPublishLog.java` — publishType + publishResult + message |
+
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 学习资产模块依赖公共底座的统一响应、分页和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 学习资产创建和管理需要用户登录态 |
+| [用户账户与个人中心](/modules/user-account) | 强依赖 | 用户学习资产依赖用户信息 |
+| [积分与抽奖](/modules/points) | 间接关联 | 学习资产可能触发积分奖励 |
+| [题库与成长闭环](/modules/interview-and-growth) | 强依赖 | 学习资产与成长闭环紧密关联 |
+| [系统运营后台](/modules/system-ops) | 被依赖 | 学习资产管理界面在管理端 |

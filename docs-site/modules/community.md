@@ -393,3 +393,16 @@ hotScore = likeCount * 3.0 + commentCount * 5.0 + collectCount * 8.0 + viewCount
 | 用户封禁 | `CommunityUserStatusServiceImpl.java` — ban/unban + 自动解封 |
 | 帖子域 | `CommunityPost.java` — authorName 冗余 + 四计数 + isTop + aiSummary |
 | 评论域 | `CommunityComment.java` — parentId + replyToId + replyToUserName |
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 社区模块依赖公共底座的统一响应、分页和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 发帖、评论等操作需要用户登录态 |
+| [用户账户与个人中心](/modules/user-account) | 强依赖 | 用户主页、头像、昵称等信息依赖用户账户 |
+| [敏感词风控](/modules/sensitive) | 强依赖 | 发帖和评论必须经过敏感词检测 |
+| [AI Runtime](/modules/ai-runtime) | 可选依赖 | 帖子 AI 摘要功能依赖 AI Runtime |
+| [通知中心](/modules/notification) | 间接依赖 | 点赞、评论等互动触发通知推送 |
+| [积分与抽奖](/modules/points) | 间接依赖 | 社区互动可能触发积分奖励 |
+| [前端渲染安全](/reference/frontend-rendering-security) | 参考 | Markdown 和富文本展示安全规范 |

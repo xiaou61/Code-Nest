@@ -463,3 +463,13 @@ npm run build
 | 文件上传 | 后端构建 + 上传 + `/api/files/**` 访问 |
 | WebSocket | 后端构建 + 用户端构建 + ws-ticket + ACK/失败态 |
 | 安全边界 | 未登录、非管理员、私有文件、XSS、票据复用 |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [发布前验证](/guide/release-verification) | 发布检查清单 |
+| [模块最小回归矩阵](/reference/module-regression-matrix) | 回归测试覆盖 |
+| [功能开发流程](/guide/feature-development) | 开发流程 |
+| [常见二开场景](/guide/extension-scenarios) | 扩展场景 |

@@ -248,3 +248,12 @@ Spring Boot 配置优先级从高到低：
 | `docker/env/example.env` | Docker 运行环境变量模板 |
 
 更多部署细节见 [Docker 与服务部署](/operations/docker) 和 [独立部署](/guide/deploy)。
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [Docker 与服务部署](/operations/docker) | Docker 部署 |
+| [本地完整启动剧本](/guide/startup-playbook) | 本地启动 |
+| [独立部署](/guide/deploy) | 生产部署 |
+| [环境变量总表](/reference/env-vars) | 参考文档版本 |

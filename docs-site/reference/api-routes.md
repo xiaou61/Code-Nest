@@ -543,3 +543,14 @@
 4. 如果接口返回新的错误码或 WebSocket 事件，分别更新 [响应体与错误码](/reference/response-errors) 和 [WebSocket 协议](/reference/websocket)。
 5. 新接口如果引入新的 `@RequireAdmin` 之外的权限模式，同步更新 [权限边界](/reference/permission-boundaries)。
 6. 分页接口确保使用统一的 `PageResult` 返回结构，`pageNum` 从 1 开始。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [API 调用示例](/reference/api-examples) | 实际调用示例 |
+| [响应体与错误码](/reference/response-errors) | 统一返回格式和错误码 |
+| [前端路由索引](/reference/frontend-routes) | 前端页面路由表 |
+| [权限注解与角色边界索引](/reference/permission-boundaries) | 接口权限说明 |
+| [模块总览](/modules/) | 各模块的接口分组详情 |

@@ -292,3 +292,13 @@ public boolean publish(Long id) {
 | 安全 | `v-html`、文件公开、接口放行、管理权限已检查 |
 | 验证 | 构建、接口、页面、失败态至少跑过最低集合 |
 | 文档 | 模块页、索引、验证记录和路线图已同步 |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [功能开发流程](/guide/feature-development) | 开发流程 |
+| [测试与回归](/guide/testing-regression) | 测试策略 |
+| [API 路由索引](/reference/api-routes) | 接口清单 |
+| [模块总览](/modules/) | 各模块功能 |

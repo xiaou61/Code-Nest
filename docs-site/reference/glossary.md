@@ -275,3 +275,13 @@
 | Service | 业务服务层 | 核心业务逻辑，见 `service/impl/` 目录 |
 | Controller | 控制器层 | HTTP 入口，见 `controller/` 目录 |
 | AOP | Aspect-Oriented Programming | 切面编程，`AdminAuthAspect` 和 `@Log` 是例子 |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [模块总览](/modules/) | 各模块功能说明 |
+| [架构总览](/architecture/overview) | 技术栈说明 |
+| [数据库字段阅读指南](/reference/database-field-guide) | 字段命名规范 |
+| [源码地图](/reference/source-map) | 代码位置索引 |

@@ -310,3 +310,13 @@ likeCount * 2 + commentCount * 3 + viewCount * 0.1
 4. 然后看对应模块页，把具体口径和第一证据补进去。
 5. 最后回到 [文档同步基线](/reference/docs-sync-baseline)，确认你看的到底是不是最新文档。
 6. 如果数值不一致是因为重复提交、失败回滚或副作用漏写，再看 [幂等、回滚与补偿索引](/reference/idempotency-rollbacks-compensation)。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [积分与抽奖](/modules/points) | 积分统计 |
+| [OJ 判题系统](/modules/oj) | 排行榜实现 |
+| [社区帖子](/modules/community) | 帖子热度计算 |
+| [数据表索引](/reference/database-tables) | 统计相关表 |

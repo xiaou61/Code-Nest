@@ -208,6 +208,16 @@ RuntimeException
 | `SYSTEM_VERSION` 与实际版本不符 | 常量过时 | 使用 README 或 pom.xml 中的版本号，不要依赖此常量 |
 | `isExpired(null)` 返回 false | 设计如此 | 如果业务期望"无过期时间 = 永不过期"，这是正确的 |
 
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 公共底座提供 Sa-Token 双端鉴权基础设施 |
+| [用户账户与个人中心](/modules/user-account) | 被依赖 | 用户上下文查询依赖用户账户数据 |
+| [敏感词风控](/modules/sensitive) | 被依赖 | 敏感词检测使用公共底座的并发工具 |
+| [通知中心](/modules/notification) | 被依赖 | 通知未读数缓存使用 RedisUtil |
+| [系统运营后台](/modules/system-ops) | 被依赖 | 操作日志和权限注解由公共底座提供 |
+
 ---
 
 ## 公共底座模块深度拆解

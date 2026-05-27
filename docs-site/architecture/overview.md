@@ -406,3 +406,15 @@ curl -s $XIAOU_AI_BASE_URL/models -H "Authorization: Bearer $XIAOU_AI_API_KEY"
 | `xiaou-common/.../exception/GlobalExceptionHandler.java` | 全局异常处理 |
 | `xiaou-user-api/.../UserInfoApiService.java` | 跨模块用户信息接口 |
 | `xiaou-sensitive-api/.../SensitiveCheckService.java` | 跨模块敏感词检测接口 |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [后端模块](/architecture/backend-modules) | 后端 Maven 子模块详解 |
+| [前端应用](/architecture/frontend-apps) | 用户端和管理端架构 |
+| [数据库与脚本](/architecture/database) | 数据库设计和版本管理 |
+| [源码地图](/reference/source-map) | 全项目代码索引 |
+| [模块依赖地图](/reference/module-dependencies) | 模块间依赖关系 |
+| [快速开始](/guide/quick-start) | 本地环境搭建 |

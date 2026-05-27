@@ -162,3 +162,13 @@
 4. 然后看 [异常路径与失败态索引](/reference/failure-paths)，把失败证据和回查入口补齐。
 5. 最后回到具体模块页，按模块自己的事务、幂等、补偿规则写验证清单。
 
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [积分与抽奖](/modules/points) | 库存回滚示例 |
+| [响应体与错误码](/reference/response-errors) | 错误码定义 |
+| [幂等、回滚与补偿索引](/reference/idempotency-rollbacks-compensation) | 完整索引 |
+| [模块状态机与生命周期索引](/reference/module-state-machines) | 状态管理 |

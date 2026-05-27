@@ -531,3 +531,13 @@ curl -X POST http://localhost:9999/api/admin/points/grant \
 | [核心链路教程](/manuals/core-workflows) | 看完整业务链路操作步骤 |
 | [用户端操作手册](/manuals/user-operations) | 知用户端接口和错误码 |
 | [管理端操作手册](/manuals/admin-operations) | 知管理端接口和验证步骤 |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [监控与观测](/operations/monitoring) | 监控配置 |
+| [告警 Runbook](/operations/alert-runbooks) | 告警处理 |
+| [问题定位流程](/operations/diagnosis-flow) | 问题排查 |
+| [常见问题排查](/operations/troubleshooting) | 常见问题 |

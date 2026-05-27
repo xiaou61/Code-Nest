@@ -5,7 +5,7 @@
 1. **Git 演进视角**：项目真实是怎么从 `v1.8.x`、`v2.0.x` 一路演进到 `v2.2.x` 的。
 2. **产品内版本墙视角**：后台 `/system/version` 和用户端 `/version-history` 这套功能本身是怎么实现、怎么发布、怎么维护的。
 
-如果你只是想给用户写一条版本公告，看下面的“产品内版本墙”部分就够了。  
+如果你只是想给用户写一条版本公告，看下面的“产品内版本墙”部分就够了。
 如果你想回答“这个仓库最近几版到底做了什么、哪些是大版本、哪些只是补强批次”，先看下面的 Git 演进视角。
 
 ## 推荐学习顺序
@@ -526,3 +526,13 @@ ORDER BY sort_order DESC, release_time DESC, created_time DESC
 | 管理端接口 | `VersionHistoryAdminController.java` — list/create/update/delete/publish/hide/batch |
 | 数据模型 | `VersionHistory.java` — 15 字段实体 |
 | SQL | `VersionHistoryMapper.xml` — 管理端/用户端分离查询条件 |
+
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 版本历史模块依赖公共底座的统一响应和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 间接依赖 | 版本查看可能需要用户登录态 |
+| [工具、摸鱼与版本](/modules/tools-moyu-version) | 强依赖 | 版本历史与工具模块紧密关联 |
+| [系统运营后台](/modules/system-ops) | 被依赖 | 版本管理界面在管理端 |

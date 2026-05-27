@@ -265,3 +265,13 @@ if (!plan.getUserId().equals(userId)) {
 | 用户上下文 | `xiaou-common/src/main/java/com/xiaou/common/satoken/SaTokenUserUtil.java` |
 | 权限接口实现 | `xiaou-common/src/main/java/com/xiaou/common/satoken/StpInterfaceImpl.java` |
 | Sa-Token 配置 | `xiaou-common/src/main/java/com/xiaou/common/config/SaTokenConfig.java` |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [鉴权与用户体系](/modules/auth) | Sa-Token 双端鉴权详解 |
+| [公共底座](/modules/common) | @RequireAdmin 注解实现 |
+| [响应体与错误码](/reference/response-errors) | 权限错误码定义 |
+| [权限与安全边界](/guide/security-boundaries) | 安全设计原则 |

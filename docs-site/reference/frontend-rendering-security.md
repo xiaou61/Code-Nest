@@ -233,3 +233,13 @@ JSON 高亮、文本 Diff、RAG 命中高亮这类功能会拼接 `span` 或 `ma
 | 外链 Markdown | 新窗口打开，并带 `noopener noreferrer` |
 | 新增 `v-html` | 能在源码中看到 `renderMarkdown`、`sanitizeHtml` 或显式 `escapeHtml` |
 | 用户端和管理端同时新增标签 | 两端的 `sanitizeOptions` 保持一致 |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [前端路由索引](/reference/frontend-routes) | 前端页面路由 |
+| [前端应用](/architecture/frontend-apps) | 前端架构设计 |
+| [权限与安全边界](/guide/security-boundaries) | 安全设计原则 |
+| [社区帖子](/modules/community) | Markdown 渲染场景 |

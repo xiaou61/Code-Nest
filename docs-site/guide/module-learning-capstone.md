@@ -346,3 +346,13 @@ session、qa、candidate、publish_log 等相关表写入记录
 如果你是按周期带新人，可以直接把这页接到 [带教执行剧本](/guide/onboarding-execution-playbook) 里使用。
 
 如果结业案例已经做完，并且开始进入真实任务阶段，下一步最适合接 [模块接手升级路线](/guide/module-ownership-ladder)。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [模块学习任务模板](/guide/module-learning-workbook) | 学习任务 |
+| [模块学习评审表](/guide/module-learning-rubric) | 评审标准 |
+| [按模块学习路线](/guide/module-learning-paths) | 学习路线 |
+| [模块总览](/modules/) | 各模块功能 |

@@ -290,3 +290,13 @@ README 里对应段落明确写的是：
 3. 再回到 [版本公告与发版交接模板](/guide/version-release-handoff-template) 做最终裁剪。
 
 如果你做到这一步，后面的版本说明基本就不会再写成“优化若干问题”那种空话了。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [版本公告与交接模板](/guide/version-release-handoff-template) | 交接模板 |
+| [Git Log 版更新记录](/guide/git-log-release-notes) | 更新日志 |
+| [发布前验证](/guide/release-verification) | 发布检查 |
+| [功能开发流程](/guide/feature-development) | 开发流程 |

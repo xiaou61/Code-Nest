@@ -589,3 +589,13 @@ AI 模块的 Schema 验证链路：
 | `xiaou-ai/.../graph/interview/InterviewState.java` | 面试状态机 |
 | `xiaou-ai/.../graph/jobbattle/JobBattleState.java` | 求职状态机 |
 | `xiaou-ai/.../graph/sql/SqlOptimizeState.java` | SQL 优化状态机 |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [AI Runtime](/modules/ai-runtime) | AI 治理底座详解 |
+| [模拟面试与求职作战台](/modules/mock-interview-job-battle) | AI 场景示例 |
+| [SQL 优化工作台](/modules/sql-optimizer) | AI 场景示例 |
+| [模块状态机与生命周期索引](/reference/module-state-machines) | AI 状态管理 |

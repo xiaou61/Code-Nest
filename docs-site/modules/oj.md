@@ -561,3 +561,15 @@ getDailyProblem():
 | 判题配置 | `OjJudgeProperties.java` + `OjConfig.java` — goJudgeUrl + RestTemplate |
 | 提交状态枚举 | `SubmissionStatus.java` — 9 种状态 + of() 默认 SYSTEM_ERROR |
 | 语言枚举 | `JudgeLanguage.java` — 6 种语言 + needCompile() |
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | OJ 模块依赖公共底座的统一响应、并发工具和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 提交代码、参加赛事需要用户登录态 |
+| [积分与抽奖](/modules/points) | 强依赖 | 首次 AC 题目会触发积分发放（PointsType.OJ_AC） |
+| [用户账户与个人中心](/modules/user-account) | 被依赖 | 用户刷题统计、排行榜依赖用户信息 |
+| [社区帖子](/modules/community) | 间接关联 | OJ 题解和评论系统与社区模块类似 |
+| [Docker 与服务部署](/operations/docker) | 参考 | go-judge 沙箱部署配置 |
+| [前端渲染安全](/reference/frontend-rendering-security) | 参考 | 代码展示和题解内容安全规范 |

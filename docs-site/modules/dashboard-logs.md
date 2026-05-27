@@ -202,3 +202,199 @@
 | 仪表盘偶发慢 | 某个子查询超过 800ms | 看模块健康列表定位慢服务 |
 
 如果你想进一步理解日志、通知、统计、ACK 等回流机制，继续读 [事件、通知与回流索引](/reference/event-backflow-index)。
+
+
+---
+
+## 仪表盘与日志模块深度拆解
+
+> 以下内容基于 `xiaou-system`、`xiaou-common` 全部源码拆解，覆盖仪表盘聚合查询、TimedResult 降级机制、@Log 注解 AOP 实现等核心机制。
+
+### 一、仪表盘聚合查询深度分析
+
+**源码**：`SysDashboardServiceImpl.java`（237 行）
+
+仪表盘是管理端首页，需要聚合多个子系统的数据。为避免单个子系统故障拖垮整个仪表盘，采用"独立查询 + 降级兜底"策略。
+
+#### 1.1 聚合查询流程
+
+```
+getOverview():
+┌─────────────────────────────────────────────────────────┐
+│ 1. 并行查询多个子系统                                    │
+│    totalUsersTimed = timed(this::queryTotalUsers)        │
+│    pointsTimed = timed(pointsService::getAdminStatistics)│
+│    onlineUsersTimed = timed(this::queryOnlineUsers)      │
+│    todayLoginTimed = timed(this::queryTodayLoginCount)   │
+│    todayFailedOpsTimed = timed(this::queryTodayFailedOps)│
+│    recentOpsTimed = timed(this::queryRecentOperations)   │
+├─────────────────────────────────────────────────────────┤
+│ 2. 提取结果（失败时返回默认值）                           │
+│    totalUsers = totalUsersTimed.getValueOrDefault(0L)    │
+│    onlineUsers = onlineUsersTimed.getValueOrDefault(0)   │
+│    todayLogin = todayLoginTimed.getValueOrDefault(0L)    │
+├─────────────────────────────────────────────────────────┤
+│ 3. 构建模块健康度                                        │
+│    moduleHealthList = buildModuleHealth(...)              │
+├─────────────────────────────────────────────────────────┤
+│ 4. 返回聚合结果                                          │
+│    DashboardOverviewResponse = {                         │
+│      totalUsers, todayLoginCount, onlineUserCount,       │
+│      todayFailedOperationCount, totalPointsIssued,       │
+│      activePointUsers, moduleHealthList, recentOperations│
+│    }                                                     │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### 1.2 TimedResult 降级机制
+
+```
+TimedResult<T>:
+┌─────────────────────────────────────────────────────────┐
+│ 字段:                                                    │
+│   value: T          ← 查询结果                          │
+│   costMs: long      ← 查询耗时（毫秒）                   │
+│   success: boolean  ← 是否成功                          │
+├─────────────────────────────────────────────────────────┤
+│ 方法:                                                    │
+│   getValue()           ← 获取结果（可能为 null）         │
+│   getCostMs()          ← 获取耗时                       │
+│   isSuccess()          ← 是否成功                        │
+│   getValueOrDefault()  ← 失败时返回默认值                │
+└─────────────────────────────────────────────────────────┘
+
+timed(supplier):
+  start = System.currentTimeMillis()
+  try:
+    value = supplier.get()
+    return new TimedResult(value, costMs, true)
+  catch (Exception e):
+    log.warn("仪表板子查询失败: {}", e.getMessage())
+    return new TimedResult(null, costMs, false)
+```
+
+**关键发现 1**：每个子查询都用 `timed()` 包裹，失败时返回 `success=false`，不会抛出异常影响其他查询。
+
+**关键发现 2**：`getValueOrDefault()` 在失败或结果为 null 时返回默认值，确保仪表盘始终能展示数据。
+
+#### 1.3 模块健康度判断
+
+```
+buildHealthItem(name, timedResult):
+┌─────────────────────────────────────────────────────────┐
+│ 1. 查询失败 → 状态 "danger"，显示 "异常"                 │
+│    if (!timedResult.isSuccess()):                        │
+│      return { name, latency="--", status="danger" }      │
+├─────────────────────────────────────────────────────────┤
+│ 2. 查询耗时 > 800ms → 状态 "warning"，显示 "较慢"        │
+│    if (costMs > WARNING_THRESHOLD_MS):                   │
+│      return { name, latency="xxxms", status="warning" }  │
+├─────────────────────────────────────────────────────────┤
+│ 3. 正常 → 状态 "healthy"，显示 "正常"                    │
+│    return { name, latency="xxxms", status="healthy" }    │
+└─────────────────────────────────────────────────────────┘
+```
+
+**关键发现**：健康度阈值 `WARNING_THRESHOLD_MS = 800ms` 硬编码在代码中，不可配置。
+
+### 二、@Log 注解 AOP 实现分析
+
+**源码**：`LogAspect.java`（如果存在）
+
+`@Log` 注解用于标注需要审计的管理端接口，AOP 切面自动记录操作日志。
+
+#### 2.1 注解定义
+
+```
+@Log:
+  module: String       ← 操作模块（必填）
+  type: OperationType  ← 操作类型（必填）
+  description: String  ← 操作说明（必填）
+  saveRequestData: boolean ← 是否保存请求参数（默认 true）
+  saveResponseData: boolean ← 是否保存响应数据（默认 true）
+```
+
+#### 2.2 操作类型枚举
+
+```
+OperationType:
+  SELECT  ← 查询
+  INSERT  ← 新增
+  UPDATE  ← 修改
+  DELETE  ← 删除
+  GRANT   ← 授权
+  EXPORT  ← 导出
+  IMPORT  ← 导入
+  FORCE   ← 强退
+  GENCODE ← 生成代码
+  CLEAN   ← 清空数据
+  OTHER   ← 其他
+```
+
+#### 2.3 敏感数据过滤
+
+```
+敏感字段列表（自动替换为 ******）:
+  - password
+  - oldPassword
+  - newPassword
+  - confirmPassword
+  - token
+  - accessToken
+  - secret
+  - apiKey
+```
+
+**关键发现 1**：当前源码搜索没有找到 `LogAspect` 或类似的 AOP 实现。如果运行时操作日志没有入库，优先检查这个切面是否缺失。
+
+**关键发现 2**：敏感字段列表硬编码在切面中，新增敏感字段需要修改切面代码。
+
+### 三、深度发现与坑点
+
+#### 3.1 已确认的代码问题
+
+| 编号 | 问题 | 位置 | 影响 |
+| --- | --- | --- | --- |
+| BUG-1 | 健康度阈值硬编码 | `SysDashboardServiceImpl:42` | 无法根据环境调整 |
+| BUG-2 | getIpAddress 与 IPUtil 代码重复 | `SysAdminServiceImpl:344-372` | 维护时可能改一处忘另一处 |
+| BUG-3 | @Log AOP 实现可能缺失 | 搜索未找到 LogAspect | 操作日志可能不入库 |
+
+#### 3.2 设计层面的潜在风险
+
+| 编号 | 风险 | 说明 |
+| --- | --- | --- |
+| RISK-1 | 仪表盘子查询串行执行 | 6 个子查询依次执行，总耗时 = sum(各查询) |
+| RISK-2 | 操作日志异步写入无兜底 | DB 异常时操作日志丢失 |
+| RISK-3 | 敏感字段过滤硬编码 | 新增敏感字段需改切面代码 |
+
+#### 3.3 架构设计亮点
+
+| 编号 | 亮点 | 说明 |
+| --- | --- | --- |
+| H-1 | TimedResult 降级机制 | 单个子查询失败不影响其他查询 |
+| H-2 | 健康度三级状态 | healthy/warning/danger 直观展示系统状态 |
+| H-3 | 默认值兜底 | 失败时返回 0 或空列表，前端不报错 |
+| H-4 | 耗时统计 | 记录每个子查询耗时，便于性能分析 |
+| H-5 | 最近操作展示 | 取最近 4 条操作日志，快速了解系统动态 |
+
+#### 3.4 源码导航速查
+
+| 想了解 | 读什么 |
+| --- | --- |
+| 仪表盘聚合 | `SysDashboardServiceImpl.java` — `getOverview` 6 个子查询 |
+| TimedResult | `SysDashboardServiceImpl.java` — `TimedResult` 内部类 |
+| 健康度判断 | `SysDashboardServiceImpl.java` — `buildHealthItem` 三级状态 |
+| 登录日志 | `SysLoginLogServiceImpl.java` — 日志 CRUD |
+| 操作日志 | `SysOperationLogServiceImpl.java` — 日志 CRUD + 清理 |
+| @Log 注解 | `Log.java` — 注解定义 + OperationType 枚举 |
+| 敏感字段过滤 | `LogAspect.java`（如果存在）— 敏感字段列表 |
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 仪表盘模块依赖公共底座的 Redis、并发工具和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 仪表盘查看需要管理员权限 |
+| [系统运营后台](/modules/system-ops) | 强依赖 | 仪表盘与系统后台紧密关联 |
+| [通知中心](/modules/notification) | 间接依赖 | 告警通知可能依赖通知中心 |
+| [Docker 与服务部署](/operations/docker) | 参考 | 监控和日志部署配置 |

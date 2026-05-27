@@ -161,3 +161,13 @@
 如果你现在就要给新人分配具体任务，可以直接打开 [首单任务题库](/guide/first-task-backlog) 挑一题。
 
 如果首单已经顺利做完，下一步不要只凭感觉决定“能不能接模块”，建议直接接着看 [模块接手升级路线](/guide/module-ownership-ladder)。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [首单任务题库](/guide/first-task-backlog) | 任务题库 |
+| [功能开发流程](/guide/feature-development) | 开发流程 |
+| [本地开发](/guide/local-dev) | 开发环境 |
+| [模块总览](/modules/) | 各模块功能 |

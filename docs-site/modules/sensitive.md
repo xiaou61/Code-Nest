@@ -554,3 +554,15 @@ syncSource(sourceId):
 | 来源同步 | `SensitiveSourceServiceImpl.java` — @Transactional + HTTP + Base64 + GitHub |
 | 统计服务 | `SensitiveStatisticsServiceImpl.java` — 估算数字 + 违规限制 + CSV 导出 |
 | 跨模块 API | `SensitiveCheckService.java` (xiaou-sensitive-api) — 检测接口定义 |
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 敏感词模块依赖公共底座的并发工具、Redis 和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 管理端词库管理需要管理员权限 |
+| [社区帖子](/modules/community) | 被依赖 | 发帖和评论必须经过敏感词检测 |
+| [动态广场](/modules/moments) | 被依赖 | 动态发布需要敏感词检测 |
+| [博客](/modules/blog) | 被依赖 | 博客文章发布需要敏感词检测 |
+| [IM 聊天室](/modules/chat) | 被依赖 | 聊天消息需要敏感词检测 |
+| [系统运营后台](/modules/system-ops) | 被依赖 | 敏感词管理界面在管理端 |

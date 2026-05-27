@@ -368,3 +368,13 @@ export function getProfile() {
 2. 本页的代表性调用示例。
 3. 响应体与错误码里的新增错误。
 4. 模块页里的业务流程和验证清单。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [API 路由索引](/reference/api-routes) | 完整接口清单 |
+| [响应体与错误码](/reference/response-errors) | 返回格式说明 |
+| [鉴权与用户体系](/modules/auth) | Token 获取方式 |
+| [本地开发](/guide/local-dev) | 开发环境配置 |

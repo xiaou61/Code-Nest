@@ -444,3 +444,13 @@ curl -X POST http://localhost:9999/api/user/notification/read/xxx \
 如果这次改动会影响通知、排行、积分或日志回流，也建议先对照 [事件、通知与回流索引](/reference/event-backflow-index) 确认副作用。
 
 更多排查流程见 [常见问题排查](/operations/troubleshooting) 和 [问题定位流程](/operations/diagnosis-flow)。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [端到端业务链路图](/manuals/business-flow-map) | 业务链路图 |
+| [用户端操作手册](/manuals/user-operations) | 用户端操作 |
+| [管理端操作手册](/manuals/admin-operations) | 管理端操作 |
+| [验证记录与已知问题](/manuals/verified-scenarios) | 验证记录 |

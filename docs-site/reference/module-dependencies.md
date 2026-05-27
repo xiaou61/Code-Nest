@@ -167,3 +167,13 @@ Code Nest 的依赖关系可以按四层理解：
 未验证项及原因：
 ```
 
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [模块总览](/modules/) | 各模块功能说明 |
+| [架构总览](/architecture/overview) | 整体架构设计 |
+| [后端模块](/architecture/backend-modules) | Maven 子模块结构 |
+| [源码地图](/reference/source-map) | 全项目代码索引 |

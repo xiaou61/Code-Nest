@@ -599,3 +599,12 @@ docker compose -f docker/ai/docker-compose.yml up -d --build
 3. 严重问题按 [事故响应流程](/operations/incident-response) 处理
 
 更多排查流程见 [问题定位流程](/operations/diagnosis-flow) 和 [告警 Runbook](/operations/alert-runbooks)。
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [问题定位流程](/operations/diagnosis-flow) | 排查流程 |
+| [监控与观测](/operations/monitoring) | 监控配置 |
+| [告警 Runbook](/operations/alert-runbooks) | 告警处理 |
+| [事故响应](/operations/incident-response) | 事故处理 |

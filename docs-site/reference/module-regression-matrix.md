@@ -155,3 +155,13 @@ curl ${ADMIN_FRONT_HOST}/api/actuator/health
 ```
 
 这样别人接你的结论时，知道哪些是真的验证过，哪些只是这次还没覆盖。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [测试与回归](/guide/testing-regression) | 测试策略 |
+| [发布前验证](/guide/release-verification) | 发布检查清单 |
+| [全功能覆盖矩阵](/reference/feature-coverage) | 功能覆盖 |
+| [模块状态机与生命周期索引](/reference/module-state-machines) | 状态管理 |

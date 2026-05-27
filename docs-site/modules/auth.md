@@ -270,3 +270,284 @@ Authorization: Bearer &lt;token&gt;
 | 登录失败 | 管理端写入 `sys_login_log` |
 | Token 自动刷新（管理端） | 30 分钟内请求自动续期 |
 | 跨 Tab 登出广播（管理端） | 一个 Tab 登出，其他 Tab 同步清理 |
+
+---
+
+## 鉴权模块深度拆解
+
+> 以下内容基于 `xiaou-common`、`xiaou-system`、`vue3-admin-front` 全部鉴权相关源码拆解，覆盖 Sa-Token 双端鉴权、Token 生命周期管理、跨 Tab 登出广播、请求拦截器、权限验证切面等核心机制。
+
+### 一、双端鉴权架构深度分析
+
+**源码**：`SaTokenConfig.java`（63 行）、`StpAdminUtil.java`、`StpUserUtil.java`
+
+Code Nest 使用 Sa-Token 实现双端鉴权，核心是两个独立的 `StpLogic` 实例，分别管理管理端和用户端的登录态。
+
+#### 1.1 双端隔离设计
+
+```
+StpAdminUtil (loginType = "admin"):
+  - Token 名称: adminToken
+  - Redis 命名空间: satoken:admin:*
+  - Session 存储: StpAdminUtil.set("userInfo", admin)
+  - 登录方法: StpAdminUtil.login(adminId)
+
+StpUserUtil (loginType = "user"):
+  - Token 名称: userToken
+  - Redis 命名空间: satoken:user:*
+  - Session 存储: StpUserUtil.set("userInfo", user)
+  - 登录方法: StpUserUtil.login(userId)
+```
+
+**关键发现 1**：两端 Token 完全隔离，用户端 Token 不能访问管理端接口，反之亦然。即使 Token 值相同，Sa-Token 也会根据 `loginType` 区分命名空间。
+
+**关键发现 2**：Sa-Token 使用独立 Redis 连接池（`sa-token-alone-redis` + Jedis），不影响业务 Redisson 配置。
+
+#### 1.2 拦截器配置
+
+```
+SaTokenConfig.addInterceptors():
+┌─────────────────────────────────────────────────────────┐
+│ 1. 管理端路由拦截                                         │
+│    SaRouter.match("/auth/**")                            │
+│      .notMatch("/auth/login", "/auth/register", "/auth/refresh")│
+│      .check(r -> StpAdminUtil.checkLogin())              │
+├─────────────────────────────────────────────────────────┤
+│ 2. 用户端路由拦截                                         │
+│    SaRouter.match("/user/**")                            │
+│      .notMatch("/user/auth/login", "/user/auth/register", "/user/auth/refresh")│
+│      .notMatch("/user/auth/check-username", "/user/auth/check-email")│
+│      .check(r -> StpUserUtil.checkLogin())               │
+├─────────────────────────────────────────────────────────┤
+│ 3. 放行规则                                               │
+│    /captcha/** → 验证码接口，无需认证                      │
+│    /v3/api-docs/** → Swagger API 文档                    │
+│    /swagger-ui/** → Swagger UI                           │
+│    /error → Spring Boot 错误页                           │
+└─────────────────────────────────────────────────────────┘
+```
+
+**关键发现**：项目不使用 `@SaIgnore` 注解，所有放行通过 `SaTokenConfig` 的 `SaRouter.notMatch()` 和 `excludePathPatterns` 配置实现。新增放行路径时必须修改 `SaTokenConfig`。
+
+### 二、Token 生命周期管理
+
+**源码**：`SysAdminServiceImpl.java`（447 行）、`vue3-admin-front/src/stores/user.js`（263 行）
+
+#### 2.1 管理端登录流程
+
+```
+SysAdminServiceImpl.login(request):
+┌─────────────────────────────────────────────────────────┐
+│ 1. 获取请求信息                                          │
+│    ip = getIpAddress(request)                            │
+│    userAgent = request.getHeader("User-Agent")           │
+├─────────────────────────────────────────────────────────┤
+│ 2. 创建登录日志                                          │
+│    SysLoginLog = { username, loginIp, browser, os, loginTime }│
+├─────────────────────────────────────────────────────────┤
+│ 3. 验证用户存在性                                        │
+│    admin = adminMapper.selectByUsername(username)         │
+│    if (admin == null) → 记录日志，抛出 LOGIN_FAILED      │
+├─────────────────────────────────────────────────────────┤
+│ 4. 验证用户状态                                          │
+│    if (admin.status == 1) → 记录日志，抛出 ACCOUNT_DISABLED│
+├─────────────────────────────────────────────────────────┤
+│ 5. 验证密码                                              │
+│    if (!PasswordUtil.matches(password, admin.password))  │
+│      → 记录日志，抛出 LOGIN_FAILED                       │
+├─────────────────────────────────────────────────────────┤
+│ 6. Sa-Token 登录                                         │
+│    StpAdminUtil.login(admin.getId())                     │
+│    StpAdminUtil.set("userInfo", admin)                   │
+│    StpAdminUtil.set("username", admin.username)          │
+├─────────────────────────────────────────────────────────┤
+│ 7. 更新登录信息                                          │
+│    admin.setLastLoginTime(now)                           │
+│    admin.setLastLoginIp(ip)                              │
+│    admin.setLoginCount(loginCount + 1)                   │
+├─────────────────────────────────────────────────────────┤
+│ 8. 记录登录成功日志                                      │
+│    loginLog.setLoginStatus(0)                            │
+│    loginLog.setLoginMessage("登录成功")                  │
+├─────────────────────────────────────────────────────────┤
+│ 9. 构建响应                                              │
+│    LoginResponse = {                                     │
+│      accessToken: StpAdminUtil.getTokenValue(),          │
+│      refreshToken: accessToken, // Sa-Token 使用相同 Token│
+│      expiresIn: 604800L, // 7天                         │
+│      userInfo: { id, username, realName, email, avatar, roles, permissions }│
+│    }                                                     │
+└─────────────────────────────────────────────────────────┘
+```
+
+**关键发现 1**：登录失败时统一返回"用户名或密码错误"，不暴露用户是否存在，防止用户枚举攻击。
+
+**关键发现 2**：Sa-Token 的 `refreshToken` 与 `accessToken` 相同，刷新时直接返回当前 Token。
+
+#### 2.2 前端 Token 存储与刷新
+
+```
+vue3-admin-front/src/stores/user.js:
+
+Token 存储:
+  - Cookie: token（7 天过期）
+  - localStorage: tokenExpireTime（过期时间）
+  - localStorage: userInfo（用户信息）
+
+Token 刷新逻辑:
+  1. 每次请求前检查 isTokenExpiringSoon（30 分钟内过期）
+  2. 如果即将过期，调用 refreshToken()
+  3. 刷新失败则登出用户
+
+跨 Tab 登出广播:
+  1. 登录/登出时调用 broadcastAuthEvent('login'/'logout')
+  2. 使用 CustomEvent 广播到同源其他 Tab
+  3. 其他 Tab 监听 authStateChange 事件
+  4. 收到 logout 事件时清除本地数据并跳转登录页
+```
+
+**关键发现 1**：Token 过期时间存储在 localStorage，页面刷新时会检查是否已过期。
+
+**关键发现 2**：跨 Tab 登出使用 `CustomEvent` 而不是 `BroadcastChannel`，兼容性更好（支持 IE）。
+
+**关键发现 3**：事件监听有 1 秒防抖，防止事件循环触发。
+
+### 三、请求拦截器深度分析
+
+**源码**：`vue3-admin-front/src/utils/request.js`（202 行）
+
+#### 3.1 请求拦截器
+
+```
+service.interceptors.request.use(config):
+┌─────────────────────────────────────────────────────────┐
+│ 1. 开启进度条                                            │
+│    NProgress.start()                                     │
+├─────────────────────────────────────────────────────────┤
+│ 2. 获取 Token                                            │
+│    userStore = useUserStore()                            │
+│    token = userStore.token                               │
+├─────────────────────────────────────────────────────────┤
+│ 3. 添加请求头                                            │
+│    if (token):                                           │
+│      config.headers.Authorization = `Bearer ${token}`    │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### 3.2 响应拦截器
+
+```
+service.interceptors.response.use(response):
+┌─────────────────────────────────────────────────────────┐
+│ 1. HTTP 状态码检查                                       │
+│    if (status !== 200): 抛出错误                         │
+├─────────────────────────────────────────────────────────┤
+│ 2. 业务状态码检查                                        │
+│    code === 200 → 返回 data                              │
+│    code === 701/702 → handleTokenError()                 │
+│    code === 703 → 权限不足提示                           │
+│    code === 704 → 账户禁用，登出                         │
+│    其他 → 错误提示                                       │
+├─────────────────────────────────────────────────────────┤
+│ 3. Token 错误处理                                        │
+│    handleTokenError(message):                            │
+│      - 防重复弹窗（isHandlingTokenExpired 标记）          │
+│      - ElMessageBox.alert 提示用户                       │
+│      - 确认后调用 handleLogout()                         │
+│      - 跳转到登录页                                      │
+└─────────────────────────────────────────────────────────┘
+```
+
+**关键发现 1**：Token 错误（701/702）会弹出模态框，用户确认后才跳转登录页，而不是直接跳转。
+
+**关键发现 2**：使用 `isHandlingTokenExpired` 标记防止重复弹窗，多个请求同时失败时只弹一次。
+
+### 四、权限验证切面深度分析
+
+**源码**：`AdminAuthAspect.java`（80 行）
+
+#### 4.1 @RequireAdmin 切面实现
+
+```
+AdminAuthAspect.around(joinPoint):
+┌─────────────────────────────────────────────────────────┐
+│ 1. 获取注解信息                                          │
+│    method = signature.getMethod()                        │
+│    requireAdmin = method.getAnnotation(RequireAdmin.class)│
+├─────────────────────────────────────────────────────────┤
+│ 2. Sa-Token 检查登录                                     │
+│    StpAdminUtil.checkLogin()                             │
+│    → 未登录抛出 NotLoginException                        │
+├─────────────────────────────────────────────────────────┤
+│ 3. Sa-Token 检查角色                                     │
+│    StpAdminUtil.checkRole("admin")                       │
+│    → 无角色抛出 NotRoleException                         │
+├─────────────────────────────────────────────────────────┤
+│ 4. 获取管理员 ID（用于日志）                              │
+│    adminId = StpAdminUtil.getLoginIdAsLong()             │
+├─────────────────────────────────────────────────────────┤
+│ 5. 执行目标方法                                          │
+│    return joinPoint.proceed()                            │
+├─────────────────────────────────────────────────────────┤
+│ 6. 异常处理                                              │
+│    NotLoginException → "请先登录"                        │
+│    NotRoleException → requireAdmin.message()             │
+│    BusinessException → 直接抛出                          │
+│    Exception → "权限验证失败"                             │
+└─────────────────────────────────────────────────────────┘
+```
+
+**关键发现 1**：`@RequireAdmin` 只检查登录态和 `admin` 角色，不检查具体权限码。细粒度权限由前端菜单控制。
+
+**关键发现 2**：切面使用 `@Around` 而不是 `@Before`，可以在方法执行前后做更多处理。
+
+### 五、深度发现与坑点
+
+#### 5.1 已确认的代码问题
+
+| 编号 | 问题 | 位置 | 影响 |
+| --- | --- | --- | --- |
+| BUG-1 | refreshToken 与 accessToken 相同 | `SysAdminServiceImpl:129` | 刷新 Token 实际上没有生成新 Token |
+| BUG-2 | getIpAddress 与 IPUtil 代码重复 | `SysAdminServiceImpl:344-372` | 维护时可能改一处忘另一处 |
+| BUG-3 | 用户端权限始终返回空 | `StpInterfaceImpl.getPermissionList` | 用户端无法使用 RBAC |
+
+#### 5.2 设计层面的潜在风险
+
+| 编号 | 风险 | 说明 |
+| --- | --- | --- |
+| RISK-1 | X-Forwarded-For 可伪造 | 攻击者可绕过基于 IP 的审计 |
+| RISK-2 | 管理端角色/权限无缓存 | 每次请求查数据库，高频访问时有压力 |
+| RISK-3 | 跨 Tab 登出使用 CustomEvent | 只支持同源 Tab，不支持跨域 |
+
+#### 5.3 架构设计亮点
+
+| 编号 | 亮点 | 说明 |
+| --- | --- | --- |
+| H-1 | 双端鉴权分仓 | 用户端和管理端 Token 完全隔离，互不影响 |
+| H-2 | Sa-Token 独立 Redis 连接池 | 不影响业务 Redisson 配置 |
+| H-3 | Token 错误防重复弹窗 | `isHandlingTokenExpired` 标记防止多个请求同时弹窗 |
+| H-4 | 跨 Tab 登出广播 | 使用 CustomEvent 兼容 IE，1 秒防抖防止事件循环 |
+| H-5 | 登录失败统一提示 | 防止用户枚举攻击 |
+
+#### 5.4 源码导航速查
+
+| 想了解 | 读什么 |
+| --- | --- |
+| 双端鉴权配置 | `SaTokenConfig.java` — 拦截器注册和放行规则 |
+| 管理端登录 | `SysAdminServiceImpl.login` — 完整 10 步流程 |
+| 用户端登录 | `UserInfoServiceImpl.login` — 防枚举+会话创建 |
+| Token 刷新 | `vue3-admin-front/src/stores/user.js` — `checkAndRefreshToken` |
+| 跨 Tab 登出 | `vue3-admin-front/src/stores/user.js` — `broadcastAuthEvent` + `setupAuthEventListener` |
+| 请求拦截器 | `vue3-admin-front/src/utils/request.js` — 请求/响应拦截器 |
+| 权限切面 | `AdminAuthAspect.java` — @RequireAdmin AOP 实现 |
+| 全局异常处理 | `GlobalExceptionHandler.java` — NotLoginException/NotRoleException 处理 |
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 鉴权依赖公共底座的 Sa-Token 配置、统一响应和异常处理 |
+| [用户账户与个人中心](/modules/user-account) | 强依赖 | 用户登录后信息存储在 user_info 表 |
+| [系统运营后台](/modules/system-ops) | 被依赖 | 管理端角色和权限配置在系统后台管理 |
+| [权限注解与角色边界索引](/reference/permission-boundaries) | 参考 | 细粒度权限控制参考 |
+| [响应体与错误码](/reference/response-errors) | 参考 | 鉴权失败返回的错误码定义 |

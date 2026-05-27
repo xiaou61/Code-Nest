@@ -425,3 +425,16 @@ mergeTags(sourceId, targetId):
 | 管理端 API | `CodePenAdminController.java` — 模板/标签/评论管理 |
 | 常量定义 | `CodePenConstants.java` — 状态/可见性/交易类型 |
 | 配置项 | `CodePenProperties.java` — shareBaseUrl/createRewardPoints |
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 代码工坊依赖公共底座的统一响应、分页和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 作品创建、发布、Fork 需要用户登录态 |
+| [积分与抽奖](/modules/points) | 强依赖 | Fork 作品消耗积分，首次发布奖励积分 |
+| [用户账户与个人中心](/modules/user-account) | 强依赖 | 作品作者信息依赖用户账户 |
+| [敏感词风控](/modules/sensitive) | 强依赖 | 作品标题和描述必须经过敏感词检测 |
+| [文件存储](/modules/file-storage) | 间接依赖 | 作品封面图可能依赖文件模块 |
+| [社区帖子](/modules/community) | 间接关联 | 代码工坊与社区帖子都是内容创作模块 |
+| [系统运营后台](/modules/system-ops) | 被依赖 | 代码工坊管理界面在管理端 |

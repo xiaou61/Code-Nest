@@ -431,3 +431,15 @@ getAdminPermissions(adminId) → permissionMapper.selectPermissionsByAdminId(adm
 | RBAC 权限 | `SysRoleMapper` + `SysPermissionMapper` — 多对多查询 |
 | 管理端认证 | `AuthController.java` — 登录/登出/刷新/信息 |
 | 日志管理 | `LogController.java` — 登录日志+操作日志查询/清理 |
+
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 系统运营后台依赖公共底座的 Sa-Token 鉴权、操作日志和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 管理端登录、角色和权限配置依赖鉴权模块 |
+| [通知中心](/modules/notification) | 被依赖 | 系统公告和消息推送依赖通知中心 |
+| [文件存储](/modules/file-storage) | 被依赖 | 管理端文件上传可能依赖文件模块 |
+| [敏感词风控](/modules/sensitive) | 间接依赖 | 内容审核可能依赖敏感词检测 |
+| [仪表盘与日志](/modules/dashboard-logs) | 强依赖 | 系统监控和日志查看依赖仪表盘模块 |

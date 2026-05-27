@@ -321,3 +321,17 @@ hotScore = like × 2 + comment × 3 + view × 0.1
 2. [学习资产](/modules/learning-assets)，说明是否能转化为学习材料。
 3. [敏感词风控](/modules/sensitive)，说明是否接入内容安全。
 4. [全功能覆盖矩阵](/reference/feature-coverage)，补入口、API、表和文档链接。
+
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 社区与内容矩阵依赖公共底座的统一响应和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 内容发布和互动需要用户登录态 |
+| [社区帖子](/modules/community) | 强依赖 | 社区帖子是内容矩阵的核心模块 |
+| [动态广场](/modules/moments) | 强依赖 | 动态广场是内容矩阵的核心模块 |
+| [博客](/modules/blog) | 强依赖 | 博客是内容矩阵的核心模块 |
+| [代码工坊](/modules/codepen) | 强依赖 | 代码工坊是内容矩阵的核心模块 |
+| [敏感词风控](/modules/sensitive) | 强依赖 | 内容发布必须经过敏感词检测 |
+| [用户账户与个人中心](/modules/user-account) | 强依赖 | 内容作者信息依赖用户账户 |

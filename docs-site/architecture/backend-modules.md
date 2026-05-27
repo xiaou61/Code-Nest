@@ -342,3 +342,14 @@ CodeNestApplication.java (@SpringBootApplication)
 | `xiaou-common/src/main/java/com/xiaou/common/` | 全局公共代码 |
 | `xiaou-user-api/src/main/java/com/xiaou/user/api/` | 用户信息接口契约 |
 | `xiaou-sensitive-api/src/main/java/com/xiaou/sensitive/api/` | 敏感词检测接口契约 → 详见 [敏感词风控](/modules/sensitive) |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [架构总览](/architecture/overview) | 整体架构和部署拓扑 |
+| [数据库与脚本](/architecture/database) | 数据库设计和版本管理 |
+| [源码地图](/reference/source-map) | 全项目代码索引 |
+| [模块依赖地图](/reference/module-dependencies) | 模块间依赖关系 |
+| [模块总览](/modules/) | 各业务模块详解 |

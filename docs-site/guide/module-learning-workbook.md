@@ -268,3 +268,13 @@
 | 改完不回写文档 | 用文档回写清单把索引、模块页和验证记录补齐 |
 
 如果你已经能稳定完成这套作业单，再去做 [功能开发流程](/guide/feature-development) 或更高风险的线上问题定位，会明显更快。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [按模块学习路线](/guide/module-learning-paths) | 学习路线 |
+| [模块结业案例](/guide/module-learning-capstone) | 结业案例 |
+| [模块学习评审表](/guide/module-learning-rubric) | 评审标准 |
+| [模块总览](/modules/) | 各模块功能 |
