@@ -56,6 +56,8 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             session.close();
             return;
         }
+
+        closeExistingSessionsForUser(userId, sessionId);
         
         // 保存会话
         SESSIONS.put(sessionId, session);
@@ -257,11 +259,26 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
      */
     private void sendMessage(WebSocketSession session, WebSocketMessage message) {
         if (session != null && session.isOpen()) {
+            String json = JSONUtil.toJsonStr(message);
+            sendJsonMessage(session.getId(), session, json);
+        }
+    }
+
+    private void sendJsonMessage(String sessionId, WebSocketSession session, String json) {
+        if (session == null || !session.isOpen()) {
+            cleanupClosedSession(sessionId);
+            return;
+        }
+        synchronized (session) {
+            if (!session.isOpen()) {
+                cleanupClosedSession(sessionId);
+                return;
+            }
             try {
-                String json = JSONUtil.toJsonStr(message);
                 session.sendMessage(new TextMessage(json));
             } catch (IOException e) {
-                log.error("发送消息失败，会话ID: {}", session.getId(), e);
+                log.error("发送消息失败，会话ID: {}", sessionId, e);
+                cleanupClosedSession(sessionId);
             }
         }
     }
@@ -285,14 +302,48 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     private void broadcastMessage(WebSocketMessage message, String excludeSessionId) {
         String json = JSONUtil.toJsonStr(message);
         SESSIONS.forEach((sessionId, session) -> {
-            if (!sessionId.equals(excludeSessionId) && session.isOpen()) {
-                try {
-                    session.sendMessage(new TextMessage(json));
-                } catch (IOException e) {
-                    log.error("广播消息失败，会话ID: {}", sessionId, e);
-                }
+            if (!sessionId.equals(excludeSessionId)) {
+                sendJsonMessage(sessionId, session, json);
             }
         });
+    }
+
+    private void closeExistingSessionsForUser(Long userId, String currentSessionId) {
+        SESSIONS.forEach((sessionId, session) -> {
+            if (sessionId.equals(currentSessionId)) {
+                return;
+            }
+            Long sessionUserId = (Long) session.getAttributes().get("userId");
+            if (!userId.equals(sessionUserId)) {
+                return;
+            }
+            WebSocketMessage reconnectMsg = new WebSocketMessage(WebSocketMessage.MessageType.KICK_OUT,
+                Map.of("message", "账号已在新窗口重新连接"));
+            sendMessage(session, reconnectMsg);
+            closeSession(sessionId, session);
+        });
+    }
+
+    private void cleanupClosedSession(String sessionId) {
+        if (sessionId == null) {
+            return;
+        }
+        WebSocketSession removed = SESSIONS.remove(sessionId);
+        if (removed != null) {
+            chatOnlineUserService.userOffline(sessionId);
+        }
+    }
+
+    private void closeSession(String sessionId, WebSocketSession session) {
+        try {
+            if (session.isOpen()) {
+                session.close();
+            }
+        } catch (IOException e) {
+            log.warn("关闭旧会话失败，会话ID: {}", sessionId, e);
+        } finally {
+            cleanupClosedSession(sessionId);
+        }
     }
     
     /**
@@ -324,12 +375,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                 WebSocketMessage kickMsg = new WebSocketMessage(WebSocketMessage.MessageType.KICK_OUT,
                     Map.of("message", "您已被管理员踢出聊天室"));
                 sendMessage(session, kickMsg);
-                
-                try {
-                    session.close();
-                } catch (IOException e) {
-                    log.error("关闭会话失败，会话ID: {}", sessionId, e);
-                }
+                closeSession(sessionId, session);
             }
         });
     }
