@@ -76,7 +76,7 @@
 对应资料：
 
 - [README 更新日志](D:/onenodes/githubprojectstart/Code-Nest/README.md)
-- [v2.2.0 工程质量计划](D:/onenodes/githubprojectstart/Code-Nest/docs/plans/2026-04-26-v2.2.0-code-quality-hardening.md)
+- [v2.2.0 工程质量计划](D:/onenodes/githubprojectstart/Code-Nest/AI-DOCS/Archive/历史版本/2026-04-26-v2.2.0-code-quality-hardening.md)
 - [v2.2.0 文档计划](/roadmap/v2.2.0-docs-plan)
 - [文档同步基线](/reference/docs-sync-baseline)
 
@@ -100,7 +100,7 @@
 对应资料：
 
 - [README v2.1.2 段落](D:/onenodes/githubprojectstart/Code-Nest/README.md)
-- [v2.1.2 审计记录](D:/onenodes/githubprojectstart/Code-Nest/docs/code-nest-v2.1.2-optimization-audit-2026-05-02.md)
+- [v2.1.2 审计记录](D:/onenodes/githubprojectstart/Code-Nest/AI-DOCS/Development/Code-Nest优化审计报告.md)
 
 ### `v2.1.1` 安全加固稳定批次
 
@@ -139,8 +139,8 @@
 对应资料：
 
 - [README v2.1.0 段落](D:/onenodes/githubprojectstart/Code-Nest/README.md)
-- [v2.1.0 Growth Intelligence 设计](D:/onenodes/githubprojectstart/Code-Nest/docs/plans/2026-04-26-v2.1.0-growth-intelligence-design.md)
-- [v2.1.0 Growth Intelligence 实施计划](D:/onenodes/githubprojectstart/Code-Nest/docs/plans/2026-04-26-v2.1.0-growth-intelligence.md)
+- [v2.1.0 Growth Intelligence 设计](D:/onenodes/githubprojectstart/Code-Nest/AI-DOCS/Archive/历史版本/2026-04-26-v2.1.0-growth-intelligence-design.md)
+- [v2.1.0 Growth Intelligence 实施计划](D:/onenodes/githubprojectstart/Code-Nest/AI-DOCS/Archive/历史版本/2026-04-26-v2.1.0-growth-intelligence.md)
 
 ### `v2.0.1` 重构后功能补齐
 

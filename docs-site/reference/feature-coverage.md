@@ -110,8 +110,8 @@
 
 | 端 | 目录 | 数量 | 手册 |
 | --- | --- | --- | --- |
-| 用户端 | `docs/manual-assets/2026-04-24/user` | 118 | [用户端操作手册](/manuals/user-operations) |
-| 管理端 | `docs/manual-assets/2026-04-24/admin` | 81 | [管理端操作手册](/manuals/admin-operations) |
+| 用户端 | `AI-DOCS/assets/images/2026-04-24/user` | 118 | [用户端操作手册](/manuals/user-operations) |
+| 管理端 | `AI-DOCS/assets/images/2026-04-24/admin` | 81 | [管理端操作手册](/manuals/admin-operations) |
 
 ## 覆盖状态
 

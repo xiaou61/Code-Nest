@@ -35,7 +35,7 @@ description: Code-Nest 多模块全栈项目协作规范与落点导航。Use wh
 - 用户端路由：`vue3-user-front/src/router/index.js`
 - 管理端路由：`vue3-admin-front/src/router/index.js`
 - SQL 版本脚本：`sql/v*/`
-- 需求文档：`docs/PRD/`
+- 需求文档：`AI-DOCS/PRD/`
 
 ## 4. 模块映射（后端）
 
@@ -148,10 +148,10 @@ description: Code-Nest 多模块全栈项目协作规范与落点导航。Use wh
 
 1. 主配置在 `xiaou-application/src/main/resources/application*.yml`。
 2. 私密配置放 `application-sec.yml`，不要把真实密钥写入公开文档。
-3. AI 相关配置统一走 `xiaou.ai.*` 配置树，Prompt 规范与运行时设计参考 `docs/plans/2026-04-20-ai-prompt-governance.md`。
+3. AI 相关配置统一走 `xiaou.ai.*` 配置树，Prompt 规范与运行时设计参考 `AI-DOCS/Archive/历史版本/2026-04-20-ai-prompt-governance.md`。
 4. 监控相关配置与文档：
 1. `management.*` 在 `application.yml`
-2. `docs/Prometheus监控部署指南.md`
+2. `AI-DOCS/Deployment/监控告警/Prometheus监控部署指南.md`
 3. `docker/monitoring/`
 
 ## 11. 不要手改的内容
@@ -210,8 +210,8 @@ cd vue3-user-front && npm run lint
 需求细节不明确时，优先查：
 
 1. `README.md`（整体能力、启动方式、版本历史）。
-2. `docs/PRD/*.md`（模块级产品规则）。
-3. `docs/upgrade/**`（专项升级方案）。
-4. `docs/archive/coze/*.md`（历史 AI 工作流配置归档）。
+2. `AI-DOCS/PRD/*.md`（模块级产品规则）。
+3. `AI-DOCS/Archive/历史版本/**`（专项升级方案）。
+4. `AI-DOCS/Archive/coze/*.md`（历史 AI 工作流配置归档）。
 
 优先复用现有模块与路径约定，避免“新建平行体系”。

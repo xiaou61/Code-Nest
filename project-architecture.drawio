@@ -1,0 +1,152 @@
+<mxGraphModel adaptiveColors="auto">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+
+    <mxCell id="title" value="&lt;b&gt;Code-Nest Project Architecture&lt;/b&gt;&lt;br&gt;Spring Boot 3.4 + Vue 3 Microservices Platform" style="text;html=1;fontSize=20;align=center;verticalAlign=middle;whiteSpace=wrap;" vertex="1" parent="1">
+      <mxGeometry x="300" y="10" width="600" height="50" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="frontend" value="Frontend Layer" style="swimlane;startSize=30;fillColor=#dae8fc;strokeColor=#6c8ebf;html=1;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+      <mxGeometry x="300" y="80" width="600" height="130" as="geometry"/>
+    </mxCell>
+    <mxCell id="admin" value="&lt;b&gt;vue3-admin-front&lt;/b&gt;&lt;br&gt;Admin Dashboard&lt;br&gt;Vue 3 + Electron" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="frontend">
+      <mxGeometry x="30" y="45" width="160" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="user" value="&lt;b&gt;vue3-user-front&lt;/b&gt;&lt;br&gt;User Portal&lt;br&gt;Vue 3 + Electron" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="frontend">
+      <mxGeometry x="220" y="45" width="160" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="nginx" value="&lt;b&gt;Nginx&lt;/b&gt;&lt;br&gt;Reverse Proxy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="frontend">
+      <mxGeometry x="420" y="45" width="140" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="infra" value="Infrastructure" style="swimlane;startSize=30;fillColor=#d5e8d4;strokeColor=#82b366;html=1;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+      <mxGeometry x="300" y="230" width="600" height="100" as="geometry"/>
+    </mxCell>
+    <mxCell id="docker" value="&lt;b&gt;Docker&lt;/b&gt;&lt;br&gt;Containerization" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="infra">
+      <mxGeometry x="30" y="40" width="130" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="monitoring" value="&lt;b&gt;Monitoring&lt;/b&gt;&lt;br&gt;Observability" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="infra">
+      <mxGeometry x="190" y="40" width="130" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="gojudge" value="&lt;b&gt;Go-Judge&lt;/b&gt;&lt;br&gt;Code Execution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="infra">
+      <mxGeometry x="350" y="40" width="130" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="sqldb" value="&lt;b&gt;MySQL&lt;/b&gt;&lt;br&gt;Database" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="infra">
+      <mxGeometry x="510" y="35" width="80" height="60" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="core" value="Core Services" style="swimlane;startSize=30;fillColor=#fff2cc;strokeColor=#d6b656;html=1;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+      <mxGeometry x="40" y="360" width="250" height="310" as="geometry"/>
+    </mxCell>
+    <mxCell id="c1" value="xiaou-common" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="core">
+      <mxGeometry x="20" y="40" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="c2" value="xiaou-system" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="core">
+      <mxGeometry x="135" y="40" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="c3" value="xiaou-application" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="core">
+      <mxGeometry x="20" y="95" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="c4" value="xiaou-user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="core">
+      <mxGeometry x="135" y="95" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="c5" value="xiaou-user-api" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="core">
+      <mxGeometry x="20" y="150" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="c6" value="xiaou-sensitive" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="core">
+      <mxGeometry x="135" y="150" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="c7" value="xiaou-sensitive-api" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="core">
+      <mxGeometry x="20" y="205" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="c8" value="xiaou-notification" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="core">
+      <mxGeometry x="135" y="205" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="c9" value="xiaou-filestorage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="core">
+      <mxGeometry x="20" y="260" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="c10" value="xiaou-version" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="core">
+      <mxGeometry x="135" y="260" width="100" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="social" value="Social &amp; Content" style="swimlane;startSize=30;fillColor=#dae8fc;strokeColor=#6c8ebf;html=1;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+      <mxGeometry x="310" y="360" width="250" height="310" as="geometry"/>
+    </mxCell>
+    <mxCell id="s1" value="xiaou-community" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="social">
+      <mxGeometry x="20" y="40" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="s2" value="xiaou-moment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="social">
+      <mxGeometry x="135" y="40" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="s3" value="xiaou-blog" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="social">
+      <mxGeometry x="20" y="95" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="s4" value="xiaou-chat" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="social">
+      <mxGeometry x="135" y="95" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="s5" value="xiaou-team" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="social">
+      <mxGeometry x="20" y="150" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="s6" value="xiaou-moyu" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="social">
+      <mxGeometry x="135" y="150" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="s7" value="xiaou-points" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="social">
+      <mxGeometry x="20" y="205" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="s8" value="xiaou-codepen" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="social">
+      <mxGeometry x="135" y="205" width="100" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="learning" value="Learning &amp; Career" style="swimlane;startSize=30;fillColor=#d5e8d4;strokeColor=#82b366;html=1;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+      <mxGeometry x="580" y="360" width="250" height="310" as="geometry"/>
+    </mxCell>
+    <mxCell id="l1" value="xiaou-interview" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="learning">
+      <mxGeometry x="20" y="40" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="l2" value="xiaou-mock-interview" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="learning">
+      <mxGeometry x="135" y="40" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="l3" value="xiaou-knowledge" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="learning">
+      <mxGeometry x="20" y="95" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="l4" value="xiaou-learning-asset" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="learning">
+      <mxGeometry x="135" y="95" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="l5" value="xiaou-flashcard" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="learning">
+      <mxGeometry x="20" y="150" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="l6" value="xiaou-resume" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="learning">
+      <mxGeometry x="135" y="150" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="l7" value="xiaou-plan" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="learning">
+      <mxGeometry x="20" y="205" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="l8" value="xiaou-oj" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="learning">
+      <mxGeometry x="135" y="205" width="100" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="l9" value="xiaou-sql-optimizer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="learning">
+      <mxGeometry x="20" y="260" width="100" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="ai" value="AI Services" style="swimlane;startSize=30;fillColor=#e1d5e7;strokeColor=#9673a6;html=1;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+      <mxGeometry x="850" y="360" width="180" height="170" as="geometry"/>
+    </mxCell>
+    <mxCell id="a1" value="&lt;b&gt;xiaou-ai&lt;/b&gt;&lt;br&gt;LangChain4j" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="ai">
+      <mxGeometry x="20" y="40" width="140" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="a2" value="&lt;b&gt;llamaindex&lt;/b&gt;&lt;br&gt;RAG Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="ai">
+      <mxGeometry x="20" y="105" width="140" height="50" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="e1" edge="1" parent="1" source="nginx" target="c3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e2" edge="1" parent="1" source="admin" target="nginx" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e3" edge="1" parent="1" source="user" target="nginx" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>

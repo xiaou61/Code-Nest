@@ -461,7 +461,7 @@ manualChunks: {
 
 ## 截图素材
 
-操作手册截图已沉淀在 `docs/manual-assets/2026-04-24/user` 和 `docs/manual-assets/2026-04-24/admin`。编写"用户端操作手册"和"管理端操作手册"时，应优先复用这些素材。
+操作手册截图已沉淀在 `AI-DOCS/assets/images/2026-04-24/user` 和 `AI-DOCS/assets/images/2026-04-24/admin`。编写"用户端操作手册"和"管理端操作手册"时，应优先复用这些素材。
 
 ## 维护检查清单
 
