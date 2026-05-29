@@ -210,3 +210,13 @@ AI 相关字段验证时要同时看：
 最低验证：
 ```
 
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [数据表索引](/reference/database-tables) | 全部表清单 |
+| [数据库与脚本](/architecture/database) | 数据库设计 |
+| [术语表](/reference/glossary) | 字段命名解释 |
+| [模块总览](/modules/) | 各模块数据表分布 |

@@ -91,5 +91,10 @@ public interface BlogArticleMapper {
      * 根据标签查询相关文章
      */
     List<BlogArticle> selectRelatedByTags(@Param("tags") String tags, @Param("excludeId") Long excludeId, @Param("limit") Integer limit);
+
+    /**
+     * 根据标签名查询文章
+     */
+    List<BlogArticle> selectByTagName(@Param("tagName") String tagName);
 }
 

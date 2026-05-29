@@ -26,51 +26,51 @@
         <el-col :span="6">
           <div class="stat-box">
             <div class="label">总抽奖次数</div>
-            <div class="value">{{ analysisData.totalDrawCount || 0 }}</div>
+            <div class="value">{{ summaryData.totalDrawCount }}</div>
           </div>
         </el-col>
         <el-col :span="6">
           <div class="stat-box">
             <div class="label">总消耗积分</div>
-            <div class="value">{{ analysisData.totalCostPoints || 0 }}</div>
+            <div class="value">{{ summaryData.totalCostPoints }}</div>
           </div>
         </el-col>
         <el-col :span="6">
           <div class="stat-box">
             <div class="label">总发放积分</div>
-            <div class="value">{{ analysisData.totalRewardPoints || 0 }}</div>
+            <div class="value">{{ summaryData.totalRewardPoints }}</div>
           </div>
         </el-col>
         <el-col :span="6">
           <div class="stat-box">
             <div class="label">平台利润</div>
-            <div class="value profit">{{ analysisData.profitPoints || 0 }}</div>
+            <div class="value profit">{{ summaryData.profitPoints }}</div>
           </div>
         </el-col>
         <el-col :span="6">
           <div class="stat-box">
-            <div class="label">实际回报率</div>
-            <div class="value" :class="getReturnRateClass(analysisData.returnRate)">
-              {{ ((analysisData.returnRate || 0) * 100).toFixed(2) }}%
+            <div class="label">综合回报率</div>
+            <div class="value" :class="getReturnRateClass(summaryData.returnRate)">
+              {{ (summaryData.returnRate * 100).toFixed(2) }}%
             </div>
           </div>
         </el-col>
         <el-col :span="6">
           <div class="stat-box">
             <div class="label">参与用户数</div>
-            <div class="value">{{ analysisData.userBehaviorSummary?.totalUsers || 0 }}</div>
+            <div class="value">{{ summaryData.totalUsers }}</div>
           </div>
         </el-col>
         <el-col :span="6">
           <div class="stat-box">
             <div class="label">平均抽奖次数</div>
-            <div class="value">{{ analysisData.userBehaviorSummary?.avgDrawTimes || 0 }}</div>
+            <div class="value">{{ summaryData.avgDrawTimes }}</div>
           </div>
         </el-col>
         <el-col :span="6">
           <div class="stat-box">
             <div class="label">ROI</div>
-            <div class="value">{{ ((analysisData.roiAnalysis?.roi || 0) * 100).toFixed(2) }}%</div>
+            <div class="value">{{ (summaryData.roi * 100).toFixed(2) }}%</div>
           </div>
         </el-col>
       </el-row>
@@ -99,7 +99,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { lotteryAdminApi } from '@/api/lotteryAdmin'
 
@@ -108,11 +108,40 @@ const dateRange = ref([])
 const analysisData = ref(null)
 const historyList = ref([])
 
+const summaryData = computed(() => {
+  const historySummary = historyList.value.reduce((acc, item) => {
+    acc.totalDrawCount += Number(item?.drawCount || item?.totalDrawCount || 0)
+    acc.totalCostPoints += Number(item?.totalCostPoints || 0)
+    acc.totalRewardPoints += Number(item?.totalRewardPoints || 0)
+    acc.profitPoints += Number(item?.platformProfitPoints || 0)
+    return acc
+  }, {
+    totalDrawCount: 0,
+    totalCostPoints: 0,
+    totalRewardPoints: 0,
+    profitPoints: 0
+  })
+
+  return {
+    ...historySummary,
+    returnRate: historySummary.totalCostPoints > 0
+      ? historySummary.totalRewardPoints / historySummary.totalCostPoints
+      : 0,
+    totalUsers: Number(analysisData.value?.userBehaviorAnalysis?.activeUsers || 0),
+    avgDrawTimes: Number(analysisData.value?.userBehaviorAnalysis?.avgDrawCount || 0),
+    roi: Number(analysisData.value?.roiAnalysis?.roi || 0)
+  }
+})
+
 const loadStatistics = async () => {
+  const [startDate, endDate] = dateRange.value || []
+  if (!startDate || !endDate) {
+    ElMessage.warning('请选择开始和结束日期')
+    return
+  }
+
   loading.value = true
   try {
-    const [startDate, endDate] = dateRange.value || ['', '']
-    
     const [analysis, history] = await Promise.all([
       lotteryAdminApi.getComprehensiveAnalysis(startDate, endDate),
       lotteryAdminApi.getHistoryStatistics({ startDate, endDate })

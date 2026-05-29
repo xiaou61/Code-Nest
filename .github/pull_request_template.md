@@ -1,18 +1,28 @@
+# Pull Request
+
 ## Summary
 
-- 
+<!-- 用 2-5 条说明本 PR 解决了什么问题、为什么要改、用户或系统会看到什么变化。 -->
+
+- N/A
+
+## Related Issues
+
+<!-- 示例：Closes #123 / Related #456。没有可写 N/A。 -->
+
+- N/A
 
 ## Change Type
 
-- [ ] Docs only
-- [ ] Backend
-- [ ] User frontend
-- [ ] Admin frontend
-- [ ] AI / RAG
-- [ ] OJ / go-judge
-- [ ] WebSocket / chat
-- [ ] File upload / storage
-- [ ] Deploy / infra / monitoring
+- [ ] Feature
+- [ ] Bug fix
+- [ ] Refactor
+- [ ] Performance
+- [ ] Security
+- [ ] Documentation
+- [ ] Build / CI / dependency
+- [ ] Database / migration
+- [ ] Release
 
 ## Scope
 
@@ -20,46 +30,73 @@
 - Affected pages/routes:
 - Affected APIs/prefixes:
 - Affected tables/fields:
+- Affected permissions/roles:
+- Affected configs/env vars:
+
+## Behavior Changes
+
+<!-- 说明兼容性变化、默认值变化、接口字段变化、数据库语义变化。没有可写 N/A。 -->
+
+- N/A
 
 ## Verification
 
-- [ ] `docs-site`: `npm run build`
-- [ ] Backend build / tests
-- [ ] User frontend build / smoke test
-- [ ] Admin frontend build / smoke test
-- [ ] AI / RAG regression
-- [ ] OJ / go-judge smoke test
-- [ ] WebSocket / ACK / failure path
-- [ ] File upload and URL access
+- [ ] Backend compile/test executed
+- [ ] User frontend build/smoke test executed
+- [ ] Admin frontend build/smoke test executed
+- [ ] Database SQL reviewed or executed in test environment
+- [ ] Permission/security path checked
+- [ ] Error/empty/loading states checked
+- [ ] Documentation updated
+- [ ] Not applicable or explained below
 
 Verification notes:
 
 ```text
-已执行：
-通过项：
-未验证：
-未验证原因：
-依赖状态：
+Executed:
+Passed:
+Not verified:
+Reason:
+Dependencies:
 ```
 
 ## Docs Sync Checklist
 
-- [ ] New user page -> updated `docs-site/reference/frontend-routes.md`, module page, and user manual when needed
-- [ ] New admin page -> updated `docs-site/reference/frontend-routes.md`, module page, and admin manual when needed
+- [ ] New user page -> updated `docs-site/reference/frontend-routes.md` and related module docs
+- [ ] New admin page -> updated route, permission, and admin docs
 - [ ] New Controller or route prefix -> updated `docs-site/reference/api-routes.md`
-- [ ] New table or field -> updated `docs-site/reference/database-tables.md` and related module page
+- [ ] New table, field, index, or migration -> updated `docs-site/reference/database-tables.md`
 - [ ] New WebSocket event -> updated `docs-site/reference/websocket.md`
-- [ ] New error code -> updated `docs-site/reference/response-errors.md`
-- [ ] New AI Prompt / RAG / Schema / regression -> updated `docs-site/reference/ai-schemas.md` and `docs-site/modules/ai-runtime.md`
-- [ ] New deploy flow / risk / high-risk fix -> updated `docs-site/guide/release-verification.md` and `docs-site/manuals/verified-scenarios.md`
-- [ ] New screenshot or verification result -> updated manuals or verified scenarios when needed
-- [ ] New docs batch -> updated `docs-site/roadmap/v2.2.0-docs-plan.md` when needed
+- [ ] New error code or exception behavior -> updated `docs-site/reference/response-errors.md`
+- [ ] New AI Prompt, RAG, Schema, or regression case -> updated AI docs
+- [ ] New release or high-risk fix -> updated `CHANGELOG.md` and release notes
+- [ ] Documentation not required; reason:
 
-## Risk
+## Security Checklist
 
-- Main risk:
-- Rollback / downgrade plan:
+- [ ] No secrets, tokens, passwords, cookies, or private user data are committed
+- [ ] Authorization and role boundaries are unchanged or documented
+- [ ] User input is validated or sanitized
+- [ ] File upload/download behavior is safe
+- [ ] HTML/Markdown rendering is sanitized when applicable
+- [ ] SQL changes avoid injection-prone dynamic concatenation
+- [ ] Security impact not applicable; reason:
+
+## Risk and Rollback
+
+- Main risks:
+- Rollback plan:
+- Data migration rollback:
+- Feature flag/config fallback:
+
+## Screenshots or Evidence
+
+<!-- UI 改动建议附截图；接口/后端改动可附请求、日志或测试输出摘要。 -->
+
+- N/A
 
 ## Notes for Reviewers
+
+<!-- 指出最希望 reviewer 关注的文件、逻辑或风险点。 -->
 
 - 

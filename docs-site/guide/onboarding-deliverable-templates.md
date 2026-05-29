@@ -343,3 +343,13 @@
 如果你需要一个可以直接发下去的具体任务清单，再接着看 [首单任务题库](/guide/first-task-backlog)。
 
 如果首单已经做完，并且你要判断“接下来是继续保护、还是开始放模块责任”，再接上 [模块接手升级路线](/guide/module-ownership-ladder) 会最顺。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [带教执行剧本](/guide/onboarding-execution-playbook) | 执行剧本 |
+| [角色上手任务包](/guide/onboarding-tasks) | 上手任务 |
+| [首个真实任务接入](/guide/first-real-task) | 首个任务 |
+| [学习路线](/guide/learning-paths) | 学习路线 |

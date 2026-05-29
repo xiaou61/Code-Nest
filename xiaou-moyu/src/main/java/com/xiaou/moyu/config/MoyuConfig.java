@@ -4,8 +4,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.Duration;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -22,8 +25,13 @@ public class MoyuConfig {
      * RestTemplate Bean
      */
     @Bean
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
+    public RestTemplate restTemplate(RestTemplateBuilder builder,
+                                     @Value("${hot-topic.api.connect-timeout-millis:2000}") long connectTimeoutMillis,
+                                     @Value("${hot-topic.api.read-timeout-millis:5000}") long readTimeoutMillis) {
+        return builder
+                .connectTimeout(Duration.ofMillis(connectTimeoutMillis))
+                .readTimeout(Duration.ofMillis(readTimeoutMillis))
+                .build();
     }
     
     /**

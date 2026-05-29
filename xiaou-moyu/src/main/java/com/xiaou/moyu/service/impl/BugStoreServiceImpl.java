@@ -3,6 +3,7 @@ package com.xiaou.moyu.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.xiaou.common.core.domain.PageResult;
+import com.xiaou.common.exception.BusinessException;
 import com.xiaou.common.utils.PageHelper;
 import com.xiaou.moyu.domain.BugItem;
 import com.xiaou.moyu.domain.UserBugHistory;
@@ -81,24 +82,14 @@ public class BugStoreServiceImpl implements BugStoreService {
 
     @Override
     public PageResult<BugItem> getBugList(BugItemQueryRequest query) {
-        try {
-            return PageHelper.doPage(query.getCurrent(), query.getSize(), () -> 
-                bugItemMapper.selectByPage(query)
-            );
-        } catch (Exception e) {
-            log.error("分页查询Bug列表失败", e);
-            return PageResult.of(query.getCurrent(), query.getSize(), 0L, Collections.emptyList());
-        }
+        return PageHelper.doPage(query.getCurrent(), query.getSize(), () ->
+            bugItemMapper.selectByPage(query)
+        );
     }
 
     @Override
     public BugItem getBugById(Long id) {
-        try {
-            return bugItemMapper.selectById(id);
-        } catch (Exception e) {
-            log.error("根据ID获取Bug详情失败, id: {}", id, e);
-            return null;
-        }
+        return bugItemMapper.selectById(id);
     }
 
     @Override
@@ -119,9 +110,11 @@ public class BugStoreServiceImpl implements BugStoreService {
             int result = bugItemMapper.insert(bugItem);
             
             return result > 0 ? bugItem.getId() : null;
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("添加Bug失败", e);
-            throw new RuntimeException("添加Bug失败");
+            throw new BusinessException("添加Bug失败");
         }
     }
 
@@ -140,9 +133,11 @@ public class BugStoreServiceImpl implements BugStoreService {
             int result = bugItemMapper.updateById(bugItem);
             
             return result > 0;
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("更新Bug失败, id: {}", request.getId(), e);
-            throw new RuntimeException("更新Bug失败");
+            throw new BusinessException("更新Bug失败");
         }
     }
 
@@ -152,9 +147,11 @@ public class BugStoreServiceImpl implements BugStoreService {
         try {
             int result = bugItemMapper.deleteById(id);
             return result > 0;
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("删除Bug失败, id: {}", id, e);
-            throw new RuntimeException("删除Bug失败");
+            throw new BusinessException("删除Bug失败");
         }
     }
 
@@ -163,7 +160,7 @@ public class BugStoreServiceImpl implements BugStoreService {
     public boolean batchImportBugs(List<AdminBugItemRequest> requests, Long createdBy) {
         try {
             if (requests == null || requests.isEmpty()) {
-                return false;
+                throw new IllegalArgumentException("导入数据不能为空");
             }
             
             List<BugItem> bugItems = new ArrayList<>();
@@ -187,9 +184,11 @@ public class BugStoreServiceImpl implements BugStoreService {
             int result = bugItemMapper.insertBatch(bugItems);
             
             return result > 0;
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("批量导入Bug失败", e);
-            throw new RuntimeException("批量导入Bug失败");
+            throw new BusinessException("批量导入Bug失败");
         }
     }
 

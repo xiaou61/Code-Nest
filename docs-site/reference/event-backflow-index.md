@@ -157,3 +157,13 @@
 + 日志留得住
 + 统计对得上
 ```
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [通知中心](/modules/notification) | 事件通知实现 |
+| [社区帖子](/modules/community) | 互动事件触发 |
+| [积分与抽奖](/modules/points) | 积分事件触发 |
+| [模块状态机与生命周期索引](/reference/module-state-machines) | 状态变更事件 |

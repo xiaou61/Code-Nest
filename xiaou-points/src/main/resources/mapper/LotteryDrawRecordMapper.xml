@@ -80,6 +80,12 @@
         SELECT <include refid="Base_Column_List"/>
         FROM lottery_draw_record
         <where>
+            <if test="request.userId != null">
+                AND user_id = #{request.userId}
+            </if>
+            <if test="request.prizeId != null">
+                AND prize_id = #{request.prizeId}
+            </if>
             <if test="request.prizeLevel != null">
                 AND prize_level = #{request.prizeLevel}
             </if>

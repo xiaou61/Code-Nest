@@ -147,3 +147,13 @@
 | 能定位数据 | 能说清数据是否落库、是否进缓存、是否被前端过滤 |
 | 能定位依赖 | AI、RAG、go-judge、Redis、MySQL、文件目录状态明确 |
 | 能沉淀结论 | 已验证项和未验证原因写清楚 |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [监控与观测](/operations/monitoring) | 监控配置 |
+| [告警 Runbook](/operations/alert-runbooks) | 告警处理 |
+| [事故响应](/operations/incident-response) | 事故处理 |
+| [常见问题排查](/operations/troubleshooting) | 常见问题 |

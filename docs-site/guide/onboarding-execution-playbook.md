@@ -215,3 +215,13 @@
 如果带教已经走到“该发第一单”的阶段，直接使用 [首单任务题库](/guide/first-task-backlog) 会更省事。
 
 如果第一单已经跑完，接下来就不要再靠感觉升难度了，直接用 [模块接手升级路线](/guide/module-ownership-ladder) 判断应该继续停留在低风险任务，还是开始进入模块接手阶段。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [带教交付模板包](/guide/onboarding-deliverable-templates) | 交付模板 |
+| [角色上手任务包](/guide/onboarding-tasks) | 上手任务 |
+| [首个真实任务接入](/guide/first-real-task) | 首个任务 |
+| [学习路线](/guide/learning-paths) | 学习路线 |

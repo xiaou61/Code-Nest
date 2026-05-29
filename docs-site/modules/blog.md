@@ -134,7 +134,7 @@
 | 删除标签 | 如果 `useCount > 0`，禁止删除 |
 | 合并标签 | 当前会合并使用次数并删除源标签 |
 
-需要注意：标签合并里有一个实现备注，当前还没有真正把 `blog_article.tags` 中的源标签替换为目标标签。运营执行合并前要先评估历史文章标签是否需要额外迁移。
+需要注意：标签合并**已经实现了文章标签替换**。`mergeTags` 会遍历所有使用源标签的文章，将 JSON 数组中的源标签替换为目标标签（同时去重），然后更新目标标签的 `useCount`，最后物理删除源标签。
 
 ## 博客主页配置
 
@@ -172,7 +172,303 @@
 | --- | --- | --- |
 | 未开通就创建文章 | `BlogConfig` 不存在 | 先调用 `/user/blog/check-status` |
 | 草稿保存不扣积分 | 扣积分只发生在首次发布 | 前端保存按钮和发布按钮要区分文案 |
-| 标签合并后历史文章没变 | 当前只合并标签使用次数 | 需要补充文章 JSON 标签迁移 |
+| 标签合并后文章标签已替换 | `mergeTags` 会遍历并替换所有文章中的源标签 | 合并是不可逆操作，执行前请确认目标标签正确 |
+
+---
+
+## 博客系统深度拆解
+
+以下内容来自对 xiaou-blog 模块全部源码的逐行阅读，覆盖 4 个 ServiceImpl、2 个 Controller、5 个 Domain、2 个 Enum、2 个 Mapper XML。
+
+### 一、文章生命周期状态机
+
+#### 1.1 文章状态流转
+
+```
+                    ┌──────────────┐
+                    │   DRAFT(0)   │ ← 初始创建
+                    │   草稿        │
+                    └──────┬───────┘
+                           │ publish()
+                    ┌──────▼───────┐
+              ┌─────│ PUBLISHED(1) │─────┐
+              │     │   已发布      │     │
+              │     └──────────────┘     │
+         unpublish()                toRecycle()
+              │                           │
+     ┌────────▼────────┐        ┌────────▼────────┐
+     │   DRAFT(0)       │        │  RECYCLE(2)      │
+     │   草稿(回到)     │        │   回收站          │
+     └─────────────────┘        └───────┬──────────┘
+                                         │
+                                ┌────────┴────────┐
+                           restore()         delete()
+                                │                 │
+                     ┌──────────▼──┐     ┌────────▼────────┐
+                     │ PUBLISHED(1)│     │  物理删除 DELETE │
+                     │ 恢复发布     │     │  (不可逆)        │
+                     └─────────────┘     └─────────────────┘
+```
+
+**源码位置**：`BlogArticleServiceImpl.java` — `publishArticle` / `unpublishArticle` / `moveToRecycle` / `restoreFromRecycle` / `deleteArticle`
+
+**关键发现**：`unpublish` 将文章从 PUBLISHED 变为 DRAFT，但 **不更新 publishedAt**。如果文章再次发布，publishedAt 还是原来的时间，这可能影响按发布时间排序的结果。
+
+#### 1.2 文章类型体系
+
+**源码**：`enums/ArticleType.java`
+
+| code | 枚举名 | 说明 | 特殊逻辑 |
+| --- | --- | --- | --- |
+| 1 | ORIGINAL | 原创 | 无 |
+| 2 | REPOST | 转载 | **必填** originalUrl |
+| 3 | TRANSLATE | 翻译 | **必填** originalUrl |
+
+**校验逻辑**（`createArticle` / `updateArticle`）：
+
+```
+if (type == REPOST || type == TRANSLATE) && (originalUrl == null || originalUrl.isBlank()):
+    throw "转载/翻译文章必须填写原文链接"
+```
+
+#### 1.3 文章创建完整流程
+
+```
+createArticle(request):
+  1. 参数校验: title 非空(≤100字), content 非空, type 合法
+  2. type=REPOST/TRANSLATE 时校验 originalUrl
+  3. 构建 BlogArticle 对象
+     - summary: 请求传入 → 使用; 未传入 → 截取 content 前 200 字符
+     - wordCount: content.length()（字符数，非字数）
+     - categoryId: 可选，不为空时校验分类是否存在
+     - tags: 请求传入的标签名列表，序列化为 JSON 数组字符串
+     - status: DRAFT(0)
+     - viewCount: 0
+     - likeCount: 0
+     - commentCount: 0
+  4. INSERT blog_article
+  5. 处理标签关联:
+     for each tag in request.tags:
+       ├─ 标签存在(by name): useCount++, INSERT blog_article_tag (articleId, tagId)
+       └─ 标签不存在: INSERT blog_tag (name, useCount=1), INSERT blog_article_tag
+  6. 返回 articleId
+```
+
+**关键发现 1**：`wordCount` 使用 `content.length()` 计算字符数，不是真正的"字数"。对于 Markdown 内容，代码块、链接标记等标记符号也会被计入。
+
+**关键发现 2**：文章标签同时存储在两个地方——`blog_article.tags`（JSON 字符串）和 `blog_article_tag`（关联表）。两份数据需要保持同步。
+
+### 二、双标签存储架构
+
+#### 2.1 为什么双存？
+
+| 存储位置 | 格式 | 用途 | 查询方式 |
+| --- | --- | --- | --- |
+| `blog_article.tags` | `["Java","Spring"]` | 快速展示文章标签列表 | 直接读取，无需 JOIN |
+| `blog_article_tag` | `(articleId, tagId)` | 标签维度的文章检索 | JOIN 查询 |
+
+**同步逻辑**：所有标签变更操作（创建、更新、合并）都同时维护两处数据。
+
+**潜在不一致风险**：如果只通过 SQL 直接修改 `blog_article_tag` 而不更新 `blog_article.tags`，两处数据会不一致。
+
+#### 2.2 标签合并流程详解
+
+**源码**：`BlogTagServiceImpl.mergeTags`
+
+```
+mergeTags(sourceTagId, targetTagId):
+  1. 校验: sourceTag ≠ targetTag, 两个标签都存在
+  2. 查询使用源标签的所有文章: blog_article_tag WHERE tagId = sourceTagId
+  3. 遍历这些文章:
+     a. 更新 blog_article.tags JSON:
+        - 移除 sourceTag.name
+        - 如果 targetTag.name 不在列表中 → 追加
+        - 去重
+     b. 删除旧关联: DELETE blog_article_tag WHERE articleId=? AND tagId=sourceTagId
+     c. 添加新关联: INSERT IGNORE blog_article_tag (articleId, targetTagId)
+  4. 更新目标标签 useCount: SELECT COUNT FROM blog_article_tag WHERE tagId=targetTagId
+  5. 物理删除源标签: DELETE blog_tag WHERE id=sourceTagId
+```
+
+**注意**：合并是不可逆的。源标签被物理删除后无法恢复。
+
+### 三、文章查询与分页
+
+#### 3.1 用户端查询（BlogUserController）
+
+**源码**：`BlogUserController.listArticles` + `BlogArticleServiceImpl.listArticles`
+
+查询参数（`ArticleListRequest`）：
+
+| 参数 | 类型 | 说明 | 默认值 |
+| --- | --- | --- | --- |
+| pageNum | int | 页码 | 1 |
+| pageSize | int | 每页数量 | 10 |
+| categoryId | Long | 分类筛选 | null（全部） |
+| tagId | Long | 标签筛选 | null（全部） |
+| keyword | String | 标题关键词 | null |
+
+**查询逻辑**（Mapper XML `BlogArticleMapper.xml`）：
+
+```sql
+SELECT a.*, c.name as categoryName
+FROM blog_article a
+LEFT JOIN blog_category c ON a.category_id = c.id
+WHERE a.status = 1                           -- 只查已发布
+  AND a.is_deleted = 0                       -- 未删除
+  <if test="categoryId != null">
+    AND a.category_id = #{categoryId}
+  </if>
+  <if test="tagId != null">
+    AND EXISTS (
+      SELECT 1 FROM blog_article_tag at
+      WHERE at.article_id = a.id AND at.tag_id = #{tagId}
+    )
+  </if>
+  <if test="keyword != null and keyword != ''">
+    AND a.title LIKE CONCAT('%', #{keyword}, '%')
+  </if>
+ORDER BY a.is_top DESC, a.published_at DESC  -- 置顶优先，发布时间倒序
+```
+
+**置顶逻辑**：`isTop` 字段（Boolean），置顶文章始终排在最前面。
+
+#### 3.2 管理端查询（BlogAdminController）
+
+**源码**：`BlogAdminController.listArticles` + `BlogArticleServiceImpl.adminListArticles`
+
+查询参数（`AdminArticleListRequest`）：
+
+| 参数 | 类型 | 说明 | 默认值 |
+| --- | --- | --- | --- |
+| pageNum | int | 页码 | 1 |
+| pageSize | int | 每页数量 | 10 |
+| status | Integer | 状态筛选 | null（全部） |
+| categoryId | Long | 分类筛选 | null |
+| keyword | String | 标题关键词 | null |
+| startTime | String | 开始时间 | null |
+| endTime | String | 结束时间 | null |
+
+**差异**：管理端可查看所有状态的文章（包括草稿和回收站），且支持时间范围筛选。
+
+#### 3.3 文章详情访问
+
+```
+用户端 getArticleDetail(articleId):
+  1. 查询文章（status=1 且 is_deleted=0）
+  2. 不存在 → throw "文章不存在"
+  3. viewCount++ (UPDATE)
+  4. 构建响应: article + categoryName + tags(JSON解析) + prevArticle + nextArticle
+
+管理端 getArticleDetail(articleId):
+  1. 查询文章（无状态限制）
+  2. 不更新 viewCount
+  3. 构建响应: article + categoryName + tags(JSON解析)
+```
+
+**上下篇导航**：用户端查询同一分类下按 `publishedAt` 排序的相邻文章：
+
+```sql
+-- 上一篇: 同分类中 publishedAt < 当前文章 的最新一篇
+SELECT * FROM blog_article
+WHERE category_id = #{categoryId}
+  AND published_at < #{currentPublishedAt}
+  AND status = 1 AND is_deleted = 0
+ORDER BY published_at DESC LIMIT 1
+
+-- 下一篇: 同分类中 publishedAt > 当前文章 的最早一篇
+SELECT * FROM blog_article
+WHERE category_id = #{categoryId}
+  AND published_at > #{currentPublishedAt}
+  AND status = 1 AND is_deleted = 0
+ORDER BY published_at ASC LIMIT 1
+```
+
+**注意**：如果文章没有分类（categoryId=null），上下篇查询结果为空。
+
+### 四、分类管理
+
+#### 4.1 分类 CRUD
+
+**源码**：`BlogCategoryServiceImpl`
+
+| 操作 | 方法 | 说明 |
+| --- | --- | --- |
+| 创建 | `createCategory` | name 唯一校验 + INSERT |
+| 更新 | `updateCategory` | `CategoryUpdateRequest` 支持修改 name、description、sortOrder |
+| 删除 | `deleteCategory` | 检查是否有文章使用，有 → throw，无 → 物理删除 |
+| 列表 | `listCategories` | 返回所有分类，按 sortOrder 排序 |
+
+**删除保护**：如果分类下有文章（`SELECT COUNT FROM blog_article WHERE category_id=? AND is_deleted=0`），拒绝删除。
+
+**`CategoryUpdateRequest` 字段**：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| name | String | 分类名 |
+| description | String | 分类描述 |
+| sortOrder | Integer | 排序权重（越小越靠前） |
+
+### 五、配置管理
+
+**源码**：`BlogConfigServiceImpl` + `BlogConfig` Domain
+
+`blog_config` 表存储博客全局配置，key-value 结构：
+
+| configKey | 说明 | 示例值 |
+| --- | --- | --- |
+| blog_name | 博客名称 | "CodeNest Blog" |
+| blog_description | 博客描述 | "技术分享平台" |
+| posts_per_page | 每页文章数 | "10" |
+| allow_comment | 是否允许评论 | "true" |
+| review_comment | 评论是否审核 | "false" |
+
+**配置读取逻辑**：启动时全量加载到内存 Map，后续读取直接从 Map 获取，修改时同时更新 DB 和 Map。
+
+### 六、深度发现与坑点
+
+#### 6.1 已确认的代码 Bug / 问题
+
+| 编号 | 问题 | 位置 | 影响 |
+| --- | --- | --- | --- |
+| BUG-1 | `unpublish` 不重置 `publishedAt` | `BlogArticleServiceImpl.unpublishArticle` | 重新发布后发布时间是旧的，排序可能不符合预期 |
+| BUG-2 | `wordCount` 用 `content.length()` | `BlogArticleServiceImpl.createArticle` | Markdown 标记符号被计入，统计不准 |
+| BUG-3 | 无分类文章无上下篇导航 | `BlogArticleServiceImpl.getPrevNextArticles` | categoryId=null 时返回空，无替代方案 |
+| BUG-4 | 标签双存无事务保证 | `BlogArticleServiceImpl.createArticle` | tags JSON 和 article_tag 表在不同步骤写入，中间失败会导致不一致 |
+| BUG-5 | 标签 JSON 和关联表可被 SQL 绕过 | 架构层面 | 直接操作 `blog_article_tag` 表不会同步 `blog_article.tags` |
+
+#### 6.2 设计层面的潜在风险
+
+| 编号 | 风险 | 说明 |
+| --- | --- | --- |
+| RISK-1 | 标签合并不可逆 | 源标签物理删除后无法恢复，建议改为软删除 |
+| RISK-2 | 分类删除检查不含回收站文章 | `deleteCategory` 只查 `is_deleted=0` 的文章 | 回收站中的文章恢复后可能指向已删除的分类 |
+| RISK-3 | 配置无缓存过期机制 | 启动时加载到内存，如果 DB 被直接修改，需要重启应用 |
+| RISK-4 | 文章内容无版本管理 | 更新直接覆盖，无法回滚到历史版本 |
+
+#### 6.3 架构设计亮点
+
+| 编号 | 亮点 | 说明 |
+| --- | --- | --- |
+| H-1 | 双标签存储 | JSON 快速展示 + 关联表灵活查询，读写分离优化 |
+| H-2 | 分类删除保护 | 有关联文章时拒绝删除，防止悬空引用 |
+| H-3 | 上下篇导航 | 用户端自动计算同分类上下篇，提升阅读体验 |
+| H-4 | 文章软删除 | is_deleted 标记而非物理删除，可恢复 |
+
+#### 6.4 源码导航速查
+
+| 想了解 | 读什么 |
+| --- | --- |
+| 文章 CRUD | `BlogArticleServiceImpl.java` — 全部文章操作入口 |
+| 标签管理 | `BlogTagServiceImpl.java` — 标签增删改查+合并 |
+| 分类管理 | `BlogCategoryServiceImpl.java` — 分类 CRUD + 删除保护 |
+| 配置管理 | `BlogConfigServiceImpl.java` — key-value 配置读写 |
+| 用户端 API | `BlogUserController.java` — 已发布文章访问 |
+| 管理端 API | `BlogAdminController.java` — 全状态文章管理 |
+| 文章查询 SQL | `BlogArticleMapper.xml` — 分页+筛选+上下篇 |
+| 标签查询 SQL | `BlogTagMapper.xml` — 标签统计+关联查询 |
+| 文章状态枚举 | `ArticleStatus.java` — DRAFT/PUBLISHED/RECYCLE |
+| 文章类型枚举 | `ArticleType.java` — ORIGINAL/REPOST/TRANSLATE |
 | 分类删除失败 | 分类下还有文章 | 先迁移或下架相关文章 |
 | 非作者访问草稿 | 服务会隐藏草稿和删除态 | 调试时用作者账号访问 |
 
@@ -189,3 +485,16 @@
 | 分类下存在文章时删除分类 | 返回无法删除 |
 | 使用中的标签被删除 | 返回无法删除 |
 | 置顶文章设置时长 | 写入置顶状态和过期时间 |
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 博客模块依赖公共底座的统一响应、分页和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 博客开通、文章发布需要用户登录态 |
+| [积分与抽奖](/modules/points) | 强依赖 | 博客开通和发布可能消耗积分 |
+| [敏感词风控](/modules/sensitive) | 强依赖 | 文章标题和内容必须经过敏感词检测 |
+| [用户账户与个人中心](/modules/user-account) | 强依赖 | 博客个人主页依赖用户信息 |
+| [文件存储](/modules/file-storage) | 间接依赖 | 文章封面图和内容图片可能依赖文件模块 |
+| [社区帖子](/modules/community) | 间接关联 | 博客与社区帖子都是内容发布模块 |
+| [系统运营后台](/modules/system-ops) | 被依赖 | 博客管理界面在管理端 |

@@ -1,7 +1,11 @@
 package com.xiaou.blog.service.impl;
 
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.xiaou.common.utils.PageHelper;
+import com.xiaou.blog.domain.BlogArticle;
 import com.xiaou.blog.domain.BlogTag;
+import com.xiaou.blog.mapper.BlogArticleMapper;
 import com.xiaou.blog.mapper.BlogTagMapper;
 import com.xiaou.blog.service.BlogTagService;
 import com.xiaou.common.core.domain.PageResult;
@@ -11,7 +15,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 博客标签Service实现类
@@ -23,6 +30,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BlogTagServiceImpl implements BlogTagService {
     
+    private final BlogArticleMapper blogArticleMapper;
     private final BlogTagMapper blogTagMapper;
     
     @Override
@@ -45,18 +53,62 @@ public class BlogTagServiceImpl implements BlogTagService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void mergeTags(Long sourceTagId, Long targetTagId) {
+        if (sourceTagId.equals(targetTagId)) {
+            throw new BusinessException("源标签和目标标签不能相同");
+        }
+
         BlogTag sourceTag = blogTagMapper.selectById(sourceTagId);
         BlogTag targetTag = blogTagMapper.selectById(targetTagId);
         
         if (sourceTag == null || targetTag == null) {
             throw new BusinessException("标签不存在");
         }
-        
-        // TODO: 将使用源标签的文章改为使用目标标签
-        // 这需要更新blog_article表中的tags字段
-        
-        // 更新目标标签使用次数
-        blogTagMapper.updateUseCount(targetTagId, targetTag.getUseCount() + sourceTag.getUseCount());
+
+        String sourceTagName = StrUtil.trim(sourceTag.getTagName());
+        String targetTagName = StrUtil.trim(targetTag.getTagName());
+        if (!StrUtil.isAllNotBlank(sourceTagName, targetTagName)) {
+            throw new BusinessException("标签名称不能为空");
+        }
+
+        List<BlogArticle> affectedArticles = blogArticleMapper.selectByTagName(sourceTagName);
+        int targetUseCountDelta = 0;
+        for (BlogArticle article : affectedArticles) {
+            List<String> tags = JSONUtil.toList(article.getTags(), String.class);
+            if (tags == null || tags.isEmpty()) {
+                continue;
+            }
+
+            int oldTargetOccurrences = 0;
+            Set<String> mergedTags = new LinkedHashSet<>();
+            for (String tag : tags) {
+                String currentTag = StrUtil.trim(tag);
+                if (!StrUtil.isNotBlank(currentTag)) {
+                    continue;
+                }
+
+                if (targetTagName.equals(currentTag)) {
+                    oldTargetOccurrences++;
+                }
+                if (sourceTagName.equals(currentTag)) {
+                    currentTag = targetTagName;
+                }
+                mergedTags.add(currentTag);
+            }
+
+            int newTargetOccurrences = mergedTags.contains(targetTagName) ? 1 : 0;
+            targetUseCountDelta += newTargetOccurrences - oldTargetOccurrences;
+
+            BlogArticle updateArticle = new BlogArticle();
+            updateArticle.setId(article.getId());
+            updateArticle.setTags(JSONUtil.toJsonStr(new ArrayList<>(mergedTags)));
+            blogArticleMapper.updateById(updateArticle);
+        }
+
+        int targetUseCount = targetTag.getUseCount() == null ? 0 : targetTag.getUseCount();
+        BlogTag updateTag = new BlogTag();
+        updateTag.setId(targetTagId);
+        updateTag.setUseCount(targetUseCount + targetUseCountDelta);
+        blogTagMapper.updateById(updateTag);
         
         // 删除源标签
         blogTagMapper.deleteById(sourceTagId);

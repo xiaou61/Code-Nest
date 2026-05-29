@@ -26,6 +26,11 @@ public class PrizeMonitorResponse implements Serializable {
      * 奖品名称
      */
     private String prizeName;
+
+    /**
+     * 奖品等级
+     */
+    private Integer prizeLevel;
     
     /**
      * 奖品积分
@@ -81,6 +86,31 @@ public class PrizeMonitorResponse implements Serializable {
      * 总成本
      */
     private Long totalCost;
+
+    /**
+     * 当前库存
+     */
+    private Integer currentStock;
+
+    /**
+     * 总库存
+     */
+    private Integer totalStock;
+
+    /**
+     * 最大回报率
+     */
+    private BigDecimal maxReturnRate;
+
+    /**
+     * 最小回报率
+     */
+    private BigDecimal minReturnRate;
+
+    /**
+     * 状态
+     */
+    private String status;
     
     /**
      * 是否暂停

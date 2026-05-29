@@ -10,17 +10,24 @@ import com.xiaou.points.dto.lottery.admin.*;
 import com.xiaou.points.mapper.*;
 import com.xiaou.points.service.LotteryAdminService;
 import com.xiaou.points.service.LotteryNormalizeService;
+import com.xiaou.points.service.LotteryStockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -39,6 +46,7 @@ public class LotteryAdminServiceImpl implements LotteryAdminService {
     private final LotteryAdjustHistoryMapper adjustHistoryMapper;
     private final UserLotteryLimitMapper userLimitMapper;
     private final LotteryNormalizeService normalizeService;
+    private final LotteryStockService stockService;
     
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -50,6 +58,17 @@ public class LotteryAdminServiceImpl implements LotteryAdminService {
         if (config.getCurrentProbability() == null) {
             config.setCurrentProbability(config.getBaseProbability());
         }
+
+        LotteryPrizeConfig existingConfig = config.getId() != null ? prizeConfigMapper.selectById(config.getId()) : null;
+        if (config.getId() != null && existingConfig == null) {
+            throw new BusinessException("奖品不存在");
+        }
+
+        if (isLimitedStock(config)) {
+            config.setCurrentStock(resolveStockForSave(config, existingConfig));
+        } else {
+            config.setCurrentStock(-1);
+        }
         
         if (config.getId() == null) {
             // 新增
@@ -60,6 +79,7 @@ public class LotteryAdminServiceImpl implements LotteryAdminService {
             prizeConfigMapper.updateById(config);
             log.info("管理员{}更新奖品配置：{}", adminId, config.getPrizeName());
         }
+        evictStockCacheAfterCommit(config.getId());
     }
     
     @Override
@@ -214,10 +234,21 @@ public class LotteryAdminServiceImpl implements LotteryAdminService {
         return RealtimeMonitorResponse.PrizeStatus.builder()
                 .prizeId(config.getId())
                 .prizeName(config.getPrizeName())
+                .prizeLevel(config.getPrizeLevel())
+                .baseProbability(config.getBaseProbability())
                 .currentProbability(config.getCurrentProbability())
+                .targetReturnRate(config.getTargetReturnRate())
                 .actualReturnRate(config.getActualReturnRate())
                 .status(status)
+                .todayDrawCount(config.getTodayDrawCount())
                 .todayWinCount(config.getTodayWinCount())
+                .totalDrawCount(config.getTotalDrawCount())
+                .totalWinCount(config.getTotalWinCount())
+                .currentStock(config.getCurrentStock())
+                .totalStock(config.getTotalStock())
+                .maxReturnRate(config.getMaxReturnRate())
+                .minReturnRate(config.getMinReturnRate())
+                .adjustStrategy(config.getAdjustStrategy())
                 .alertLevel(alertLevel)
                 .alertMessage(alertMessage)
                 .build();
@@ -237,9 +268,7 @@ public class LotteryAdminServiceImpl implements LotteryAdminService {
     public PageResult<LotteryDrawResponse> getAllDrawRecords(LotteryRecordQueryRequest request) {
         return PageHelper.doPage(request.getPage(), request.getSize(), () -> {
             List<LotteryDrawRecord> records = drawRecordMapper.selectAll(request);
-            return records.stream()
-                    .map(this::convertToDrawResponse)
-                    .collect(Collectors.toList());
+            return convertToDrawResponses(records);
         });
     }
     
@@ -264,9 +293,7 @@ public class LotteryAdminServiceImpl implements LotteryAdminService {
             } else {
                 histories = adjustHistoryMapper.selectAll();
             }
-            return histories.stream()
-                    .map(this::convertToAdjustHistoryResponse)
-                    .collect(Collectors.toList());
+            return convertToAdjustHistoryResponses(histories);
         });
     }
     
@@ -427,6 +454,38 @@ public class LotteryAdminServiceImpl implements LotteryAdminService {
         statisticsMapper.insert(stats);
         return stats;
     }
+
+    private boolean isLimitedStock(LotteryPrizeConfig config) {
+        return config.getTotalStock() != null && config.getTotalStock() >= 0;
+    }
+
+    private Integer resolveStockForSave(LotteryPrizeConfig config, LotteryPrizeConfig existingConfig) {
+        if (existingConfig != null
+                && isLimitedStock(existingConfig)
+                && existingConfig.getCurrentStock() != null
+                && existingConfig.getCurrentStock() >= 0) {
+            return Math.min(existingConfig.getCurrentStock(), config.getTotalStock());
+        }
+        return config.getDailyStock() != null && config.getDailyStock() >= 0
+                ? Math.min(config.getDailyStock(), config.getTotalStock())
+                : config.getTotalStock();
+    }
+
+    private void evictStockCacheAfterCommit(Long prizeId) {
+        if (prizeId == null) {
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            stockService.evictStockCache(prizeId);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                stockService.evictStockCache(prizeId);
+            }
+        });
+    }
     
     /**
      * 转换为奖品监控响应
@@ -435,6 +494,7 @@ public class LotteryAdminServiceImpl implements LotteryAdminService {
         PrizeMonitorResponse response = new PrizeMonitorResponse();
         response.setPrizeId(config.getId());
         response.setPrizeName(config.getPrizeName());
+        response.setPrizeLevel(config.getPrizeLevel());
         response.setPrizePoints(config.getPrizePoints());
         response.setBaseProbability(config.getBaseProbability());
         response.setCurrentProbability(config.getCurrentProbability());
@@ -446,63 +506,98 @@ public class LotteryAdminServiceImpl implements LotteryAdminService {
         response.setTotalWinCount(config.getTotalWinCount());
         response.setTodayCost((long) config.getTodayWinCount() * config.getPrizePoints());
         response.setTotalCost((long) config.getTotalWinCount() * config.getPrizePoints());
+        response.setCurrentStock(config.getCurrentStock());
+        response.setTotalStock(config.getTotalStock());
+        response.setMaxReturnRate(config.getMaxReturnRate());
+        response.setMinReturnRate(config.getMinReturnRate());
+        response.setStatus(config.getIsSuspended() != null && config.getIsSuspended() == 1 ? "暂停" : "正常");
         response.setIsSuspended(config.getIsSuspended() != null && config.getIsSuspended() == 1);
         response.setSuspendUntil(config.getSuspendUntil());
         response.setAdjustStrategy(config.getAdjustStrategy());
         response.setLastAdjustTime(config.getLastAdjustTime());
         return response;
     }
-    
-    /**
-     * 转换为抽奖响应
-     */
-    private LotteryDrawResponse convertToDrawResponse(LotteryDrawRecord record) {
-        LotteryDrawResponse response = new LotteryDrawResponse();
-        BeanUtil.copyProperties(record, response);
-        response.setRecordId(record.getId());
-        response.setDrawTime(record.getCreateTime());
-        
-        LotteryPrizeConfig prize = prizeConfigMapper.selectById(record.getPrizeId());
-        if (prize != null) {
-            response.setPrizeName(prize.getPrizeName());
-            response.setPrizeIcon(prize.getPrizeIcon());
-        }
-        
-        return response;
-    }
-    
+
     /**
      * 转换为统计响应
      */
     private LotteryStatisticsResponse convertToStatisticsResponse(LotteryStatisticsDaily daily) {
         LotteryStatisticsResponse response = new LotteryStatisticsResponse();
         response.setTotalDrawCount(daily.getTotalDrawCount());
+        response.setDrawCount(daily.getTotalDrawCount());
         response.setTotalWinCount(daily.getTotalWinCount());
+        response.setTotalCostPoints(daily.getTotalCostPoints());
+        response.setTotalRewardPoints(daily.getTotalRewardPoints());
+        response.setReturnRate(daily.getActualReturnRate());
+        response.setPlatformProfitPoints(daily.getPlatformProfitPoints());
+        response.setParticipantCount(daily.getUniqueUserCount());
+        response.setStatDate(daily.getStatDate());
         return response;
     }
-    
-    /**
-     * 转换为调整历史响应
-     */
-    private AdjustHistoryResponse convertToAdjustHistoryResponse(LotteryAdjustHistory history) {
+
+    private List<LotteryDrawResponse> convertToDrawResponses(List<LotteryDrawRecord> records) {
+        Map<Long, LotteryPrizeConfig> prizeMap = buildPrizeMap(records.stream()
+                .map(LotteryDrawRecord::getPrizeId)
+                .collect(Collectors.toSet()));
+        return records.stream()
+                .map(record -> convertToDrawResponse(record, prizeMap.get(record.getPrizeId())))
+                .collect(Collectors.toList());
+    }
+
+    private LotteryDrawResponse convertToDrawResponse(LotteryDrawRecord record, LotteryPrizeConfig prize) {
+        LotteryDrawResponse response = new LotteryDrawResponse();
+        BeanUtil.copyProperties(record, response);
+        response.setId(record.getId());
+        response.setRecordId(record.getId());
+        response.setUserId(record.getUserId());
+        response.setStrategyType(record.getDrawStrategy());
+        response.setIp(record.getDrawIp());
+        response.setDevice(record.getDrawDevice());
+        response.setDrawTime(record.getCreateTime());
+        if (prize != null) {
+            response.setPrizeName(prize.getPrizeName());
+            response.setPrizeIcon(prize.getPrizeIcon());
+        }
+        return response;
+    }
+
+    private List<AdjustHistoryResponse> convertToAdjustHistoryResponses(List<LotteryAdjustHistory> histories) {
+        Map<Long, LotteryPrizeConfig> prizeMap = buildPrizeMap(histories.stream()
+                .map(LotteryAdjustHistory::getPrizeId)
+                .collect(Collectors.toSet()));
+        return histories.stream()
+                .map(history -> convertToAdjustHistoryResponse(history, prizeMap.get(history.getPrizeId())))
+                .collect(Collectors.toList());
+    }
+
+    private AdjustHistoryResponse convertToAdjustHistoryResponse(LotteryAdjustHistory history, LotteryPrizeConfig prize) {
         AdjustHistoryResponse response = new AdjustHistoryResponse();
         BeanUtil.copyProperties(history, response);
         response.setReason(history.getAdjustReason());
-        
-        // 获取奖品名称
-        LotteryPrizeConfig prize = prizeConfigMapper.selectById(history.getPrizeId());
         if (prize != null) {
             response.setPrizeName(prize.getPrizeName());
         }
-        
-        // 设置操作人姓名
-        if (history.getOperatorId() == 0) {
+        if (history.getOperatorId() == null || history.getOperatorId() == 0) {
             response.setOperatorName("系统自动");
         } else {
             response.setOperatorName("管理员" + history.getOperatorId());
         }
-        
         return response;
+    }
+
+    private Map<Long, LotteryPrizeConfig> buildPrizeMap(Set<Long> prizeIds) {
+        if (prizeIds == null || prizeIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<Long> ids = prizeIds.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        if (ids.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return prizeConfigMapper.selectBatchIds(ids).stream()
+                .collect(Collectors.toMap(LotteryPrizeConfig::getId, prize -> prize));
     }
 }
 

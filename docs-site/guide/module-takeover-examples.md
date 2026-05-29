@@ -298,3 +298,13 @@ OJ 的典型难点是：
 什么叫接手模块，什么又叫看起来接手了、实际上还没接住。
 
 当你已经开始持续接模块后，下一步建议直接把 [模块值守与回归手册](/guide/module-owner-playbook) 跑起来。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [模块接手检查清单](/guide/module-takeover-checklist) | 接手检查 |
+| [模块接手升级路线](/guide/module-ownership-ladder) | 升级路线 |
+| [模块值守与回归手册](/guide/module-owner-playbook) | 值守手册 |
+| [模块总览](/modules/) | 各模块功能 |

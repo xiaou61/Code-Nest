@@ -1,0 +1,111 @@
+name: Bug Report
+description: Report a reproducible defect in Code Nest.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please provide enough context for maintainers to reproduce and evaluate the issue.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What is broken?
+      placeholder: Describe the defect clearly.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Provide the shortest reliable reproduction path.
+      placeholder: |
+        1. Go to ...
+        2. Click ...
+        3. Submit ...
+        4. See error ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What happened instead?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected Area
+      multiple: true
+      options:
+        - Backend API
+        - User frontend
+        - Admin frontend
+        - Database / SQL
+        - Auth / permission
+        - File storage
+        - WebSocket / chat
+        - AI Runtime / RAG
+        - OJ / judge
+        - Documentation
+        - Deployment / CI
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or Branch
+      placeholder: v2.2.1 / main / commit hash
+    validations:
+      required: false
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS, browser, JDK, Node.js, MySQL, Redis, deployment mode if relevant.
+      placeholder: |
+        OS:
+        Browser:
+        JDK:
+        Node.js:
+        MySQL:
+        Redis:
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or Screenshots
+      description: Paste relevant logs, screenshots, request IDs, or response bodies. Remove secrets and private data.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Who is affected and how severe is it?
+    validations:
+      required: false
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues.
+          required: true
+        - label: I have removed secrets, tokens, passwords, cookies, and private user data.
+          required: true
+        - label: This is not a public security vulnerability report.
+          required: true

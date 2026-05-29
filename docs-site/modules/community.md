@@ -194,3 +194,215 @@
 | AI 未启用生成摘要 | 返回“AI功能未启用” |
 | 帖子带 8 个标签 | 最多只保存前 5 个启用标签 |
 | 一级评论带多条回复 | 列表默认只带前 2 条，并标记是否还有更多 |
+
+---
+
+## 深度拆解
+
+### 一、发帖流程深度分析
+
+`CommunityPostServiceImpl.createPost` 完整流程：
+
+```text
+1. checkUserBanStatus → 被封禁则抛原因
+2. StpUserUtil.checkLogin + getLoginIdAsLong
+3. categoryId 非空 → 校验分类存在且 status=1
+4. 构建 CommunityPost:
+   ├─ authorName = SaTokenUserUtil.getCurrentUserUsername("用户"+id)
+   ├─ 四计数全部=0, isTop=0, status=1
+5. insert → result<=0 抛"发布失败"
+6. incrementPostCount(authorId)
+7. categoryId != null → updatePostCount(categoryId, 1)
+8. 处理标签:
+   ├─ tagIds.size() > 5 → subList(0, 5) 静默截断
+   ├─ 逐个 selectById(tagId) → tag != null && status==1 才关联
+   ├─ batchInsert(postTags)
+   └─ 逐个 updatePostCount(tagId, 1) 增量
+```
+
+**标签关联 N+1**：每验证一个标签 = 1 次 SELECT，创建后每更新一个标签帖子数 = 1 次 UPDATE。5 标签 = 5 SELECT + 5 UPDATE = 10 次额外 SQL。
+
+**authorName 非规范化**：`authorName` 冗余在帖子表中，用户改名后帖子表不更新——与 OJ 评论系统同样的反模式。
+
+### 二、点赞/收藏幂等性深度分析
+
+**点赞** `likePost`：
+
+```text
+1. checkUserBanStatus
+2. selectByPostIdAndUserId(postId, userId) → 已存在 → 抛"已经点赞过了"
+3. insert(CommunityPostLike) → userName 冗余
+4. updateLikeCount(postId, 1) → 增量
+5. incrementLikeCount(userId) → 用户统计
+6. 通知帖子作者 (catch 不阻断)
+```
+
+**取消点赞** `unlikePost`：与点赞对称，delete + updateLikeCount(-1) + decrementLikeCount。
+
+**收藏** `collectPost/uncollectPost`：与点赞结构完全对称。
+
+**并发安全**：`selectByPostIdAndUserId` + `insert` 不是原子操作——并发点赞可能突破 exists 检查导致重复插入。**没有数据库唯一约束**（`post_id, user_id`）保护。所有模块的点赞/收藏都存在这个问题。
+
+### 三、评论与回复深度分析
+
+**一级评论** `createComment`：
+
+```text
+1. checkUserBanStatus
+2. 帖子存在校验
+3. 敏感词检测 → SensitiveWordUtils.checkText → 违规则抛"包含违规内容"
+4. 敏感词替换 → 使用 processedText
+5. parentId=null → 一级评论
+6. updateCommentCount(postId, 1) → 帖子计数+1
+7. incrementCommentCount(userId) → 用户统计+1
+8. 通知帖子作者 (catch 不阻断)
+```
+
+**回复评论** `replyComment`：
+
+```text
+1. checkUserBanStatus
+2. 被回复评论存在校验
+3. 敏感词检测+替换
+4. 关键: parentId = parentComment.parentId == 0 ? commentId : parentComment.parentId
+   → 所有回复都挂在一级评论下（扁平化二级结构）
+5. replyToId = commentId (被回复的评论ID)
+6. replyToUserId = request.replyToUserId
+7. replyToUserName: 先尝试从 CommunityUserStatus 获取，失败则 fallback "用户"+id
+8. updateReplyCount(parentCommentId, 1) → 一级评论的 replyCount+1
+9. updateCommentCount(postId, 1) → 帖子评论数+1
+10. incrementCommentCount(userId)
+11. 通知被回复用户 (catch 不阻断)
+```
+
+**评论列表** `getPostComments`：一级评论分页，每条默认带 2 条回复（`selectRepliesByCommentId(id, 2)`），标记 `hasMoreReplies = replyCount > 2`。
+
+**N+1 问题**：列表中每条一级评论多 2 次 SELECT（replies + isLiked 检查）。一页 10 条评论 = 10×(1+2+1) = 40 次 SQL。
+
+### 四、热度公式深度分析
+
+`convertToResponse` 中计算：
+
+```text
+hotScore = likeCount * 3.0 + commentCount * 5.0 + collectCount * 8.0 + viewCount * 0.1
+```
+
+| 行为 | 权重 | 推导 |
+| --- | --- | --- |
+| 收藏 | 8.0 | 最高权重，表示深度认可 |
+| 评论 | 5.0 | 次高，表示互动参与 |
+| 点赞 | 3.0 | 最低互动，轻量认可 |
+| 浏览 | 0.1 | 几乎不贡献热度 |
+
+**没有时间衰减**：一个一年前的热门帖子和一个新帖子的热度公式完全相同。长时间后，旧帖子的累积 viewCount 会使其持续排在前面。
+
+**热门帖子定时任务** `CommunityHotPostTask`：按 `community.hot.refreshIntervalMinutes`（默认10分钟）定时刷新，计算72小时内热度分 >= 30 的前10条帖子，缓存到 `community:hot:posts`。
+
+### 五、缓存策略深度分析
+
+`CommunityCacheServiceImpl` 提供三级缓存：
+
+| 缓存 Key | TTL | 用途 |
+| --- | --- | --- |
+| `community:post:detail:{id}` | 1800s | 帖子详情 |
+| `community:hot:posts` | 600s | 热门帖子列表 |
+| `community:user:info:{id}` | 3600s | 用户信息 |
+| `community:tags:enabled` | 86400s | 启用标签列表 |
+| `community:post:summary:{id}` | 2592000s | AI 摘要 |
+| `community:search:keywords` | - | 搜索关键词记录 |
+
+**缓存一致性**：写操作（发帖、点赞、收藏、删除、下架）都会调用 `evictPost(id)` 清除帖子详情缓存。但 **不清理** 热门帖子缓存——热门列表最多延迟 10 分钟更新。
+
+**浏览计数不经过缓存**：`incrementViewCount(id)` 直接操作数据库 `SET view_count = view_count + 1`，然后 **不更新缓存中的 viewCount**。这意味着缓存命中时，返回的 viewCount 可能低于实际值。
+
+### 六、AI 摘要深度分析
+
+`CommunityAiSummaryServiceImpl.generateSummary`：
+
+```text
+1. community.ai.enabled == false → 抛"AI功能未启用"
+2. 先读摘要缓存 community:post:summary:{postId}
+3. 缓存命中 → 返回
+4. 数据库查帖子 aiSummary 字段 → 非空 → 返回
+5. 调用 aiCommunityService.generatePostSummary(title, content)
+6. 成功 → 更新帖子表 aiSummary 字段
+7. 清帖子详情缓存 evictPost
+8. 写摘要缓存 (TTL=30天)
+9. return 摘要
+```
+
+**双层缓存**：摘要缓存 + 帖子详情缓存，两个需要分别维护一致性。强制刷新时需要同时清理两处。
+
+### 七、深度发现与坑点
+
+#### 7.1 确认 BUG
+
+| 编号 | BUG | 位置 | 说明 |
+| --- | --- | --- | --- |
+| BUG-1 | 点赞/收藏无唯一约束 | `likePost/collectPost` | 并发下可重复插入 |
+| BUG-2 | 评论列表 N+1 | `convertToResponseWithReplies` | 每条一级评论=3次额外SELECT |
+| BUG-3 | 标签关联 N+1 | `createPost` | 每个标签=2次SQL（验证+计数） |
+| BUG-4 | authorName 非规范化 | `createPost` | 用户改名后帖子不更新 |
+| BUG-5 | 浏览数不回写缓存 | `getPostDetail` | 缓存命中时 viewCount 偏低 |
+| BUG-6 | 热度无时间衰减 | `convertToResponse` | 旧帖子累积浏览数持续霸榜 |
+| BUG-7 | 删除帖子不清理标签关系 | `deletePost` | community_post_tag 残留 |
+
+#### 7.2 设计风险
+
+| 编号 | 风险 | 说明 |
+| --- | --- | --- |
+| RISK-1 | 敏感词检测异常后放行 | catch(Exception) 使用原始内容发布 |
+| RISK-2 | replyToUserName fallback 硬编码 | "用户"+id 不走统一用户服务 |
+| RISK-3 | 热门帖子定时任务无分布式锁 | 多实例部署时重复计算 |
+| RISK-4 | 搜索关键词记录 catch 吞异常 | 关键词记录丢失不影响主流程，但排查困难 |
+
+#### 7.3 架构设计亮点
+
+| 编号 | 亮点 | 说明 |
+| --- | --- | --- |
+| H-1 | 扁平化二级评论 | parentId 挂一级，replyToId 定位目标，前端渲染清晰 |
+| H-2 | 标签5个上限静默截断 | 不报错但只取前5个，用户体验友好 |
+| H-3 | 缓存优先读+写清一致性 | 读详情先缓存再数据库；写操作清缓存 |
+| H-4 | 敏感词替换后发布 | 不一刀切禁止，而是替换敏感词后允许发布 |
+| H-5 | 双层缓存摘要 | 摘要30天TTL+帖子详情30分钟TTL，按需刷新 |
+| H-6 | 封禁过期自动解封 | 访问时检查 banExpireTime，过期自动更新 |
+| H-7 | 通知失败不阻断 | 所有点赞/收藏/评论通知全部 catch 不阻断主流程 |
+| H-8 | 热门帖子定时刷新 | 后台任务定期计算，避免实时查询性能问题 |
+| H-9 | 分类帖子数 COUNT 重算 | `updatePostCount` 用 COUNT 重算避免增量漂移 |
+| H-10 | 搜索关键词记录 | 热门搜索词缓存，辅助运营决策 |
+
+#### 7.4 源码导航速查
+
+| 想了解 | 读什么 |
+| --- | --- |
+| 发帖 | `CommunityPostServiceImpl.java` — createPost + 标签5个限制 |
+| 帖子详情 | `CommunityPostServiceImpl.java` — getPostDetail + 缓存优先 |
+| 点赞/取消 | `CommunityPostServiceImpl.java` — likePost/unlikePost + 通知 |
+| 收藏/取消 | `CommunityPostServiceImpl.java` — collectPost/uncollectPost + 通知 |
+| 删除帖子 | `CommunityPostServiceImpl.java` — deletePost + 减计数 |
+| 置顶 | `CommunityPostServiceImpl.java` — topPost + DateHelper.addHoursFromNow |
+| 下架 | `CommunityPostServiceImpl.java` — disablePost + 清缓存 |
+| 热度公式 | `CommunityPostServiceImpl.java` — convertToResponse (3/5/8/0.1权重) |
+| 一级评论 | `CommunityCommentServiceImpl.java` — createComment + 敏感词 |
+| 回复评论 | `CommunityCommentServiceImpl.java` — replyComment + 扁平化 |
+| 评论点赞 | `CommunityCommentServiceImpl.java` — likeComment/unlikeComment |
+| 标签 CRUD | `CommunityTagServiceImpl.java` — 名称去重 + 缓存 |
+| 缓存服务 | `CommunityCacheServiceImpl.java` — 五级缓存 + TTL |
+| 热门任务 | `CommunityHotPostTask.java` — 72小时窗口 + 30分最低 |
+| AI 摘要 | `CommunityAiSummaryServiceImpl.java` — 双层缓存 + 强制刷新 |
+| 用户封禁 | `CommunityUserStatusServiceImpl.java` — ban/unban + 自动解封 |
+| 帖子域 | `CommunityPost.java` — authorName 冗余 + 四计数 + isTop + aiSummary |
+| 评论域 | `CommunityComment.java` — parentId + replyToId + replyToUserName |
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 社区模块依赖公共底座的统一响应、分页和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 发帖、评论等操作需要用户登录态 |
+| [用户账户与个人中心](/modules/user-account) | 强依赖 | 用户主页、头像、昵称等信息依赖用户账户 |
+| [敏感词风控](/modules/sensitive) | 强依赖 | 发帖和评论必须经过敏感词检测 |
+| [AI Runtime](/modules/ai-runtime) | 可选依赖 | 帖子 AI 摘要功能依赖 AI Runtime |
+| [通知中心](/modules/notification) | 间接依赖 | 点赞、评论等互动触发通知推送 |
+| [积分与抽奖](/modules/points) | 间接依赖 | 社区互动可能触发积分奖励 |
+| [前端渲染安全](/reference/frontend-rendering-security) | 参考 | Markdown 和富文本展示安全规范 |

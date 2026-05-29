@@ -255,3 +255,314 @@
 | 来源同步失败很多次 | API 地址、GitHub 地址或 token 错误 | 用测试连接接口先验证 |
 | 高风险内容没有进入人工审核 | 当前默认策略高风险是 `reject`，中风险也是 `replace` | 若需要审核流，要补业务审核状态 |
 | 日志没有写入但发布被处理了 | 日志和统计是异步记录，失败不影响主流程 | 查线程池和应用日志 |
+
+---
+
+## 敏感词风控模块深度拆解
+
+> 以下内容基于 `xiaou-sensitive` + `xiaou-sensitive-api` 全部源码逐行拆解，覆盖 6 个 ServiceImpl、1 个 Engine 实现、1 个 Preprocessor、4 个 Domain、4 个 Mapper、1 个 API 接口 + 2 个 DTO。
+
+### 一、检测主链路深度分析
+
+**源码**：`SensitiveCheckServiceImpl.checkText`
+
+```
+checkText(request):
+  1. request == null || text == null || text.trim().isEmpty → 直接返回 allowed=true
+  2. text.length > 10000 → 截取前 10000 字符, 并修改 request.setText()
+  3. textPreprocessor.preprocess(text, true, true, true, true)
+     → 全角转半角 + 去特殊字符 + 转小写 + 同音字 + 形似字
+  4. sensitiveEngine.findSensitiveWords(text)          → 原文匹配
+  5. sensitiveEngine.findSensitiveWords(preprocessedText) → 预处理文匹配
+  6. 合并: variantHitWords 中的词不在 hitWords → 追加
+  7. 白名单过滤: 逐词检查 whitelistService.isInWhitelist(word, module)
+  8. hitWords 非空 → calculateRiskLevel(hitWords.size())
+  9. strategyService.getStrategy(module, riskLevel) → 缓存 → DB → 默认策略
+  10. processText(text, action) → replace 用 *** 替换 / reject 返回空
+  11. isAllowed(action) → action == "reject" 返回 false
+  12. logSensitiveDetectionAsync + recordStatisticsAsync → 异步
+```
+
+**关键发现 1**：步骤 2 截断文本后，`request.setText(text)` 修改了入参对象。这意味着调用方如果后续还使用 request 对象，会拿到被截断后的文本。这是一个隐含的副作用。
+
+**关键发现 2**：步骤 6 合并命中词时使用 `hitWords.contains(variantWord)` 做去重。`hitWords` 是 `ArrayList`，`contains` 是 O(n) 操作。如果命中词很多，这里的性能不佳。但因为命中词通常很少，实际影响不大。
+
+**关键发现 3**：异常处理返回 `allowed=false`，`action="error"`。这意味着**检测服务自身异常时，内容发布会被阻断**。这违背了"风控不影响主流程"的设计原则——正常情况下即使检测服务不可用，也不应该阻止用户发布内容。
+
+### 二、批量检测双模式策略
+
+**源码**：`SensitiveCheckServiceImpl.checkTextBatch`
+
+```
+checkTextBatch(requests):
+  1. requests.size() > 100 → 截取前 100 条
+  2. requests.size() ≤ 10 → 串行逐条 checkText
+  3. requests.size() > 10 → 并行处理:
+     - batchExecutor.submit(() -> checkText(request)) 提交所有任务
+     - future.get(10, TimeUnit.SECONDS) 逐条等待结果
+     - TimeoutException → createDefaultResponse() + cancel
+     - 整体异常 → 退回串行处理
+```
+
+**关键发现**：并行模式下的 `createDefaultResponse()` 返回 `hit=false, allowed=true`，与 `checkText` 异常时返回 `allowed=false` 不一致。同样是异常场景，单条检测阻断发布，批量检测却放行——行为不统一。
+
+**线程池配置**：
+
+| 参数 | 值 | 说明 |
+| --- | --- | --- |
+| 核心线程数 | 2 | 日常并发 |
+| 最大线程数 | 8 | 高峰扩容 |
+| 队列容量 | 200 | 缓冲任务 |
+| KeepAlive | 60s | 扩容线程回收 |
+| 拒绝策略 | CallerRunsPolicy | 队列满时由调用线程执行 |
+| 线程名 | `SensitiveCheck-{n}` | 日志辨识 |
+| Daemon | true | 不阻止 JVM 退出 |
+
+### 三、AC 自动机实现详解
+
+**源码**：`AhoCorasickEngine`
+
+```
+TrieNode:
+  - children: Map<Character, TrieNode>  ← 每个节点一个 HashMap
+  - failure: TrieNode                    ← 失败指针
+  - isEndOfWord: boolean
+  - pattern: String                      ← 只存储一个模式字符串
+
+initialize(words):
+  1. 过滤无效词: null, 空, 长度 > 100
+  2. trim + toLowerCase
+  3. 构建 Trie: 逐字符插入
+  4. 构建失败指针: BFS, 步数限制 100, 循环引用保护
+
+findSensitiveWords(text):
+  1. lock.readLock().lock()
+  2. text.toLowerCase()
+  3. 逐字符遍历, 跟随 Trie + failure 指针
+  4. failure 链遍历深度 ≤ 10
+  5. 命中时添加 pattern 到结果集
+  6. lock.readLock().unlock()
+
+replaceSensitiveWords(text):
+  1. findSensitiveWords 获取匹配位置列表
+  2. 按 start 降序排序
+  3. StringBuilder 从后往前替换为 "***"
+```
+
+**关键发现 1**：TrieNode 使用 `HashMap<Character, TrieNode>` 存储子节点。对于大量敏感词（万级以上），每个中间节点都分配一个 HashMap 对象，内存开销较大。生产环境如果词库达到 50000，可以考虑用数组或双数组 Trie 优化。
+
+**关键发现 2**：`TrieNode.pattern` 只存储一个模式字符串，`setPattern` 会覆盖之前的值。如果两个敏感词共享路径（如"敏感"和"敏感词"），较短的那个的 pattern 会被覆盖。但 `isEndOfWord` 仍然为 true，`findSensitiveWords` 在遍历时会检查每个 `isEndOfWord` 节点的 pattern，所以如果 pattern 被覆盖，可能会漏掉较短的匹配词。
+
+**关键发现 3**：失败指针构建使用 BFS，步数限制 100 和循环引用保护是防御性编程。正常情况下不会触发这些限制。
+
+**线程安全**：使用 `ReentrantReadWriteLock`。`initialize` 获取写锁重建整个 Trie，`findSensitiveWords` 获取读锁。写锁会阻塞所有读操作，词库刷新期间检测不可用。
+
+### 四、文本预处理器线程安全问题
+
+**源码**：`TextPreprocessor`
+
+```java
+private Map<Character, String> homophoneMap = new HashMap<>();  // ← 普通 HashMap
+private Map<Character, String> similarCharMap = new HashMap<>(); // ← 普通 HashMap
+
+refreshMappings(homophones, similarChars):
+  // 构建新 Map
+  Map<Character, String> newHomophoneMap = new HashMap<>();
+  Map<Character, String> newSimilarCharMap = new HashMap<>();
+  // 填充映射...
+  // 替换引用
+  this.homophoneMap = newHomophoneMap;  // ← 非原子操作
+  this.similarCharMap = newSimilarCharMap;
+```
+
+**关键发现**：`homophoneMap` 和 `similarCharMap` 使用普通 `HashMap`，不是 `ConcurrentHashMap`。`refreshMappings` 方法替换引用不是原子操作——在替换 `homophoneMap` 和 `similarCharMap` 之间存在时间窗口，此时 `preprocess` 方法可能读取到一个新 map 和一个旧 map 的混合状态。
+
+更严重的是：如果 `preprocess` 正在遍历旧 map 的 entrySet，而 `refreshMappings` 替换了引用，由于旧 map 对象仍然存在，不会被 GC，所以不会抛 `ConcurrentModificationException`。但 `preprocess` 在两次替换之间可能使用新的 homophoneMap + 旧的 similarCharMap，造成预处理结果不一致。
+
+### 五、策略缓存与默认策略
+
+**源码**：`SensitiveStrategyServiceImpl`
+
+```
+策略缓存: ConcurrentHashMap<"module:level", SensitiveStrategy>
+无 TTL、无容量上限
+
+getStrategy(module, level):
+  1. 缓存命中 → 返回
+  2. 缓存未命中 → DB 查询 selectByModuleAndLevel
+  3. DB 未找到 → getDefaultStrategy(level)
+  4. 放入缓存
+
+refreshCache():
+  1. strategyCache.clear()      ← 清空所有缓存
+  2. selectEnabledStrategies()   ← 重新加载
+  3. 逐条 put
+
+默认策略:
+  level=1: replace, notifyAdmin=0, limitUser=0
+  level=2: replace, notifyAdmin=1, limitUser=0
+  level=3: reject, notifyAdmin=1, limitUser=1, limitDuration=60分钟
+```
+
+**关键发现 1**：`refreshCache()` 先 `clear()` 再逐条 `put`，存在**缓存雪崩窗口**——在 clear 和加载完成之间，所有策略请求都会穿透到数据库。如果此时 DB 压力大，可能导致雪崩。
+
+**关键发现 2**：默认策略中 `level=3` 的 `limitUser=1, limitDuration=60` 表示"限制用户 60 分钟"。但 `checkText` 中并没有检查用户是否被限制——这个策略字段只在统计服务中被设置（`isRestricted`），但从未在检测流程中被查询和执行。
+
+### 六、白名单缓存策略
+
+**源码**：`SensitiveWhitelistServiceImpl`
+
+```
+缓存: Caffeine, max 10000, TTL 5min
+
+isInWhitelist(word, module):
+  cacheKey = "whitelist:module:{module}:{word}" 或 "whitelist:global:{word}"
+  cache.get(cacheKey, key → {
+    module 非空 → 先查模块白名单 existsInWhitelist(word, "module", module)
+    → 再查全局白名单 existsInWhitelist(word, "global", null)
+  })
+
+refreshCache():
+  1. cache.invalidateAll()
+  2. selectEnabledWords() → 只预加载全局白名单
+  3. 预加载 key 格式: "whitelist:global:{word}" (module=null)
+```
+
+**关键发现**：`refreshCache` 只预加载了 `module=null` 的全局白名单条目（key 格式 `whitelist:global:{word}`），模块白名单（key 格式 `whitelist:module:{module}:{word}`）完全依赖 Caffeine 的 loading cache 机制按需加载。这意味着刷新缓存后，模块白名单会全部穿透到数据库，直到被 Caffeine 逐条加载。
+
+### 七、统计总览的估算数字
+
+**源码**：`SensitiveStatisticsServiceImpl.getOverview`
+
+```java
+return StatisticsOverviewVO.builder()
+    .totalCheck(hitCount * 10)    // 简化估算: 总检测数 = 命中数 × 10
+    .hitCount(hitCount)
+    .hitRate(hitCount / 100.0)    // 简化计算
+    .rejectCount(hitCount / 3)    // 简化估算: 拒绝数 = 命中数 / 3
+    .replaceCount(hitCount * 2 / 3) // 简化估算: 替换数 = 命中数 × 2/3
+    .todayNewWords(0)             // 需要额外查询
+    .violationUserCount(violationUserCount)
+    .build();
+```
+
+**关键发现**：`totalCheck`、`rejectCount`、`replaceCount` 三个字段是**基于 hitCount 的数学估算**，不是真实统计值。总检测数假设"命中率 10%"，拒绝和替换按"1:2"比例分配。这些数字在管理端展示时看起来像真实数据，但实际是公式推算。如果运营依赖这些指标做决策，会得到不准确的结论。
+
+`todayNewWords` 直接硬编码为 0，注释说"需要额外查询"但未实现。
+
+### 八、用户违规限制：写而不查
+
+**源码**：`SensitiveStatisticsServiceImpl.recordUserViolation`
+
+```
+recordUserViolation(userId):
+  @Async
+  查询用户今日违规记录
+  → 不存在: INSERT, violationCount=1, isRestricted=0
+  → 已存在: UPDATE, violationCount+1
+     → 如果 violationCount >= 5 且 isRestricted=0:
+       → isRestricted=1, restrictEndTime=NOW()+1小时
+       → UPDATE
+```
+
+**关键发现**：违规限制逻辑只在"记录"阶段执行——当用户累计 5 次违规时设置 `isRestricted=1`。但 `checkText` 方法中**从未查询** `isRestricted` 状态。也就是说，被限制的用户仍然可以正常发布内容，限制功能形同虚设。
+
+此外，`recordUserViolation` 标注了 `@Async`，这意味着违规计数和限制判定是异步执行的。在高频发布场景下，用户可能在 5 次违规被记录之前就已经发布了更多内容。
+
+### 九、来源同步的事务与网络问题
+
+**源码**：`SensitiveSourceServiceImpl.syncSource`
+
+```
+syncSource(sourceId):
+  @Transactional(rollbackFor = Exception.class)
+  1. 获取来源配置
+  2. HTTP 请求外部 API 或 GitHub          ← 网络调用在事务内
+  3. 解析内容（JSON 递归提取或逐行解析）
+  4. Base64 解码（GitHub blob 响应）
+  5. 新增词 / 重新启用已有词, 500/批
+  6. 更新来源同步状态
+  7. 记录版本
+```
+
+**关键发现 1**：`syncSource` 标注了 `@Transactional`，但步骤 2-4 包含 HTTP 网络调用。如果外部 API 响应慢（几十秒），事务会一直持有数据库连接，导致连接池耗尽。正确做法是先在事务外完成网络请求，再开启事务写入数据。
+
+**关键发现 2**：`apiKey` 字段以明文存储在 `sensitive_source` 表中。如果数据库被拖库，攻击者可以获得所有外部 API 的密钥。
+
+### 十、未使用字段分析
+
+`SensitiveWord` 实体中有三个字段在检测流程中未被使用：
+
+| 字段 | 数据库定义 | 实际用途 |
+| --- | --- | --- |
+| `word_type` | `1` 普通词、`2` 正则表达式 | AC 自动机只加载 `selectEnabledWords()` 返回的词字符串，不区分 `word_type=2` 的正则模式 |
+| `enable_variant_check` | 是否启用变形词检测 | 从未在 `checkText` 中读取，变形词检测对所有词一视同仁 |
+| `pinyin` | 拼音 | 从未在检测流程中用于拼音匹配 |
+
+这些字段在管理端可以编辑，数据库中有值，但不影响检测行为。运营如果配置了 `word_type=2` 的正则词或关闭了某个词的变形词检测，预期行为不会生效。
+
+### 十一、深度发现与坑点
+
+#### 11.1 已确认的代码问题
+
+| 编号 | 问题 | 位置 | 影响 |
+| --- | --- | --- | --- |
+| BUG-1 | 检测异常返回 `allowed=false` | `SensitiveCheckServiceImpl.checkText:201-211` | 检测服务异常阻断内容发布 |
+| BUG-2 | 批量检测异常返回 `allowed=true` | `SensitiveCheckServiceImpl.createDefaultResponse` | 与单条检测异常行为不一致 |
+| BUG-3 | 白名单缓存只预加载全局条目 | `SensitiveWhitelistServiceImpl.refreshCache` | 刷新后模块白名单穿透到 DB |
+| BUG-4 | 统计总览使用估算数字 | `SensitiveStatisticsServiceImpl.getOverview:115-119` | totalCheck/rejectCount/replaceCount 不可信 |
+| BUG-5 | 用户违规限制不执行 | `SensitiveCheckServiceImpl.checkText` | `isRestricted` 设置了但从未被检查 |
+| BUG-6 | `word_type=2` 正则词不生效 | `AhoCorasickEngine.initialize` | 正则模式词被当作普通词处理 |
+| BUG-7 | `enableVariantCheck` 字段未使用 | `SensitiveCheckServiceImpl.checkText` | 关闭变形词检测不生效 |
+| BUG-8 | `TrieNode.pattern` 只存一个模式 | `AhoCorasickEngine.TrieNode` | 共享路径的短词可能被覆盖 |
+
+#### 11.2 设计层面的潜在风险
+
+| 编号 | 风险 | 说明 |
+| --- | --- | --- |
+| RISK-1 | TextPreprocessor 使用普通 HashMap | 同音字/形似字映射非线程安全，刷新时可能读取不一致状态 |
+| RISK-2 | 策略缓存 clear-then-load 雪崩窗口 | `refreshCache` 清空后重新加载期间，策略请求全部穿透到 DB |
+| RISK-3 | syncSource 事务内包含 HTTP 调用 | 外部 API 响应慢时事务长时间持有数据库连接 |
+| RISK-4 | apiKey 明文存储 | 数据库拖库后密钥泄露 |
+| RISK-5 | TrieNode 使用 HashMap 存子节点 | 词库万级以上时内存开销大 |
+| RISK-6 | 违规计数异步执行 | 高频发布场景下限制判定滞后于实际违规 |
+| RISK-7 | 检测服务单点 | AC 引擎是 Spring 单例 Bean，读锁并发由 ReentrantReadWriteLock 控制，写锁重建时检测完全不可用 |
+
+#### 11.3 架构设计亮点
+
+| 编号 | 亮点 | 说明 |
+| --- | --- | --- |
+| H-1 | AC 自动机多模式匹配 | 一次遍历匹配所有敏感词，O(n) 复杂度 |
+| H-2 | 双轮检测（原文 + 预处理文） | 全角、符号、同音字、形似字绕过都能识别 |
+| H-3 | ReentrantReadWriteLock 保护引擎刷新 | 读不阻塞，写互斥，保证线程安全 |
+| H-4 | 白名单模块 + 全局分层 | 先查模块白名单再查全局，支持差异化放行 |
+| H-5 | 批量检测双模式 | 小批量串行避免线程开销，大批量并行提高吞吐 |
+| H-6 | CallerRunsPolicy 拒绝策略 | 队列满时由调用线程执行，保证检测不丢失 |
+| H-7 | 来源同步多通道支持 | 本地 / API / GitHub 三种来源，GitHub 支持 Base64 解码 |
+| H-8 | 性能保护参数齐全 | 文本长度、批量大小、处理超时、failure 链深度等限制完善 |
+
+#### 11.4 源码导航速查
+
+| 想了解 | 读什么 |
+| --- | --- |
+| 检测主链路 | `SensitiveCheckServiceImpl.java` — checkText 11 步 + checkTextBatch 双模式 |
+| AC 自动机 | `AhoCorasickEngine.java` — Trie 构建 + failure 指针 BFS + 读写锁 |
+| 文本预处理 | `TextPreprocessor.java` — 全角转换 + 同音字/形似字 HashMap |
+| 策略缓存 | `SensitiveStrategyServiceImpl.java` — ConcurrentHashMap + 默认策略 + clear-then-load |
+| 白名单缓存 | `SensitiveWhitelistServiceImpl.java` — Caffeine loading cache + 模块/全局分层 |
+| 词库管理 | `SensitiveWordServiceImpl.java` — 导入预览 + 500/批 + 版本记录 |
+| 来源同步 | `SensitiveSourceServiceImpl.java` — @Transactional + HTTP + Base64 + GitHub |
+| 统计服务 | `SensitiveStatisticsServiceImpl.java` — 估算数字 + 违规限制 + CSV 导出 |
+| 跨模块 API | `SensitiveCheckService.java` (xiaou-sensitive-api) — 检测接口定义 |
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 敏感词模块依赖公共底座的并发工具、Redis 和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 强依赖 | 管理端词库管理需要管理员权限 |
+| [社区帖子](/modules/community) | 被依赖 | 发帖和评论必须经过敏感词检测 |
+| [动态广场](/modules/moments) | 被依赖 | 动态发布需要敏感词检测 |
+| [博客](/modules/blog) | 被依赖 | 博客文章发布需要敏感词检测 |
+| [IM 聊天室](/modules/chat) | 被依赖 | 聊天消息需要敏感词检测 |
+| [系统运营后台](/modules/system-ops) | 被依赖 | 敏感词管理界面在管理端 |

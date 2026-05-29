@@ -41,6 +41,11 @@ public class SimpleUserInfo {
      * 头像
      */
     private String avatar;
+
+    /**
+     * 用户简介
+     */
+    private String bio;
     
     /**
      * 获取显示名称（优先级：真实姓名 > 昵称 > 用户名）

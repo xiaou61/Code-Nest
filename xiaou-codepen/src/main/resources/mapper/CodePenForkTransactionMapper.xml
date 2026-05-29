@@ -55,5 +55,17 @@
         LIMIT 1
     </select>
 
+    <select id="selectPurchasedOriginalPenIdsByForkUserId" resultType="java.lang.Long">
+        SELECT DISTINCT original_pen_id
+        FROM code_pen_fork_transaction
+        WHERE fork_user_id = #{forkUserId}
+        <if test="originalPenIds != null and originalPenIds.size() > 0">
+            AND original_pen_id IN
+            <foreach collection="originalPenIds" item="originalPenId" open="(" separator="," close=")">
+                #{originalPenId}
+            </foreach>
+        </if>
+    </select>
+
 </mapper>
 

@@ -12,8 +12,10 @@ import com.xiaou.chat.websocket.ChatWebSocketHandler;
 import com.xiaou.common.annotation.Log;
 import com.xiaou.common.core.domain.Result;
 import com.xiaou.common.satoken.StpUserUtil;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,6 +26,7 @@ import java.util.List;
  * @author xiaou
  */
 @Slf4j
+@Validated
 @RestController
 @RequestMapping("/user/chat")
 @RequiredArgsConstructor
@@ -49,7 +52,7 @@ public class ChatUserController {
      */
     @Log(module = "聊天室", type = Log.OperationType.SELECT, description = "获取历史消息")
     @PostMapping("/history")
-    public Result<ChatHistoryResponse> getHistory(@RequestBody ChatHistoryRequest request) {
+    public Result<ChatHistoryResponse> getHistory(@Valid @RequestBody ChatHistoryRequest request) {
         log.info("获取历史消息，lastMessageId: {}, pageSize: {}", 
             request.getLastMessageId(), request.getPageSize());
         ChatHistoryResponse response = chatMessageService.getHistory(request);
@@ -83,7 +86,7 @@ public class ChatUserController {
      */
     @Log(module = "聊天室", type = Log.OperationType.DELETE, description = "撤回消息")
     @PostMapping("/message/recall")
-    public Result<Void> recallMessage(@RequestBody ChatRecallRequest request) {
+    public Result<Void> recallMessage(@Valid @RequestBody ChatRecallRequest request) {
         Long userId = StpUserUtil.getLoginIdAsLong();
         chatMessageService.recallMessage(request.getMessageId(), userId);
         

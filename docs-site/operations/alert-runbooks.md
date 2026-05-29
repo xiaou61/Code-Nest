@@ -311,3 +311,13 @@
 1. 记录根因、止损动作和验证方式。
 2. 判断是否需要补新告警、调阈值或加降级开关。
 3. 如果这次问题已经能形成复用经验，更新对应模块页、[验证记录与已知问题](/manuals/verified-scenarios) 或 [监控与观测](/operations/monitoring)。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [监控与观测](/operations/monitoring) | 监控配置 |
+| [事故响应](/operations/incident-response) | 事故处理 |
+| [问题定位流程](/operations/diagnosis-flow) | 问题排查 |
+| [常见问题排查](/operations/troubleshooting) | 常见问题 |

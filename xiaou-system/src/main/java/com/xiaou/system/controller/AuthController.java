@@ -249,21 +249,13 @@ public class AuthController {
     @Log(module = "用户管理", type = Log.OperationType.UPDATE, description = "更新个人信息")
     public Result<?> updateProfile(@Parameter(description = "更新个人信息请求", required = true)
             @Valid @RequestBody UpdateAdminRequest request) {
-        try {
-            // 通过AOP自动验证管理员权限，直接获取管理员ID
-            Long adminId = StpAdminUtil.getLoginIdAsLong();
-            
-            boolean success = adminService.updateCurrentUserInfo(adminId, request);
-            if (success) {
-                log.info("✅ 用户个人信息更新成功，管理员ID: {}", adminId);
-                return Result.success("个人信息更新成功");
-            } else {
-                return Result.error("个人信息更新失败");
-            }
-        } catch (Exception e) {
-            log.error("更新个人信息失败", e);
-            return Result.error(e.getMessage());
+        Long adminId = StpAdminUtil.getLoginIdAsLong();
+        boolean success = adminService.updateCurrentUserInfo(adminId, request);
+        if (success) {
+            log.info("✅ 用户个人信息更新成功，管理员ID: {}", adminId);
+            return Result.success("个人信息更新成功");
         }
+        return Result.error("个人信息更新失败");
     }
 
     /**
@@ -283,22 +275,12 @@ public class AuthController {
     @Log(module = "用户管理", type = Log.OperationType.UPDATE, description = "修改密码", saveRequestData = false)
     public Result<?> changePassword(@Parameter(description = "修改密码请求", required = true)
             @Valid @RequestBody ChangePasswordRequest request) {
-        try {
-            // 通过AOP自动验证管理员权限，直接获取管理员ID
-            Long adminId = StpAdminUtil.getLoginIdAsLong();
-            
-            boolean success = adminService.changeCurrentUserPassword(adminId, request);
-            if (success) {
-                log.info("✅ 用户密码修改成功，管理员ID: {}", adminId);
-                
-                // 密码修改后，需要前端重新登录
-                return Result.success("密码修改成功，请重新登录");
-            } else {
-                return Result.error("密码修改失败");
-            }
-        } catch (Exception e) {
-            log.error("修改密码失败", e);
-            return Result.error(e.getMessage());
+        Long adminId = StpAdminUtil.getLoginIdAsLong();
+        boolean success = adminService.changeCurrentUserPassword(adminId, request);
+        if (success) {
+            log.info("✅ 用户密码修改成功，管理员ID: {}", adminId);
+            return Result.success("密码修改成功，请重新登录");
         }
+        return Result.error("密码修改失败");
     }
-} 
+}

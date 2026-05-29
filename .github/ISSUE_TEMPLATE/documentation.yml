@@ -1,0 +1,57 @@
+name: Documentation
+description: Report missing, outdated, or confusing documentation.
+title: "[Docs]: "
+labels:
+  - documentation
+body:
+  - type: textarea
+    id: location
+    attributes:
+      label: Documentation Location
+      description: Which file, page, section, or route is affected?
+      placeholder: README.md / docs-site/reference/api-routes.md / ...
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is missing, outdated, incorrect, or confusing?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Documentation
+      description: What should the documentation explain?
+    validations:
+      required: true
+  - type: dropdown
+    id: audience
+    attributes:
+      label: Primary Audience
+      options:
+        - New contributor
+        - Maintainer
+        - Backend developer
+        - Frontend developer
+        - DevOps / deployment
+        - Product / operations
+        - End user
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Link related PRs, issues, code, screenshots, or API examples.
+    validations:
+      required: false
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing documentation and issues.
+          required: true

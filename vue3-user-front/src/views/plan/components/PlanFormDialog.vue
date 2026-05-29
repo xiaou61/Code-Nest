@@ -38,19 +38,19 @@
         <el-col :span="12">
           <el-form-item label="计划类型" prop="planType">
             <el-select v-model="form.planType" placeholder="选择类型" style="width: 100%">
-              <el-option label="学习计划" :value="1">
-                <span>📚 学习计划</span>
+              <el-option label="刷题计划" :value="1">
+                <span>💻 刷题计划</span>
               </el-option>
-              <el-option label="运动计划" :value="2">
-                <span>🏃 运动计划</span>
+              <el-option label="学习计划" :value="2">
+                <span>📚 学习计划</span>
               </el-option>
               <el-option label="阅读计划" :value="3">
                 <span>📖 阅读计划</span>
               </el-option>
-              <el-option label="编程计划" :value="4">
-                <span>💻 编程计划</span>
+              <el-option label="运动计划" :value="4">
+                <span>🏃 运动计划</span>
               </el-option>
-              <el-option label="其他计划" :value="99">
+              <el-option label="其他计划" :value="5">
                 <span>📋 其他计划</span>
               </el-option>
             </el-select>
@@ -143,11 +143,12 @@
         <el-radio-group v-model="form.repeatType">
           <el-radio :label="1">每天</el-radio>
           <el-radio :label="2">工作日</el-radio>
-          <el-radio :label="3">自定义</el-radio>
+          <el-radio :label="3">周末</el-radio>
+          <el-radio :label="4">自定义</el-radio>
         </el-radio-group>
       </el-form-item>
 
-      <el-form-item v-if="form.repeatType === 3" label="选择重复日">
+      <el-form-item v-if="form.repeatType === 4" label="选择重复日">
         <el-checkbox-group v-model="repeatDaysArray">
           <el-checkbox label="1">周一</el-checkbox>
           <el-checkbox label="2">周二</el-checkbox>
@@ -230,7 +231,7 @@ const repeatDaysArray = ref([])
 const form = ref({
   planName: '',
   planDesc: '',
-  planType: 4, // 默认编程计划
+  planType: 1, // 默认刷题计划
   targetType: 1, // 默认每日目标
   targetValue: 1,
   targetUnit: '道题',
@@ -302,7 +303,7 @@ const resetForm = () => {
   form.value = {
     planName: '',
     planDesc: '',
-    planType: 4,
+    planType: 1,
     targetType: 1,
     targetValue: 1,
     targetUnit: '道题',

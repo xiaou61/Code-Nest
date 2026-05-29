@@ -2,16 +2,16 @@
 
 这页建议分成两个视角来读：
 
-1. **Git 演进视角**：项目真实是怎么从 `v1.8.x`、`v2.0.x` 一路演进到 `v2.2.0` 的。
+1. **Git 演进视角**：项目真实是怎么从 `v1.8.x`、`v2.0.x` 一路演进到 `v2.2.x` 的。
 2. **产品内版本墙视角**：后台 `/system/version` 和用户端 `/version-history` 这套功能本身是怎么实现、怎么发布、怎么维护的。
 
-如果你只是想给用户写一条版本公告，看下面的“产品内版本墙”部分就够了。  
+如果你只是想给用户写一条版本公告，看下面的“产品内版本墙”部分就够了。
 如果你想回答“这个仓库最近几版到底做了什么、哪些是大版本、哪些只是补强批次”，先看下面的 Git 演进视角。
 
 ## 推荐学习顺序
 
 1. 先看“版本线怎么看”，建立整个仓库的演进脑图。
-2. 再看 `v2.0.0` 到 `v2.2.0` 的关键版本节点，理解这条主线是怎么从 AI Runtime 重构一路走到工程质量与文档治理的。
+2. 再看 `v2.0.0` 到 `v2.2.x` 的关键版本节点，理解这条主线是怎么从 AI Runtime 重构一路走到工程质量与文档治理。
 3. 然后看“当前状态怎么判断”，理解 tag、分支、README 版本段和文档基线之间的关系。
 4. 最后再看产品内版本墙的接口、表结构、状态流转和写作规范。
 
@@ -213,7 +213,7 @@
 | --- | --- |
 | 仓库当前工作线是什么 | `pom.xml`、前端 `package.json`、README 版本 badge |
 | 文档和代码同步到哪一批 | [文档同步基线](/reference/docs-sync-baseline) |
-| 当前大版本主题是什么 | README 的最新版本段 + [v2.2.0 文档计划](/roadmap/v2.2.0-docs-plan) |
+| 当前大版本主题是什么 | README 的最新版本段 + [v2.2.1 文档计划](/roadmap/v2.2.1-docs-plan) |
 | 产品内给用户展示什么版本公告 | `/version-history` 和后台 `/system/version` |
 
 当前仓库的状态更接近：
@@ -221,7 +221,7 @@
 - **代码主线版本**：`v2.2.0`
 - **最近清晰 release 锚点**：`v2.1.2`
 - **最近正式 tag 锚点**：`V2.0.0`
-- **当前文档治理主线**：`v2.2.0` 文档中心持续补强
+- **当前文档治理主线**：`v2.2.1` 持续维护与版本记录方法补强
 
 ## 产品内版本墙视角
 
@@ -361,6 +361,10 @@
 
 **让维护者不只会写版本公告，还能读懂版本主线。**
 
+如果你接下来要继续把某个版本段按实际提交重写得更扎实，可以直接配合 [按 Git Log 重写版本更新记录](/guide/git-log-release-notes) 一起看。
+如果你已经拿到了证据，准备继续把它写成 README 版本段、产品内版本墙或团队交接记录，继续看 [版本公告与发版交接模板](/guide/version-release-handoff-template)。
+如果你想直接照着真实版本样例来抄结构，再继续看 [版本公告与交接实战样例](/guide/version-release-worked-examples)。
+
 ## 验证清单
 
 - `README` 里的大版本段和本页的主线描述不要互相矛盾。
@@ -375,4 +379,160 @@
 | 只看 tag 不看 commit | 很多后续版本没有继续打 tag | tag 看锚点，commit 看真实演进 |
 | 只看 README 不看 Git | README 是摘要，不是完整证据 | 用 README 定主题，再用 git log 定批次 |
 | 把产品版本墙当仓库演进史 | 用户公告粒度太粗 | 产品墙讲“用户看到什么”，文档页讲“仓库怎么演进” |
-| 没有显式 release commit 也硬写成强锚点 | 会和真实历史对不上 | 明确标注“这是稳定化批次，不是单独 release commit” |
+| 没有显式 release commit 也硬写成强锚点 | 会和真实历史对不上 | 明确标注"这是稳定化批次，不是单独 release commit" |
+
+---
+
+## 版本历史模块深度拆解
+
+> 以下内容基于 `xiaou-version` 全部源码逐行拆解，覆盖 1 个 ServiceImpl、2 个 Controller、1 个 Domain、1 个 Mapper + XML、3 个 DTO。
+
+### 一、状态机与接口对照
+
+版本记录的状态流转实际是通过 `updateStatus` 方法直接修改 `status` 字段实现的，没有状态前置校验：
+
+```
+status 字段值:
+  0 = 草稿
+  1 = 已发布
+  2 = 已隐藏
+
+管理端可执行的状态变更:
+  publishVersion(id)     → status = 1 (从任意状态改为已发布)
+  hideVersion(id)        → status = 2 (从任意状态改为已隐藏)
+  unpublishVersion(id)   → status = 0 (从任意状态改为草稿)
+
+没有校验:
+  - 草稿→已发布: 不检查内容是否完整
+  - 已发布→草稿: 不检查是否会影响用户端展示
+  - 已隐藏→已发布: 直接改状态, 不检查时间是否过期
+```
+
+**关键发现**：`publishVersion`、`hideVersion`、`unpublishVersion` 都直接调用 `updateStatus(id, newStatus, adminId)`，没有校验当前状态。这意味着：
+- 可以把一条草稿直接改为已隐藏（逻辑上不合理）
+- 可以把一条已发布版本取消发布（用户端突然消失）
+- 状态变更没有"只允许相邻状态流转"的约束
+
+### 二、用户端访问控制缺失
+
+**源码**：`VersionHistoryController`
+
+```java
+@GetMapping("/{id}")
+public Result<VersionHistoryResponse> getVersionDetail(@PathVariable Long id) {
+    VersionHistoryResponse result = versionHistoryService.getVersionDetail(id);
+    return Result.success(result);
+}
+```
+
+**关键发现**：`getVersionDetail` 直接按 ID 查询版本记录，**不检查版本是否已发布或已隐藏**。这意味着用户端可以通过 URL 直接访问草稿或隐藏状态的版本记录。而 `getPublishedVersionList` 使用 `selectPublishedByPage` SQL 确保只返回 `status=1` 的记录，所以列表是安全的，但详情接口是泄露入口。
+
+同样，`incrementViewCount`也不检查状态——用户可以对草稿版本增加浏览次数。
+
+### 三、版本号唯一性检查的竞态
+
+**源码**：`VersionHistoryServiceImpl.checkVersionNumberExists`
+
+```java
+checkVersionNumberExists(versionNumber, excludeId):
+  if (versionNumber == null || blank) → false
+  existingVersion = versionHistoryMapper.selectByVersionNumber(versionNumber, 0)
+  → null → false
+  → 存在 → excludeId == null || existingVersion.id != excludeId
+```
+
+**关键发现**：唯一性检查与 `insert` 之间存在时间窗口。两个管理员同时创建相同版本号时，可能都通过唯一性检查，但只有第一个 INSERT 会成功——数据库的 `version_number + deleted` 唯一索引会阻止第二个 INSERT。
+
+但 `@Transactional` 只在方法级别，`checkVersionNumberExists` 的 SELECT 和后续的 INSERT 在同一个事务中，对 MySQL InnoDB 来说，普通 SELECT（不是 `SELECT ... FOR UPDATE`）读取的是快照，不是最新提交数据。所以在并发场景下，两个事务可能都读到"版本号不存在"的快照，然后都尝试 INSERT，最终依赖数据库唯一索引抛异常。
+
+### 四、逻辑删除与唯一索引冲突
+
+**源码**：`VersionHistoryServiceImpl.deleteVersion`
+
+```java
+deleteVersion(id):
+  logicalDeleteById(id, adminId) → UPDATE version_history SET deleted=1 WHERE id=#{id} AND deleted=0
+```
+
+**关键发现**：唯一约束是 `version_number + deleted`。逻辑删除后 `deleted=1`，这意味着已删除的版本号仍然占用唯一索引空间——但因为是 `deleted=1`，不是 `deleted=0`，所以新创建相同版本号不会违反唯一约束（因为新记录的 `deleted=0`，与已删除记录的 `deleted=1` 组合不同）。
+
+但如果**两次逻辑删除同一个版本号**（比如先删除 v2.0.0，再创建新 v2.0.0，再删除新 v2.0.0），数据库会有两条 `version_number='v2.0.0' AND deleted=1` 的记录，违反唯一约束。`checkVersionNumberExists` 只查 `deleted=0`，不会发现冲突，但 INSERT 时数据库唯一索引会阻止。
+
+### 五、批量操作的 SQL 实现
+
+**源码**：`VersionHistoryMapper.xml`
+
+```xml
+batchUpdateStatus:
+  UPDATE version_history SET status=#{status}, updated_by=#{updatedBy}, updated_time=NOW()
+  WHERE deleted=0 AND id IN (#{ids})
+
+batchLogicalDelete:
+  UPDATE version_history SET deleted=1, updated_by=#{updatedBy}, updated_time=NOW()
+  WHERE deleted=0 AND id IN (#{ids})
+```
+
+**关键发现**：批量操作使用 `IN` 列表，但没有大小限制。如果传入几千个 ID，SQL 会很长。MyBatis 的 `<foreach>` 会生成 `id IN (1, 2, 3, ...)`，MySQL 对超长 IN 列表有性能问题。Service 层也没有对 `ids` 列表大小做校验。
+
+### 六、排序策略
+
+管理端和用户端的排序规则相同：
+
+```sql
+ORDER BY sort_order DESC, release_time DESC, created_time DESC
+```
+
+**关键发现**：`sort_order` 优先于 `release_time`。这意味着管理员可以通过调整 `sort_order` 来手动控制版本在时间线上的显示顺序，而不受发布时间限制。这是合理的运营需求，但也意味着时间线不一定严格按发布时间排列——用户可能会看到"旧版本排在新版本前面"的情况。
+
+### 七、深度发现与坑点
+
+#### 7.1 已确认的代码问题
+
+| 编号 | 问题 | 位置 | 影响 |
+| --- | --- | --- | --- |
+| BUG-1 | 详情接口不检查版本状态 | `VersionHistoryController.getVersionDetail` | 用户端可访问草稿和隐藏版本 |
+| BUG-2 | 状态变更无前置校验 | `VersionHistoryServiceImpl.publishVersion/hideVersion/unpublishVersion` | 可以把草稿直接改为隐藏，或不合理的状态跳转 |
+| BUG-3 | 浏览次数不检查版本状态 | `VersionHistoryServiceImpl.incrementViewCount` | 可以对草稿版本增加浏览次数 |
+| BUG-4 | 批量操作无大小限制 | `VersionHistoryServiceImpl.batchPublishVersions/batchHideVersions/batchDeleteVersions` | 大量 ID 可能导致超长 SQL |
+| BUG-5 | 管理端更新接口是 POST 而非 PUT | `VersionHistoryAdminController.updateVersion` | HTTP 方法语义不一致，create 和 update 都用 POST |
+
+#### 7.2 设计层面的潜在风险
+
+| 编号 | 风险 | 说明 |
+| --- | --- | --- |
+| RISK-1 | 版本号唯一性检查与 INSERT 竞态 | 并发创建时依赖数据库唯一索引兜底 |
+| RISK-2 | 多次逻辑删除同一版本号 | 两条 `deleted=1` 记录违反 `version_number + deleted` 唯一约束 |
+| RISK-3 | 取消发布无用户端感知 | 已发布版本突然变为草稿，用户端时间线会消失但无提示 |
+| RISK-4 | sort_order 优先于 release_time | 管理员手动排序可能导致时间线不按时间排列 |
+
+#### 7.3 架构设计亮点
+
+| 编号 | 亮点 | 说明 |
+| --- | --- | --- |
+| H-1 | 逻辑删除 + 唯一索引组合 | `version_number + deleted` 允许删除后重新创建相同版本号 |
+| H-2 | 管理端 / 用户端分离查询 | 管理端查所有状态，用户端只查已发布 |
+| H-3 | @RequireAdmin + @Log 注解 | 所有管理端接口有权限保护和操作日志 |
+| H-4 | 发布时间格式校验 | `yyyy-MM-dd HH:mm:ss` 格式错误会抛明确提示 |
+| H-5 | 批量操作 | 支持批量发布、隐藏、删除 |
+| H-6 | version_number 重复预检 | 创建前可调用 check-version 接口预检 |
+
+#### 7.4 源码导航速查
+
+| 想了解 | 读什么 |
+| --- | --- |
+| 版本 CRUD | `VersionHistoryServiceImpl.java` — 创建/更新/删除/发布/隐藏/批量 |
+| 状态流转 | `VersionHistoryServiceImpl.publishVersion/hideVersion/unpublishVersion` — 直接改 status |
+| 用户端接口 | `VersionHistoryController.java` — timeline/detail/view/search/latest |
+| 管理端接口 | `VersionHistoryAdminController.java` — list/create/update/delete/publish/hide/batch |
+| 数据模型 | `VersionHistory.java` — 15 字段实体 |
+| SQL | `VersionHistoryMapper.xml` — 管理端/用户端分离查询条件 |
+
+
+## 相关模块
+
+| 模块 | 关系 | 说明 |
+| --- | --- | --- |
+| [公共底座](/modules/common) | 强依赖 | 版本历史模块依赖公共底座的统一响应和异常处理 |
+| [鉴权与用户体系](/modules/auth) | 间接依赖 | 版本查看可能需要用户登录态 |
+| [工具、摸鱼与版本](/modules/tools-moyu-version) | 强依赖 | 版本历史与工具模块紧密关联 |
+| [系统运营后台](/modules/system-ops) | 被依赖 | 版本管理界面在管理端 |

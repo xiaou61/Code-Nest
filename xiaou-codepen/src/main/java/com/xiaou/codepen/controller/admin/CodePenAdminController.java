@@ -193,8 +193,8 @@ public class CodePenAdminController {
     @RequireAdmin
     @Log(module = "代码共享器", type = Log.OperationType.INSERT, description = "创建标签")
     @PostMapping("/tag/create")
-    public Result<Long> createTag(@RequestBody CodePenTag tag) {
-        Long tagId = tagService.createTag(tag.getTagName(), tag.getTagDescription());
+    public Result<Long> createTag(@Valid @RequestBody CodePenTagCreateRequest request) {
+        Long tagId = tagService.createTag(request.getTagName(), request.getTagDescription());
         return Result.success(tagId);
     }
 
@@ -204,8 +204,8 @@ public class CodePenAdminController {
     @RequireAdmin
     @Log(module = "代码共享器", type = Log.OperationType.UPDATE, description = "更新标签")
     @PostMapping("/tag/update")
-    public Result<Boolean> updateTag(@RequestBody CodePenTag tag) {
-        boolean result = tagService.updateTag(tag.getId(), tag.getTagName(), tag.getTagDescription());
+    public Result<Boolean> updateTag(@Valid @RequestBody CodePenTagUpdateRequest request) {
+        boolean result = tagService.updateTag(request.getId(), request.getTagName(), request.getTagDescription());
         return Result.success(result);
     }
 

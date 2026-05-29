@@ -69,12 +69,12 @@
         INSERT INTO lottery_prize_config (
             prize_name, prize_level, prize_points, base_probability, current_probability,
             target_return_rate, max_return_rate, min_return_rate,
-            daily_stock, total_stock, display_order, prize_icon, prize_desc,
+            daily_stock, total_stock, current_stock, display_order, prize_icon, prize_desc,
             adjust_strategy, is_active
         ) VALUES (
             #{prizeName}, #{prizeLevel}, #{prizePoints}, #{baseProbability}, #{currentProbability},
             #{targetReturnRate}, #{maxReturnRate}, #{minReturnRate},
-            #{dailyStock}, #{totalStock}, #{displayOrder}, #{prizeIcon}, #{prizeDesc},
+            #{dailyStock}, #{totalStock}, #{currentStock}, #{displayOrder}, #{prizeIcon}, #{prizeDesc},
             #{adjustStrategy}, #{isActive}
         )
     </insert>
@@ -91,6 +91,7 @@
             min_return_rate = #{minReturnRate},
             daily_stock = #{dailyStock},
             total_stock = #{totalStock},
+            current_stock = #{currentStock},
             display_order = #{displayOrder},
             prize_icon = #{prizeIcon},
             prize_desc = #{prizeDesc},

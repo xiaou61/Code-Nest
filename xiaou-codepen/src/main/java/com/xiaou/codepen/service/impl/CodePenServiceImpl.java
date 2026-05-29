@@ -192,50 +192,27 @@ public class CodePenServiceImpl implements CodePenService {
         if (codePen == null) {
             throw new BusinessException("作品不存在");
         }
-        
-        CodePenDetailResponse response = convertToDetailResponse(codePen);
-        
-        // 判断是否可以查看源码
-        boolean canViewCode = true;
-        if (codePen.getIsFree() == 0) { // 付费作品
-            // 只有作者本人或已购买（Fork过）的用户可以查看
-            if (!codePen.getUserId().equals(currentUserId)) {
-                // 检查是否已Fork过
-                canViewCode = false;
-                if (currentUserId != null) {
-                    // 查询是否已Fork过该作品
-                    CodePenForkTransaction transaction = forkTransactionMapper.selectByOriginalPenIdAndForkUserId(id, currentUserId);
-                    if (transaction != null) {
-                        canViewCode = true; // 已购买，可以查看源码
-                    }
-                }
-            }
+        return buildDetailedResponses(List.of(codePen), currentUserId).get(0);
+    }
+
+    @Override
+    public List<CodePenDetailResponse> getDetailsByIds(List<Long> ids, Long currentUserId) {
+        if (ids == null || ids.isEmpty()) {
+            return new ArrayList<>();
         }
-        
-        response.setCanViewCode(canViewCode);
-        if (!canViewCode) {
-            response.setHtmlCode(null);
-            response.setCssCode(null);
-            response.setJsCode(null);
-            response.setCodeViewMessage("付费作品，Fork后可查看源码");
+
+        List<CodePen> codePens = codePenMapper.selectByIds(ids);
+        if (codePens == null || codePens.isEmpty()) {
+            return new ArrayList<>();
         }
-        
-        // 设置权限标识
-        response.setCanEdit(codePen.getUserId().equals(currentUserId));
-        response.setCanDelete(codePen.getUserId().equals(currentUserId));
-        
-        // 设置互动状态
-        if (currentUserId != null) {
-            response.setIsLiked(codePenLikeMapper.selectByPenIdAndUserId(id, currentUserId) != null);
-            response.setIsCollected(codePenCollectMapper.selectByPenIdAndUserId(id, currentUserId) != null);
-        } else {
-            response.setIsLiked(false);
-            response.setIsCollected(false);
-        }
-        
-        response.setShareUrl(codePenProperties.getShareBaseUrl() + id);
-        
-        return response;
+
+        Map<Long, CodePen> codePenMap = codePens.stream()
+                .collect(Collectors.toMap(CodePen::getId, codePen -> codePen, (left, right) -> left));
+        List<CodePen> orderedPens = ids.stream()
+                .map(codePenMap::get)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        return buildDetailedResponses(orderedPens, currentUserId);
     }
     
     @Override
@@ -638,6 +615,44 @@ public class CodePenServiceImpl implements CodePenService {
         if (request.getForkPrice() != null) codePen.setForkPrice(request.getForkPrice());
         if (request.getStatus() != null) codePen.setStatus(request.getStatus());
     }
+
+    private List<CodePenDetailResponse> buildDetailedResponses(List<CodePen> codePens, Long currentUserId) {
+        if (codePens == null || codePens.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<Long> penIds = codePens.stream()
+                .map(CodePen::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        Map<Long, SimpleUserInfo> userInfoMap = getUserInfoMap(codePens);
+        Set<Long> likedPenIds = getLikedPenIds(currentUserId, penIds);
+        Set<Long> collectedPenIds = getCollectedPenIds(currentUserId, penIds);
+        Set<Long> purchasedOriginalPenIds = getPurchasedOriginalPenIds(currentUserId, codePens);
+
+        List<CodePenDetailResponse> responses = new ArrayList<>();
+        for (CodePen codePen : codePens) {
+            CodePenDetailResponse response = convertToDetailResponseWithUserInfo(codePen, userInfoMap);
+            boolean canViewCode = canViewCode(codePen, currentUserId, purchasedOriginalPenIds);
+
+            response.setCanViewCode(canViewCode);
+            if (!canViewCode) {
+                response.setHtmlCode(null);
+                response.setCssCode(null);
+                response.setJsCode(null);
+                response.setCodeViewMessage("付费作品，Fork后可查看源码");
+            }
+
+            boolean isOwner = codePen.getUserId() != null && codePen.getUserId().equals(currentUserId);
+            response.setCanEdit(isOwner);
+            response.setCanDelete(isOwner);
+            response.setIsLiked(currentUserId != null && likedPenIds.contains(codePen.getId()));
+            response.setIsCollected(currentUserId != null && collectedPenIds.contains(codePen.getId()));
+            response.setShareUrl(codePenProperties.getShareBaseUrl() + codePen.getId());
+            responses.add(response);
+        }
+        return responses;
+    }
     
     private CodePenDetailResponse convertToDetailResponse(CodePen codePen) {
         CodePenDetailResponse response = new CodePenDetailResponse();
@@ -666,6 +681,61 @@ public class CodePenServiceImpl implements CodePenService {
         response.setIsFree(codePen.getIsFree() == 1);
         
         return response;
+    }
+
+    private Map<Long, SimpleUserInfo> getUserInfoMap(List<CodePen> codePens) {
+        List<Long> userIds = codePens.stream()
+                .map(CodePen::getUserId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        return userInfoApiService.getSimpleUserInfoBatch(userIds);
+    }
+
+    private Set<Long> getLikedPenIds(Long currentUserId, List<Long> penIds) {
+        if (currentUserId == null || penIds == null || penIds.isEmpty()) {
+            return Collections.emptySet();
+        }
+        Set<Long> likedPenIds = codePenLikeMapper.selectLikedPenIdsByUserId(currentUserId, penIds);
+        return likedPenIds != null ? likedPenIds : Collections.emptySet();
+    }
+
+    private Set<Long> getCollectedPenIds(Long currentUserId, List<Long> penIds) {
+        if (currentUserId == null || penIds == null || penIds.isEmpty()) {
+            return Collections.emptySet();
+        }
+        Set<Long> collectedPenIds = codePenCollectMapper.selectCollectedPenIdsByUserId(currentUserId, penIds);
+        return collectedPenIds != null ? collectedPenIds : Collections.emptySet();
+    }
+
+    private Set<Long> getPurchasedOriginalPenIds(Long currentUserId, List<CodePen> codePens) {
+        if (currentUserId == null || codePens == null || codePens.isEmpty()) {
+            return Collections.emptySet();
+        }
+
+        List<Long> paidOriginalPenIds = codePens.stream()
+                .filter(codePen -> codePen.getId() != null)
+                .filter(codePen -> codePen.getIsFree() != null && codePen.getIsFree() == 0)
+                .filter(codePen -> codePen.getUserId() == null || !codePen.getUserId().equals(currentUserId))
+                .map(CodePen::getId)
+                .distinct()
+                .collect(Collectors.toList());
+        if (paidOriginalPenIds.isEmpty()) {
+            return Collections.emptySet();
+        }
+
+        Set<Long> purchasedOriginalPenIds = forkTransactionMapper.selectPurchasedOriginalPenIdsByForkUserId(currentUserId, paidOriginalPenIds);
+        return purchasedOriginalPenIds != null ? purchasedOriginalPenIds : Collections.emptySet();
+    }
+
+    private boolean canViewCode(CodePen codePen, Long currentUserId, Set<Long> purchasedOriginalPenIds) {
+        if (codePen.getIsFree() == null || codePen.getIsFree() == 1) {
+            return true;
+        }
+        if (codePen.getUserId() != null && codePen.getUserId().equals(currentUserId)) {
+            return true;
+        }
+        return currentUserId != null && purchasedOriginalPenIds.contains(codePen.getId());
     }
     
     private List<CodePenDetailResponse> convertToDetailResponseList(List<CodePen> list) {

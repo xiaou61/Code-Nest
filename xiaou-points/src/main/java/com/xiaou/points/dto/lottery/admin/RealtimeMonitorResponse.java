@@ -68,6 +68,22 @@ public class RealtimeMonitorResponse {
         private Long profitPoints;
         private BigDecimal profitRate;
         private Integer uniqueUserCount;
+
+        public Integer getDrawCount() {
+            return totalDrawCount;
+        }
+
+        public Long getTotalCost() {
+            return totalCostPoints;
+        }
+
+        public Long getTotalReward() {
+            return totalRewardPoints;
+        }
+
+        public BigDecimal getReturnRate() {
+            return actualReturnRate;
+        }
     }
     
     @Data
@@ -77,10 +93,21 @@ public class RealtimeMonitorResponse {
     public static class PrizeStatus {
         private Long prizeId;
         private String prizeName;
+        private Integer prizeLevel;
+        private BigDecimal baseProbability;
         private BigDecimal currentProbability;
+        private BigDecimal targetReturnRate;
         private BigDecimal actualReturnRate;
         private String status;
+        private Integer todayDrawCount;
         private Integer todayWinCount;
+        private Integer totalDrawCount;
+        private Integer totalWinCount;
+        private Integer currentStock;
+        private Integer totalStock;
+        private BigDecimal maxReturnRate;
+        private BigDecimal minReturnRate;
+        private String adjustStrategy;
         private String alertLevel;
         private String alertMessage;
     }

@@ -39,6 +39,7 @@ public class UserInfoApiServiceImpl implements UserInfoApiService {
                     .nickname(user.getNickname())
                     .realName(user.getRealName())
                     .avatar(user.getAvatar())
+                    .bio(user.getRemark())
                     .build();
                     
         } catch (Exception e) {
@@ -84,6 +85,7 @@ public class UserInfoApiServiceImpl implements UserInfoApiService {
                                     .nickname(user.getNickname())
                                     .realName(user.getRealName())
                                     .avatar(user.getAvatar())
+                                    .bio(user.getRemark())
                                     .build(),
                             (existing, replacement) -> existing // 如果有重复，保留第一个
                     ));

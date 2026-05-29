@@ -29,13 +29,13 @@ Code Nest 的依赖关系可以按四层理解：
 
 | 能力 | 后端模块 | 被影响的常见业务 | 改动风险 |
 | --- | --- | --- | --- |
-| 鉴权与当前用户 | `xiaou-common`、`xiaou-user`、`xiaou-system` | 几乎所有用户端和管理端接口 | 登录失效、越权、管理端权限混乱 |
+| 鉴权与当前用户 | `xiaou-common`、`xiaou-user`、`xiaou-system` | 几乎所有用户端和管理端接口 | 登录失效、越权、管理端权限混乱 → 详见 [鉴权与用户体系](/modules/auth)、[权限注解与角色边界索引](/reference/permission-boundaries) |
 | 文件存储 | `xiaou-filestorage` | 头像、聊天图片、简历、内容附件、导出文件 | URL 前缀、公开读取、存储配置、迁移 |
 | 通知中心 | `xiaou-notification` | 注册、审核、互动、公告、系统消息 | 接收人错误、已读状态不同步、消息丢失 |
-| 积分抽奖 | `xiaou-points` | 签到、OJ 首次 AC、后台发放、抽奖消费 | 重复发放、扣减不幂等、余额流水不一致 |
-| 敏感词风控 | `xiaou-sensitive`、`xiaou-sensitive-api` | 社区、动态、博客、评论、内容发布 | 漏拦截、误杀、跨模块检测不一致 |
+| 积分抽奖 | `xiaou-points` | 签到、OJ 首次 AC、后台发放、抽奖消费 | 重复发放、扣减不幂等、余额流水不一致 → 详见 [积分与抽奖](/modules/points)、[幂等回滚与补偿](/reference/idempotency-rollbacks-compensation) |
+| 敏感词风控 | `xiaou-sensitive`、`xiaou-sensitive-api` | 社区、动态、博客、评论、内容发布 | 漏拦截、误杀、跨模块检测不一致 → 详见 [敏感词风控](/modules/sensitive) |
 | AI Runtime | `xiaou-ai`、`xiaou-system` | 模拟面试、求职作战台、SQL 优化、社区摘要 | Prompt 回归、Schema 解析、RAG 依赖、成本和失败率 |
-| WebSocket | `xiaou-chat` | 聊天室、实时消息和在线态 | ticket、Origin、限流、ACK、断线恢复 |
+| WebSocket | `xiaou-chat` | 聊天室、实时消息和在线态 | ticket、Origin、限流、ACK、断线恢复 → 详见 [WebSocket 协议](/reference/websocket) |
 | 日志审计 | `xiaou-system`、`xiaou-common` | 管理端高风险操作、登录和运营记录 | 排障证据不足、操作不可追溯 |
 
 ## 成长学习依赖地图
@@ -59,12 +59,12 @@ Code Nest 的依赖关系可以按四层理解：
 
 | 业务模块 | 用户入口 | 管理入口 | 主要依赖 | 重点验证 |
 | --- | --- | --- | --- | --- |
-| 社区帖子 | `/community/*` | `/community/*` | 鉴权、敏感词、通知、AI 摘要、渲染安全 | 发帖、评论、点赞、收藏、后台审核 |
+| 社区帖子 | `/community/*` | `/community/*` | 鉴权、敏感词、通知、AI 摘要、[渲染安全](/reference/frontend-rendering-security) | 发帖、评论、点赞、收藏、后台审核 |
 | 动态广场 | `/moments/*` | `/moments/*` | 鉴权、文件、敏感词、通知、统计 | 发布、图片、评论、收藏、统计 |
 | 博客 | `/blog/*` | `/blog/*` | Markdown、文件、敏感词、分类标签 | 写文章、公开展示、后台管理 |
 | CodePen | `/codepen/*` | `/codepen/*` | 代码展示、收藏、点赞、评论、统计 | 发布作品、详情展示、后台统计 |
 | 简历系统 | `/resume/*` | `/resume/*` | 文件导出、模板、分析报告 | 保存、导出、模板、分析记录 |
-| IM 聊天室 | `/chat` | `/chat/*` | WebSocket、文件、敏感词、限流、公告 | ticket、发送、ACK、撤回、禁言、踢出 |
+| IM 聊天室 | `/chat` | `/chat/*` | [WebSocket](/reference/websocket)、文件、敏感词、限流、公告 | ticket、发送、ACK、撤回、禁言、踢出 |
 | 通知中心 | `/notification` | `/notification` | 业务事件、公告、已读状态 | 消息生成、已读、管理端公告 |
 
 内容类模块通常会经过敏感词、文件、通知和前端渲染安全。只改其中一个页面，也要检查后端写入、管理端可见和刷新后回流。
@@ -77,7 +77,7 @@ Code Nest 的依赖关系可以按四层理解：
 | 文件存储 | 上传组件、公开文件 URL | `/filestorage/*` | 存储策略、系统设置、访问控制 | 上传、读取、公开权限、URL 前缀 |
 | 敏感词风控 | 内容发布链路 | `/sensitive/*` | 词库、白名单、策略、版本 | 检测、替换、策略切换、统计 |
 | 版本历史 | `/version-history` | `/system/version` | 版本记录、发布状态 | 版本展示、后台维护 |
-| 开发者工具 | `/dev-tools/*` | 无 | 前端本地能力、渲染安全 | JSON、Diff、翻译页面 |
+| 开发者工具 | `/dev-tools/*` | 无 | 前端本地能力、[渲染安全](/reference/frontend-rendering-security) | JSON、Diff、翻译页面 |
 | 摸鱼工具 | `/moyu-tools/*` | `/moyu/*` | 外部热榜、日历、薪资配置、Bug 数据 | 热榜兜底、配置保存、后台统计 |
 | 仪表盘与日志 | 无 | `/dashboard`、`/logs/*` | 多业务聚合、登录日志、操作日志 | 指标展示、日志查询、排障证据 |
 
@@ -90,12 +90,27 @@ Code Nest 的依赖关系可以按四层理解：
 | `vue3-user-front/src/views/interview` | 面试题学习 | `xiaou-interview`、用户、收藏、掌握度 |
 | `vue3-user-front/src/views/oj` | OJ 刷题和赛事 | `xiaou-oj`、go-judge、积分 |
 | `vue3-user-front/src/views/mock-interview` | AI 面试 | `xiaou-mock-interview`、`xiaou-ai`、学习资产 |
+| `vue3-user-front/src/views/job-battle` | 求职作战台 | `xiaou-mock-interview`、`xiaou-ai`、RAG |
 | `vue3-user-front/src/views/community` | 社区 | `xiaou-community`、敏感词、通知、AI 摘要 |
 | `vue3-user-front/src/views/chat` | 聊天室 | `xiaou-chat`、WebSocket、文件 |
+| `vue3-user-front/src/views/code-pen` | 代码工坊 | `xiaou-codepen`、收藏、评论 |
+| `vue3-user-front/src/views/moments` | 动态广场 | `xiaou-moment`、文件、敏感词 |
+| `vue3-user-front/src/views/flashcard` | 闪卡 | `xiaou-flashcard`、用户学习记录 |
+| `vue3-user-front/src/views/knowledge` | 知识图谱 | `xiaou-knowledge`、公开读取 |
+| `vue3-user-front/src/views/learning-assets` | 学习资产 | `xiaou-learning-asset`、AI 总结、审核 |
+| `vue3-user-front/src/views/plan` | 学习计划 | `xiaou-plan`、AI 自动导航 |
+| `vue3-user-front/src/views/points` | 积分 | `xiaou-points`、签到 |
+| `vue3-user-front/src/views/resume` | 简历 | `xiaou-resume`、文件导出 |
+| `vue3-user-front/src/views/sql-optimizer` | SQL 优化 | `xiaou-sql-optimizer`、`xiaou-ai` |
+| `vue3-user-front/src/views/dev-tools` | 开发者工具 | 前端本地能力、[渲染安全](/reference/frontend-rendering-security) |
+| `vue3-user-front/src/views/moyu-tools` | 摸鱼工具 | `xiaou-moyu`、外部热榜 |
 | `vue3-admin-front/src/views/system` | 系统和 AI 配置 | `xiaou-system`、`xiaou-ai`、版本历史 |
 | `vue3-admin-front/src/views/filestorage` | 文件运营 | `xiaou-filestorage`、系统设置 |
 | `vue3-admin-front/src/views/sensitive` | 敏感词运营 | `xiaou-sensitive` |
 | `vue3-admin-front/src/views/points` | 积分运营 | `xiaou-points` |
+| `vue3-admin-front/src/views/lottery` | 抽奖运营 | `xiaou-points` |
+| `vue3-admin-front/src/views/dashboard` | 仪表盘 | `xiaou-system`、多业务聚合 |
+| `vue3-admin-front/src/views/log` | 操作日志 | `xiaou-system`、审计 |
 
 更细的页面和路由映射见 [前端路由索引](/reference/frontend-routes)。
 
@@ -105,13 +120,13 @@ Code Nest 的依赖关系可以按四层理解：
 
 | 依赖 | 涉及模块 | 最低验证 |
 | --- | --- | --- |
-| Sa-Token 登录域 | 用户端、管理端、WebSocket ticket、当前用户 | 登录、接口 401、管理端权限、当前用户读写 |
-| 文件 URL 和公开读取 | 头像、内容附件、聊天图片、简历导出 | 上传、读取、公开/非公开、Nginx 或 `/api/files` |
-| DOMPurify 和 Markdown 渲染 | 博客、社区、题库、通知、工具、RAG 命中片段 | 构建、真实页面渲染、XSS 样例不执行 |
-| AI Prompt 和 Schema | 模拟面试、求职作战台、SQL 优化、社区摘要 | AI 回归、结构化字段、失败态 |
-| go-judge | OJ 运行、提交、赛事 | AC/WA/CE 样例、结果回写、提交详情 |
-| WebSocket ticket | 聊天连接、实时消息 | ticket 获取、连接、ACK、限流、断线 |
-| 积分流水 | 签到、OJ、抽奖、后台发放 | 余额、流水、重复提交和库存 |
+| Sa-Token 登录域 | 用户端、管理端、WebSocket ticket、当前用户 | 登录、接口 401、管理端权限、当前用户读写 → 详见 [鉴权与用户体系](/modules/auth) |
+| 文件 URL 和公开读取 | 头像、内容附件、聊天图片、简历导出 | 上传、读取、公开/非公开、Nginx 或 `/api/files` → 详见 [文件存储](/modules/file-storage) |
+| DOMPurify 和 Markdown 渲染 | 博客、社区、题库、通知、工具、RAG 命中片段 | 构建、真实页面渲染、XSS 样例不执行 → 详见 [前端渲染安全](/reference/frontend-rendering-security) |
+| AI Prompt 和 Schema | 模拟面试、求职作战台、SQL 优化、社区摘要 | AI 回归、结构化字段、失败态 → 详见 [AI Schema 与治理](/reference/ai-schemas) |
+| go-judge | OJ 运行、提交、赛事 | AC/WA/CE 样例、结果回写、提交详情 → 详见 [OJ 判题系统](/modules/oj) |
+| WebSocket ticket | 聊天连接、实时消息 | ticket 获取、连接、ACK、限流、断线 → 详见 [WebSocket 协议](/reference/websocket) |
+| 积分流水 | 签到、OJ、抽奖、后台发放 | 余额、流水、重复提交和库存 → 详见 [积分与抽奖](/modules/points)、[幂等回滚与补偿](/reference/idempotency-rollbacks-compensation) |
 
 ## 改动类型到验证范围
 
@@ -152,3 +167,13 @@ Code Nest 的依赖关系可以按四层理解：
 未验证项及原因：
 ```
 
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [模块总览](/modules/) | 各模块功能说明 |
+| [架构总览](/architecture/overview) | 整体架构设计 |
+| [后端模块](/architecture/backend-modules) | Maven 子模块结构 |
+| [源码地图](/reference/source-map) | 全项目代码索引 |

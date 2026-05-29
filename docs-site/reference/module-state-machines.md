@@ -116,14 +116,123 @@ Career Loop 是这一类里最容易踩坑的：
 4. 然后回到 [功能开发流程](/guide/feature-development)，把“先设计数据和状态”这一步真正落实。
 5. 最后配合 [模块最小回归矩阵](/reference/module-regression-matrix) 和 [测试与回归](/guide/testing-regression) 补回归口径。
 
-## 一句话判断
 
-如果一个功能涉及：
+## 全站状态枚举速查
 
-- 异步推进
-- 管理员审核
-- 外部依赖
-- 阶段前进但不允许回退
-- 同一对象在不同角色下可操作范围不同
+以下枚举是状态机实现的直接依据，排查问题时先确认枚举值含义。
 
-那它大概率就不该只按普通 CRUD 去理解，而应该先按状态机或生命周期去读。
+### SubmissionStatus（OJ 提交状态）
+
+源码：`xiaou-oj/src/main/java/com/xiaou/oj/enums/SubmissionStatus.java`
+
+| 枚举值 | code | label | 是否终态 |
+| --- | --- | --- | --- |
+| PENDING | `pending` | 等待判题 | 否（中间态） |
+| JUDGING | `judging` | 判题中 | 否（中间态） |
+| ACCEPTED | `accepted` | 通过 | 是 |
+| WRONG_ANSWER | `wrong_answer` | 答案错误 | 是 |
+| TIME_LIMIT_EXCEEDED | `time_limit_exceeded` | 超时 | 是 |
+| MEMORY_LIMIT_EXCEEDED | `memory_limit_exceeded` | 超内存 | 是 |
+| RUNTIME_ERROR | `runtime_error` | 运行错误 | 是 |
+| COMPILE_ERROR | `compile_error` | 编译错误 | 是 |
+| SYSTEM_ERROR | `system_error` | 系统错误 | 是（异常终态） |
+
+**诊断要点**：`PENDING` 和 `JUDGING` 是中间态，如果卡在这两个状态超过预期时间，先检查 go-judge 服务是否可用，再检查判题队列是否阻塞。`SYSTEM_ERROR` 是异常终态——当 go-judge 不可用或判题超时时，判题服务会将提交标记为 `SYSTEM_ERROR`，这不是业务错误而是基础设施问题。
+
+### StatusEnum（通用状态枚举）
+
+源码：`xiaou-common/src/main/java/com/xiaou/common/enums/StatusEnum.java`
+
+这个枚举同时包含多个语义域，实际使用时不同模块取不同子集：
+
+| 语义域 | 枚举值 | code | label | 使用场景 |
+| --- | --- | --- | --- | --- |
+| 通用状态 | NORMAL | 0 | 正常 | 大多数实体的默认状态 |
+| 通用状态 | DISABLED | 1 | 禁用 | 管理端手动禁用 |
+| 通用状态 | DELETED | 2 | 已删除 | 逻辑删除 |
+| 发布状态 | PUBLISH_DRAFT | 0 | 草稿 | 版本、博客、代码工坊 |
+| 发布状态 | PUBLISH_PUBLISHED | 1 | 已发布 | 版本、博客、代码工坊 |
+| 发布状态 | PUBLISH_OFFLINE | 2 | 已下线 | 博客、代码工坊 |
+| 审核状态 | AUDIT_PENDING | 0 | 待审核 | 学习资产、社区内容 |
+| 审核状态 | AUDIT_APPROVED | 1 | 审核通过 | 学习资产 |
+| 审核状态 | AUDIT_REJECTED | 2 | 审核拒绝 | 学习资产 |
+| 用户状态 | USER_ACTIVE | 0 | 激活 | 用户表 |
+| 用户状态 | USER_INACTIVE | 1 | 未激活 | 用户初始状态 |
+| 用户状态 | USER_LOCKED | 2 | 锁定 | 管理端锁定 |
+| 用户状态 | USER_EXPIRED | 3 | 过期 | Token 过期标记 |
+
+**诊断要点**：同一个 code 值在不同语义域含义完全不同。`0` 在通用状态表示"正常"，在发布状态表示"草稿"，在审核状态表示"待审核"。排查时必须知道当前模块用的是哪个语义域。
+
+### NotificationStatusEnum（通知状态）
+
+源码：`xiaou-common/src/main/java/com/xiaou/common/enums/NotificationStatusEnum.java`
+
+| 枚举值 | code | label | 转换规则 |
+| --- | --- | --- | --- |
+| UNREAD | `UNREAD` | 未读 | 新通知默认状态 |
+| READ | `READ` | 已读 | 用户手动标记或批量标记 |
+| DELETED | `DELETED` | 已删除 | 用户删除通知（不可恢复） |
+
+**诊断要点**：通知状态从 `UNREAD` 到 `READ` 是单向的，已读通知不会自动变回未读。`DELETED` 是终态，删除后通知不再出现在列表中。
+
+## 状态卡住时的快速排查 SQL
+
+### OJ 提交卡住
+
+```sql
+-- 查看卡在 pending/judging 的提交
+SELECT id, problem_id, user_id, status, created_time
+FROM oj_submission
+WHERE status IN ('pending', 'judging')
+  AND created_time < NOW() - INTERVAL 5 MINUTE;
+```
+
+### 版本发布状态不一致
+
+```sql
+-- 查看草稿状态但设置了发布时间的版本
+SELECT id, version_number, status, publish_time
+FROM version_history
+WHERE status = 0 AND publish_time IS NOT NULL;
+```
+
+### 用户状态异常
+
+```sql
+-- 查看被锁定或禁用的用户
+SELECT id, username, status
+FROM user_info
+WHERE status IN (1, 2);
+```
+
+### 文件迁移任务卡住
+
+```sql
+-- 查看运行中的迁移任务
+SELECT id, status, start_time, total_files, migrated_files
+FROM file_migration_task
+WHERE status = 'RUNNING'
+  AND start_time < NOW() - INTERVAL 30 MINUTE;
+```
+
+## 源码导航
+
+| 想了解 | 读什么 |
+| --- | --- |
+| OJ 提交状态枚举 | `xiaou-oj/src/main/java/com/xiaou/oj/enums/SubmissionStatus.java` |
+| 通用状态枚举 | `xiaou-common/src/main/java/com/xiaou/common/enums/StatusEnum.java` |
+| 通知状态枚举 | `xiaou-common/src/main/java/com/xiaou/common/enums/NotificationStatusEnum.java` |
+| Career Loop 阶段 | `xiaou-ai/src/main/java/com/xiaou/ai/graph/interview/InterviewState.java` |
+| Job Battle 阶段 | `xiaou-ai/src/main/java/com/xiaou/ai/graph/jobbattle/JobBattleState.java` |
+| 面试会话状态 | 模块页 [模拟面试与求职作战台](/modules/mock-interview-job-battle) |
+| 学习资产状态 | 模块页 [学习资产](/modules/learning-assets) |
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [模块依赖地图](/reference/module-dependencies) | 模块间依赖 |
+| [模块最小回归矩阵](/reference/module-regression-matrix) | 回归测试 |
+| [事件、通知与回流索引](/reference/event-backflow-index) | 事件触发 |
+| [模块总览](/modules/) | 各模块状态机 |

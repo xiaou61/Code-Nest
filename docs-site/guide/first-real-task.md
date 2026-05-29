@@ -42,13 +42,13 @@
 
 | 模块/能力 | 不建议原因 |
 | --- | --- |
-| 鉴权与登录域 | 一改就可能全站 401 或权限错乱 |
-| 文件访问与公开读取 | 最容易出现越权或 URL 映射问题 |
-| WebSocket 与聊天协议 | 失败态复杂，联调与重连成本高 |
-| 积分与抽奖 | 幂等、库存、一致性验证要求高 |
-| 敏感词风控 | 误杀/漏判都影响用户内容生产 |
-| AI Prompt/Schema/RAG | “200 不等于正确”，回归与依赖要求高 |
-| OJ 判题/go-judge | 强依赖外部服务，状态机与回写链路长 |
+| 鉴权与登录域 | 一改就可能全站 401 或权限错乱 → 详见 [鉴权与用户体系](/modules/auth) |
+| 文件访问与公开读取 | 最容易出现越权或 URL 映射问题 → 详见 [文件存储](/modules/file-storage) |
+| WebSocket 与聊天协议 | 失败态复杂，联调与重连成本高 → 详见 [WebSocket 协议](/reference/websocket) |
+| 积分与抽奖 | 幂等、库存、一致性验证要求高 → 详见 [积分与抽奖](/modules/points)、[幂等回滚与补偿](/reference/idempotency-rollbacks-compensation) |
+| 敏感词风控 | 误杀/漏判都影响用户内容生产 → 详见 [敏感词风控](/modules/sensitive) |
+| AI Prompt/Schema/RAG | "200 不等于正确"，回归与依赖要求高 → 详见 [AI Schema 与治理](/reference/ai-schemas) |
+| OJ 判题/go-judge | 强依赖外部服务，状态机与回写链路长 → 详见 [OJ 判题系统](/modules/oj) |
 | Docker/Nginx/监控 | 环境差异大，一旦出错难定位 |
 
 如果你的首单落在这些领域，建议降级：先做文档校准或只读验证记录补齐，而不是直接改代码。
@@ -161,3 +161,13 @@
 如果你现在就要给新人分配具体任务，可以直接打开 [首单任务题库](/guide/first-task-backlog) 挑一题。
 
 如果首单已经顺利做完，下一步不要只凭感觉决定“能不能接模块”，建议直接接着看 [模块接手升级路线](/guide/module-ownership-ladder)。
+
+
+## 相关文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [首单任务题库](/guide/first-task-backlog) | 任务题库 |
+| [功能开发流程](/guide/feature-development) | 开发流程 |
+| [本地开发](/guide/local-dev) | 开发环境 |
+| [模块总览](/modules/) | 各模块功能 |

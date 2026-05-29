@@ -29,6 +29,13 @@ public interface LotteryStockService {
      * @return 当前库存数量
      */
     Integer getStock(Long prizeId);
+
+    /**
+     * 清理奖品库存缓存，下次读取时从数据库重新初始化
+     *
+     * @param prizeId 奖品ID
+     */
+    void evictStockCache(Long prizeId);
     
     /**
      * 同步Redis库存到数据库
