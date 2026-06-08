@@ -302,11 +302,7 @@ public class DailyContentServiceImpl implements DailyContentService {
     @Transactional(rollbackFor = Exception.class)
     public boolean updateContentStatus(Long id, Integer status) {
         try {
-            DailyContent content = new DailyContent();
-            content.setId(id);
-            content.setStatus(status);
-            content.setUpdateTime(LocalDateTime.now());
-            return dailyContentMapper.updateById(content) > 0;
+            return dailyContentMapper.updateStatusById(id, status) > 0;
         } catch (Exception e) {
             log.error("更新内容状态失败", e);
             return false;

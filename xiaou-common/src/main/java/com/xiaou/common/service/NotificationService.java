@@ -83,7 +83,7 @@ public class NotificationService {
      */
     public List<Notification> getUserMessages(Long userId, String status, String type) {
         try {
-            return notificationMapper.selectByUserIdWithReadRecord(userId, status, type);
+            return notificationMapper.selectByUserIdWithReadRecord(userId, status, type, null, null, null);
         } catch (Exception e) {
             log.error("查询用户消息失败, userId: {}", userId, e);
             return null;

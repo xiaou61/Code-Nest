@@ -14,7 +14,11 @@ public interface ResumeTemplateService {
 
     Long createTemplate(ResumeTemplateRequest request);
 
+    Long createTemplate(Long operatorId, ResumeTemplateRequest request);
+
     void updateTemplate(Long id, ResumeTemplateRequest request);
+
+    void updateTemplate(Long operatorId, Long id, ResumeTemplateRequest request);
 
     void deleteTemplate(Long id);
 

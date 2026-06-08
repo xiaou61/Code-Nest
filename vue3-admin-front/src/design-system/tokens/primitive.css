@@ -1,0 +1,47 @@
+:root {
+  --cn-font-sans: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  --cn-font-heading: 'Poppins', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+  --cn-blue-50: #eff6ff;
+  --cn-blue-100: #dbeafe;
+  --cn-blue-200: #bfdbfe;
+  --cn-blue-300: #93c5fd;
+  --cn-blue-400: #60a5fa;
+  --cn-blue-500: #3b82f6;
+  --cn-blue-600: #2563eb;
+  --cn-blue-700: #1d4ed8;
+  --cn-blue-800: #1e40af;
+  --cn-blue-900: #1e3a8a;
+
+  --cn-slate-50: #f8fafc;
+  --cn-slate-100: #f1f5f9;
+  --cn-slate-200: #e2e8f0;
+  --cn-slate-300: #cbd5e1;
+  --cn-slate-400: #94a3b8;
+  --cn-slate-500: #64748b;
+  --cn-slate-600: #475569;
+  --cn-slate-700: #334155;
+  --cn-slate-800: #1e293b;
+  --cn-slate-900: #0f172a;
+
+  --cn-green-500: #22c55e;
+  --cn-green-600: #16a34a;
+  --cn-amber-500: #f59e0b;
+  --cn-amber-600: #d97706;
+  --cn-red-500: #ef4444;
+  --cn-red-600: #dc2626;
+
+  --cn-space-1: 4px;
+  --cn-space-2: 8px;
+  --cn-space-3: 12px;
+  --cn-space-4: 16px;
+  --cn-space-5: 20px;
+  --cn-space-6: 24px;
+  --cn-space-8: 32px;
+  --cn-space-10: 40px;
+
+  --cn-radius-control: 8px;
+  --cn-radius-card: 12px;
+  --cn-radius-panel: 16px;
+  --cn-radius-pill: 999px;
+}

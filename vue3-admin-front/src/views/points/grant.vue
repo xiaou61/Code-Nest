@@ -1,352 +1,287 @@
 <template>
-  <div class="points-grant">
-    <!-- 页面标题 -->
-    <div class="page-header">
-      <div class="header-title">
-        <h2>积分发放管理</h2>
-        <p>为用户发放积分奖励，支持单个发放和批量发放</p>
-      </div>
-    </div>
+  <CnPage class="points-grant-page" surface="transparent" max-width="1320px">
+    <CnPageHeader
+      title="积分发放管理"
+      description="为用户发放积分奖励，支持单个发放和批量发放。"
+      eyebrow="Points Grant"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand">后台发放</CnStatusTag>
+        <CnStatusTag type="success">最近记录 {{ historyData.length }} 条</CnStatusTag>
+      </template>
+      <template #actions>
+        <el-button :icon="Refresh" :loading="historyLoading" @click="loadHistory">刷新记录</el-button>
+        <el-button type="primary" @click="router.push('/points/details')">查看明细</el-button>
+      </template>
+    </CnPageHeader>
 
-    <el-row :gutter="20">
-      <!-- 左侧：单个发放 -->
-      <el-col :span="12">
-        <el-card class="grant-card">
-          <template #header>
-            <div class="card-header">
-              <el-icon class="header-icon"><Plus /></el-icon>
-              <span>单个发放积分</span>
-            </div>
-          </template>
-          
-          <el-form
-            :model="singleGrantForm"
-            :rules="singleGrantRules"
-            ref="singleGrantFormRef"
-            label-width="100px"
-          >
-            <el-form-item label="用户ID" prop="userId">
-              <el-input
-                v-model="singleGrantForm.userId"
-                placeholder="请输入用户ID"
-                type="number"
-              >
-                <template #append>
-                  <el-button @click="handleSearchUser" :loading="searchingUser">
-                    <el-icon><Search /></el-icon>
-                    查找
-                  </el-button>
-                </template>
-              </el-input>
-            </el-form-item>
+    <div class="grant-grid">
+      <CnSection title="单个发放积分" description="查找指定用户并发放积分奖励。" divided>
+        <el-form ref="singleGrantFormRef" :model="singleGrantForm" :rules="singleGrantRules" label-width="100px">
+          <el-form-item label="用户ID" prop="userId">
+            <el-input v-model="singleGrantForm.userId" placeholder="请输入用户ID" type="number">
+              <template #append>
+                <el-button :icon="Search" :loading="searchingUser" @click="handleSearchUser">查找</el-button>
+              </template>
+            </el-input>
+          </el-form-item>
 
-            <!-- 用户信息显示 -->
-            <div v-if="selectedUser" class="user-info-display">
-              <div class="user-card">
-                <el-avatar :size="50">
-                  <el-icon><User /></el-icon>
-                </el-avatar>
-                <div class="user-details">
-                  <div class="user-name">{{ selectedUser.userName || `用户${selectedUser.userId}` }}</div>
-                  <div class="user-stats">
-                    <span class="stat-item">当前积分：{{ formatNumber(selectedUser.totalPoints) }}</span>
-                    <span class="stat-item">连续打卡：{{ selectedUser.continuousDays || 0 }}天</span>
-                  </div>
+          <div v-if="selectedUser" class="user-info-display">
+            <div class="user-card">
+              <el-avatar :size="50">
+                <el-icon><User /></el-icon>
+              </el-avatar>
+              <div class="user-details">
+                <div class="user-name">{{ selectedUser.userName || `用户${selectedUser.userId}` }}</div>
+                <div class="user-stats">
+                  <CnStatusTag type="brand" size="sm">当前积分 {{ formatNumber(selectedUser.totalPoints) }}</CnStatusTag>
+                  <CnStatusTag type="success" size="sm">连续 {{ selectedUser.continuousDays || 0 }} 天</CnStatusTag>
                 </div>
               </div>
             </div>
+          </div>
 
-            <el-form-item label="积分数量" prop="points">
-              <el-input-number
-                v-model="singleGrantForm.points"
-                :min="1"
-                :max="10000"
-                controls-position="right"
-                placeholder="请输入积分数量"
-                style="width: 100%"
-              />
-            </el-form-item>
+          <el-form-item label="积分数量" prop="points">
+            <el-input-number v-model="singleGrantForm.points" :min="1" :max="10000" controls-position="right" class="full-width" />
+          </el-form-item>
 
-            <el-form-item label="发放原因" prop="reason">
-              <el-input
-                v-model="singleGrantForm.reason"
-                type="textarea"
-                :rows="4"
-                placeholder="请输入发放原因（例如：活动奖励、bug反馈奖励等）"
-                maxlength="200"
-                show-word-limit
-              />
-            </el-form-item>
+          <el-form-item label="发放原因" prop="reason">
+            <el-input
+              v-model="singleGrantForm.reason"
+              type="textarea"
+              :rows="4"
+              placeholder="请输入发放原因（例如：活动奖励、bug反馈奖励等）"
+              maxlength="200"
+              show-word-limit
+            />
+          </el-form-item>
 
-            <el-form-item>
-              <el-button
-                type="primary"
-                @click="handleSingleGrant"
-                :loading="singleGrantLoading"
-                style="width: 100%"
-                size="large"
-              >
-                <el-icon><Check /></el-icon>
-                确认发放
-              </el-button>
-            </el-form-item>
-          </el-form>
-        </el-card>
-      </el-col>
+          <el-form-item>
+            <el-button type="primary" :icon="Check" :loading="singleGrantLoading" class="full-width" size="large" @click="handleSingleGrant">
+              确认发放
+            </el-button>
+          </el-form-item>
+        </el-form>
+      </CnSection>
 
-      <!-- 右侧：批量发放 -->
-      <el-col :span="12">
-        <el-card class="grant-card">
-          <template #header>
-            <div class="card-header">
-              <el-icon class="header-icon"><UserFilled /></el-icon>
-              <span>批量发放积分</span>
+      <CnSection title="批量发放积分" description="输入多个用户 ID，为一组用户批量发放积分。" divided>
+        <el-form ref="batchGrantFormRef" :model="batchGrantForm" :rules="batchGrantRules" label-width="100px">
+          <el-form-item label="用户ID列表" prop="userIdsText">
+            <el-input
+              v-model="batchGrantForm.userIdsText"
+              type="textarea"
+              :rows="6"
+              placeholder="请输入用户ID，多个用户用英文逗号分隔&#10;例如：123,456,789,101,202"
+            />
+            <div class="form-tip">
+              <el-icon><InfoFilled /></el-icon>
+              支持批量输入多个用户ID，用英文逗号分隔
             </div>
-          </template>
+          </el-form-item>
 
-          <el-form
-            :model="batchGrantForm"
-            :rules="batchGrantRules"
-            ref="batchGrantFormRef"
-            label-width="100px"
-          >
-            <el-form-item label="用户ID列表" prop="userIdsText">
-              <el-input
-                v-model="batchGrantForm.userIdsText"
-                type="textarea"
-                :rows="6"
-                placeholder="请输入用户ID，多个用户用英文逗号分隔&#10;例如：123,456,789,101,202"
-              />
-              <div class="form-tip">
-                <el-icon><InfoFilled /></el-icon>
-                支持批量输入多个用户ID，用英文逗号分隔
-              </div>
-            </el-form-item>
+          <el-form-item label="积分数量" prop="points">
+            <el-input-number v-model="batchGrantForm.points" :min="1" :max="10000" controls-position="right" class="full-width" />
+          </el-form-item>
 
-            <el-form-item label="积分数量" prop="points">
-              <el-input-number
-                v-model="batchGrantForm.points"
-                :min="1"
-                :max="10000"
-                controls-position="right"
-                placeholder="请输入积分数量"
-                style="width: 100%"
-              />
-            </el-form-item>
+          <el-form-item label="发放原因" prop="reason">
+            <el-input
+              v-model="batchGrantForm.reason"
+              type="textarea"
+              :rows="4"
+              placeholder="请输入发放原因（例如：春节活动奖励、社区贡献奖励等）"
+              maxlength="200"
+              show-word-limit
+            />
+          </el-form-item>
 
-            <el-form-item label="发放原因" prop="reason">
-              <el-input
-                v-model="batchGrantForm.reason"
-                type="textarea"
-                :rows="4"
-                placeholder="请输入发放原因（例如：春节活动奖励、社区贡献奖励等）"
-                maxlength="200"
-                show-word-limit
-              />
-            </el-form-item>
+          <el-form-item>
+            <el-button type="warning" :icon="Finished" :loading="batchGrantLoading" class="full-width" size="large" @click="handleBatchGrant">
+              批量发放
+            </el-button>
+          </el-form-item>
+        </el-form>
+      </CnSection>
+    </div>
 
-            <el-form-item>
-              <el-button
-                type="warning"
-                @click="handleBatchGrant"
-                :loading="batchGrantLoading"
-                style="width: 100%"
-                size="large"
-              >
-                <el-icon><Finished /></el-icon>
-                批量发放
-              </el-button>
-            </el-form-item>
-          </el-form>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 发放历史记录 -->
-    <el-card class="history-card">
-      <template #header>
-        <div class="card-header">
-          <el-icon class="header-icon"><Document /></el-icon>
-          <span>最近发放记录</span>
-          <el-button text @click="$router.push('/points/details')">查看全部</el-button>
-        </div>
+    <CnSection title="最近发放记录" description="最近 10 条后台发放积分记录。" divided>
+      <template #actions>
+        <el-button type="primary" link @click="router.push('/points/details')">查看全部</el-button>
       </template>
 
-      <el-table
+      <CnDataTable
+        :columns="historyColumns"
         :data="historyData"
-        v-loading="historyLoading"
-        stripe
-        style="width: 100%"
+        :loading="historyLoading"
+        :pagination="null"
+        row-key="id"
+        empty-title="暂无发放记录"
+        empty-description="还没有后台发放积分记录。"
+        empty-icon="PG"
       >
-        <el-table-column label="用户" width="150">
-          <template #default="{ row }">
-            <div class="user-cell">
-              <el-avatar :size="32">
-                <el-icon><User /></el-icon>
-              </el-avatar>
-              <div class="user-info">
-                <div class="user-name">{{ row.userName || `用户${row.userId}` }}</div>
-                <div class="user-id">ID: {{ row.userId }}</div>
-              </div>
+        <template #user="{ row }">
+          <div class="user-cell">
+            <el-avatar :size="32">
+              <el-icon><User /></el-icon>
+            </el-avatar>
+            <div class="user-info">
+              <div class="user-name">{{ row.userName || `用户${row.userId}` }}</div>
+              <div class="user-id">ID: {{ row.userId }}</div>
             </div>
-          </template>
-        </el-table-column>
+          </div>
+        </template>
 
-        <el-table-column label="积分变动" width="100" align="center">
-          <template #default="{ row }">
-            <div class="points-change points-positive">
-              +{{ formatNumber(row.pointsChange) }}
-            </div>
-          </template>
-        </el-table-column>
+        <template #pointsChange="{ row }">
+          <div class="points-change points-positive">+{{ formatNumber(row.pointsChange) }}</div>
+        </template>
 
-        <el-table-column label="类型" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag
-              :type="row.pointsType === 1 ? 'warning' : 'info'"
-              effect="light"
-            >
-              {{ row.pointsTypeDesc }}
-            </el-tag>
-          </template>
-        </el-table-column>
+        <template #pointsType="{ row }">
+          <CnStatusTag :type="row.pointsType === 1 ? 'warning' : 'info'" size="sm">{{ row.pointsTypeDesc }}</CnStatusTag>
+        </template>
 
-        <el-table-column label="发放原因" min-width="200">
-          <template #default="{ row }">
-            <div class="description-text">{{ row.description }}</div>
-          </template>
-        </el-table-column>
+        <template #admin="{ row }">
+          <div v-if="row.adminId" class="admin-cell">
+            <div class="admin-name">{{ row.adminName || `管理员${row.adminId}` }}</div>
+          </div>
+          <CnStatusTag v-else type="neutral" size="sm" subtle>系统</CnStatusTag>
+        </template>
 
-        <el-table-column label="操作管理员" width="120" align="center">
-          <template #default="{ row }">
-            <div v-if="row.adminId" class="admin-cell">
-              <div class="admin-name">{{ row.adminName || `管理员${row.adminId}` }}</div>
-            </div>
-            <el-text v-else type="info">系统</el-text>
-          </template>
-        </el-table-column>
+        <template #createTime="{ row }">
+          <div class="time-cell">
+            <div class="time-date">{{ formatDate(row.createTime) }}</div>
+            <div class="time-time">{{ formatTime(row.createTime) }}</div>
+          </div>
+        </template>
+      </CnDataTable>
+    </CnSection>
 
-        <el-table-column label="发放时间" width="160" align="center">
-          <template #default="{ row }">
-            <div class="time-cell">
-              <div class="time-date">{{ formatDate(row.createTime) }}</div>
-              <div class="time-time">{{ formatTime(row.createTime) }}</div>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
-
-    <!-- 批量发放结果对话框 -->
-    <el-dialog
-      v-model="showBatchResultDialog"
-      title="批量发放结果"
-      width="800px"
-    >
+    <el-dialog v-model="showBatchResultDialog" title="批量发放结果" width="800px">
       <div v-if="batchResult" class="batch-result">
-        <!-- 总体统计 -->
         <div class="result-summary">
-          <el-row :gutter="16">
-            <el-col :span="8">
-              <div class="summary-item success">
-                <div class="summary-number">{{ batchResult.successCount }}</div>
-                <div class="summary-label">成功</div>
-              </div>
-            </el-col>
-            <el-col :span="8">
-              <div class="summary-item error">
-                <div class="summary-number">{{ batchResult.failCount }}</div>
-                <div class="summary-label">失败</div>
-              </div>
-            </el-col>
-            <el-col :span="8">
-              <div class="summary-item info">
-                <div class="summary-number">{{ formatNumber(batchResult.totalPointsGranted) }}</div>
-                <div class="summary-label">总积分</div>
-              </div>
-            </el-col>
-          </el-row>
+          <div class="summary-item success">
+            <div class="summary-number">{{ batchResult.successCount }}</div>
+            <div class="summary-label">成功</div>
+          </div>
+          <div class="summary-item error">
+            <div class="summary-number">{{ batchResult.failCount }}</div>
+            <div class="summary-label">失败</div>
+          </div>
+          <div class="summary-item info">
+            <div class="summary-number">{{ formatNumber(batchResult.totalPointsGranted) }}</div>
+            <div class="summary-label">总积分</div>
+          </div>
         </div>
 
-        <!-- 详细结果列表 -->
-        <div class="result-details">
-          <h4>详细结果</h4>
-          <el-table :data="batchResult.grantResults" stripe max-height="300">
-            <el-table-column label="用户ID" prop="userId" width="100" align="center" />
-            <el-table-column label="用户名" prop="userName" width="150" />
-            <el-table-column label="状态" width="100" align="center">
-              <template #default="{ row }">
-                <el-tag :type="row.success ? 'success' : 'danger'" effect="light">
-                  {{ row.success ? '成功' : '失败' }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="结果信息" prop="message" min-width="150" />
-            <el-table-column label="当前余额" width="120" align="right">
-              <template #default="{ row }">
-                <span v-if="row.success">{{ formatNumber(row.currentBalance) }}</span>
-                <span v-else>-</span>
-              </template>
-            </el-table-column>
-          </el-table>
-        </div>
+        <CnSection title="详细结果" surface="plain" divided>
+          <CnDataTable
+            :columns="batchResultColumns"
+            :data="batchResult.grantResults || []"
+            :pagination="null"
+            row-key="userId"
+            empty-title="暂无结果明细"
+            empty-description="批量发放接口未返回明细。"
+            empty-icon="BR"
+          >
+            <template #success="{ row }">
+              <CnStatusTag :type="row.success ? 'success' : 'danger'" size="sm">
+                {{ row.success ? '成功' : '失败' }}
+              </CnStatusTag>
+            </template>
+            <template #currentBalance="{ row }">
+              <span v-if="row.success">{{ formatNumber(row.currentBalance) }}</span>
+              <span v-else>-</span>
+            </template>
+          </CnDataTable>
+        </CnSection>
       </div>
-      
+
       <template #footer>
-        <el-button @click="showBatchResultDialog = false">关闭</el-button>
+        <div class="dialog-footer">
+          <el-button @click="showBatchResultDialog = false">关闭</el-button>
+        </div>
       </template>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted } from 'vue'
+<script setup lang="ts">
+import { onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  Plus,
-  UserFilled,
-  Search,
-  User,
-  Check,
-  Finished,
-  Document,
-  InfoFilled
-} from '@element-plus/icons-vue'
+import { Check, Finished, InfoFilled, Refresh, Search, User } from '@element-plus/icons-vue'
 import { pointsApi } from '@/api/points'
+import { CnDataTable, CnPage, CnPageHeader, CnSection, CnStatusTag } from '@/design-system'
+import type { CnBreadcrumbItem, CnTableColumn } from '@/design-system'
 
-// 响应式数据
-const selectedUser = ref(null)
+interface UserPointsInfo {
+  userId: number
+  userName?: string
+  totalPoints?: number
+  continuousDays?: number
+  avatar?: string
+  realName?: string
+  nickname?: string
+  monthCheckinDays?: number
+  hasCheckedToday?: boolean
+  lastCheckinDate?: string
+}
+
+interface PointsDetail extends Record<string, unknown> {
+  id?: number
+  userId: number
+  userName?: string
+  pointsChange?: number
+  pointsType?: number
+  pointsTypeDesc?: string
+  description?: string
+  adminId?: number
+  adminName?: string
+  createTime?: string
+}
+
+interface BatchGrantResult {
+  successCount?: number
+  failCount?: number
+  totalPointsGranted?: number
+  grantResults?: BatchGrantRow[]
+}
+
+interface BatchGrantRow extends Record<string, unknown> {
+  userId: number
+  userName?: string
+  success?: boolean
+  message?: string
+  currentBalance?: number
+}
+
+const router = useRouter()
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '积分管理' }, { label: '积分发放' }]
+
+const selectedUser = ref<UserPointsInfo | null>(null)
 const searchingUser = ref(false)
 const singleGrantLoading = ref(false)
 const batchGrantLoading = ref(false)
 const historyLoading = ref(false)
-const historyData = ref([])
+const historyData = ref<PointsDetail[]>([])
 const showBatchResultDialog = ref(false)
-const batchResult = ref(null)
+const batchResult = ref<BatchGrantResult | null>(null)
+const singleGrantFormRef = ref()
+const batchGrantFormRef = ref()
 
-// 表单引用
-const singleGrantFormRef = ref(null)
-const batchGrantFormRef = ref(null)
-
-// 单个发放表单
 const singleGrantForm = reactive({
   userId: '',
-  points: null,
+  points: null as number | null,
   reason: ''
 })
 
-// 批量发放表单
 const batchGrantForm = reactive({
   userIdsText: '',
-  points: null,
+  points: null as number | null,
   reason: ''
 })
 
-// 表单验证规则
 const singleGrantRules = {
-  userId: [
-    { required: true, message: '请输入用户ID', trigger: 'blur' }
-  ],
+  userId: [{ required: true, message: '请输入用户ID', trigger: 'blur' }],
   points: [
     { required: true, message: '请输入积分数量', trigger: 'blur' },
     { type: 'number', min: 1, max: 10000, message: '积分数量必须在1-10000之间', trigger: 'blur' }
@@ -358,9 +293,7 @@ const singleGrantRules = {
 }
 
 const batchGrantRules = {
-  userIdsText: [
-    { required: true, message: '请输入用户ID', trigger: 'blur' }
-  ],
+  userIdsText: [{ required: true, message: '请输入用户ID', trigger: 'blur' }],
   points: [
     { required: true, message: '请输入积分数量', trigger: 'blur' },
     { type: 'number', min: 1, max: 10000, message: '积分数量必须在1-10000之间', trigger: 'blur' }
@@ -371,37 +304,47 @@ const batchGrantRules = {
   ]
 }
 
-// 格式化数字显示
-const formatNumber = (num) => {
+const historyColumns: CnTableColumn<PointsDetail>[] = [
+  { label: '用户', width: 160, slot: 'user' },
+  { prop: 'pointsChange', label: '积分变动', width: 110, align: 'center', slot: 'pointsChange' },
+  { prop: 'pointsType', label: '类型', width: 110, align: 'center', slot: 'pointsType' },
+  { prop: 'description', label: '发放原因', minWidth: 220, showOverflowTooltip: true },
+  { label: '操作管理员', width: 130, align: 'center', slot: 'admin' },
+  { prop: 'createTime', label: '发放时间', width: 170, align: 'center', slot: 'createTime' }
+]
+
+const batchResultColumns: CnTableColumn<BatchGrantRow>[] = [
+  { prop: 'userId', label: '用户ID', width: 100, align: 'center' },
+  { prop: 'userName', label: '用户名', width: 150, showOverflowTooltip: true },
+  { prop: 'success', label: '状态', width: 100, align: 'center', slot: 'success' },
+  { prop: 'message', label: '结果信息', minWidth: 160, showOverflowTooltip: true },
+  { prop: 'currentBalance', label: '当前余额', width: 120, align: 'right', slot: 'currentBalance' }
+]
+
+const formatNumber = (num?: number | string | null) => {
   if (!num) return '0'
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
-// 格式化日期
-const formatDate = (dateTime) => {
+const formatDate = (dateTime?: string) => {
   if (!dateTime) return '-'
   return new Date(dateTime).toLocaleDateString('zh-CN')
 }
 
-// 格式化时间
-const formatTime = (dateTime) => {
+const formatTime = (dateTime?: string) => {
   if (!dateTime) return '-'
   return new Date(dateTime).toLocaleTimeString('zh-CN')
 }
 
-// 搜索用户信息
 const handleSearchUser = async () => {
   if (!singleGrantForm.userId) {
     ElMessage.warning('请输入用户ID')
     return
   }
-  
+
   searchingUser.value = true
-  
   try {
-    // 使用专门的接口获取用户积分信息（包含完整的用户信息和积分数据）
     const userPointsInfo = await pointsApi.getUserPointsInfo(singleGrantForm.userId)
-    
     selectedUser.value = {
       userId: userPointsInfo.userId,
       userName: userPointsInfo.userName,
@@ -414,7 +357,6 @@ const handleSearchUser = async () => {
       hasCheckedToday: userPointsInfo.hasCheckedToday,
       lastCheckinDate: userPointsInfo.lastCheckinDate
     }
-    
     ElMessage.success('用户信息加载成功')
   } catch (error) {
     console.error('查找用户失败:', error)
@@ -425,36 +367,25 @@ const handleSearchUser = async () => {
   }
 }
 
-// 单个发放积分
 const handleSingleGrant = async () => {
   if (!singleGrantFormRef.value) return
-  
+
   try {
     await singleGrantFormRef.value.validate()
-    
-    await ElMessageBox.confirm(
-      `确认为用户 ${singleGrantForm.userId} 发放 ${singleGrantForm.points} 积分吗？`,
-      '确认发放',
-      {
-        confirmButtonText: '确认',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    
+    await ElMessageBox.confirm(`确认为用户 ${singleGrantForm.userId} 发放 ${singleGrantForm.points} 积分吗？`, '确认发放', {
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
     singleGrantLoading.value = true
-    
-    const requestData = {
+    await pointsApi.grantPoints({
       userId: parseInt(singleGrantForm.userId),
       points: singleGrantForm.points,
       reason: singleGrantForm.reason
-    }
-    
-    await pointsApi.grantPoints(requestData)
-    
+    })
+
     ElMessage.success('积分发放成功')
-    
-    // 重置表单
     singleGrantFormRef.value.resetFields()
     Object.assign(singleGrantForm, {
       userId: '',
@@ -462,10 +393,7 @@ const handleSingleGrant = async () => {
       reason: ''
     })
     selectedUser.value = null
-    
-    // 刷新历史记录
     await loadHistory()
-    
   } catch (error) {
     if (error !== 'cancel') {
       console.error('发放积分失败:', error)
@@ -476,63 +404,45 @@ const handleSingleGrant = async () => {
   }
 }
 
-// 批量发放积分
 const handleBatchGrant = async () => {
   if (!batchGrantFormRef.value) return
-  
+
   try {
     await batchGrantFormRef.value.validate()
-    
-    // 解析用户ID
+
     const userIds = batchGrantForm.userIdsText
       .split(',')
-      .map(id => parseInt(id.trim()))
-      .filter(id => !isNaN(id))
-    
+      .map((id) => parseInt(id.trim()))
+      .filter((id) => !Number.isNaN(id))
+
     if (userIds.length === 0) {
       ElMessage.warning('请输入有效的用户ID')
       return
     }
-    
-    await ElMessageBox.confirm(
-      `确认为${userIds.length}个用户发放${batchGrantForm.points}积分吗？`,
-      '确认批量发放',
-      {
-        confirmButtonText: '确认',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    
+
+    await ElMessageBox.confirm(`确认为${userIds.length}个用户发放${batchGrantForm.points}积分吗？`, '确认批量发放', {
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
     batchGrantLoading.value = true
-    
-    const requestData = {
-      userIds: userIds,
+    const result = await pointsApi.batchGrantPoints({
+      userIds,
       points: batchGrantForm.points,
       reason: batchGrantForm.reason
-    }
-    
-    const result = await pointsApi.batchGrantPoints(requestData)
-    
-    // 显示批量发放结果
+    })
+
     batchResult.value = result
     showBatchResultDialog.value = true
-    
-    ElMessage.success(
-      `批量发放完成！成功：${result.successCount}人，失败：${result.failCount}人`
-    )
-    
-    // 重置表单
+    ElMessage.success(`批量发放完成！成功：${result.successCount}人，失败：${result.failCount}人`)
     batchGrantFormRef.value.resetFields()
     Object.assign(batchGrantForm, {
       userIdsText: '',
       points: null,
       reason: ''
     })
-    
-    // 刷新历史记录
     await loadHistory()
-    
   } catch (error) {
     if (error !== 'cancel') {
       console.error('批量发放积分失败:', error)
@@ -543,20 +453,15 @@ const handleBatchGrant = async () => {
   }
 }
 
-// 加载发放历史记录
 const loadHistory = async () => {
   historyLoading.value = true
-  
   try {
-    const params = {
+    const result = await pointsApi.getAllPointsDetailList({
       pageNum: 1,
       pageSize: 10,
-      pointsType: 1 // 只查询后台发放的记录
-    }
-    
-    const result = await pointsApi.getAllPointsDetailList(params)
-    historyData.value = result.records || []
-    
+      pointsType: 1
+    })
+    historyData.value = Array.isArray(result?.records) ? result.records : []
   } catch (error) {
     console.error('加载历史记录失败:', error)
   } finally {
@@ -564,219 +469,144 @@ const loadHistory = async () => {
   }
 }
 
-// 组件挂载时加载历史记录
 onMounted(() => {
   loadHistory()
 })
 </script>
 
 <style scoped>
-.points-grant {
-  padding: 20px;
+.points-grant-page {
+  min-height: 100%;
 }
 
-.page-header {
-  margin-bottom: 20px;
-}
-
-.header-title h2 {
-  margin: 0 0 8px 0;
-  font-size: 24px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.header-title p {
-  margin: 0;
-  color: #909399;
-  font-size: 14px;
-}
-
-.grant-card {
-  margin-bottom: 20px;
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.header-icon {
-  margin-right: 8px;
-  color: #409EFF;
+.grant-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
 .user-info-display {
-  margin: 15px 0;
+  margin: var(--cn-space-4) 0;
 }
 
-.user-card {
+.user-card,
+.grant-user-info {
   display: flex;
   align-items: center;
-  padding: 15px;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border-radius: 8px;
-  border: 1px solid #dee2e6;
+  gap: var(--cn-space-3);
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
 }
 
-.user-details {
-  margin-left: 12px;
-  flex: 1;
-}
-
-.user-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 8px;
-}
-
-.user-stats {
-  display: flex;
-  gap: 16px;
-}
-
-.stat-item {
-  font-size: 13px;
-  color: #67C23A;
-  background: rgba(103, 194, 58, 0.1);
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
-.form-tip {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  color: #909399;
-  margin-top: 5px;
-}
-
-.history-card {
-  margin-top: 20px;
-}
-
-.user-cell {
-  display: flex;
-  align-items: center;
-}
-
+.user-details,
 .user-info {
-  margin-left: 8px;
-  flex: 1;
+  min-width: 0;
 }
 
-.user-name {
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 2px;
-  font-size: 13px;
+.user-name,
+.admin-name,
+.time-date {
+  color: var(--cn-color-text-primary);
+  font-weight: 650;
 }
 
-.user-id {
-  font-size: 11px;
-  color: #909399;
+.user-stats,
+.user-cell,
+.dialog-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cn-space-2);
 }
 
-.points-change {
-  font-weight: 600;
-  color: #909399;
+.user-id,
+.time-time,
+.form-tip {
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
 }
 
 .points-change.points-positive {
-  color: #67C23A;
+  color: var(--cn-color-success);
+  font-weight: 650;
 }
 
-.description-text {
-  color: #303133;
-  line-height: 1.4;
-}
-
+.time-cell,
 .admin-cell {
   text-align: center;
 }
 
-.admin-name {
-  color: #303133;
-  font-size: 12px;
+.form-tip {
+  margin-top: var(--cn-space-1);
 }
 
-.time-cell {
-  text-align: center;
-}
-
-.time-date {
-  color: #303133;
-  margin-bottom: 2px;
-  font-size: 12px;
-}
-
-.time-time {
-  font-size: 11px;
-  color: #909399;
+.full-width {
+  width: 100%;
 }
 
 .batch-result {
-  padding: 10px 0;
+  display: grid;
+  gap: var(--cn-space-4);
 }
 
 .result-summary {
-  margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
 .summary-item {
+  min-width: 0;
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
   text-align: center;
-  padding: 15px;
-  border-radius: 8px;
-  border: 1px solid #dcdfe6;
 }
 
 .summary-item.success {
-  background: #f0f9ff;
-  border-color: #67C23A;
+  border-color: color-mix(in srgb, var(--cn-color-success) 36%, var(--cn-color-border-subtle));
 }
 
 .summary-item.error {
-  background: #fef0f0;
-  border-color: #F56C6C;
+  border-color: color-mix(in srgb, var(--cn-color-danger) 36%, var(--cn-color-border-subtle));
 }
 
 .summary-item.info {
-  background: #f8f9fa;
-  border-color: #409EFF;
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 36%, var(--cn-color-border-subtle));
 }
 
 .summary-number {
+  margin-bottom: var(--cn-space-1);
+  color: var(--cn-color-text-primary);
   font-size: 24px;
-  font-weight: bold;
-  margin-bottom: 5px;
-}
-
-.summary-item.success .summary-number {
-  color: #67C23A;
-}
-
-.summary-item.error .summary-number {
-  color: #F56C6C;
-}
-
-.summary-item.info .summary-number {
-  color: #409EFF;
+  font-weight: 700;
 }
 
 .summary-label {
-  font-size: 14px;
-  color: #909399;
+  color: var(--cn-color-text-tertiary);
+  font-size: 13px;
 }
 
-.result-details h4 {
-  margin: 0 0 15px 0;
-  color: #303133;
+.dialog-footer {
+  justify-content: flex-end;
 }
 
-:deep(.el-card__body) {
-  padding: 20px;
+@media (max-width: 900px) {
+  .grant-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .result-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .dialog-footer {
+    justify-content: flex-start;
+  }
 }
 </style>

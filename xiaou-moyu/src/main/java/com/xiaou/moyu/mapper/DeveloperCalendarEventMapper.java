@@ -79,6 +79,15 @@ public interface DeveloperCalendarEventMapper {
     int updateById(DeveloperCalendarEvent event);
 
     /**
+     * 根据ID更新事件状态
+     *
+     * @param id 事件ID
+     * @param status 状态
+     * @return 影响行数
+     */
+    int updateStatusById(@Param("id") Long id, @Param("status") Integer status);
+
+    /**
      * 根据ID删除事件
      *
      * @param id 事件ID

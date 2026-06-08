@@ -1,374 +1,253 @@
 <template>
-  <div class="dev-tools">
-    <!-- 头部标题区域 -->
-    <div class="tools-header">
-      <div class="header-content">
-        <div class="title-section">
-          <h1 class="main-title">
-            <el-icon class="title-icon"><Tools /></el-icon>
-            程序员工具箱
-          </h1>
-          <p class="subtitle">提升开发效率的实用工具集合</p>
-        </div>
-      </div>
+  <CnPage class="dev-tools-page" max-width="1180px" full-height>
+    <CnPageHeader
+      title="程序员工具箱"
+      description="集中放置 JSON、文本比对和聚合翻译等高频开发工具。"
+      eyebrow="DEV TOOLS"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">3 个工具</CnStatusTag>
+        <CnStatusTag type="success" size="sm" subtle>快速入口</CnStatusTag>
+      </template>
+    </CnPageHeader>
+
+    <div class="summary-grid">
+      <CnStatCard title="工具数量" :value="tools.length" description="当前已上线开发工具" tone="brand" />
+      <CnStatCard title="覆盖场景" value="格式化 / 比对 / 翻译" description="日常开发和文本处理" tone="info" />
+      <CnStatCard title="使用方式" value="即开即用" description="点击卡片进入具体工具" tone="success" />
     </div>
 
-    <!-- 工具卡片区域 -->
-    <div class="tools-grid">
-      <div class="tool-card json-tool" @click="navigateToTool('json')">
-        <div class="card-header">
-          <div class="tool-icon">
-            <el-icon><Document /></el-icon>
+    <CnSection title="工具入口" description="选择一个工具进入对应工作台。" divided>
+      <div class="tools-grid">
+        <article
+          v-for="tool in tools"
+          :key="tool.key"
+          class="tool-card"
+          :class="`tool-card--${tool.tone}`"
+          tabindex="0"
+          role="button"
+          @click="navigateToTool(tool.key)"
+          @keyup.enter="navigateToTool(tool.key)"
+        >
+          <div class="card-header">
+            <div class="tool-icon">
+              <el-icon>
+                <component :is="tool.icon" />
+              </el-icon>
+            </div>
+            <CnStatusTag :type="tool.tone" size="sm" subtle>{{ tool.badge }}</CnStatusTag>
           </div>
-          <div class="tool-badge">热门</div>
-        </div>
-        <div class="card-content">
-          <h3 class="tool-title">JSON 工具</h3>
-          <p class="tool-description">
-            JSON格式化、验证、压缩和转换工具，支持语法高亮和错误定位
-          </p>
-          <div class="tool-features">
-            <span class="feature-tag">格式化</span>
-            <span class="feature-tag">验证</span>
-            <span class="feature-tag">压缩</span>
-            <span class="feature-tag">转换</span>
+
+          <div class="card-content">
+            <h3 class="tool-title">{{ tool.title }}</h3>
+            <p class="tool-description">{{ tool.description }}</p>
+            <div class="tool-features">
+              <CnStatusTag
+                v-for="feature in tool.features"
+                :key="feature"
+                type="neutral"
+                size="sm"
+                subtle
+              >
+                {{ feature }}
+              </CnStatusTag>
+            </div>
           </div>
-        </div>
-        <div class="card-footer">
-          <el-button type="primary" size="large" class="tool-button">
+
+          <el-button type="primary" class="tool-button">
             <el-icon><Right /></el-icon>
             立即使用
           </el-button>
-        </div>
+        </article>
       </div>
-
-      <div class="tool-card diff-tool" @click="navigateToTool('text-diff')">
-        <div class="card-header">
-          <div class="tool-icon">
-            <el-icon><Operation /></el-icon>
-          </div>
-          <div class="tool-badge">实用</div>
-        </div>
-        <div class="card-content">
-          <h3 class="tool-title">文本比对</h3>
-          <p class="tool-description">
-            智能文本差异对比工具，支持字符级、单词级、行级对比模式
-          </p>
-          <div class="tool-features">
-            <span class="feature-tag">实时对比</span>
-            <span class="feature-tag">差异高亮</span>
-            <span class="feature-tag">多模式</span>
-            <span class="feature-tag">导出</span>
-          </div>
-        </div>
-        <div class="card-footer">
-          <el-button type="primary" size="large" class="tool-button">
-            <el-icon><Right /></el-icon>
-            立即使用
-          </el-button>
-        </div>
-      </div>
-
-      <div class="tool-card translate-tool" @click="navigateToTool('translation')">
-        <div class="card-header">
-          <div class="tool-icon">
-            <el-icon><ChatLineSquare /></el-icon>
-          </div>
-          <div class="tool-badge">强大</div>
-        </div>
-        <div class="card-content">
-          <h3 class="tool-title">聚合翻译</h3>
-          <p class="tool-description">
-            集成多个翻译平台，同时获取多种翻译结果，选择最佳翻译
-          </p>
-          <div class="tool-features">
-            <span class="feature-tag">多平台</span>
-            <span class="feature-tag">对比</span>
-            <span class="feature-tag">批量</span>
-            <span class="feature-tag">专业</span>
-          </div>
-        </div>
-        <div class="card-footer">
-          <el-button type="primary" size="large" class="tool-button">
-            <el-icon><Right /></el-icon>
-            立即使用
-          </el-button>
-        </div>
-      </div>
-    </div>
-
-  </div>
+    </CnSection>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { 
-  Tools, Document, Operation, ChatLineSquare, Right
-} from '@element-plus/icons-vue'
+import type { Component } from 'vue'
+import { ChatLineSquare, Document, Operation, Right } from '@element-plus/icons-vue'
+import {
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag,
+  type CnTone
+} from '@/design-system'
+
+interface ToolEntry {
+  key: string
+  title: string
+  description: string
+  badge: string
+  tone: CnTone
+  icon: Component
+  features: string[]
+}
 
 const router = useRouter()
 
-// 导航到具体工具
-const navigateToTool = (toolName) => {
+const tools: ToolEntry[] = [
+  {
+    key: 'json',
+    title: 'JSON 工具',
+    description: 'JSON 格式化、验证、压缩和转换工具，支持语法高亮和错误定位。',
+    badge: '热门',
+    tone: 'brand',
+    icon: Document,
+    features: ['格式化', '验证', '压缩', '转换']
+  },
+  {
+    key: 'text-diff',
+    title: '文本比对',
+    description: '智能文本差异对比工具，支持字符级、单词级、行级对比模式。',
+    badge: '实用',
+    tone: 'success',
+    icon: Operation,
+    features: ['实时对比', '差异高亮', '多模式', '导出']
+  },
+  {
+    key: 'translation',
+    title: '聚合翻译',
+    description: '集成多个翻译平台，同时获取多种翻译结果，辅助选择最佳译文。',
+    badge: '强大',
+    tone: 'warning',
+    icon: ChatLineSquare,
+    features: ['多平台', '对比', '批量', '专业']
+  }
+]
+
+const navigateToTool = (toolName: string) => {
   router.push(`/dev-tools/${toolName}`)
 }
 </script>
 
 <style scoped>
-.dev-tools {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  position: relative;
-  overflow-x: hidden;
+.dev-tools-page {
+  min-height: calc(100vh - 68px);
 }
 
-.dev-tools::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: 
-    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
-  pointer-events: none;
-}
-
-.dev-tools > * {
-  position: relative;
-  z-index: 1;
-}
-
-/* 头部区域 */
-.tools-header {
-  padding: 80px 20px 60px;
-  text-align: center;
-  color: white;
-}
-
-.header-content {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-
-.main-title {
-  font-size: 3.5rem;
-  font-weight: 700;
-  margin: 0 0 16px 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  background: linear-gradient(45deg, #fff, #e0e7ff);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.title-icon {
-  font-size: 3rem;
-  color: #fbbf24;
-}
-
-.subtitle {
-  font-size: 1.25rem;
-  opacity: 0.9;
-  margin: 0;
-  font-weight: 300;
-}
-
-
-/* 工具卡片区域 */
-.tools-grid {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px 80px;
+.summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 30px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cn-space-4);
+}
+
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
 .tool-card {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 20px;
-  padding: 30px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
   position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: var(--cn-space-5);
+  min-width: 0;
+  min-height: 330px;
+  padding: var(--cn-space-5);
   overflow: hidden;
+  border: 1px solid var(--cn-card-border);
+  border-radius: var(--cn-radius-panel);
+  background: var(--cn-card-bg);
+  box-shadow: var(--cn-card-shadow);
+  cursor: pointer;
+  transition:
+    transform var(--cn-motion-fast) var(--cn-ease-out),
+    border-color var(--cn-motion-base) var(--cn-ease-out),
+    box-shadow var(--cn-motion-base) var(--cn-ease-out);
 }
 
 .tool-card::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #667eea, #764ba2);
-  transform: scaleX(0);
-  transition: transform 0.3s ease;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--tool-accent);
 }
 
-.tool-card:hover::before {
-  transform: scaleX(1);
+.tool-card:hover,
+.tool-card:focus-visible {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--tool-accent) 34%, var(--cn-color-border));
+  box-shadow: var(--cn-shadow-popover);
+  outline: none;
 }
 
-.tool-card:hover {
-  transform: translateY(-10px);
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.15);
+.tool-card--brand {
+  --tool-accent: var(--cn-color-brand-primary);
 }
 
-.json-tool:hover {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(147, 51, 234, 0.05));
+.tool-card--success {
+  --tool-accent: var(--cn-color-success);
 }
 
-.diff-tool:hover {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(5, 150, 105, 0.05));
-}
-
-.translate-tool:hover {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.05), rgba(217, 119, 6, 0.05));
+.tool-card--warning {
+  --tool-accent: var(--cn-color-warning);
 }
 
 .card-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  justify-content: space-between;
+  gap: var(--cn-space-3);
 }
 
 .tool-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 15px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
-  color: white;
-}
-
-.json-tool .tool-icon {
-  background: linear-gradient(135deg, #3b82f6, #9333ea);
-}
-
-.diff-tool .tool-icon {
-  background: linear-gradient(135deg, #10b981, #059669);
-}
-
-.translate-tool .tool-icon {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-}
-
-.tool-badge {
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: white;
-}
-
-.json-tool .tool-badge {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-}
-
-.diff-tool .tool-badge {
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-}
-
-.translate-tool .tool-badge {
-  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  width: 58px;
+  height: 58px;
+  border-radius: var(--cn-radius-panel);
+  background: color-mix(in srgb, var(--tool-accent) 14%, var(--cn-color-bg-surface));
+  color: var(--tool-accent);
+  font-size: 28px;
 }
 
 .card-content {
-  margin-bottom: 30px;
+  min-width: 0;
 }
 
 .tool-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #1f2937;
-  margin: 0 0 12px 0;
+  margin: 0 0 var(--cn-space-3);
+  color: var(--cn-color-text-primary);
+  font-size: 20px;
+  font-weight: 750;
+  line-height: 1.35;
 }
 
 .tool-description {
-  color: #6b7280;
-  line-height: 1.6;
-  margin: 0 0 20px 0;
-  font-size: 0.95rem;
+  min-height: 72px;
+  margin: 0 0 var(--cn-space-4);
+  color: var(--cn-color-text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
 }
 
 .tool-features {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-}
-
-.feature-tag {
-  padding: 4px 12px;
-  background: rgba(107, 114, 128, 0.1);
-  border-radius: 12px;
-  font-size: 0.8rem;
-  color: #374151;
-  font-weight: 500;
-}
-
-.card-footer {
-  text-align: center;
+  gap: var(--cn-space-2);
 }
 
 .tool-button {
   width: 100%;
-  height: 48px;
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 1rem;
+  min-height: 44px;
 }
 
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .main-title {
-    font-size: 2.5rem;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .title-icon {
-    font-size: 2rem;
-  }
-
-
-
+@media (max-width: 1080px) {
   .tools-grid {
     grid-template-columns: 1fr;
-    padding: 0 15px 60px;
   }
-
-  .tool-card {
-    padding: 24px;
-  }
-
 }
 
-@media (max-width: 480px) {
-  .tools-header {
-    padding: 60px 15px 40px;
-  }
-
-  .main-title {
-    font-size: 2rem;
-  }
-
-
-  .tool-card {
-    padding: 20px;
+@media (max-width: 820px) {
+  .summary-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

@@ -242,9 +242,35 @@ public class BlogArticleServiceImpl implements BlogArticleService {
         // 如果文章是已发布状态，更新博客文章总数
         if (article.getStatus() == 1) {
             blogConfigService.updateTotalArticles(userId, -1);
+            if (article.getCategoryId() != null) {
+                blogCategoryMapper.updateArticleCount(article.getCategoryId(), -1);
+            }
         }
         
         log.info("用户{}删除文章：{}", userId, id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteArticleByAdmin(Long id) {
+        BlogArticle article = blogArticleMapper.selectById(id);
+        if (article == null) {
+            throw new BusinessException("文章不存在");
+        }
+
+        BlogArticle updateArticle = new BlogArticle();
+        updateArticle.setId(id);
+        updateArticle.setStatus(3);
+        blogArticleMapper.updateById(updateArticle);
+
+        if (article.getStatus() == 1) {
+            blogConfigService.updateTotalArticles(article.getUserId(), -1);
+            if (article.getCategoryId() != null) {
+                blogCategoryMapper.updateArticleCount(article.getCategoryId(), -1);
+            }
+        }
+
+        log.info("管理员删除文章：{}", id);
     }
     
     @Override
@@ -254,9 +280,9 @@ public class BlogArticleServiceImpl implements BlogArticleService {
             throw new BusinessException("文章不存在");
         }
         
-        // 检查权限：只有作者可以查看草稿和已删除的文章
+        // 检查权限：只有作者可以查看草稿、下架和已删除的文章
         Long currentUserId = StpUserUtil.isLogin() ? StpUserUtil.getLoginIdAsLong() : null;
-        if ((article.getStatus() == 0 || article.getStatus() == 3) 
+        if ((article.getStatus() == 0 || article.getStatus() == 2 || article.getStatus() == 3)
             && (currentUserId == null || !article.getUserId().equals(currentUserId))) {
             throw new BusinessException("文章不存在或已下架");
         }
@@ -450,12 +476,21 @@ public class BlogArticleServiceImpl implements BlogArticleService {
     }
     
     @Override
-    public List<ArticleSimpleResponse> getArticlesByCategory(Long categoryId, Integer limit) {
-        List<BlogArticle> articles = blogArticleMapper.selectByCategoryId(categoryId, limit);
-        
-        return articles.stream()
+    public PageResult<ArticleSimpleResponse> getArticlesByCategory(Long categoryId, Integer pageNum, Integer pageSize) {
+        PageResult<BlogArticle> pageResult = PageHelper.doPage(pageNum, pageSize, () -> {
+            return blogArticleMapper.selectByCategoryId(categoryId, null);
+        });
+
+        List<ArticleSimpleResponse> responses = pageResult.getRecords().stream()
             .map(this::convertToSimpleResponse)
             .collect(Collectors.toList());
+
+        return PageResult.of(
+            pageResult.getPageNum(),
+            pageResult.getPageSize(),
+            pageResult.getTotal(),
+            responses
+        );
     }
     
     @Override

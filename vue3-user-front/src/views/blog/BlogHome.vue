@@ -1,399 +1,617 @@
 <template>
-  <div class="blog-home-container">
-    <!-- 博客头部 -->
-    <div v-if="blogConfig" class="blog-header">
-      <div class="header-bg" :style="{ backgroundImage: blogConfig.blogCover ? `url(${blogConfig.blogCover})` : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }">
-        <div class="header-overlay"></div>
-        <div class="header-content">
-          <el-avatar :size="100" :src="blogConfig.blogAvatar" class="avatar" />
-          <h1 class="blog-name">{{ blogConfig.blogName }}</h1>
-          <p class="blog-desc">{{ blogConfig.blogDescription }}</p>
-          <div class="stats">
-            <span>📝 {{ blogConfig.totalArticles }} 篇文章</span>
+  <CnPage class="blog-home-container" surface="transparent" max-width="1200px">
+    <CnSection v-if="blogConfig" surface="transparent" class="blog-hero-section">
+      <div class="blog-hero" :class="{ 'blog-hero--cover': Boolean(blogConfig.blogCover) }" :style="heroStyle">
+        <div class="blog-hero__overlay" />
+        <div class="blog-hero__content">
+          <el-avatar :size="96" :src="blogConfig.blogAvatar" class="blog-hero__avatar" />
+          <div class="blog-hero__copy">
+            <p class="blog-hero__eyebrow">Personal Blog</p>
+            <h1 class="blog-hero__title">{{ blogConfig.blogName }}</h1>
+            <p v-if="blogConfig.blogDescription" class="blog-hero__description">
+              {{ blogConfig.blogDescription }}
+            </p>
+          </div>
+          <div class="blog-hero__meta">
+            <CnStatusTag type="brand" size="lg">文章 {{ blogConfig.totalArticles || 0 }}</CnStatusTag>
           </div>
         </div>
       </div>
-    </div>
+    </CnSection>
 
-    <!-- 未开通提示 -->
-    <div v-else class="not-found">
-      <el-empty description="该用户还未开通博客" />
-    </div>
+    <CnSection v-else surface="panel">
+      <CnEmptyState
+        title="该用户还未开通博客"
+        description="当前博客主页暂不可访问。"
+        icon="BL"
+        size="lg"
+      />
+    </CnSection>
 
-    <!-- 文章列表 -->
-    <div v-if="blogConfig" class="blog-content">
-      <el-row :gutter="20">
-        <!-- 左侧文章列表 -->
-        <el-col :span="16">
+    <div v-if="blogConfig" class="blog-layout">
+      <main class="blog-main">
+        <CnSection title="文章列表" :description="articleListDescription" surface="panel" divided>
           <div v-if="articleList.length > 0" class="article-list">
-            <div v-for="article in articleList" :key="article.id" class="article-card" @click="viewArticle(article.id)">
+            <article
+              v-for="article in articleList"
+              :key="article.id"
+              class="article-card"
+              role="button"
+              tabindex="0"
+              @click="viewArticle(article.id)"
+              @keydown.enter="viewArticle(article.id)"
+            >
               <div v-if="article.coverImage" class="article-cover">
-                <img :src="article.coverImage" :alt="article.title" />
-                <el-tag v-if="article.isTop === 1" type="warning" class="top-tag">置顶</el-tag>
+                <img :src="article.coverImage" :alt="article.title || '文章封面'" />
+                <CnStatusTag v-if="article.isTop === 1" type="warning" size="sm" class="top-tag">
+                  置顶
+                </CnStatusTag>
               </div>
+
               <div class="article-info">
                 <h3 class="article-title">
-                  <el-tag v-if="article.isTop === 1 && !article.coverImage" type="warning" size="small">置顶</el-tag>
-                  {{ article.title }}
+                  <CnStatusTag v-if="article.isTop === 1 && !article.coverImage" type="warning" size="sm">
+                    置顶
+                  </CnStatusTag>
+                  <span>{{ article.title }}</span>
                 </h3>
-                <p class="article-summary">{{ article.summary }}</p>
+                <p v-if="article.summary" class="article-summary">{{ article.summary }}</p>
                 <div class="article-meta">
-                  <el-tag size="small" type="primary">{{ article.categoryName }}</el-tag>
-                  <el-tag v-for="tag in article.tags" :key="tag" size="small" type="info" class="ml-1">{{ tag }}</el-tag>
-                  <span class="time">{{ article.publishTime }}</span>
+                  <CnStatusTag v-if="article.categoryName" type="brand" size="sm" subtle>
+                    {{ article.categoryName }}
+                  </CnStatusTag>
+                  <CnStatusTag
+                    v-for="tag in article.tags || []"
+                    :key="tag"
+                    type="info"
+                    size="sm"
+                    subtle
+                  >
+                    {{ tag }}
+                  </CnStatusTag>
+                  <span v-if="article.publishTime" class="article-time">{{ article.publishTime }}</span>
                 </div>
               </div>
-            </div>
+            </article>
           </div>
-          <el-empty v-else description="暂无文章" />
 
-          <!-- 分页 -->
+          <CnEmptyState
+            v-else
+            title="暂无文章"
+            description="当前分类下还没有公开文章。"
+            icon="AR"
+            size="sm"
+          />
+
           <div v-if="total > 0" class="pagination">
             <el-pagination
               v-model:current-page="queryParams.pageNum"
               v-model:page-size="queryParams.pageSize"
               :total="total"
               layout="prev, pager, next"
-              @current-change="getList"
+              @current-change="handlePageChange"
             />
           </div>
-        </el-col>
+        </CnSection>
+      </main>
 
-        <!-- 右侧边栏 -->
-        <el-col :span="8">
-          <el-card class="sidebar-card">
-            <template #header>
-              <div class="card-header">
-                <span>分类</span>
-              </div>
-            </template>
-            <div class="category-list">
-              <div
-                v-for="category in categories"
-                :key="category.id"
-                class="category-item"
-                :class="{ active: queryParams.categoryId === category.id }"
-                @click="filterByCategory(category.id)"
-              >
-                <span>{{ category.categoryName }}</span>
-                <span class="count">{{ category.articleCount || 0 }}</span>
-              </div>
-              <div class="category-item" :class="{ active: !queryParams.categoryId }" @click="filterByCategory(null)">
-                <span>全部</span>
-              </div>
-            </div>
-          </el-card>
+      <aside class="blog-sidebar">
+        <CnSection title="分类" surface="panel" compact divided>
+          <div class="category-list">
+            <button
+              type="button"
+              class="category-item"
+              :class="{ active: !queryParams.categoryId }"
+              @click="filterByCategory(null)"
+            >
+              <span>全部</span>
+              <CnStatusTag type="neutral" size="sm" subtle>全部</CnStatusTag>
+            </button>
 
-          <el-card v-if="blogConfig.personalTags && blogConfig.personalTags.length > 0" class="sidebar-card mt-3">
-            <template #header>
-              <div class="card-header">
-                <span>个人标签</span>
-              </div>
-            </template>
-            <div class="tags">
-              <el-tag v-for="tag in blogConfig.personalTags" :key="tag" type="info">{{ tag }}</el-tag>
-            </div>
-          </el-card>
+            <button
+              v-for="category in categories"
+              :key="category.id"
+              type="button"
+              class="category-item"
+              :class="{ active: queryParams.categoryId === category.id }"
+              @click="filterByCategory(category.id)"
+            >
+              <span>{{ category.categoryName }}</span>
+              <CnStatusTag type="neutral" size="sm" subtle>
+                {{ category.articleCount || 0 }}
+              </CnStatusTag>
+            </button>
+          </div>
+        </CnSection>
 
-          <el-card v-if="blogConfig.socialLinks" class="sidebar-card mt-3">
-            <template #header>
-              <div class="card-header">
-                <span>社交链接</span>
-              </div>
-            </template>
-            <div class="social-links">
-              <a v-for="(link, name) in blogConfig.socialLinks" :key="name" :href="link" target="_blank" class="social-link">
-                {{ name }}
-              </a>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
+        <CnSection
+          v-if="blogConfig.personalTags?.length"
+          title="个人标签"
+          surface="panel"
+          compact
+          divided
+        >
+          <div class="tag-list">
+            <CnStatusTag v-for="tag in blogConfig.personalTags" :key="tag" type="info" size="sm" subtle>
+              {{ tag }}
+            </CnStatusTag>
+          </div>
+        </CnSection>
+
+        <CnSection v-if="socialEntries.length > 0" title="社交链接" surface="panel" compact divided>
+          <div class="social-links">
+            <a
+              v-for="[name, link] in socialEntries"
+              :key="name"
+              :href="link"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="social-link"
+            >
+              {{ name }}
+            </a>
+          </div>
+        </CnSection>
+      </aside>
     </div>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
+import type { CSSProperties } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getBlogConfig, getUserArticleList, getAllCategories } from '@/api/blog'
+import { CnEmptyState, CnPage, CnSection, CnStatusTag } from '@/design-system'
+import { getAllCategories, getBlogConfig, getUserArticleList } from '@/api/blog'
+
+interface BlogConfig {
+  blogName?: string
+  blogDescription?: string
+  blogAvatar?: string
+  blogCover?: string
+  totalArticles?: number
+  personalTags?: string[]
+  socialLinks?: Record<string, string>
+}
+
+interface BlogArticle {
+  id: number | string
+  title?: string
+  summary?: string
+  coverImage?: string
+  categoryName?: string
+  tags?: string[]
+  publishTime?: string
+  isTop?: number
+}
+
+interface BlogCategory {
+  id: number | string
+  categoryName?: string
+  articleCount?: number
+}
+
+interface BlogQueryParams {
+  userId: string | null
+  categoryId: number | string | null
+  pageNum: number
+  pageSize: number
+}
 
 const router = useRouter()
 const route = useRoute()
 
-const blogConfig = ref(null)
-const articleList = ref([])
-const categories = ref([])
+const blogConfig = ref<BlogConfig | null>(null)
+const articleList = ref<BlogArticle[]>([])
+const categories = ref<BlogCategory[]>([])
 const total = ref(0)
 
-const queryParams = reactive({
+const queryParams = reactive<BlogQueryParams>({
   userId: null,
   categoryId: null,
   pageNum: 1,
   pageSize: 10
 })
 
-const loadBlogConfig = async (userId) => {
+const heroStyle = computed<CSSProperties>(() => {
+  if (!blogConfig.value?.blogCover) {
+    return {}
+  }
+
+  return {
+    backgroundImage: `url(${blogConfig.value.blogCover})`
+  }
+})
+
+const articleListDescription = computed(() => {
+  const activeCategory = categories.value.find(category => category.id === queryParams.categoryId)
+  return activeCategory?.categoryName
+    ? `正在查看「${activeCategory.categoryName}」分类下的公开文章。`
+    : '按发布时间浏览该用户公开发布的博客文章。'
+})
+
+const socialEntries = computed<[string, string][]>(() => {
+  return Object.entries(blogConfig.value?.socialLinks || {}).filter(([, link]) => Boolean(link))
+})
+
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  if (typeof error === 'object' && error && 'message' in error) {
+    return String((error as { message?: unknown }).message || '')
+  }
+
+  return String(error || '')
+}
+
+const getFirstRouteParam = (param: unknown) => {
+  return Array.isArray(param) ? String(param[0] || '') : String(param || '')
+}
+
+const loadBlogConfig = async (userId: string) => {
   try {
     blogConfig.value = await getBlogConfig(userId)
-    queryParams.userId = userId
   } catch (error) {
+    blogConfig.value = null
     console.error('加载博客配置失败', error)
   }
 }
 
 const loadCategories = async () => {
   try {
-    categories.value = await getAllCategories()
+    const res = await getAllCategories()
+    categories.value = Array.isArray(res) ? res : []
   } catch (error) {
     console.error('加载分类失败', error)
   }
 }
 
 const getList = async () => {
-  if (!queryParams.userId) return
-  
+  if (!queryParams.userId) {
+    return
+  }
+
   try {
-    const res = await getUserArticleList(queryParams)
-    articleList.value = res.records || []
-    total.value = res.total || 0
+    const res = await getUserArticleList({ ...queryParams })
+    articleList.value = Array.isArray(res.records) ? res.records : []
+    total.value = Number(res.total || 0)
   } catch (error) {
-    ElMessage.error(error.message || '获取文章列表失败')
+    ElMessage.error(getErrorMessage(error) || '获取文章列表失败')
   }
 }
 
-const filterByCategory = (categoryId) => {
+const filterByCategory = (categoryId: number | string | null) => {
   queryParams.categoryId = categoryId
   queryParams.pageNum = 1
   getList()
 }
 
-const viewArticle = (articleId) => {
+const handlePageChange = () => {
+  getList()
+}
+
+const viewArticle = (articleId: number | string) => {
+  if (!queryParams.userId) {
+    return
+  }
+
   router.push(`/blog/${queryParams.userId}/article/${articleId}`)
 }
 
-onMounted(() => {
-  const userId = route.params.userId
-  if (userId) {
-    loadBlogConfig(userId)
-    loadCategories()
-    getList()
+const initPage = async () => {
+  const userId = getFirstRouteParam(route.params.userId)
+  if (!userId) {
+    return
   }
+
+  queryParams.userId = userId
+  await Promise.all([loadBlogConfig(userId), loadCategories()])
+  await getList()
+}
+
+onMounted(() => {
+  initPage()
 })
 </script>
 
 <style scoped>
 .blog-home-container {
-  min-height: 100vh;
-  background: #f5f7fa;
+  min-height: calc(100vh - 68px);
 }
 
-.blog-header {
-  margin-bottom: 30px;
+.blog-hero-section :deep(.cn-section__body) {
+  padding: 0;
 }
 
-.header-bg {
+.blog-hero {
   position: relative;
-  height: 300px;
-  background-size: cover;
+  overflow: hidden;
+  min-height: 300px;
+  border: 1px solid var(--cn-panel-border);
+  border-radius: var(--cn-radius-panel);
+  background: color-mix(in srgb, var(--cn-color-brand-primary) 78%, var(--cn-color-info));
   background-position: center;
+  background-size: cover;
+  box-shadow: var(--cn-shadow-card);
 }
 
-.header-overlay {
+.blog-hero--cover {
+  background-position: center;
+  background-size: cover;
+}
+
+.blog-hero__overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.3);
+  inset: 0;
+  background: color-mix(in srgb, var(--cn-color-text-primary) 48%, transparent);
 }
 
-.header-content {
+.blog-hero__content {
   position: relative;
   z-index: 1;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  justify-items: center;
+  gap: var(--cn-space-4);
+  min-height: 300px;
+  padding: var(--cn-space-8) var(--cn-space-6);
   color: white;
   text-align: center;
 }
 
-.avatar {
-  border: 4px solid white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+.blog-hero__avatar {
+  border: 4px solid color-mix(in srgb, white 86%, transparent);
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--cn-color-text-primary) 28%, transparent);
 }
 
-.blog-name {
-  margin: 20px 0 10px;
-  font-size: 32px;
-  font-weight: bold;
+.blog-hero__copy {
+  display: grid;
+  justify-items: center;
+  gap: var(--cn-space-2);
+  max-width: 720px;
 }
 
-.blog-desc {
+.blog-hero__eyebrow {
   margin: 0;
-  font-size: 16px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  opacity: 0.82;
+}
+
+.blog-hero__title {
+  margin: 0;
+  font-family: var(--cn-font-heading);
+  font-size: clamp(28px, 5vw, 42px);
+  font-weight: 750;
+  line-height: 1.16;
+}
+
+.blog-hero__description {
+  margin: 0;
+  max-width: 640px;
+  font-size: 15px;
+  line-height: 1.75;
   opacity: 0.9;
 }
 
-.stats {
-  margin-top: 15px;
+.blog-hero__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--cn-space-2);
 }
 
-.stats span {
-  margin: 0 15px;
-  font-size: 14px;
+.blog-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  align-items: start;
+  gap: var(--cn-space-5);
 }
 
-.not-found {
-  padding: 100px 20px;
-  text-align: center;
+.blog-main,
+.blog-sidebar {
+  min-width: 0;
 }
 
-.blog-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
+.blog-sidebar {
+  display: grid;
+  gap: var(--cn-space-4);
 }
 
 .article-list {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  display: grid;
+  gap: var(--cn-space-4);
 }
 
 .article-card {
-  background: white;
-  border-radius: 8px;
   overflow: hidden;
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface);
   cursor: pointer;
-  transition: all 0.3s;
+  transition:
+    border-color var(--cn-motion-fast) var(--cn-ease-out),
+    box-shadow var(--cn-motion-fast) var(--cn-ease-out),
+    transform var(--cn-motion-fast) var(--cn-ease-out);
 }
 
-.article-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+.article-card:hover,
+.article-card:focus-visible {
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 34%, var(--cn-color-border-subtle));
+  box-shadow: var(--cn-shadow-card);
   transform: translateY(-2px);
+  outline: none;
 }
 
 .article-cover {
   position: relative;
   width: 100%;
-  height: 200px;
+  height: 210px;
   overflow: hidden;
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .article-cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform var(--cn-motion-base) var(--cn-ease-out);
+}
+
+.article-card:hover .article-cover img {
+  transform: scale(1.025);
 }
 
 .top-tag {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: var(--cn-space-3);
+  right: var(--cn-space-3);
 }
 
 .article-info {
-  padding: 20px;
+  display: grid;
+  gap: var(--cn-space-3);
+  padding: var(--cn-space-5);
 }
 
 .article-title {
-  margin: 0 0 15px 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cn-space-2);
+  margin: 0;
+  color: var(--cn-color-text-primary);
   font-size: 20px;
-  color: #333;
+  font-weight: 650;
+  line-height: 1.45;
 }
 
 .article-summary {
-  margin: 0 0 15px 0;
-  color: #666;
-  line-height: 1.6;
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--cn-color-text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .article-meta {
   display: flex;
-  align-items: center;
-  gap: 10px;
   flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cn-space-2);
+  color: var(--cn-color-text-tertiary);
+  font-size: 13px;
 }
 
-.ml-1 {
-  margin-left: 5px;
-}
-
-.time {
+.article-time {
   margin-left: auto;
-  color: #999;
-  font-size: 14px;
 }
 
 .pagination {
-  margin-top: 30px;
   display: flex;
   justify-content: center;
+  margin-top: var(--cn-space-5);
 }
 
-.sidebar-card {
-  margin-bottom: 20px;
-}
-
-.mt-3 {
-  margin-top: 20px;
-}
-
-.card-header {
-  font-weight: bold;
-}
-
-.category-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.category-list,
+.social-links {
+  display: grid;
+  gap: var(--cn-space-2);
 }
 
 .category-item {
   display: flex;
+  width: 100%;
+  align-items: center;
   justify-content: space-between;
-  padding: 10px;
-  border-radius: 4px;
+  gap: var(--cn-space-3);
+  border: 1px solid transparent;
+  border-radius: var(--cn-radius-card);
+  background: transparent;
+  color: var(--cn-color-text-secondary);
   cursor: pointer;
-  transition: all 0.3s;
+  font: inherit;
+  padding: 10px 12px;
+  text-align: left;
+  transition:
+    background-color var(--cn-motion-fast) var(--cn-ease-out),
+    border-color var(--cn-motion-fast) var(--cn-ease-out),
+    color var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .category-item:hover {
-  background: #f5f7fa;
+  background: var(--cn-color-bg-surface-muted);
+  color: var(--cn-color-text-primary);
 }
 
 .category-item.active {
-  background: #ecf5ff;
-  color: #409eff;
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 24%, var(--cn-color-border-subtle));
+  background: var(--cn-color-brand-soft);
+  color: var(--cn-color-brand-primary);
+  font-weight: 700;
 }
 
-.count {
-  color: #999;
-}
-
-.tags {
+.tag-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-}
-
-.social-links {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  gap: var(--cn-space-2);
 }
 
 .social-link {
-  color: #409eff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  border-radius: var(--cn-radius-card);
+  color: var(--cn-color-brand-primary);
+  font-size: 14px;
+  font-weight: 650;
+  padding: 10px 12px;
   text-decoration: none;
+  transition:
+    background-color var(--cn-motion-fast) var(--cn-ease-out),
+    color var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .social-link:hover {
-  text-decoration: underline;
+  background: var(--cn-color-brand-soft);
+  color: var(--cn-color-brand-hover);
+}
+
+@media (max-width: 960px) {
+  .blog-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .blog-sidebar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .blog-hero,
+  .blog-hero__content {
+    min-height: 260px;
+  }
+
+  .blog-hero__content {
+    padding: var(--cn-space-6) var(--cn-space-4);
+  }
+
+  .article-time {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .blog-sidebar {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
-

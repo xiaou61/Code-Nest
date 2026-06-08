@@ -131,6 +131,12 @@
         SELECT word FROM sensitive_word WHERE status = 1
     </select>
 
+    <!-- 查询所有启用的敏感词详情 -->
+    <select id="selectEnabledWordDetails" resultMap="SensitiveWordResult">
+        <include refid="selectSensitiveWordVo"/>
+        WHERE sw.status = 1
+    </select>
+
     <!-- 根据词汇查询是否存在 -->
     <select id="selectWordByWord" parameterType="String" resultMap="SensitiveWordResult">
         <include refid="selectSensitiveWordVo"/>

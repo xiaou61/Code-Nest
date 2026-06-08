@@ -1,12 +1,11 @@
 <template>
-  <div class="growth-autopilot-page cn-learn-shell">
-    <div class="cn-learn-shell__inner">
-      <GrowthAutopilotPanel />
-    </div>
-  </div>
+  <CnPage class="growth-autopilot-page" surface="transparent" full-height max-width="1440px">
+    <GrowthAutopilotPanel />
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import { CnPage } from '@/design-system'
 import GrowthAutopilotPanel from './GrowthAutopilotPanel.vue'
 </script>
 

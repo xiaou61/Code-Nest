@@ -1,29 +1,76 @@
 <template>
-  <div class="job-battle-page cn-learn-shell">
-    <div class="cn-learn-shell__inner">
-      <div class="page-header cn-learn-hero cn-wave-reveal">
-        <div class="header-content">
-          <span class="cn-learn-hero__eyebrow">Job Battle</span>
-          <h1 class="page-title cn-learn-hero__title">
-            <el-icon><Trophy /></el-icon>
-            求职作战台（增强版）
-          </h1>
-          <p class="page-subtitle cn-learn-hero__desc">
-            串行流程：JD解析 → 简历匹配 → 30天计划 → 面试复盘
-          </p>
-        </div>
-      </div>
+  <CnPage class="job-battle-page" max-width="1320px" full-height>
+    <CnPageHeader
+      title="求职作战台"
+      description="串行推进 JD 解析、简历匹配、30 天计划和面试复盘，把求职动作沉淀成可执行流程。"
+      eyebrow="JOB BATTLE"
+      :breadcrumbs="[{ label: '首页', to: '/' }, { label: '求职作战台' }]"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">{{ currentStepName }}</CnStatusTag>
+        <CnStatusTag v-if="jdResult" :type="jdResult?.fallback ? 'warning' : 'success'" size="sm" subtle>
+          {{ jdResult?.fallback ? 'JD 降级结果' : 'JD AI 结果' }}
+        </CnStatusTag>
+        <CnStatusTag v-if="planResult" :type="planResult?.fallback ? 'warning' : 'success'" size="sm" subtle>
+          {{ planResult?.fallback ? '计划降级结果' : 'AI 计划' }}
+        </CnStatusTag>
+      </template>
 
-      <el-card class="steps-card cn-learn-panel" shadow="never">
+      <template #actions>
+        <el-button plain @click="openPlanHistory">历史计划</el-button>
+        <el-button type="primary" plain @click="goMatchEngine">岗位匹配引擎 2.0</el-button>
+        <el-button type="success" plain @click="goCareerLoop">求职闭环中台</el-button>
+      </template>
+    </CnPageHeader>
+
+    <section class="job-battle-stats" aria-label="求职作战台概览">
+      <CnStatCard
+        title="当前步骤"
+        :value="activeStep + 1"
+        unit="/ 4"
+        :description="currentStepName"
+        tone="brand"
+        trend="flat"
+        trend-text="流程"
+      />
+      <CnStatCard
+        title="差距项"
+        :value="matchResult?.gaps?.length || 0"
+        unit="项"
+        description="由简历匹配结果识别"
+        tone="warning"
+        trend="flat"
+        trend-text="匹配"
+      />
+      <CnStatCard
+        title="每日任务"
+        :value="normalizedDailyTasks.length"
+        unit="条"
+        description="计划生成后的任务预览"
+        tone="success"
+        trend="flat"
+        trend-text="计划"
+      />
+      <CnStatCard
+        title="复盘状态"
+        :value="reviewResult ? '已生成' : '待复盘'"
+        description="面试复盘结论"
+        :tone="reviewResult ? 'success' : 'neutral'"
+        trend="flat"
+        trend-text="复盘"
+      />
+    </section>
+
+      <CnSection class="steps-card" title="作战流程" description="按顺序完成四个步骤，已生成的结果会作为下一步输入。" divided>
         <el-steps :active="activeStep" finish-status="success" align-center>
           <el-step title="JD解析" description="识别岗位要求" />
           <el-step title="简历匹配" description="评估差距项" />
           <el-step title="计划生成" description="自动生成任务" />
           <el-step title="面试复盘" description="沉淀改进动作" />
         </el-steps>
-      </el-card>
+      </CnSection>
 
-      <el-card v-if="activeStep === 0" class="step-card cn-learn-panel" shadow="never">
+      <el-card v-if="activeStep === 0" class="step-card" shadow="never">
         <template #header>
           <div class="step-header">
             <span>步骤1：输入岗位JD</span>
@@ -67,13 +114,13 @@
         </el-form>
       </el-card>
 
-      <el-card v-if="activeStep === 1" class="step-card cn-learn-panel" shadow="never">
+      <el-card v-if="activeStep === 1" class="step-card" shadow="never">
         <template #header>
           <div class="step-header">
             <span>步骤2：简历匹配评估</span>
-            <el-tag size="small" :type="jdResult?.fallback ? 'warning' : 'success'">
+            <CnStatusTag size="sm" :type="jdResult?.fallback ? 'warning' : 'success'" subtle>
               {{ jdResult?.fallback ? 'JD降级结果' : 'JD AI结果' }}
-            </el-tag>
+            </CnStatusTag>
           </div>
         </template>
         <div class="context-box">
@@ -112,13 +159,17 @@
         </el-form>
       </el-card>
 
-      <el-card v-if="activeStep === 2" class="step-card cn-learn-panel" shadow="never">
+      <el-card v-if="activeStep === 2" class="step-card" shadow="never">
         <template #header>
           <div class="step-header">
             <span>步骤3：生成30天行动计划</span>
-            <el-tag size="small" :type="planResult ? (planResult.fallback ? 'warning' : 'success') : (matchResult?.fallback ? 'warning' : 'success')">
+            <CnStatusTag
+              size="sm"
+              :type="planResult ? (planResult.fallback ? 'warning' : 'success') : (matchResult?.fallback ? 'warning' : 'success')"
+              subtle
+            >
               {{ planResult ? (planResult.fallback ? '计划降级结果' : '计划 AI结果') : (matchResult?.fallback ? '匹配降级结果' : '匹配 AI结果') }}
-            </el-tag>
+            </CnStatusTag>
           </div>
         </template>
         <div class="context-box">
@@ -207,9 +258,9 @@
             <el-card shadow="never" class="plan-summary-card">
               <div class="summary-label">计划类型</div>
               <div class="summary-value">
-                <el-tag :type="planResult.fallback ? 'warning' : 'success'">
+                <CnStatusTag :type="planResult.fallback ? 'warning' : 'success'">
                   {{ planResult.fallback ? '降级计划' : 'AI计划' }}
-                </el-tag>
+                </CnStatusTag>
               </div>
             </el-card>
           </div>
@@ -226,23 +277,23 @@
                   class="weekly-goal-card"
                 >
                   <div class="weekly-goal-head">
-                    <el-tag size="small" type="primary">Week {{ week.weekNum || index + 1 }}</el-tag>
+                    <CnStatusTag size="sm" type="brand">Week {{ week.weekNum || index + 1 }}</CnStatusTag>
                   </div>
                   <div class="weekly-goal-text">{{ week.goal || '未提供周目标内容' }}</div>
                   <div v-if="week.focusGaps.length" class="weekly-gap-list">
-                    <el-tag
+                    <CnStatusTag
                       v-for="(gap, gapIndex) in week.focusGaps"
                       :key="`gap-${index}-${gapIndex}`"
-                      size="small"
+                      size="sm"
                       type="warning"
-                      effect="plain"
+                      subtle
                     >
                       {{ gap }}
-                    </el-tag>
+                    </CnStatusTag>
                   </div>
                 </div>
               </div>
-              <el-empty v-else description="暂无周目标数据" :image-size="80" />
+              <CnEmptyState v-else title="暂无周目标数据" description="生成计划后会展示每周聚焦目标。" size="sm" surface="plain" />
             </el-card>
 
             <el-card shadow="never" class="plan-section-card">
@@ -259,7 +310,7 @@
                   <div class="milestone-goal">{{ milestone.goal || '未提供里程碑目标' }}</div>
                 </el-timeline-item>
               </el-timeline>
-              <el-empty v-else description="暂无里程碑数据" :image-size="80" />
+              <CnEmptyState v-else title="暂无里程碑数据" description="计划结果中暂未包含里程碑。" size="sm" surface="plain" />
             </el-card>
           </div>
 
@@ -273,7 +324,7 @@
               </el-table-column>
               <el-table-column prop="taskType" label="类型" width="108">
                 <template #default="{ row }">
-                  <el-tag size="small" effect="plain">{{ taskTypeLabel(row.taskType) }}</el-tag>
+                  <CnStatusTag size="sm" type="info" subtle>{{ taskTypeLabel(row.taskType) }}</CnStatusTag>
                 </template>
               </el-table-column>
               <el-table-column prop="task" label="任务" min-width="280" show-overflow-tooltip />
@@ -282,7 +333,13 @@
               </el-table-column>
               <el-table-column prop="deliverable" label="交付物" min-width="240" show-overflow-tooltip />
             </el-table>
-            <el-empty v-if="!normalizedDailyTasks.length" description="暂无每日任务数据" :image-size="80" />
+            <CnEmptyState
+              v-if="!normalizedDailyTasks.length"
+              title="暂无每日任务数据"
+              description="生成计划后会展示每日任务预览。"
+              size="sm"
+              surface="plain"
+            />
           </el-card>
 
           <el-card shadow="never" class="plan-section-card">
@@ -296,24 +353,24 @@
                 class="risk-item"
               >
                 <div class="risk-item-title">
-                  <el-tag type="danger" size="small">风险 {{ index + 1 }}</el-tag>
+                  <CnStatusTag type="danger" size="sm">风险 {{ index + 1 }}</CnStatusTag>
                   <span>{{ risk.risk || '未提供风险描述' }}</span>
                 </div>
                 <div class="risk-item-fallback">兜底：{{ risk.fallback || '未提供兜底方案' }}</div>
               </div>
             </div>
-            <el-empty v-else description="暂无风险与兜底数据" :image-size="80" />
+            <CnEmptyState v-else title="暂无风险与兜底数据" description="当前计划没有明显风险项。" size="sm" surface="plain" />
           </el-card>
         </div>
       </el-card>
 
-      <el-card v-if="activeStep === 3" class="step-card cn-learn-panel" shadow="never">
+      <el-card v-if="activeStep === 3" class="step-card" shadow="never">
         <template #header>
           <div class="step-header">
             <span>步骤4：面试复盘总结</span>
-            <el-tag v-if="planResult" size="small" :type="planResult.fallback ? 'warning' : 'success'">
+            <CnStatusTag v-if="planResult" size="sm" :type="planResult.fallback ? 'warning' : 'success'" subtle>
               {{ planResult.fallback ? '计划降级结果' : '计划 AI结果' }}
-            </el-tag>
+            </CnStatusTag>
           </div>
         </template>
         <div class="context-box">
@@ -373,12 +430,12 @@
         </el-form>
       </el-card>
 
-      <el-card v-if="reviewResult" class="result-card cn-learn-panel" shadow="never">
+      <el-card v-if="reviewResult" class="result-card" shadow="never">
         <template #header>
           最终复盘结果
-          <el-tag size="small" :type="reviewResult.fallback ? 'warning' : 'success'" class="ml-8">
+          <CnStatusTag size="sm" :type="reviewResult.fallback ? 'warning' : 'success'" class="ml-8" subtle>
             {{ reviewResult.fallback ? '复盘降级结果' : '复盘 AI结果' }}
-          </el-tag>
+          </CnStatusTag>
         </template>
         <div class="result-block">
           <div class="result-item"><b>结论：</b>{{ reviewResult.overallConclusion || '-' }}</div>
@@ -432,9 +489,9 @@
           <el-table-column prop="createTime" label="创建时间" width="170" />
           <el-table-column prop="fallback" label="类型" width="96">
             <template #default="{ row }">
-              <el-tag size="small" :type="row.fallback ? 'warning' : 'success'">
+              <CnStatusTag size="sm" :type="row.fallback ? 'warning' : 'success'" subtle>
                 {{ row.fallback ? '降级' : 'AI' }}
-              </el-tag>
+              </CnStatusTag>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="144" fixed="right">
@@ -458,17 +515,16 @@
           />
         </div>
       </el-drawer>
-    </div>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Trophy } from '@element-plus/icons-vue'
 import { jobBattleApi } from '@/api/jobBattle'
 import { careerLoopApi } from '@/api/careerLoop'
+import { CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
 
 const route = useRoute()
 const router = useRouter()
@@ -548,6 +604,7 @@ const LOOP_STAGE_ORDER = {
 }
 const STEP_NAME_MAP = ['步骤1：JD解析', '步骤2：简历匹配', '步骤3：计划生成', '步骤4：面试复盘']
 const routeStepHintKey = ref('')
+const currentStepName = computed(() => STEP_NAME_MAP[activeStep.value] || '步骤1：JD解析')
 
 const taskTypeLabel = (taskType) => {
   if (!taskType) {
@@ -1046,88 +1103,86 @@ watch(
   min-height: calc(100vh - 68px);
 }
 
-.page-header {
-  margin-bottom: 20px;
-  border-radius: 20px;
-}
-
-.page-title {
-  margin: 0 0 10px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.page-subtitle {
-  margin: 0;
-  opacity: 0.88;
+.job-battle-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
+  margin-bottom: var(--cn-space-4);
 }
 
 .steps-card {
-  border-radius: 16px;
-  margin-bottom: 16px;
+  margin-bottom: var(--cn-space-4);
 }
 
 .step-card,
 .result-card {
-  border-radius: 14px;
-  margin-bottom: 14px;
+  margin-bottom: var(--cn-space-4);
+  border: 1px solid var(--cn-card-border);
+  border-radius: var(--cn-radius-panel);
+  background: var(--cn-card-bg);
+  box-shadow: var(--cn-card-shadow);
 }
 
 .step-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--cn-space-3);
+  color: var(--cn-color-text-primary);
+  font-weight: 650;
 }
 
 .context-box {
-  margin-bottom: 16px;
-  padding: 12px 14px;
-  border-radius: 10px;
-  border: 1px solid #dce8fb;
-  background: #f7fbff;
-  color: #425673;
+  margin-bottom: var(--cn-space-4);
+  padding: var(--cn-space-3) var(--cn-space-4);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
+  color: var(--cn-color-text-secondary);
   line-height: 1.8;
 }
 
 .tip-text {
-  color: #1f6feb;
+  color: var(--cn-color-brand-primary);
   font-size: 12px;
+  line-height: 1.6;
 }
 
 .step-actions {
-  margin-top: 12px;
+  margin-top: var(--cn-space-3);
   display: flex;
-  gap: 10px;
+  gap: var(--cn-space-2);
   flex-wrap: wrap;
 }
 
 .plan-preview {
-  margin-top: 12px;
+  margin-top: var(--cn-space-3);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--cn-space-3);
 }
 
 .plan-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--cn-space-3);
 }
 
 .plan-summary-card {
-  border-radius: 12px;
+  border: 1px solid var(--cn-card-border);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-card-bg);
 }
 
 .summary-label {
-  color: #7a8ba6;
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
-  margin-bottom: 6px;
+  margin-bottom: var(--cn-space-1);
 }
 
 .summary-value {
   font-size: 16px;
-  color: #1f2d3d;
+  color: var(--cn-color-text-primary);
   font-weight: 600;
   line-height: 1.4;
 }
@@ -1135,92 +1190,94 @@ watch(
 .plan-main-grid {
   display: grid;
   grid-template-columns: 1.3fr 1fr;
-  gap: 12px;
+  gap: var(--cn-space-3);
 }
 
 .plan-section-card {
-  border-radius: 12px;
+  border: 1px solid var(--cn-card-border);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-card-bg);
 }
 
 .section-title {
   font-weight: 600;
-  color: #243b53;
+  color: var(--cn-color-text-primary);
 }
 
 .weekly-goals-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--cn-space-3);
 }
 
 .weekly-goal-card {
-  border: 1px solid #e3ecfb;
-  border-radius: 10px;
-  padding: 10px;
-  background: #f9fbff;
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  padding: var(--cn-space-3);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .weekly-goal-head {
-  margin-bottom: 8px;
+  margin-bottom: var(--cn-space-2);
 }
 
 .weekly-goal-text {
-  color: #334e68;
+  color: var(--cn-color-text-secondary);
   font-size: 13px;
   line-height: 1.6;
 }
 
 .weekly-gap-list {
-  margin-top: 8px;
+  margin-top: var(--cn-space-2);
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--cn-space-2);
 }
 
 .milestone-goal {
-  color: #334e68;
+  color: var(--cn-color-text-secondary);
   line-height: 1.6;
 }
 
 .daily-task-table {
-  margin-bottom: 6px;
+  margin-bottom: var(--cn-space-2);
 }
 
 .risk-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--cn-space-2);
 }
 
 .risk-item {
-  border: 1px solid #fde2df;
-  background: #fff8f7;
-  border-radius: 10px;
-  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--cn-color-danger) 24%, var(--cn-color-border-subtle));
+  border-radius: var(--cn-radius-card);
+  padding: var(--cn-space-3);
+  background: var(--cn-color-danger-soft);
 }
 
 .risk-item-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: #7c2d12;
-  margin-bottom: 6px;
+  gap: var(--cn-space-2);
+  color: var(--cn-color-danger);
+  margin-bottom: var(--cn-space-1);
 }
 
 .risk-item-fallback {
-  color: #475569;
+  color: var(--cn-color-text-secondary);
   font-size: 13px;
   line-height: 1.6;
 }
 
 .history-toolbar {
   display: flex;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: var(--cn-space-2);
+  margin-bottom: var(--cn-space-3);
 }
 
 .history-table {
-  margin-bottom: 12px;
+  margin-bottom: var(--cn-space-3);
 }
 
 .history-pagination {
@@ -1234,19 +1291,19 @@ watch(
 }
 
 .result-item {
-  margin-bottom: 10px;
-  color: #46556e;
+  margin-bottom: var(--cn-space-2);
+  color: var(--cn-color-text-secondary);
 }
 
 .json-view {
-  margin: 8px 0 0;
-  padding: 10px;
-  border-radius: 8px;
+  margin: var(--cn-space-2) 0 0;
+  padding: var(--cn-space-3);
+  border-radius: var(--cn-radius-control);
   max-height: 200px;
   overflow: auto;
-  border: 1px solid #dce8fb;
-  background: #f8fbff;
-  color: #33475f;
+  border: 1px solid var(--cn-color-border-subtle);
+  background: var(--cn-color-bg-surface-muted);
+  color: var(--cn-color-text-secondary);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -1256,6 +1313,10 @@ watch(
 }
 
 @media (max-width: 992px) {
+  .job-battle-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .plan-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1281,6 +1342,13 @@ watch(
     max-width: 100%;
     flex: 0 0 100%;
     margin-bottom: 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .job-battle-stats,
+  .plan-summary-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

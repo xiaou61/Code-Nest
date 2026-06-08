@@ -1,12 +1,22 @@
 <template>
-  <div class="moments-container">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-content">
-        <h1 class="page-title">🌟 朋友圈</h1>
-        <p class="page-subtitle">分享学习与生活的精彩瞬间</p>
-      </div>
-    </div>
+  <CnPage class="moments-container" surface="transparent" max-width="1200px">
+    <CnPageHeader
+      title="朋友圈"
+      description="分享学习与生活的精彩瞬间，浏览动态、评论互动并收藏值得回看的内容。"
+      eyebrow="Moments"
+    >
+      <template #meta>
+        <CnStatusTag :type="isSearchMode ? 'warning' : 'brand'" size="sm">
+          {{ isSearchMode ? '搜索模式' : '推荐动态' }}
+        </CnStatusTag>
+        <CnStatusTag type="info" size="sm">已加载 {{ momentList.length }} 条</CnStatusTag>
+      </template>
+
+      <template #actions>
+        <el-button plain :icon="Star" @click="$router.push('/moments/my-favorites')">我的收藏</el-button>
+        <el-button type="primary" :icon="Edit" @click="showPublishDialog">发布动态</el-button>
+      </template>
+    </CnPageHeader>
 
     <!-- 主内容区 -->
     <div class="moments-main">
@@ -14,7 +24,7 @@
         <!-- 左侧边栏 -->
         <aside class="left-sidebar">
           <!-- 搜索框 -->
-          <div class="sidebar-card search-card">
+          <div class="sidebar-card moments-search-card">
             <div class="search-wrapper">
               <el-icon class="search-icon"><Search /></el-icon>
               <input
@@ -87,12 +97,16 @@
 
           <!-- 动态列表 -->
           <div v-loading="loading" class="moments-feed">
-            <div v-if="!loading && momentList.length === 0" class="empty-state">
-              <div class="empty-icon">📝</div>
-              <p class="empty-text">暂无动态</p>
-              <p class="empty-hint">快来发布第一条动态吧！</p>
-              <button class="publish-first-btn" @click="showPublishDialog">发布动态</button>
-            </div>
+            <CnEmptyState
+              v-if="!loading && momentList.length === 0"
+              title="暂无动态"
+              description="快来发布第一条动态吧。"
+              icon="MO"
+            >
+              <template #actions>
+                <el-button type="primary" @click="showPublishDialog">发布动态</el-button>
+              </template>
+            </CnEmptyState>
 
             <!-- 动态卡片 -->
             <div v-for="moment in momentList" :key="moment.id" class="moment-card">
@@ -148,15 +162,16 @@
               <div class="moment-footer">
                 <!-- 统计数据 -->
                 <div v-if="moment.likeCount > 0 || moment.commentCount > 0 || moment.viewCount > 0" class="stats-bar">
-                  <span v-if="moment.likeCount > 0" class="stat">
-                    <el-icon><Pointer /></el-icon> {{ moment.likeCount }} 赞
-                  </span>
-                  <span v-if="moment.commentCount > 0" class="stat">
+                  <CnStatusTag v-if="moment.likeCount > 0" type="danger" size="sm" subtle>
+                    <el-icon><Pointer /></el-icon>
+                    {{ moment.likeCount }} 赞
+                  </CnStatusTag>
+                  <CnStatusTag v-if="moment.commentCount > 0" type="info" size="sm" subtle>
                     {{ moment.commentCount }} 评论
-                  </span>
-                  <span v-if="moment.viewCount > 0" class="stat">
+                  </CnStatusTag>
+                  <CnStatusTag v-if="moment.viewCount > 0" type="neutral" size="sm" subtle>
                     {{ moment.viewCount }} 浏览
-                  </span>
+                  </CnStatusTag>
                 </div>
 
                 <!-- 操作按钮 -->
@@ -295,16 +310,17 @@
       :initial-index="previewIndex"
       @close="closeImageViewer"
     />
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, nextTick, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox, ElImageViewer } from 'element-plus'
 import {
   Star, ChatDotRound, MoreFilled, Search, Loading,
   Edit, Picture, Location, Pointer, Delete, ChatLineSquare, Folder
 } from '@element-plus/icons-vue'
+import { CnEmptyState, CnPage, CnPageHeader, CnStatusTag } from '@/design-system'
 import {
   getMomentList,
   toggleLike,
@@ -360,7 +376,7 @@ const previewIndex = ref(0)
 
 // 无限滚动
 const loadMoreRef = ref(null)
-let observer = null
+let observer: IntersectionObserver | null = null
 
 // 加载热门动态
 const loadHotMoments = async () => {
@@ -690,67 +706,19 @@ onUnmounted(() => {
 .moments-container {
   min-height: 100vh;
   background: transparent;
-}
-
-/* ========== 页面头部 ========== */
-.page-header {
-  position: relative;
-  background: linear-gradient(135deg, #f0f4ff 0%, #f5f0ff 40%, #fff5f5 100%);
-  border-bottom: 1px solid #e8e0f0;
-  overflow: hidden;
-}
-
-.page-header::before {
-  content: '';
-  position: absolute;
-  top: -40px;
-  right: -20px;
-  width: 220px;
-  height: 220px;
-  background: radial-gradient(circle, rgba(255, 107, 129, 0.06) 0%, transparent 70%);
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.page-header::after {
-  content: '';
-  position: absolute;
-  bottom: -50px;
-  left: 8%;
-  width: 180px;
-  height: 180px;
-  background: radial-gradient(circle, rgba(108, 99, 255, 0.06) 0%, transparent 70%);
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.header-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px 24px 20px;
-  display: flex;
-  align-items: baseline;
-  gap: 16px;
-  position: relative;
-  z-index: 1;
-}
-
-.page-title {
-  margin: 0;
-  font-size: 26px;
-  font-weight: 800;
-  background: linear-gradient(135deg, #2d2b55 0%, #6c63ff 50%, #3d7cf7 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: -0.5px;
-}
-
-.page-subtitle {
-  margin: 0;
-  font-size: 14px;
-  color: #6a82ae;
-  letter-spacing: 0.3px;
+  --moments-surface: var(--cn-color-bg-surface);
+  --moments-surface-muted: var(--cn-color-bg-surface-muted);
+  --moments-surface-soft: color-mix(in srgb, var(--cn-color-brand-soft) 32%, var(--cn-color-bg-surface));
+  --moments-border: var(--cn-color-border-subtle);
+  --moments-border-strong: var(--cn-color-border);
+  --moments-text: var(--cn-color-text-primary);
+  --moments-text-muted: var(--cn-color-text-secondary);
+  --moments-text-faint: var(--cn-color-text-tertiary);
+  --moments-accent: var(--cn-color-brand-primary);
+  --moments-accent-hover: var(--cn-color-brand-hover);
+  --moments-on-accent: white;
+  --moments-shadow: var(--cn-shadow-card);
+  --moments-shadow-hover: var(--cn-shadow-sm);
 }
 
 /* ========== 主内容区 ========== */
@@ -768,17 +736,17 @@ onUnmounted(() => {
 
 /* ========== 侧边栏通用 ========== */
 .sidebar-card {
-  background: #fff;
-  border: 1px solid #dbe7f8;
+  background: var(--moments-surface);
+  border: 1px solid var(--moments-border);
   border-radius: 14px;
   padding: 16px;
-  box-shadow: 0 10px 24px rgba(18, 38, 63, 0.05);
+  box-shadow: var(--moments-shadow);
   margin-bottom: 14px;
   transition: box-shadow 0.3s ease;
 }
 
 .sidebar-card:hover {
-  box-shadow: 0 12px 28px rgba(18, 38, 63, 0.08);
+  box-shadow: var(--moments-shadow-hover);
 }
 
 .card-title {
@@ -787,10 +755,10 @@ onUnmounted(() => {
   gap: 8px;
   margin: 0 0 12px 0;
   padding-bottom: 10px;
-  border-bottom: 1px solid #e8eef8;
+  border-bottom: 1px solid var(--moments-border);
   font-size: 15px;
   font-weight: 600;
-  color: var(--cn-text-primary, #1a2233);
+  color: var(--moments-text);
 }
 
 /* ========== 左侧边栏 ========== */
@@ -806,19 +774,19 @@ onUnmounted(() => {
   align-items: center;
   padding: 7px 7px 7px 14px;
   border-radius: 10px;
-  border: 1px solid #d7e4f8;
-  background: #f8fbff;
+  border: 1px solid var(--moments-border);
+  background: var(--moments-surface-muted);
   transition: all 0.25s ease;
 }
 
 .search-wrapper:focus-within {
-  border-color: #6c63ff;
-  background: #fff;
-  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.1);
+  border-color: var(--moments-accent);
+  background: var(--moments-surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--moments-accent) 12%, transparent);
 }
 
 .search-icon {
-  color: #6a82ae;
+  color: var(--moments-text-muted);
   margin-right: 8px;
   font-size: 16px;
 }
@@ -829,17 +797,17 @@ onUnmounted(() => {
   background: transparent;
   outline: none;
   font-size: 14px;
-  color: var(--cn-text-primary, #1a2233);
+  color: var(--moments-text);
 }
 
 .search-input::placeholder {
-  color: #8ea0bd;
+  color: var(--moments-text-faint);
 }
 
 .clear-btn {
   background: none;
   border: none;
-  color: #8ea0bd;
+  color: var(--moments-text-faint);
   font-size: 16px;
   cursor: pointer;
   padding: 2px 6px;
@@ -848,8 +816,8 @@ onUnmounted(() => {
 }
 
 .clear-btn:hover {
-  background: #f5f3ff;
-  color: #6c63ff;
+  background: var(--moments-surface-soft);
+  color: var(--moments-accent);
 }
 
 /* 热门动态 */
@@ -873,7 +841,7 @@ onUnmounted(() => {
 }
 
 .hot-item:hover {
-  background: #f1f7ff;
+  background: var(--moments-surface-soft);
   transform: translateX(2px);
 }
 
@@ -886,15 +854,15 @@ onUnmounted(() => {
   justify-content: center;
   font-size: 12px;
   font-weight: 700;
-  color: white;
-  background: #c4d4e9;
+  color: var(--moments-on-accent);
+  background: var(--cn-color-text-tertiary);
   flex-shrink: 0;
   margin-top: 2px;
 }
 
-.hot-rank.rank-1 { background: linear-gradient(135deg, #ff6b6b, #ee5a5a); box-shadow: 0 3px 8px rgba(238, 90, 90, 0.3); }
-.hot-rank.rank-2 { background: linear-gradient(135deg, #ffa502, #f39c12); box-shadow: 0 3px 8px rgba(243, 156, 18, 0.3); }
-.hot-rank.rank-3 { background: linear-gradient(135deg, #2f7dff, #1f6feb); box-shadow: 0 3px 8px rgba(31, 111, 235, 0.3); }
+.hot-rank.rank-1 { background: var(--cn-color-danger); box-shadow: 0 3px 8px color-mix(in srgb, var(--cn-color-danger) 28%, transparent); }
+.hot-rank.rank-2 { background: var(--cn-color-warning); box-shadow: 0 3px 8px color-mix(in srgb, var(--cn-color-warning) 28%, transparent); }
+.hot-rank.rank-3 { background: var(--moments-accent); box-shadow: 0 3px 8px color-mix(in srgb, var(--moments-accent) 28%, transparent); }
 
 .hot-info {
   flex: 1;
@@ -904,7 +872,7 @@ onUnmounted(() => {
 .hot-text {
   margin: 0 0 4px 0;
   font-size: 13px;
-  color: var(--cn-text-primary, #1a2233);
+  color: var(--moments-text);
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -916,7 +884,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   font-size: 12px;
-  color: #8ea0bd;
+  color: var(--moments-text-faint);
 }
 
 .hot-stats {
@@ -933,20 +901,20 @@ onUnmounted(() => {
   justify-content: center;
   gap: 8px;
   padding: 12px;
-  background: linear-gradient(135deg, #6c63ff 0%, #4f46e5 100%);
+  background: var(--moments-accent);
   border: none;
   border-radius: 10px;
-  color: white;
+  color: var(--moments-on-accent);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.3);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--moments-accent) 28%, transparent);
 }
 
 .publish-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(79, 70, 229, 0.4);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--moments-accent) 34%, transparent);
 }
 
 .publish-btn:active {
@@ -963,19 +931,19 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #fff;
-  border: 1px solid #dbe7f8;
+  background: var(--moments-surface);
+  border: 1px solid var(--moments-border);
   border-radius: 14px;
   padding: 16px 18px;
   margin-bottom: 14px;
   cursor: pointer;
-  box-shadow: 0 10px 24px rgba(18, 38, 63, 0.05);
+  box-shadow: var(--moments-shadow);
   transition: all 0.3s ease;
 }
 
 .publish-card:hover {
-  border-color: #c2d4f2;
-  box-shadow: 0 14px 28px rgba(18, 38, 63, 0.08);
+  border-color: var(--moments-border-strong);
+  box-shadow: var(--moments-shadow-hover);
   transform: translateY(-1px);
 }
 
@@ -983,31 +951,31 @@ onUnmounted(() => {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #6c63ff 0%, #f472b6 100%);
+  background: var(--moments-accent);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--moments-on-accent);
   font-weight: 600;
   font-size: 18px;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(108, 99, 255, 0.25);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--moments-accent) 25%, transparent);
 }
 
 .publish-input-fake {
   flex: 1;
   padding: 10px 16px;
-  background: #f4f8ff;
-  border: 1px solid #e3edfa;
+  background: var(--moments-surface-muted);
+  border: 1px solid var(--moments-border);
   border-radius: 20px;
-  color: #8ea0bd;
+  color: var(--moments-text-faint);
   font-size: 14px;
   transition: all 0.2s;
 }
 
 .publish-card:hover .publish-input-fake {
-  border-color: #c8d9f5;
-  background: #eef4ff;
+  border-color: var(--moments-border-strong);
+  background: var(--moments-surface-soft);
 }
 
 .publish-actions {
@@ -1020,12 +988,12 @@ onUnmounted(() => {
   align-items: center;
   gap: 4px;
   font-size: 13px;
-  color: #6a82ae;
+  color: var(--moments-text-muted);
   transition: color 0.2s;
 }
 
 .publish-actions .action-item:hover {
-  color: #6c63ff;
+  color: var(--moments-accent);
 }
 
 /* 动态Feed */
@@ -1037,10 +1005,10 @@ onUnmounted(() => {
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  background: #fff;
-  border: 1px solid #dbe7f8;
+  background: var(--moments-surface);
+  border: 1px solid var(--moments-border);
   border-radius: 14px;
-  box-shadow: 0 10px 24px rgba(18, 38, 63, 0.05);
+  box-shadow: var(--moments-shadow);
 }
 
 .empty-icon {
@@ -1053,42 +1021,42 @@ onUnmounted(() => {
   margin: 0 0 8px 0;
   font-size: 18px;
   font-weight: 700;
-  color: var(--cn-text-primary, #1a2233);
+  color: var(--moments-text);
 }
 
 .empty-hint {
   margin: 0 0 24px 0;
   font-size: 14px;
-  color: #8ea0bd;
+  color: var(--moments-text-faint);
 }
 
 .publish-first-btn {
   padding: 10px 28px;
-  background: linear-gradient(135deg, #6c63ff 0%, #4f46e5 100%);
+  background: var(--moments-accent);
   border: none;
   border-radius: 10px;
-  color: white;
+  color: var(--moments-on-accent);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.3);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--moments-accent) 28%, transparent);
   transition: all 0.3s;
 }
 
 .publish-first-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(79, 70, 229, 0.4);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--moments-accent) 34%, transparent);
 }
 
 /* 动态卡片 */
 .moment-card {
   position: relative;
-  background: #fff;
-  border: 1px solid #dbe7f8;
+  background: var(--moments-surface);
+  border: 1px solid var(--moments-border);
   border-radius: 14px;
   padding: 20px;
   margin-bottom: 14px;
-  box-shadow: 0 10px 24px rgba(18, 38, 63, 0.05);
+  box-shadow: var(--moments-shadow);
   transition: all 0.3s ease;
   overflow: hidden;
 }
@@ -1100,14 +1068,14 @@ onUnmounted(() => {
   left: 0;
   width: 3px;
   height: 100%;
-  background: linear-gradient(180deg, #6c63ff 0%, #f472b6 100%);
+  background: var(--moments-accent);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
 
 .moment-card:hover {
-  border-color: #c2d4f2;
-  box-shadow: 0 14px 32px rgba(18, 38, 63, 0.09);
+  border-color: var(--moments-border-strong);
+  box-shadow: var(--moments-shadow-hover);
   transform: translateY(-2px);
 }
 
@@ -1127,22 +1095,22 @@ onUnmounted(() => {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #6c63ff 0%, #f472b6 100%);
+  background: var(--moments-accent);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--moments-on-accent);
   font-weight: 600;
   font-size: 16px;
   cursor: pointer;
   flex-shrink: 0;
-  box-shadow: 0 3px 10px rgba(108, 99, 255, 0.22);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--moments-accent) 22%, transparent);
   transition: all 0.3s ease;
 }
 
 .user-avatar:hover {
   transform: scale(1.08);
-  box-shadow: 0 5px 16px rgba(108, 99, 255, 0.35);
+  box-shadow: 0 5px 16px color-mix(in srgb, var(--moments-accent) 32%, transparent);
 }
 
 .user-info {
@@ -1152,26 +1120,26 @@ onUnmounted(() => {
 .user-name {
   font-size: 15px;
   font-weight: 600;
-  color: var(--cn-text-primary, #1a2233);
+  color: var(--moments-text);
   cursor: pointer;
   transition: color 0.25s;
 }
 
 .user-name:hover {
-  color: #6c63ff;
+  color: var(--moments-accent);
 }
 
 .post-time {
   display: block;
   font-size: 12px;
-  color: #8ea0bd;
+  color: var(--moments-text-faint);
   margin-top: 2px;
 }
 
 .more-btn {
   background: none;
   border: none;
-  color: #8ea0bd;
+  color: var(--moments-text-faint);
   cursor: pointer;
   padding: 6px 8px;
   border-radius: 8px;
@@ -1179,8 +1147,8 @@ onUnmounted(() => {
 }
 
 .more-btn:hover {
-  background: #f5f3ff;
-  color: #6c63ff;
+  background: var(--moments-surface-soft);
+  color: var(--moments-accent);
 }
 
 /* 动态内容 */
@@ -1192,7 +1160,7 @@ onUnmounted(() => {
   margin: 0 0 12px 0;
   font-size: 15px;
   line-height: 1.75;
-  color: var(--cn-text-primary, #1a2233);
+  color: var(--moments-text);
   white-space: pre-wrap;
 }
 
@@ -1202,7 +1170,7 @@ onUnmounted(() => {
   gap: 6px;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(18, 38, 63, 0.06);
+  box-shadow: var(--moments-shadow);
 }
 
 .moment-images.images-1 {
@@ -1259,19 +1227,19 @@ onUnmounted(() => {
 .more-images {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: color-mix(in srgb, black 45%, transparent);
   backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--moments-on-accent);
   font-size: 24px;
   font-weight: 700;
 }
 
 /* 动态底部 */
 .moment-footer {
-  border-top: 1px solid #e8eef8;
+  border-top: 1px solid var(--moments-border);
   padding-top: 12px;
 }
 
@@ -1280,7 +1248,7 @@ onUnmounted(() => {
   gap: 16px;
   margin-bottom: 10px;
   font-size: 13px;
-  color: #8ea0bd;
+  color: var(--moments-text-faint);
 }
 
 .stats-bar .stat {
@@ -1293,8 +1261,8 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-around;
   padding: 6px 0;
-  border-top: 1px solid #e8eef8;
-  border-bottom: 1px solid #e8eef8;
+  border-top: 1px solid var(--moments-border);
+  border-bottom: 1px solid var(--moments-border);
   margin-bottom: 12px;
 }
 
@@ -1305,7 +1273,7 @@ onUnmounted(() => {
   padding: 8px 18px;
   background: none;
   border: none;
-  color: #6a82ae;
+  color: var(--moments-text-muted);
   font-size: 14px;
   cursor: pointer;
   border-radius: 8px;
@@ -1314,18 +1282,18 @@ onUnmounted(() => {
 }
 
 .action-btn:hover {
-  background: #f5f3ff;
-  color: #6c63ff;
+  background: var(--moments-surface-soft);
+  color: var(--moments-accent);
   transform: translateY(-1px);
 }
 
 .action-btn.active {
-  color: #f43f5e;
+  color: var(--cn-color-danger);
   font-weight: 600;
 }
 
 .action-btn.favorited {
-  color: #f59e0b;
+  color: var(--cn-color-warning);
 }
 
 .action-btn:disabled {
@@ -1336,10 +1304,10 @@ onUnmounted(() => {
 
 /* 评论区 */
 .comments-area {
-  background: #faf9ff;
+  background: var(--moments-surface-muted);
   border-radius: 10px;
   padding: 12px 12px 12px 16px;
-  border-left: 3px solid #d4ccff;
+  border-left: 3px solid var(--moments-accent);
   position: relative;
 }
 
@@ -1355,7 +1323,7 @@ onUnmounted(() => {
 }
 
 .comment-author {
-  color: #6c63ff;
+  color: var(--moments-accent);
   font-weight: 600;
   margin-right: 6px;
   cursor: pointer;
@@ -1366,13 +1334,13 @@ onUnmounted(() => {
 }
 
 .comment-text {
-  color: var(--cn-text-primary, #1a2233);
+  color: var(--moments-text);
 }
 
 .delete-comment {
   background: none;
   border: none;
-  color: #8ea0bd;
+  color: var(--moments-text-faint);
   font-size: 12px;
   cursor: pointer;
   margin-left: 8px;
@@ -1380,13 +1348,13 @@ onUnmounted(() => {
 }
 
 .delete-comment:hover {
-  color: #e5534b;
+  color: var(--cn-color-danger);
 }
 
 .view-all-btn {
   background: none;
   border: none;
-  color: #6a82ae;
+  color: var(--moments-text-muted);
   font-size: 13px;
   cursor: pointer;
   padding: 4px 0;
@@ -1395,7 +1363,7 @@ onUnmounted(() => {
 }
 
 .view-all-btn:hover {
-  color: #6c63ff;
+  color: var(--moments-accent);
 }
 
 /* 加载更多 */
@@ -1409,19 +1377,19 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: #6c63ff;
+  color: var(--moments-accent);
   font-size: 14px;
 }
 
 .scroll-hint {
-  color: #b8c9e0;
+  color: var(--moments-text-faint);
   font-size: 13px;
 }
 
 .no-more-data {
   text-align: center;
   padding: 30px;
-  color: #b8c9e0;
+  color: var(--moments-text-faint);
   font-size: 13px;
 }
 
@@ -1442,14 +1410,14 @@ onUnmounted(() => {
 .stats-card .stat-item {
   text-align: center;
   padding: 14px 12px;
-  background: linear-gradient(135deg, #faf8ff 0%, #fff5f7 100%);
+  background: var(--moments-surface-soft);
   border-radius: 10px;
-  border: 1px solid #ede8fa;
+  border: 1px solid var(--moments-border);
   transition: all 0.25s;
 }
 
 .stats-card .stat-item:hover {
-  border-color: #d4ccff;
+  border-color: var(--moments-accent);
   transform: translateY(-1px);
 }
 
@@ -1457,15 +1425,12 @@ onUnmounted(() => {
   display: block;
   font-size: 26px;
   font-weight: 800;
-  background: linear-gradient(135deg, #6c63ff 0%, #f43f5e 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--moments-accent);
 }
 
 .stats-card .stat-label {
   font-size: 12px;
-  color: #6a82ae;
+  color: var(--moments-text-muted);
   margin-top: 2px;
 }
 
@@ -1481,20 +1446,20 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  background: #f6f9ff;
-  border: 1px solid #e8f0fa;
+  background: var(--moments-surface-muted);
+  border: 1px solid var(--moments-border);
   border-radius: 10px;
   cursor: pointer;
   font-size: 14px;
-  color: var(--cn-text-secondary, #5a6d8a);
+  color: var(--moments-text-muted);
   transition: all 0.25s ease;
   font-weight: 500;
 }
 
 .link-item:hover {
-  background: #f5f3ff;
-  border-color: #d4ccff;
-  color: #6c63ff;
+  background: var(--moments-surface-soft);
+  border-color: var(--moments-accent);
+  color: var(--moments-accent);
   transform: translateX(3px);
 }
 
@@ -1511,16 +1476,6 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
-  .header-content {
-    flex-direction: column;
-    gap: 4px;
-    padding: 16px;
-  }
-
-  .page-title {
-    font-size: 22px;
-  }
-
   .moments-main {
     padding: 12px;
   }

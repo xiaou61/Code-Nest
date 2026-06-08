@@ -4,8 +4,10 @@ import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.domain.Notification;
 import com.xiaou.common.domain.NotificationTemplate;
 import com.xiaou.common.enums.NotificationTypeEnum;
+import com.xiaou.common.exception.BusinessException;
 import com.xiaou.common.mapper.NotificationMapper;
 import com.xiaou.common.mapper.NotificationTemplateMapper;
+import com.xiaou.common.mapper.NotificationUserReadRecordMapper;
 import com.xiaou.common.service.NotificationService;
 import com.xiaou.common.utils.NotificationUtil;
 import com.xiaou.common.utils.PageHelper;
@@ -13,9 +15,13 @@ import com.xiaou.notification.dto.BatchSendRequest;
 import com.xiaou.notification.dto.NotificationQueryRequest;
 import com.xiaou.notification.dto.NotificationStatistics;
 import com.xiaou.notification.dto.StatisticsRequest;
+import cn.hutool.core.util.StrUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import com.xiaou.user.api.UserInfoApiService;
+import com.xiaou.user.api.dto.SimpleUserInfo;
 
 import java.util.List;
 
@@ -30,6 +36,8 @@ public class NotificationAdminService {
     private final NotificationService notificationService;
     private final NotificationMapper notificationMapper;
     private final NotificationTemplateMapper notificationTemplateMapper;
+    private final NotificationUserReadRecordMapper notificationUserReadRecordMapper;
+    private final UserInfoApiService userInfoApiService;
     
     /**
      * 获取消息统计信息
@@ -99,7 +107,12 @@ public class NotificationAdminService {
         return PageHelper.doPage(request.getPageNum(), request.getPageSize(), () -> {
             // 管理端查询所有用户的消息，不限制用户ID（传null）
             return notificationMapper.selectByUserId(
-                null, request.getStatus(), request.getType()
+                null,
+                request.getStatus(),
+                request.getType(),
+                request.getTitle(),
+                request.getStartTime(),
+                request.getEndTime()
             );
         });
     }
@@ -109,13 +122,23 @@ public class NotificationAdminService {
      */
     public boolean batchSendMessage(BatchSendRequest request) {
         try {
+            String type = StrUtil.blankToDefault(request.getType(), NotificationTypeEnum.PERSONAL.getCode());
+            if (!NotificationTypeEnum.isValidCode(type)) {
+                throw new BusinessException("消息类型不正确");
+            }
+            for (Long receiverId : request.getReceiverIds()) {
+                requireExistingUser(receiverId);
+            }
             NotificationUtil.sendBatchMessage(
                 request.getReceiverIds(), 
                 request.getTitle(), 
-                request.getContent()
+                request.getContent(),
+                type
             );
             log.info("管理员批量发送消息成功，接收者数量: {}", request.getReceiverIds().size());
             return true;
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("管理员批量发送消息失败", e);
             return false;
@@ -125,15 +148,15 @@ public class NotificationAdminService {
     /**
      * 删除消息（管理员权限）
      */
+    @Transactional(rollbackFor = Exception.class)
     public boolean deleteMessage(Long messageId) {
         try {
-            // 管理员可以删除任何消息，这里需要直接操作数据库
-            // 由于NotificationService中的deleteMessage方法需要用户ID验证
-            // 我们需要直接操作Mapper
             Notification notification = notificationMapper.selectById(messageId);
             if (notification != null) {
-                // 执行硬删除或软删除
-                int result = notificationMapper.deleteMessage(messageId, notification.getReceiverId());
+                int result = notificationMapper.deleteMessageById(messageId);
+                if (result > 0) {
+                    notificationUserReadRecordMapper.deleteByNotificationId(messageId);
+                }
                 return result > 0;
             }
             return false;
@@ -160,6 +183,21 @@ public class NotificationAdminService {
      */
     public boolean createTemplate(NotificationTemplate template) {
         try {
+            if (template == null
+                    || StrUtil.isBlank(template.getCode())
+                    || StrUtil.isBlank(template.getName())
+                    || StrUtil.isBlank(template.getTitleTemplate())
+                    || StrUtil.isBlank(template.getContentTemplate())) {
+                log.warn("创建消息模板参数不完整: {}", template);
+                return false;
+            }
+            if (notificationTemplateMapper.selectByCode(template.getCode()) != null) {
+                log.warn("创建消息模板失败，模板编码已存在: {}", template.getCode());
+                return false;
+            }
+            if (template.getIsEnabled() == null) {
+                template.setIsEnabled(true);
+            }
             int result = notificationTemplateMapper.insert(template);
             log.info("创建消息模板成功: {}", template);
             return result > 0;
@@ -195,5 +233,16 @@ public class NotificationAdminService {
             log.error("删除消息模板失败, templateId: {}", templateId, e);
             return false;
         }
+    }
+
+    private SimpleUserInfo requireExistingUser(Long userId) {
+        if (userId == null) {
+            throw new BusinessException("用户ID不能为空");
+        }
+        SimpleUserInfo userInfo = userInfoApiService.getSimpleUserInfo(userId);
+        if (userInfo == null) {
+            throw new BusinessException("用户不存在");
+        }
+        return userInfo;
     }
 } 

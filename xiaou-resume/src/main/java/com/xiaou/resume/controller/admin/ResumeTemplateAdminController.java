@@ -3,6 +3,7 @@ package com.xiaou.resume.controller.admin;
 import com.xiaou.common.annotation.RequireAdmin;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.satoken.StpAdminUtil;
 import com.xiaou.resume.domain.ResumeTemplate;
 import com.xiaou.resume.dto.ResumeTemplateRequest;
 import com.xiaou.resume.dto.TemplateQueryRequest;
@@ -35,7 +36,7 @@ public class ResumeTemplateAdminController {
     @PostMapping
     @RequireAdmin
     public Result<Long> create(@Valid @RequestBody ResumeTemplateRequest request) {
-        return Result.success(resumeTemplateService.createTemplate(request));
+        return Result.success(resumeTemplateService.createTemplate(StpAdminUtil.getLoginIdAsLong(), request));
     }
 
     @Operation(summary = "更新模板")
@@ -43,7 +44,7 @@ public class ResumeTemplateAdminController {
     @RequireAdmin
     public Result<Void> update(@PathVariable Long id,
                                @Valid @RequestBody ResumeTemplateRequest request) {
-        resumeTemplateService.updateTemplate(id, request);
+        resumeTemplateService.updateTemplate(StpAdminUtil.getLoginIdAsLong(), id, request);
         return Result.success();
     }
 

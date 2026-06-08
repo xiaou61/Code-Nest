@@ -1,147 +1,99 @@
 <template>
-  <div class="user-management">
-    <!-- 页面标题和统计信息 -->
-    <div class="page-header">
-      <div class="header-title">
-        <h2>用户管理</h2>
-        <p>管理系统中的所有用户信息</p>
-      </div>
-      <div class="header-stats" v-if="statistics">
-        <el-row :gutter="16">
-          <el-col :span="6">
-            <el-card class="stat-card">
-              <div class="stat-item">
-                <div class="stat-number">{{ statistics.totalUsers || 0 }}</div>
-                <div class="stat-label">总用户数</div>
-              </div>
-            </el-card>
-          </el-col>
-          <el-col :span="6">
-            <el-card class="stat-card">
-              <div class="stat-item">
-                <div class="stat-number active">{{ statistics.activeUsers || 0 }}</div>
-                <div class="stat-label">活跃用户</div>
-              </div>
-            </el-card>
-          </el-col>
-          <el-col :span="6">
-            <el-card class="stat-card">
-              <div class="stat-item">
-                <div class="stat-number disabled">{{ statistics.disabledUsers || 0 }}</div>
-                <div class="stat-label">禁用用户</div>
-              </div>
-            </el-card>
-          </el-col>
-          <el-col :span="6">
-            <el-card class="stat-card">
-              <div class="stat-item">
-                <div class="stat-number deleted">{{ statistics.deletedUsers || 0 }}</div>
-                <div class="stat-label">已删除</div>
-              </div>
-            </el-card>
-          </el-col>
-        </el-row>
-      </div>
+  <CnPage class="user-management" surface="transparent" max-width="1320px">
+    <CnPageHeader
+      title="用户管理"
+      description="管理系统中的账号资料、启用状态、密码重置和批量删除操作。"
+      eyebrow="Admin Users"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand">账号运营</CnStatusTag>
+        <CnStatusTag type="success">状态可控</CnStatusTag>
+        <CnStatusTag v-if="multipleSelection.length" type="warning">
+          已选择 {{ multipleSelection.length }} 人
+        </CnStatusTag>
+      </template>
+
+      <template #actions>
+        <el-button @click="loadStatistics" :icon="Refresh">刷新统计</el-button>
+        <el-button type="primary" @click="handleAdd" :icon="Plus">添加用户</el-button>
+      </template>
+    </CnPageHeader>
+
+    <div v-if="statistics" class="user-stat-grid">
+      <CnStatCard
+        v-for="item in statisticCards"
+        :key="item.title"
+        :title="item.title"
+        :value="item.value"
+        :description="item.description"
+        :tone="item.tone"
+        :trend="item.trend"
+        :trend-text="item.trendText"
+      />
     </div>
 
-    <!-- 搜索和操作区域 -->
-    <el-card class="search-card">
-      <el-form :model="searchForm" inline class="search-form">
-        <el-form-item label="用户名">
-          <el-input
-            v-model="searchForm.username"
-            placeholder="请输入用户名"
-            clearable
-            style="width: 200px"
-          />
-        </el-form-item>
-        <el-form-item label="邮箱">
-          <el-input
-            v-model="searchForm.email"
-            placeholder="请输入邮箱"
-            clearable
-            style="width: 200px"
-          />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select
-            v-model="searchForm.status"
-            placeholder="请选择状态"
-            clearable
-            style="width: 120px"
-          >
-            <el-option label="启用" :value="0" />
-            <el-option label="禁用" :value="1" />
-            <el-option label="已删除" :value="2" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleSearch" :icon="Search">
-            搜索
-          </el-button>
-          <el-button @click="handleReset" :icon="Refresh">
-            重置
-          </el-button>
-        </el-form-item>
-      </el-form>
+    <CnSection title="筛选与操作" description="按用户名、邮箱和用户状态快速定位账号。" divided>
+      <CnFilterForm
+        :model-value="searchForm"
+        :fields="filterFields"
+        :columns="3"
+        :loading="loading"
+        @update:model-value="handleSearchFormUpdate"
+        @search="handleSearch"
+        @reset="handleReset"
+      />
+    </CnSection>
 
-      <div class="operation-buttons">
-        <el-button type="primary" @click="handleAdd" :icon="Plus">
-          添加用户
-        </el-button>
-        <el-button
-          type="danger"
-          :disabled="!multipleSelection.length"
-          @click="handleBatchDelete"
-          :icon="Delete"
-        >
-          批量删除
-        </el-button>
-        <el-button @click="loadStatistics" :icon="Refresh">
-          刷新统计
-        </el-button>
-      </div>
-    </el-card>
-
-    <!-- 用户列表 -->
-    <el-card class="table-card">
-      <el-table
-        v-loading="loading"
+    <CnSection title="用户列表" :description="`共 ${pagination.total} 条用户记录`" divided>
+      <CnDataTable
+        :columns="tableColumns"
         :data="userList"
-        style="width: 100%"
+        :loading="loading"
+        :pagination="tablePagination"
+        row-key="id"
         @selection-change="handleSelectionChange"
+        @page-change="handleCurrentChange"
+        @page-size-change="handleSizeChange"
       >
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column label="头像" width="80" align="center">
-          <template #default="{ row }">
-            <el-avatar :size="40" :src="row.avatar">
-              <el-icon><User /></el-icon>
-            </el-avatar>
-          </template>
-        </el-table-column>
-        <el-table-column prop="username" label="用户名" width="120" />
-        <el-table-column prop="email" label="邮箱" width="200" />
-        <el-table-column prop="phone" label="手机号" width="120" />
-        <el-table-column prop="realName" label="真实姓名" width="100" />
-        <el-table-column label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">
-              {{ getStatusText(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column prop="lastLoginTime" label="最后登录" width="180" />
-        <el-table-column label="操作" width="280" fixed="right">
-          <template #default="{ row }">
-            <el-button size="small" @click="handleView(row)" :icon="View">
-              查看
+        <template #toolbar>
+          <CnToolbar title="账号数据" description="列表操作不会改变当前筛选条件。" align="center">
+            <template #meta>
+              <CnStatusTag type="neutral" size="sm">每页 {{ pagination.pageSize }} 条</CnStatusTag>
+              <CnStatusTag v-if="multipleSelection.length" type="warning" size="sm">
+                已选择 {{ multipleSelection.length }} 人
+              </CnStatusTag>
+            </template>
+
+            <el-button type="primary" @click="handleAdd" :icon="Plus">添加用户</el-button>
+            <el-button
+              type="danger"
+              :disabled="!multipleSelection.length"
+              @click="handleBatchDelete"
+              :icon="Delete"
+            >
+              批量删除
             </el-button>
-            <el-button size="small" type="primary" @click="handleEdit(row)" :icon="Edit">
-              编辑
-            </el-button>
-            <el-dropdown @command="(command) => handleDropdownCommand(command, row)">
+          </CnToolbar>
+        </template>
+
+        <template #avatar="{ row }">
+          <el-avatar :size="40" :src="row.avatar">
+            <el-icon><User /></el-icon>
+          </el-avatar>
+        </template>
+
+        <template #status="{ row }">
+          <CnStatusTag :type="getStatusTone(row.status)" size="sm">
+            {{ getStatusText(row.status) }}
+          </CnStatusTag>
+        </template>
+
+        <template #actions="{ row }">
+          <div class="table-actions">
+            <el-button size="small" @click="handleView(row)" :icon="View">查看</el-button>
+            <el-button size="small" type="primary" @click="handleEdit(row)" :icon="Edit">编辑</el-button>
+            <el-dropdown @command="(command: string) => handleDropdownCommand(command, row)">
               <el-button size="small" type="info">
                 更多 <el-icon><ArrowDown /></el-icon>
               </el-button>
@@ -150,54 +102,42 @@
                   <el-dropdown-item :command="`status_${row.id}`">
                     {{ row.status === 0 ? '禁用' : '启用' }}用户
                   </el-dropdown-item>
-                  <el-dropdown-item :command="`reset_${row.id}`">
-                    重置密码
-                  </el-dropdown-item>
-                  <el-dropdown-item :command="`delete_${row.id}`" divided>
-                    删除用户
-                  </el-dropdown-item>
+                  <el-dropdown-item :command="`reset_${row.id}`">重置密码</el-dropdown-item>
+                  <el-dropdown-item :command="`delete_${row.id}`" divided>删除用户</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
-          </template>
-        </el-table-column>
-      </el-table>
+          </div>
+        </template>
 
-      <!-- 分页 -->
-      <div class="pagination-wrapper">
-        <el-pagination
-          v-model:current-page="pagination.pageNum"
-          v-model:page-size="pagination.pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="pagination.total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
-      </div>
-    </el-card>
+        <template #empty>
+          <CnEmptyState
+            title="暂无用户数据"
+            description="当前筛选条件下没有匹配用户，可以重置筛选或新增用户。"
+            icon="US"
+            surface="transparent"
+          >
+            <template #actions>
+              <el-button @click="handleReset">重置筛选</el-button>
+              <el-button type="primary" @click="handleAdd">添加用户</el-button>
+            </template>
+          </CnEmptyState>
+        </template>
+      </CnDataTable>
+    </CnSection>
 
-    <!-- 添加/编辑用户对话框 -->
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
       width="600px"
       :close-on-click-modal="false"
+      class="user-dialog"
     >
-      <el-form
-        ref="userFormRef"
-        :model="userForm"
-        :rules="userFormRules"
-        label-width="80px"
-      >
+      <el-form ref="userFormRef" :model="userForm" :rules="userFormRules" label-width="80px">
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="用户名" prop="username">
-              <el-input
-                v-model="userForm.username"
-                placeholder="请输入用户名"
-                :disabled="isEdit"
-              />
+              <el-input v-model="userForm.username" placeholder="请输入用户名" :disabled="isEdit" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -221,12 +161,7 @@
         <el-row :gutter="16" v-if="!isEdit">
           <el-col :span="12">
             <el-form-item label="密码" prop="password">
-              <el-input
-                v-model="userForm.password"
-                type="password"
-                placeholder="请输入密码"
-                show-password
-              />
+              <el-input v-model="userForm.password" type="password" placeholder="请输入密码" show-password />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -250,19 +185,12 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmit" :loading="submitLoading">
-            确定
-          </el-button>
+          <el-button type="primary" @click="handleSubmit" :loading="submitLoading">确定</el-button>
         </div>
       </template>
     </el-dialog>
 
-    <!-- 用户详情对话框 -->
-    <el-dialog
-      v-model="detailDialogVisible"
-      title="用户详情"
-      width="500px"
-    >
+    <el-dialog v-model="detailDialogVisible" title="用户详情" width="500px">
       <el-descriptions :column="2" border v-if="currentUser">
         <el-descriptions-item label="用户ID">{{ currentUser.id }}</el-descriptions-item>
         <el-descriptions-item label="用户名">{{ currentUser.username }}</el-descriptions-item>
@@ -270,9 +198,9 @@
         <el-descriptions-item label="手机号">{{ currentUser.phone || '未设置' }}</el-descriptions-item>
         <el-descriptions-item label="真实姓名">{{ currentUser.realName || '未设置' }}</el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag :type="getStatusType(currentUser.status)">
+          <CnStatusTag :type="getStatusTone(currentUser.status)" size="sm">
             {{ getStatusText(currentUser.status) }}
-          </el-tag>
+          </CnStatusTag>
         </el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ currentUser.createTime }}</el-descriptions-item>
         <el-descriptions-item label="更新时间">{{ currentUser.updateTime }}</el-descriptions-item>
@@ -280,52 +208,86 @@
         <el-descriptions-item label="创建者">{{ currentUser.createBy }}</el-descriptions-item>
       </el-descriptions>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  Search,
-  Refresh,
-  Plus,
-  Delete,
-  Edit,
-  View,
-  ArrowDown,
-  User
-} from '@element-plus/icons-vue'
+import { ArrowDown, Delete, Edit, Plus, Refresh, Search, User, View } from '@element-plus/icons-vue'
 import { userApi } from '@/api/user'
+import {
+  CnDataTable,
+  CnEmptyState,
+  CnFilterForm,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag,
+  CnToolbar
+} from '@/design-system'
+import type { CnBreadcrumbItem, CnFilterField, CnPagination, CnTableColumn, CnTone, CnTrend } from '@/design-system'
 
-// 响应式数据
+interface UserRecord {
+  id: number
+  username: string
+  email: string
+  phone?: string
+  realName?: string
+  avatar?: string
+  status: number
+  createTime?: string
+  updateTime?: string
+  lastLoginTime?: string
+  createBy?: string
+}
+
+interface UserStatistics {
+  totalUsers?: number
+  activeUsers?: number
+  disabledUsers?: number
+  deletedUsers?: number
+}
+
+interface StatisticCard {
+  title: string
+  value: number
+  description: string
+  tone: CnTone
+  trend: CnTrend
+  trendText: string
+}
+
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '用户管理' }]
+
 const loading = ref(false)
 const submitLoading = ref(false)
-const userList = ref([])
-const multipleSelection = ref([])
-const statistics = ref(null)
+const userList = ref<UserRecord[]>([])
+const multipleSelection = ref<UserRecord[]>([])
+const statistics = ref<UserStatistics | null>(null)
 
-// 搜索表单
-const searchForm = reactive({
+const searchForm = reactive<{
+  username: string
+  email: string
+  status?: number
+}>({
   username: '',
   email: '',
   status: undefined
 })
 
-// 分页
 const pagination = reactive({
   pageNum: 1,
   pageSize: 10,
   total: 0
 })
 
-// 对话框
 const dialogVisible = ref(false)
 const detailDialogVisible = ref(false)
 const isEdit = ref(false)
-const currentUser = ref(null)
+const currentUser = ref<UserRecord | null>(null)
 
-// 用户表单
 const userFormRef = ref()
 const userForm = reactive({
   username: '',
@@ -337,7 +299,6 @@ const userForm = reactive({
   status: 0
 })
 
-// 表单验证规则
 const userFormRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
@@ -347,9 +308,7 @@ const userFormRules = {
     { required: true, message: '请输入邮箱', trigger: 'blur' },
     { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
   ],
-  phone: [
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }
-  ],
+  phone: [{ pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 6, max: 20, message: '密码长度在 6 到 20 个字符', trigger: 'blur' }
@@ -357,7 +316,7 @@ const userFormRules = {
   confirmPassword: [
     { required: true, message: '请再次输入密码', trigger: 'blur' },
     {
-      validator: (rule, value, callback) => {
+      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
         if (value !== userForm.password) {
           callback(new Error('两次输入密码不一致'))
         } else {
@@ -369,12 +328,80 @@ const userFormRules = {
   ]
 }
 
-// 计算属性
-const dialogTitle = computed(() => {
-  return isEdit.value ? '编辑用户' : '添加用户'
-})
+const dialogTitle = computed(() => (isEdit.value ? '编辑用户' : '添加用户'))
 
-// 方法
+const filterFields: CnFilterField[] = [
+  { prop: 'username', label: '用户名', type: 'input', placeholder: '请输入用户名' },
+  { prop: 'email', label: '邮箱', type: 'input', placeholder: '请输入邮箱' },
+  {
+    prop: 'status',
+    label: '状态',
+    type: 'select',
+    placeholder: '请选择状态',
+    options: [
+      { label: '启用', value: 0 },
+      { label: '禁用', value: 1 },
+      { label: '已删除', value: 2 }
+    ]
+  }
+]
+
+const tableColumns: CnTableColumn<UserRecord>[] = [
+  { type: 'selection', width: 52 },
+  { prop: 'id', label: 'ID', width: 80 },
+  { label: '头像', width: 80, align: 'center', slot: 'avatar' },
+  { prop: 'username', label: '用户名', minWidth: 130 },
+  { prop: 'email', label: '邮箱', minWidth: 210, showOverflowTooltip: true },
+  { prop: 'phone', label: '手机号', minWidth: 130 },
+  { prop: 'realName', label: '真实姓名', minWidth: 110 },
+  { prop: 'status', label: '状态', width: 110, slot: 'status' },
+  { prop: 'createTime', label: '创建时间', width: 180 },
+  { prop: 'lastLoginTime', label: '最后登录', width: 180 },
+  { label: '操作', width: 280, fixed: 'right', slot: 'actions' }
+]
+
+const tablePagination = computed<CnPagination>(() => ({
+  page: pagination.pageNum,
+  pageSize: pagination.pageSize,
+  total: pagination.total,
+  pageSizes: [10, 20, 50, 100]
+}))
+
+const statisticCards = computed<StatisticCard[]>(() => [
+  {
+    title: '总用户数',
+    value: statistics.value?.totalUsers || 0,
+    description: '系统累计账号规模',
+    tone: 'brand',
+    trend: 'flat',
+    trendText: '总量'
+  },
+  {
+    title: '活跃用户',
+    value: statistics.value?.activeUsers || 0,
+    description: '当前可正常使用账号',
+    tone: 'success',
+    trend: 'up',
+    trendText: '启用'
+  },
+  {
+    title: '禁用用户',
+    value: statistics.value?.disabledUsers || 0,
+    description: '已限制登录和操作',
+    tone: 'warning',
+    trend: 'flat',
+    trendText: '禁用'
+  },
+  {
+    title: '已删除',
+    value: statistics.value?.deletedUsers || 0,
+    description: '逻辑删除用户记录',
+    tone: 'danger',
+    trend: 'down',
+    trendText: '删除'
+  }
+])
+
 const loadUserList = async () => {
   loading.value = true
   try {
@@ -418,13 +445,17 @@ const handleReset = () => {
   loadUserList()
 }
 
+const handleSearchFormUpdate = (value: Record<string, unknown>) => {
+  Object.assign(searchForm, value)
+}
+
 const handleAdd = () => {
   isEdit.value = false
   resetUserForm()
   dialogVisible.value = true
 }
 
-const handleEdit = (row) => {
+const handleEdit = (row: UserRecord) => {
   isEdit.value = true
   Object.assign(userForm, {
     username: row.username,
@@ -439,7 +470,7 @@ const handleEdit = (row) => {
   dialogVisible.value = true
 }
 
-const handleView = (row) => {
+const handleView = (row: UserRecord) => {
   currentUser.value = row
   detailDialogVisible.value = true
 }
@@ -450,12 +481,11 @@ const handleSubmit = async () => {
     submitLoading.value = true
 
     if (isEdit.value) {
-      // 编辑用户
+      if (!currentUser.value) return
       const { password: _password, confirmPassword: _confirmPassword, ...updateData } = userForm
       await userApi.updateUser(currentUser.value.id, updateData)
       ElMessage.success('用户更新成功')
     } else {
-      // 添加用户
       await userApi.createUser(userForm)
       ElMessage.success('用户创建成功')
     }
@@ -470,23 +500,19 @@ const handleSubmit = async () => {
   }
 }
 
-const handleSelectionChange = (selection) => {
+const handleSelectionChange = (selection: UserRecord[]) => {
   multipleSelection.value = selection
 }
 
 const handleBatchDelete = async () => {
   try {
-    await ElMessageBox.confirm(
-      `确定删除选中的 ${multipleSelection.value.length} 个用户吗？`,
-      '确认删除',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
+    await ElMessageBox.confirm(`确定删除选中的 ${multipleSelection.value.length} 个用户吗？`, '确认删除', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
 
-    const userIds = multipleSelection.value.map(user => user.id)
+    const userIds = multipleSelection.value.map((user) => user.id)
     await userApi.deleteUsers(userIds)
     ElMessage.success('批量删除成功')
     loadUserList()
@@ -498,7 +524,7 @@ const handleBatchDelete = async () => {
   }
 }
 
-const handleDropdownCommand = async (command, row) => {
+const handleDropdownCommand = async (command: string, row: UserRecord) => {
   const [action] = command.split('_')
 
   switch (action) {
@@ -514,20 +540,16 @@ const handleDropdownCommand = async (command, row) => {
   }
 }
 
-const handleToggleStatus = async (row) => {
+const handleToggleStatus = async (row: UserRecord) => {
   const newStatus = row.status === 0 ? 1 : 0
   const action = newStatus === 0 ? '启用' : '禁用'
 
   try {
-    await ElMessageBox.confirm(
-      `确定${action}用户 "${row.username}" 吗？`,
-      `确认${action}`,
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
+    await ElMessageBox.confirm(`确定${action}用户 "${row.username}" 吗？`, `确认${action}`, {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
 
     await userApi.updateUserStatus(row.id, newStatus)
     ElMessage.success(`${action}成功`)
@@ -540,19 +562,15 @@ const handleToggleStatus = async (row) => {
   }
 }
 
-const handleResetPassword = async (row) => {
+const handleResetPassword = async (row: UserRecord) => {
   try {
-    const { value: newPassword } = await ElMessageBox.prompt(
-      '请输入新密码',
-      '重置密码',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        inputValue: '123456',
-        inputPattern: /^.{6,20}$/,
-        inputErrorMessage: '密码长度在 6 到 20 个字符'
-      }
-    )
+    const { value: newPassword } = await ElMessageBox.prompt('请输入新密码', '重置密码', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      inputValue: '123456',
+      inputPattern: /^.{6,20}$/,
+      inputErrorMessage: '密码长度在 6 到 20 个字符'
+    })
 
     await userApi.resetPassword(row.id, newPassword)
     ElMessage.success('密码重置成功')
@@ -563,17 +581,13 @@ const handleResetPassword = async (row) => {
   }
 }
 
-const handleDelete = async (row) => {
+const handleDelete = async (row: UserRecord) => {
   try {
-    await ElMessageBox.confirm(
-      `确定删除用户 "${row.username}" 吗？`,
-      '确认删除',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
+    await ElMessageBox.confirm(`确定删除用户 "${row.username}" 吗？`, '确认删除', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
 
     await userApi.deleteUser(row.id)
     ElMessage.success('删除成功')
@@ -586,13 +600,13 @@ const handleDelete = async (row) => {
   }
 }
 
-const handleSizeChange = (size) => {
+const handleSizeChange = (size: number) => {
   pagination.pageSize = size
   pagination.pageNum = 1
   loadUserList()
 }
 
-const handleCurrentChange = (page) => {
+const handleCurrentChange = (page: number) => {
   pagination.pageNum = page
   loadUserList()
 }
@@ -610,8 +624,8 @@ const resetUserForm = () => {
   userFormRef.value?.clearValidate()
 }
 
-const getStatusType = (status) => {
-  const statusMap = {
+const getStatusTone = (status: number): CnTone => {
+  const statusMap: Record<number, CnTone> = {
     0: 'success',
     1: 'warning',
     2: 'danger'
@@ -619,8 +633,8 @@ const getStatusType = (status) => {
   return statusMap[status] || 'info'
 }
 
-const getStatusText = (status) => {
-  const statusMap = {
+const getStatusText = (status: number) => {
+  const statusMap: Record<number, string> = {
     0: '启用',
     1: '禁用',
     2: '已删除'
@@ -628,7 +642,6 @@ const getStatusText = (status) => {
   return statusMap[status] || '未知'
 }
 
-// 生命周期
 onMounted(() => {
   loadUserList()
   loadStatistics()
@@ -637,81 +650,44 @@ onMounted(() => {
 
 <style scoped>
 .user-management {
-  padding: 20px;
+  min-height: 100%;
 }
 
-.page-header {
-  margin-bottom: 20px;
+.user-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.header-title h2 {
-  margin: 0 0 8px 0;
-  color: #303133;
-}
-
-.header-title p {
-  margin: 0;
-  color: #909399;
-  font-size: 14px;
-}
-
-.header-stats {
-  margin-top: 16px;
-}
-
-.stat-card {
-  text-align: center;
-}
-
-.stat-item {
-  padding: 8px;
-}
-
-.stat-number {
-  font-size: 24px;
-  font-weight: bold;
-  margin-bottom: 4px;
-}
-
-.stat-number.active {
-  color: #67C23A;
-}
-
-.stat-number.disabled {
-  color: #E6A23C;
-}
-
-.stat-number.deleted {
-  color: #F56C6C;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: #909399;
-}
-
-.search-card {
-  margin-bottom: 20px;
-}
-
-.search-form {
-  margin-bottom: 16px;
-}
-
-.operation-buttons {
-  text-align: right;
-}
-
-.table-card {
-  margin-bottom: 20px;
-}
-
-.pagination-wrapper {
-  margin-top: 20px;
-  text-align: right;
-}
-
+.table-actions,
 .dialog-footer {
-  text-align: right;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--cn-space-2);
+}
+
+.table-actions {
+  justify-content: flex-start;
+}
+
+.table-actions .el-button {
+  margin-left: 0;
+}
+
+@media (max-width: 1180px) {
+  .user-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .user-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dialog-footer {
+    justify-content: flex-start;
+  }
 }
 </style>

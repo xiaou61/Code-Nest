@@ -2,6 +2,7 @@ package com.xiaou.interview.controller.pub;
 
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.core.domain.ResultCode;
 import com.xiaou.common.satoken.StpUserUtil;
 import com.xiaou.interview.domain.InterviewQuestion;
 import com.xiaou.interview.domain.InterviewQuestionSet;
@@ -56,7 +57,7 @@ public class InterviewQuestionSetPublicController {
         // 检查权限
         Long userId = StpUserUtil.getLoginIdAsLong();
         if (userId != null && !questionSetService.hasAccessPermission(id, userId)) {
-            return Result.error("无权限访问该题单");
+            return Result.error(ResultCode.PERMISSION_DENIED.getCode(), "无权限访问该题单");
         }
         
         List<InterviewQuestion> questions = questionService.getQuestionsBySetId(id);
@@ -70,7 +71,7 @@ public class InterviewQuestionSetPublicController {
         // 检查权限
         Long userId = StpUserUtil.getLoginIdAsLong();
         if (userId != null && !questionSetService.hasAccessPermission(setId, userId)) {
-            return Result.error("无权限访问该题单");
+            return Result.error(ResultCode.PERMISSION_DENIED.getCode(), "无权限访问该题单");
         }
         
         // 增加浏览次数
@@ -87,7 +88,7 @@ public class InterviewQuestionSetPublicController {
         // 检查权限
         Long userId = StpUserUtil.getLoginIdAsLong();
         if (userId != null && !questionSetService.hasAccessPermission(setId, userId)) {
-            return Result.error("无权限访问该题单");
+            return Result.error(ResultCode.PERMISSION_DENIED.getCode(), "无权限访问该题单");
         }
         
         // 先获取当前题目的排序号
@@ -107,7 +108,7 @@ public class InterviewQuestionSetPublicController {
         // 检查权限
         Long userId = StpUserUtil.getLoginIdAsLong();
         if (userId != null && !questionSetService.hasAccessPermission(setId, userId)) {
-            return Result.error("无权限访问该题单");
+            return Result.error(ResultCode.PERMISSION_DENIED.getCode(), "无权限访问该题单");
         }
         
         // 先获取当前题目的排序号

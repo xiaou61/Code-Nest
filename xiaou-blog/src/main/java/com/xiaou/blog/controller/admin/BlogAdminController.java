@@ -105,7 +105,7 @@ public class BlogAdminController {
     @Log(module = "博客管理", type = Log.OperationType.DELETE, description = "删除文章")
     @DeleteMapping("/article/{id}")
     public Result<Void> deleteArticle(@Positive(message = "文章ID必须为正数") @PathVariable Long id) {
-        blogArticleService.deleteArticle(id);
+        blogArticleService.deleteArticleByAdmin(id);
         return Result.success();
     }
     

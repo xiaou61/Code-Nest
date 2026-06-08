@@ -1,5 +1,6 @@
 package com.xiaou.moyu.service.impl;
 
+import com.xiaou.common.exception.BusinessException;
 import com.xiaou.moyu.dto.SalaryCalculatorDto;
 import com.xiaou.moyu.dto.SalaryConfigRequest;
 import com.xiaou.moyu.dto.WorkTimeRequest;
@@ -101,7 +102,7 @@ public class SalaryCalculatorServiceImpl implements SalaryCalculatorService {
         // 获取用户薪资配置
         UserSalaryConfig config = userSalaryConfigMapper.selectByUserId(userId);
         if (config == null) {
-            throw new RuntimeException("请先配置薪资信息");
+            throw new BusinessException("请先配置薪资信息");
         }
         
         // 获取或创建今日工作记录
@@ -128,7 +129,7 @@ public class SalaryCalculatorServiceImpl implements SalaryCalculatorService {
                 
             case "PAUSE":
                 if (todayRecord.getWorkStatus() != 1) {
-                    throw new RuntimeException("只有工作中状态才能暂停");
+                    throw new BusinessException("只有工作中状态才能暂停");
                 }
                 todayRecord.setPauseStartTime(now);
                 todayRecord.setWorkStatus(2); // 暂停中
@@ -136,7 +137,7 @@ public class SalaryCalculatorServiceImpl implements SalaryCalculatorService {
                 
             case "RESUME":
                 if (todayRecord.getWorkStatus() != 2) {
-                    throw new RuntimeException("只有暂停状态才能恢复");
+                    throw new BusinessException("只有暂停状态才能恢复");
                 }
                 if (todayRecord.getPauseStartTime() != null) {
                     // 累加暂停时长
@@ -150,7 +151,7 @@ public class SalaryCalculatorServiceImpl implements SalaryCalculatorService {
                 
             case "END":
                 if (todayRecord.getStartTime() == null) {
-                    throw new RuntimeException("请先开始工作");
+                    throw new BusinessException("请先开始工作");
                 }
                 // 如果正在暂停，先处理暂停时长
                 if (todayRecord.getWorkStatus() == 2 && todayRecord.getPauseStartTime() != null) {
@@ -166,7 +167,7 @@ public class SalaryCalculatorServiceImpl implements SalaryCalculatorService {
                 break;
                 
             default:
-                throw new RuntimeException("不支持的操作类型：" + request.getAction());
+                throw new BusinessException("不支持的操作类型：" + request.getAction());
         }
         
         todayRecord.setUpdateTime(now);

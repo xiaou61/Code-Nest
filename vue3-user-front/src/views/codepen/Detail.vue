@@ -1,181 +1,186 @@
 <template>
-  <div class="codepen-detail" v-loading="loading">
-    <div class="detail-container" v-if="penData">
-      <!-- 顶部操作栏 -->
-      <div class="detail-header">
-        <div class="header-left">
+  <CnPage class="codepen-detail" max-width="1240px" full-height v-loading="loading">
+    <template v-if="penData">
+      <CnPageHeader
+        :title="penData.title"
+        :description="penData.description || '查看作品预览、源码和社区互动。'"
+        eyebrow="CODEPEN DETAIL"
+        :breadcrumbs="[{ label: '首页', to: '/' }, { label: '代码广场', to: '/codepen' }, { label: penData.title }]"
+      >
+        <template #meta>
+          <CnStatusTag :type="penData.isFree ? 'info' : 'warning'" size="sm" dot>
+            {{ penData.isFree ? '免费作品' : `付费作品 ${penData.forkPrice || 0} 积分` }}
+          </CnStatusTag>
+          <CnStatusTag :type="penData.canViewCode ? 'success' : 'neutral'" size="sm" subtle>
+            {{ penData.canViewCode ? '可查看源码' : '源码受限' }}
+          </CnStatusTag>
+          <CnStatusTag v-if="penData.category" type="brand" size="sm" subtle>
+            {{ penData.category }}
+          </CnStatusTag>
+        </template>
+
+        <template #actions>
           <el-button :icon="Back" @click="goBack">返回</el-button>
-          <h1 class="pen-title">{{ penData.title }}</h1>
-          
-          <!-- 付费标识 -->
-          <el-tag v-if="!penData.isFree" type="warning" size="large">
-            <el-icon><Lock /></el-icon>
-            付费作品 {{ penData.forkPrice }} 积分
-          </el-tag>
-        </div>
-
-        <div class="header-right">
-          <el-button
-            type="warning"
-            plain
-            @click="openTransformDialog"
-          >
-            转为学习资产
-          </el-button>
-
-          <!-- 编辑按钮（仅作者可见） -->
-          <el-button 
-            v-if="penData.canEdit"
-            type="primary"
-            :icon="Edit"
-            @click="editPen"
-          >
+          <el-button type="warning" plain @click="openTransformDialog">转为学习资产</el-button>
+          <el-button v-if="penData.canEdit" type="primary" :icon="Edit" @click="editPen">
             编辑
           </el-button>
-
-          <!-- Fork按钮 -->
           <el-button
             v-if="!penData.canEdit"
             type="success"
-            icon="CopyDocument"
-            @click="handleFork"
+            :icon="CopyDocument"
             :loading="forking"
+            @click="handleFork"
           >
             Fork
           </el-button>
-
-          <!-- 互动按钮 -->
           <el-button
             :type="penData.isLiked ? 'danger' : 'default'"
             :icon="penData.isLiked ? StarFilled : Star"
             @click="toggleLike"
           >
-            {{ penData.likeCount }}
+            {{ penData.likeCount || 0 }}
           </el-button>
-
           <el-button
             :type="penData.isCollected ? 'warning' : 'default'"
             @click="toggleCollect"
           >
-            <el-icon :class="{ 'collected': penData.isCollected }">
+            <el-icon :class="{ collected: penData.isCollected }">
               <Collection />
             </el-icon>
-            {{ penData.collectCount }}
+            {{ penData.collectCount || 0 }}
           </el-button>
-
           <el-button :icon="Share" @click="showShareDialog = true">分享</el-button>
-        </div>
-      </div>
+        </template>
+      </CnPageHeader>
 
-      <!-- 作品信息 -->
-      <div class="pen-meta">
-        <div class="author-info">
-          <el-avatar :size="40" :src="penData.userAvatar">
-            {{ penData.userNickname?.charAt(0) }}
-          </el-avatar>
-          <div class="author-details">
-            <div class="author-name">{{ penData.userNickname }}</div>
-            <div class="pen-time">{{ formatTime(penData.createTime) }}</div>
+      <section class="detail-stats" aria-label="作品数据">
+        <CnStatCard
+          title="浏览"
+          :value="penData.viewCount || 0"
+          unit="次"
+          description="当前作品访问量"
+          tone="brand"
+          trend="flat"
+          trend-text="Views"
+        />
+        <CnStatCard
+          title="Fork"
+          :value="penData.forkCount || 0"
+          unit="次"
+          description="被复用和二创次数"
+          tone="success"
+          trend="flat"
+          trend-text="Fork"
+        />
+        <CnStatCard
+          title="点赞"
+          :value="penData.likeCount || 0"
+          unit="个"
+          description="社区认可反馈"
+          tone="danger"
+          trend="flat"
+          trend-text="Like"
+        />
+        <CnStatCard
+          title="评论"
+          :value="penData.commentCount || 0"
+          unit="条"
+          description="讨论和建议数量"
+          tone="info"
+          trend="flat"
+          trend-text="Talk"
+        />
+      </section>
+
+      <CnSection class="author-section" title="作者与标签" description="作品发布者、发布时间和检索标签。" compact divided>
+        <div class="pen-meta">
+          <div class="author-info">
+            <el-avatar :size="44" :src="penData.userAvatar">
+              {{ penData.userNickname?.charAt(0) || 'U' }}
+            </el-avatar>
+            <div class="author-details">
+              <div class="author-name">{{ penData.userNickname || '匿名用户' }}</div>
+              <div class="pen-time">{{ formatTime(penData.createTime) }}</div>
+            </div>
           </div>
-        </div>
 
-        <div class="pen-stats">
-          <span class="stat-item">
-            <el-icon><View /></el-icon>
-            {{ penData.viewCount }} 浏览
-          </span>
-          <span class="stat-item">
-            <el-icon><CopyDocument /></el-icon>
-            {{ penData.forkCount }} Fork
-          </span>
-          <span class="stat-item">
-            <el-icon><ChatDotRound /></el-icon>
-            {{ penData.commentCount }} 评论
-          </span>
-        </div>
-      </div>
-
-      <!-- 描述和标签 -->
-      <div class="pen-info" v-if="penData.description || penData.tags?.length > 0">
-        <p class="pen-description" v-if="penData.description">
-          {{ penData.description }}
-        </p>
-        <div class="pen-tags" v-if="penData.tags?.length > 0">
-          <el-tag
-            v-for="(tag, index) in penData.tags"
-            :key="index"
-            type="info"
-          >
-            {{ tag }}
-          </el-tag>
-        </div>
-      </div>
-
-      <!-- 预览和代码 -->
-      <div class="pen-content">
-        <!-- 预览区 -->
-        <div class="preview-section">
-          <div class="section-header">
-            <h2>预览效果</h2>
-            <el-button
-              text
-              :icon="FullScreen"
-              @click="fullscreenPreview = true"
+          <div class="pen-tags" v-if="penData.tags?.length">
+            <CnStatusTag
+              v-for="(tag, index) in penData.tags"
+              :key="`${tag}-${index}`"
+              type="info"
+              size="sm"
+              subtle
             >
-              全屏预览
-            </el-button>
-          </div>
-          <div class="preview-container">
-            <iframe
-              ref="previewFrame"
-              class="preview-iframe"
-              sandbox="allow-scripts allow-same-origin"
-            ></iframe>
+              {{ tag }}
+            </CnStatusTag>
           </div>
         </div>
+      </CnSection>
 
-        <!-- 代码区 -->
-        <div class="code-section" v-if="penData.canViewCode">
-          <div class="section-header">
-            <h2>源代码</h2>
-          </div>
+      <CnSection
+        class="preview-section"
+        title="预览效果"
+        description="在受限沙箱中运行作品代码，保持与原详情页一致的预览方式。"
+        divided
+      >
+        <template #actions>
+          <el-button text :icon="FullScreen" @click="fullscreenPreview = true">全屏预览</el-button>
+        </template>
 
-          <el-tabs v-model="activeTab">
-            <el-tab-pane label="HTML" name="html" v-if="penData.htmlCode">
-              <pre class="code-block"><code>{{ penData.htmlCode }}</code></pre>
-            </el-tab-pane>
-            <el-tab-pane label="CSS" name="css" v-if="penData.cssCode">
-              <pre class="code-block"><code>{{ penData.cssCode }}</code></pre>
-            </el-tab-pane>
-            <el-tab-pane label="JavaScript" name="js" v-if="penData.jsCode">
-              <pre class="code-block"><code>{{ penData.jsCode }}</code></pre>
-            </el-tab-pane>
-          </el-tabs>
+        <div class="preview-container">
+          <iframe
+            ref="previewFrame"
+            class="preview-iframe"
+            sandbox="allow-scripts allow-same-origin"
+          ></iframe>
         </div>
+      </CnSection>
 
-        <!-- 付费作品提示 -->
-        <div class="code-section locked-section" v-else>
-          <div class="locked-tip">
-            <el-icon :size="48"><Lock /></el-icon>
-            <h3>{{ penData.codeViewMessage || '付费作品，Fork后可查看源码' }}</h3>
-            <p>Fork价格：{{ penData.forkPrice }} 积分</p>
-            <el-button
-              type="primary"
-              size="large"
-              @click="handleFork"
-              :loading="forking"
-            >
-              立即Fork
-            </el-button>
-          </div>
+      <CnSection
+        v-if="penData.canViewCode"
+        class="code-section"
+        title="源代码"
+        description="按 HTML、CSS、JavaScript 查看当前作品源码。"
+        divided
+      >
+        <el-tabs v-model="activeTab">
+          <el-tab-pane v-if="penData.htmlCode" label="HTML" name="html">
+            <pre class="code-block"><code>{{ penData.htmlCode }}</code></pre>
+          </el-tab-pane>
+          <el-tab-pane v-if="penData.cssCode" label="CSS" name="css">
+            <pre class="code-block"><code>{{ penData.cssCode }}</code></pre>
+          </el-tab-pane>
+          <el-tab-pane v-if="penData.jsCode" label="JavaScript" name="js">
+            <pre class="code-block"><code>{{ penData.jsCode }}</code></pre>
+          </el-tab-pane>
+        </el-tabs>
+      </CnSection>
+
+      <CnSection
+        v-else
+        class="locked-section"
+        title="源码权限"
+        description="该作品源码受 Fork 权限保护。"
+        divided
+      >
+        <div class="locked-tip">
+          <el-icon :size="48"><Lock /></el-icon>
+          <h3>{{ penData.codeViewMessage || '付费作品，Fork后可查看源码' }}</h3>
+          <p>Fork价格：{{ penData.forkPrice || 0 }} 积分</p>
+          <el-button type="primary" size="large" :loading="forking" @click="handleFork">
+            立即Fork
+          </el-button>
         </div>
-      </div>
+      </CnSection>
 
-      <!-- 评论区 -->
-      <div class="comment-section">
-        <h2 class="section-title">评论 ({{ penData.commentCount }})</h2>
-        
-        <!-- 发表评论 -->
+      <CnSection
+        class="comment-section"
+        :title="`评论（${penData.commentCount || 0}）`"
+        description="留下使用反馈、改进建议或实现讨论。"
+        divided
+      >
         <div class="comment-input">
           <el-input
             v-model="commentContent"
@@ -185,17 +190,11 @@
             maxlength="500"
             show-word-limit
           />
-          <el-button
-            type="primary"
-            @click="submitComment"
-            :loading="commenting"
-            style="margin-top: 10px"
-          >
+          <el-button type="primary" :loading="commenting" @click="submitComment">
             发表评论
           </el-button>
         </div>
 
-        <!-- 评论列表 -->
         <div class="comment-list" v-loading="loadingComments">
           <div
             v-for="comment in comments"
@@ -203,24 +202,36 @@
             class="comment-item"
           >
             <el-avatar :size="36">
-              {{ comment.userNickname?.charAt(0) }}
+              {{ comment.userNickname?.charAt(0) || 'U' }}
             </el-avatar>
             <div class="comment-content">
               <div class="comment-header">
-                <span class="comment-author">{{ comment.userNickname }}</span>
+                <span class="comment-author">{{ comment.userNickname || '匿名用户' }}</span>
                 <span class="comment-time">{{ formatTime(comment.createTime) }}</span>
               </div>
               <div class="comment-text">{{ comment.content }}</div>
             </div>
           </div>
 
-          <el-empty
+          <CnEmptyState
             v-if="!loadingComments && comments.length === 0"
-            description="暂无评论"
+            title="暂无评论"
+            description="成为第一个给这个作品留言的人。"
+            icon="CM"
+            size="sm"
+            surface="plain"
           />
         </div>
-      </div>
-    </div>
+      </CnSection>
+    </template>
+
+    <CnEmptyState
+      v-else-if="!loading"
+      title="作品不存在"
+      description="该作品可能已被删除，或当前链接不可访问。"
+      icon="404"
+      surface="panel"
+    />
 
     <!-- 全屏预览 -->
     <el-dialog
@@ -256,42 +267,92 @@
     <TransformDialog
       v-model="transformDialogVisible"
       source-type="codepen"
-      :source-id="penData?.id || Number(route.params.id)"
+      :source-id="sourceId"
       :source-title="penData?.title || ''"
       :default-tags="penData?.tags || []"
       @success="handleTransformSuccess"
     />
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { codepenApi } from '@/api/codepen'
 import { useUserStore } from '@/stores/user'
 import TransformDialog from '@/components/learning-assets/TransformDialog.vue'
+import { CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
 import {
-  Back, Edit, CopyDocument, Share, View, ChatDotRound,
-  Star, StarFilled, Collection, Lock, FullScreen
+  Back, Edit, CopyDocument, Share, Star, StarFilled, Collection, Lock, FullScreen
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
+interface CodePenDetail {
+  id: number | string
+  title: string
+  description?: string
+  htmlCode?: string
+  cssCode?: string
+  jsCode?: string
+  tags?: string[]
+  category?: string
+  isFree?: boolean | number
+  forkPrice?: number
+  canEdit?: boolean
+  canViewCode?: boolean
+  codeViewMessage?: string
+  userAvatar?: string
+  userNickname?: string
+  createTime?: string | number | Date
+  viewCount?: number
+  forkCount?: number
+  commentCount?: number
+  isLiked?: boolean
+  likeCount?: number
+  isCollected?: boolean
+  collectCount?: number
+}
+
+interface CodePenComment {
+  id: number | string
+  userNickname?: string
+  createTime?: string | number | Date
+  content: string
+}
+
+interface TransformRecord {
+  recordId: number | string
+}
+
+interface ForkCheckResult {
+  canFork: boolean
+  message?: string
+  isFree?: boolean
+  forkPrice?: number
+  authorName?: string
+}
+
+interface ForkResult {
+  forkPrice?: number
+  newPenId: number | string
+}
+
 // 页面数据
 const loading = ref(true)
-const penData = ref(null)
+const penData = ref<CodePenDetail | null>(null)
 const activeTab = ref('html')
-const previewFrame = ref(null)
-const fullscreenFrame = ref(null)
+const previewFrame = ref<HTMLIFrameElement | null>(null)
+const fullscreenFrame = ref<HTMLIFrameElement | null>(null)
 const fullscreenPreview = ref(false)
 const showShareDialog = ref(false)
 const transformDialogVisible = ref(false)
 
 // 评论相关
-const comments = ref([])
+const comments = ref<CodePenComment[]>([])
 const commentContent = ref('')
 const commenting = ref(false)
 const loadingComments = ref(false)
@@ -299,9 +360,16 @@ const loadingComments = ref(false)
 // Fork相关
 const forking = ref(false)
 
+const routePenId = computed(() => {
+  const id = route.params.id
+  return Array.isArray(id) ? id[0] : id
+})
+
+const sourceId = computed(() => penData.value?.id || Number(routePenId.value))
+
 // 分享链接
 const shareUrl = computed(() => {
-  return window.location.origin + `/codepen/${route.params.id}`
+  return window.location.origin + `/codepen/${routePenId.value}`
 })
 
 // 返回
@@ -311,14 +379,17 @@ const goBack = () => {
 
 // 编辑作品
 const editPen = () => {
+  if (!penData.value) return
   router.push(`/codepen/editor/${penData.value.id}`)
 }
 
 // Fork作品
 const handleFork = async () => {
+  if (!penData.value) return
+
   try {
     // 先检查价格和积分
-    const checkResult = await codepenApi.checkForkPrice(penData.value.id)
+    const checkResult = await codepenApi.checkForkPrice(penData.value.id) as ForkCheckResult
     
     if (!checkResult.canFork) {
       ElMessage.warning(checkResult.message || '积分不足')
@@ -339,9 +410,9 @@ const handleFork = async () => {
     }
 
     forking.value = true
-    const result = await codepenApi.forkPen(penData.value.id)
+    const result = await codepenApi.forkPen(penData.value.id) as ForkResult
 
-    if (result.forkPrice > 0) {
+    if ((result.forkPrice || 0) > 0) {
       ElMessage.success(`Fork成功！已支付 ${result.forkPrice} 积分`)
     } else {
       ElMessage.success('Fork成功！')
@@ -360,15 +431,17 @@ const handleFork = async () => {
 
 // 点赞/取消点赞
 const toggleLike = async () => {
+  if (!penData.value) return
+
   try {
     if (penData.value.isLiked) {
       await codepenApi.unlikePen(penData.value.id)
       penData.value.isLiked = false
-      penData.value.likeCount--
+      penData.value.likeCount = Math.max(0, (penData.value.likeCount || 0) - 1)
     } else {
       await codepenApi.likePen(penData.value.id)
       penData.value.isLiked = true
-      penData.value.likeCount++
+      penData.value.likeCount = (penData.value.likeCount || 0) + 1
     }
   } catch (error) {
     console.error('点赞操作失败:', error)
@@ -377,16 +450,18 @@ const toggleLike = async () => {
 
 // 收藏/取消收藏
 const toggleCollect = async () => {
+  if (!penData.value) return
+
   try {
     if (penData.value.isCollected) {
       await codepenApi.uncollectPen(penData.value.id)
       penData.value.isCollected = false
-      penData.value.collectCount--
+      penData.value.collectCount = Math.max(0, (penData.value.collectCount || 0) - 1)
       ElMessage.success('已取消收藏')
     } else {
       await codepenApi.collectPen(penData.value.id)
       penData.value.isCollected = true
-      penData.value.collectCount++
+      penData.value.collectCount = (penData.value.collectCount || 0) + 1
       ElMessage.success('收藏成功')
     }
   } catch (error) {
@@ -409,12 +484,14 @@ const openTransformDialog = () => {
   transformDialogVisible.value = true
 }
 
-const handleTransformSuccess = (record) => {
+const handleTransformSuccess = (record: TransformRecord) => {
   router.push(`/learning-assets?recordId=${record.recordId}`)
 }
 
 // 发表评论
 const submitComment = async () => {
+  if (!penData.value) return
+
   if (!commentContent.value.trim()) {
     ElMessage.warning('请输入评论内容')
     return
@@ -430,7 +507,7 @@ const submitComment = async () => {
     ElMessage.success('评论成功')
     commentContent.value = ''
     loadComments()
-    penData.value.commentCount++
+    penData.value.commentCount = (penData.value.commentCount || 0) + 1
   } catch (error) {
     console.error('评论失败:', error)
   } finally {
@@ -440,6 +517,8 @@ const submitComment = async () => {
 
 // 加载评论
 const loadComments = async () => {
+  if (!penData.value) return
+
   try {
     loadingComments.value = true
     comments.value = await codepenApi.getComments(penData.value.id)
@@ -482,11 +561,11 @@ const runCode = () => {
 }
 
 // 格式化时间
-const formatTime = (time) => {
+const formatTime = (time?: string | number | Date) => {
   if (!time) return ''
   const date = new Date(time)
   const now = new Date()
-  const diff = now - date
+  const diff = now.getTime() - date.getTime()
 
   if (diff < 60000) {
     return '刚刚'
@@ -505,8 +584,8 @@ const formatTime = (time) => {
 const loadPenData = async () => {
   try {
     loading.value = true
-    const id = route.params.id
-    penData.value = await codepenApi.getPenDetail(id)
+    const id = routePenId.value
+    penData.value = await codepenApi.getPenDetail(id) as CodePenDetail
     
     // 增加浏览数
     codepenApi.incrementView(id)
@@ -551,263 +630,39 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .codepen-detail {
-  min-height: 100vh;
-  background: #f5f5f5;
-
-  .detail-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-  }
-
-  .detail-header {
-    background: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-      flex: 1;
-
-      .pen-title {
-        font-size: 24px;
-        font-weight: 600;
-        color: #333;
-        margin: 0;
-      }
-    }
-
-    .header-right {
-      display: flex;
-      gap: 10px;
-    }
-  }
+  min-height: calc(100vh - 68px);
 
   .pen-meta {
-    background: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    gap: var(--cn-space-4);
 
     .author-info {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: var(--cn-space-3);
 
       .author-details {
         .author-name {
           font-size: 16px;
-          font-weight: 600;
-          color: #333;
+          font-weight: 650;
+          color: var(--cn-color-text-primary);
         }
 
         .pen-time {
           font-size: 13px;
-          color: #999;
-          margin-top: 4px;
+          color: var(--cn-color-text-tertiary);
+          margin-top: var(--cn-space-1);
         }
       }
-    }
-
-    .pen-stats {
-      display: flex;
-      gap: 20px;
-
-      .stat-item {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 14px;
-        color: #666;
-
-        .el-icon {
-          font-size: 18px;
-        }
-      }
-    }
-  }
-
-  .pen-info {
-    background: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-
-    .pen-description {
-      font-size: 15px;
-      line-height: 1.6;
-      color: #666;
-      margin: 0 0 15px 0;
     }
 
     .pen-tags {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
-    }
-  }
-
-  .pen-content {
-    .preview-section {
-      background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-
-      .section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 15px;
-
-        h2 {
-          font-size: 20px;
-          font-weight: 600;
-          color: #333;
-          margin: 0;
-        }
-      }
-
-      .preview-container {
-        width: 100%;
-        height: 500px;
-        border: 1px solid #e0e0e0;
-        border-radius: 4px;
-        overflow: hidden;
-
-        .preview-iframe {
-          width: 100%;
-          height: 100%;
-          border: none;
-        }
-      }
-    }
-
-    .code-section {
-      background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-
-      .section-header {
-        margin-bottom: 15px;
-
-        h2 {
-          font-size: 20px;
-          font-weight: 600;
-          color: #333;
-          margin: 0;
-        }
-      }
-
-      .code-block {
-        background: #f5f5f5;
-        padding: 15px;
-        border-radius: 4px;
-        overflow-x: auto;
-        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-        font-size: 14px;
-        line-height: 1.6;
-        color: #333;
-        margin: 0;
-      }
-    }
-
-    .locked-section {
-      .locked-tip {
-        text-align: center;
-        padding: 60px 20px;
-
-        .el-icon {
-          color: #999;
-          margin-bottom: 20px;
-        }
-
-        h3 {
-          font-size: 20px;
-          color: #666;
-          margin: 0 0 10px 0;
-        }
-
-        p {
-          font-size: 16px;
-          color: #999;
-          margin: 0 0 30px 0;
-        }
-      }
-    }
-  }
-
-  .comment-section {
-    background: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-
-    .section-title {
-      font-size: 20px;
-      font-weight: 600;
-      color: #333;
-      margin: 0 0 20px 0;
-    }
-
-    .comment-input {
-      margin-bottom: 30px;
-    }
-
-    .comment-list {
-      .comment-item {
-        display: flex;
-        gap: 12px;
-        padding: 15px 0;
-        border-bottom: 1px solid #f0f0f0;
-
-        &:last-child {
-          border-bottom: none;
-        }
-
-        .comment-content {
-          flex: 1;
-
-          .comment-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-
-            .comment-author {
-              font-size: 14px;
-              font-weight: 600;
-              color: #333;
-            }
-
-            .comment-time {
-              font-size: 12px;
-              color: #999;
-            }
-          }
-
-          .comment-text {
-            font-size: 14px;
-            line-height: 1.6;
-            color: #666;
-          }
-        }
-      }
+      justify-content: flex-end;
+      gap: var(--cn-space-2);
     }
   }
 
@@ -818,13 +673,155 @@ onMounted(() => {
   }
 
   .share-content {
-    padding: 20px 0;
+    padding: var(--cn-space-5) 0;
   }
 
-  // 收藏图标样式
   .collected {
-    color: #e6a23c !important;
+    color: var(--cn-color-warning) !important;
     transform: scale(1.1);
+  }
+}
+
+.detail-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
+}
+
+.preview-container {
+  width: 100%;
+  height: min(560px, 64vh);
+  overflow: hidden;
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface);
+}
+
+.preview-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: var(--cn-color-bg-surface);
+}
+
+.code-block {
+  max-height: 520px;
+  margin: 0;
+  overflow: auto;
+  padding: var(--cn-space-4);
+  border: 1px solid color-mix(in srgb, var(--cn-slate-700) 72%, transparent);
+  border-radius: var(--cn-radius-card);
+  background: color-mix(in srgb, var(--cn-slate-900) 96%, var(--cn-color-bg-surface));
+  color: var(--cn-slate-100);
+  font-family: Consolas, Monaco, 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.locked-tip {
+  display: grid;
+  justify-items: center;
+  gap: var(--cn-space-3);
+  padding: var(--cn-space-10) var(--cn-space-5);
+  text-align: center;
+
+  .el-icon {
+    color: var(--cn-color-text-tertiary);
+  }
+
+  h3 {
+    margin: 0;
+    color: var(--cn-color-text-primary);
+    font-size: 20px;
+    font-weight: 650;
+  }
+
+  p {
+    margin: 0 0 var(--cn-space-2);
+    color: var(--cn-color-text-secondary);
+    font-size: 15px;
+  }
+}
+
+.comment-input {
+  display: grid;
+  gap: var(--cn-space-3);
+  justify-items: start;
+  margin-bottom: var(--cn-space-6);
+}
+
+.comment-list {
+  min-height: 120px;
+}
+
+.comment-item {
+  display: flex;
+  gap: var(--cn-space-3);
+  padding: var(--cn-space-4) 0;
+  border-bottom: 1px solid var(--cn-color-border-subtle);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.comment-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--cn-space-3);
+  margin-bottom: var(--cn-space-2);
+}
+
+.comment-author {
+  color: var(--cn-color-text-primary);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.comment-time {
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.comment-text {
+  color: var(--cn-color-text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+@media (max-width: 992px) {
+  .detail-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .codepen-detail .pen-meta {
+    align-items: flex-start;
+    flex-direction: column;
+
+    .pen-tags {
+      justify-content: flex-start;
+    }
+  }
+}
+
+@media (max-width: 640px) {
+  .detail-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-container {
+    height: 420px;
+  }
+
+  .comment-header {
+    display: grid;
   }
 }
 </style>

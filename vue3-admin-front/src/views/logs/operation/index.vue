@@ -1,163 +1,118 @@
 <template>
-  <div class="operation-logs-container">
-    <h1 style="margin-bottom: 24px;">操作日志</h1>
-    
-    <!-- 查询表单 -->
-    <el-card style="margin-bottom: 20px;">
-      <el-form :model="queryForm" inline>
-        <el-form-item label="操作模块:">
-          <el-input 
-            v-model="queryForm.module" 
-            placeholder="请输入操作模块" 
-            clearable 
-            style="width: 160px;"
-          />
-        </el-form-item>
-        
-        <el-form-item label="操作类型:">
-          <el-select 
-            v-model="queryForm.operationType" 
-            placeholder="请选择操作类型" 
-            clearable 
-            style="width: 160px;"
-          >
-            <el-option label="查询" value="SELECT" />
-            <el-option label="新增" value="INSERT" />
-            <el-option label="修改" value="UPDATE" />
-            <el-option label="删除" value="DELETE" />
-            <el-option label="授权" value="GRANT" />
-            <el-option label="导出" value="EXPORT" />
-            <el-option label="导入" value="IMPORT" />
-            <el-option label="强退" value="FORCE" />
-            <el-option label="生成代码" value="GENCODE" />
-            <el-option label="清空数据" value="CLEAN" />
-            <el-option label="其它" value="OTHER" />
-          </el-select>
-        </el-form-item>
-        
-        <el-form-item label="操作人:">
-          <el-input 
-            v-model="queryForm.operatorName" 
-            placeholder="请输入操作人" 
-            clearable 
-            style="width: 160px;"
-          />
-        </el-form-item>
-        
-        <el-form-item label="操作状态:">
-          <el-select 
-            v-model="queryForm.status" 
-            placeholder="请选择操作状态" 
-            clearable 
-            style="width: 120px;"
-          >
-            <el-option label="成功" :value="0" />
-            <el-option label="失败" :value="1" />
-          </el-select>
-        </el-form-item>
-        
-        <el-form-item>
-          <el-button type="primary" @click="handleQuery" icon="Search">
-            查询
-          </el-button>
-          <el-button @click="handleReset" icon="Refresh">
-            重置
-          </el-button>
-          <el-button 
-            type="danger" 
-            @click="handleBatchDelete" 
-            :disabled="selectedRows.length === 0"
-            icon="Delete"
-          >
-            批量删除
-          </el-button>
-          <el-button type="warning" @click="showCleanDialog = true" icon="DeleteFilled">
-            清理日志
-          </el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
-    
-    <!-- 数据表格 -->
-    <el-card>
-      <el-table 
-        v-loading="loading" 
-        :data="tableData" 
-        stripe
+  <CnPage class="operation-logs-page" surface="transparent" max-width="1320px">
+    <CnPageHeader
+      title="操作日志"
+      description="审计后台操作模块、请求链路、执行状态和耗时，辅助追责与系统治理。"
+      eyebrow="Audit Operation"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand">操作审计</CnStatusTag>
+        <CnStatusTag type="neutral">共 {{ pagination.total }} 条</CnStatusTag>
+        <CnStatusTag v-if="selectedRows.length" type="warning">
+          已选择 {{ selectedRows.length }} 条
+        </CnStatusTag>
+      </template>
+
+      <template #actions>
+        <el-button :icon="Refresh" @click="getOperationLogs">刷新</el-button>
+        <el-button type="danger" :disabled="selectedRows.length === 0" :icon="Delete" @click="handleBatchDelete">
+          批量删除
+        </el-button>
+        <el-button type="warning" :icon="DeleteFilled" @click="showCleanDialog = true">清理日志</el-button>
+      </template>
+    </CnPageHeader>
+
+    <CnSection title="筛选条件" description="按操作模块、类型、操作人和执行状态定位日志。" divided>
+      <CnFilterForm
+        :model-value="queryForm"
+        :fields="filterFields"
+        :columns="4"
+        :loading="loading"
+        @update:model-value="handleQueryFormUpdate"
+        @search="handleQuery"
+        @reset="handleReset"
+      />
+    </CnSection>
+
+    <CnSection title="操作记录" :description="`共 ${pagination.total} 条操作审计记录`" divided>
+      <CnDataTable
+        :columns="tableColumns"
+        :data="tableData"
+        :loading="loading"
+        :pagination="tablePagination"
+        row-key="id"
         @selection-change="handleSelectionChange"
+        @page-change="handleCurrentChange"
+        @page-size-change="handleSizeChange"
       >
-        <el-table-column type="selection" width="50" />
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="module" label="操作模块" width="120" />
-        <el-table-column prop="operationTypeText" label="操作类型" width="100">
-          <template #default="{ row }">
-            <el-tag :type="getOperationTypeTagType(row.operationType)">
-              {{ row.operationTypeText }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="description" label="操作描述" width="150" />
-        <el-table-column prop="operatorName" label="操作人" width="120" />
-        <el-table-column prop="operatorIp" label="操作IP" width="140" />
-        <el-table-column prop="statusText" label="操作状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 0 ? 'success' : 'danger'">
-              {{ row.statusText }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="costTime" label="耗时(ms)" width="100" />
-        <el-table-column prop="operationTime" label="操作时间" width="180">
-          <template #default="{ row }">
-            {{ formatDateTime(row.operationTime) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="160" fixed="right">
-          <template #default="{ row }">
-            <el-button 
-              type="primary" 
-              size="small" 
-              @click="handleView(row)"
-              icon="View"
-            >
-              详情
+        <template #toolbar>
+          <CnToolbar title="审计列表" description="批量删除和清理操作会保留当前筛选视图。" align="center">
+            <template #meta>
+              <CnStatusTag type="success" size="sm">成功 {{ successCount }} 条</CnStatusTag>
+              <CnStatusTag type="danger" size="sm">失败 {{ failedCount }} 条</CnStatusTag>
+            </template>
+
+            <el-button :icon="Refresh" @click="getOperationLogs">刷新</el-button>
+            <el-button type="danger" :disabled="selectedRows.length === 0" :icon="Delete" @click="handleBatchDelete">
+              批量删除
             </el-button>
-            <el-button 
-              type="danger" 
-              size="small" 
-              @click="handleDelete(row)"
-              icon="Delete"
-            >
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      
-      <!-- 分页 -->
-      <div style="margin-top: 20px; text-align: right;">
-        <el-pagination
-          v-model:current-page="pagination.page"
-          v-model:page-size="pagination.size"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="pagination.total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
-      </div>
-    </el-card>
-    
-    <!-- 详情对话框 -->
+            <el-button type="warning" :icon="DeleteFilled" @click="showCleanDialog = true">清理日志</el-button>
+          </CnToolbar>
+        </template>
+
+        <template #operationType="{ row }">
+          <CnStatusTag :type="getOperationTypeTone(row.operationType)" size="sm">
+            {{ getOperationTypeText(row) }}
+          </CnStatusTag>
+        </template>
+
+        <template #status="{ row }">
+          <CnStatusTag :type="row.status === 0 ? 'success' : 'danger'" size="sm">
+            {{ getStatusText(row) }}
+          </CnStatusTag>
+        </template>
+
+        <template #costTime="{ row }">
+          {{ row.costTime ?? '-' }}ms
+        </template>
+
+        <template #operationTime="{ row }">
+          {{ formatDateTime(row.operationTime) }}
+        </template>
+
+        <template #actions="{ row }">
+          <div class="table-actions">
+            <el-button type="primary" size="small" :icon="View" @click="handleView(row)">详情</el-button>
+            <el-button type="danger" size="small" :icon="Delete" @click="handleDelete(row)">删除</el-button>
+          </div>
+        </template>
+
+        <template #empty>
+          <CnEmptyState
+            title="暂无操作日志"
+            description="当前筛选条件下没有匹配记录，可以重置筛选或稍后刷新。"
+            icon="OP"
+            surface="transparent"
+          >
+            <template #actions>
+              <el-button @click="handleReset">重置筛选</el-button>
+              <el-button type="primary" @click="getOperationLogs">刷新</el-button>
+            </template>
+          </CnEmptyState>
+        </template>
+      </CnDataTable>
+    </CnSection>
+
     <el-dialog v-model="showDetail" title="操作日志详情" width="800px">
       <el-descriptions :column="2" border v-if="currentRow">
         <el-descriptions-item label="日志ID">{{ currentRow.id }}</el-descriptions-item>
         <el-descriptions-item label="操作ID">{{ currentRow.operationId }}</el-descriptions-item>
         <el-descriptions-item label="操作模块">{{ currentRow.module }}</el-descriptions-item>
         <el-descriptions-item label="操作类型">
-          <el-tag :type="getOperationTypeTagType(currentRow.operationType)">
-            {{ currentRow.operationTypeText }}
-          </el-tag>
+          <CnStatusTag :type="getOperationTypeTone(currentRow.operationType)" size="sm">
+            {{ getOperationTypeText(currentRow) }}
+          </CnStatusTag>
         </el-descriptions-item>
         <el-descriptions-item label="操作描述" :span="2">{{ currentRow.description }}</el-descriptions-item>
         <el-descriptions-item label="请求方法">{{ currentRow.method }}</el-descriptions-item>
@@ -169,40 +124,24 @@
         <el-descriptions-item label="浏览器">{{ currentRow.browser }}</el-descriptions-item>
         <el-descriptions-item label="操作系统">{{ currentRow.os }}</el-descriptions-item>
         <el-descriptions-item label="操作状态">
-          <el-tag :type="currentRow.status === 0 ? 'success' : 'danger'">
-            {{ currentRow.statusText }}
-          </el-tag>
+          <CnStatusTag :type="currentRow.status === 0 ? 'success' : 'danger'" size="sm">
+            {{ getStatusText(currentRow) }}
+          </CnStatusTag>
         </el-descriptions-item>
         <el-descriptions-item label="耗时">{{ currentRow.costTime }}ms</el-descriptions-item>
         <el-descriptions-item label="操作时间" :span="2">{{ formatDateTime(currentRow.operationTime) }}</el-descriptions-item>
         <el-descriptions-item label="请求参数" :span="2" v-if="currentRow.requestParams">
-          <el-input 
-            :model-value="currentRow.requestParams" 
-            type="textarea" 
-            :rows="3" 
-            readonly
-          />
+          <el-input :model-value="currentRow.requestParams" type="textarea" :rows="3" readonly />
         </el-descriptions-item>
         <el-descriptions-item label="响应数据" :span="2" v-if="currentRow.responseData">
-          <el-input 
-            :model-value="currentRow.responseData" 
-            type="textarea" 
-            :rows="3" 
-            readonly
-          />
+          <el-input :model-value="currentRow.responseData" type="textarea" :rows="3" readonly />
         </el-descriptions-item>
         <el-descriptions-item label="错误信息" :span="2" v-if="currentRow.errorMsg">
-          <el-input 
-            :model-value="currentRow.errorMsg" 
-            type="textarea" 
-            :rows="2" 
-            readonly
-          />
+          <el-input :model-value="currentRow.errorMsg" type="textarea" :rows="2" readonly />
         </el-descriptions-item>
       </el-descriptions>
     </el-dialog>
-    
-    <!-- 清理日志对话框 -->
+
     <el-dialog v-model="showCleanDialog" title="清理操作日志" width="400px">
       <el-form :model="cleanForm" label-width="120px">
         <el-form-item label="清理类型:">
@@ -211,85 +150,173 @@
             <el-radio label="days">按天数清理</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item 
-          label="保留天数:" 
-          v-if="cleanForm.type === 'days'"
-        >
-          <el-input-number 
-            v-model="cleanForm.days" 
-            :min="1" 
-            :max="365" 
-            placeholder="请输入保留天数"
-          />
-          <div style="color: #999; font-size: 12px; margin-top: 5px;">
-            将删除 {{ cleanForm.days }} 天前的日志
+        <el-form-item label="保留天数:" v-if="cleanForm.type === 'days'">
+          <div class="clean-days-field">
+            <el-input-number v-model="cleanForm.days" :min="1" :max="365" placeholder="请输入保留天数" />
+            <span>将删除 {{ cleanForm.days }} 天前的日志</span>
           </div>
         </el-form-item>
       </el-form>
-      
+
       <template #footer>
         <el-button @click="showCleanDialog = false">取消</el-button>
         <el-button type="danger" @click="handleClean">确定清理</el-button>
       </template>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Delete, DeleteFilled, Refresh, View } from '@element-plus/icons-vue'
 import { logApi } from '@/api/log'
+import {
+  CnDataTable,
+  CnEmptyState,
+  CnFilterForm,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatusTag,
+  CnToolbar
+} from '@/design-system'
+import type {
+  CnBreadcrumbItem,
+  CnFilterField,
+  CnPagination,
+  CnTableColumn,
+  CnTone
+} from '@/design-system'
 
-// 响应式数据
+interface OperationLogRecord {
+  id: number
+  operationId?: string
+  module?: string
+  operationType?: string
+  operationTypeText?: string
+  description?: string
+  method?: string
+  requestUri?: string
+  requestMethod?: string
+  operatorName?: string
+  operatorIp?: string
+  operationLocation?: string
+  browser?: string
+  os?: string
+  status?: number
+  statusText?: string
+  costTime?: number
+  operationTime?: string
+  requestParams?: string
+  responseData?: string
+  errorMsg?: string
+}
+
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '日志管理' }, { label: '操作日志' }]
+
 const loading = ref(false)
-const tableData = ref([])
-const selectedRows = ref([])
+const tableData = ref<OperationLogRecord[]>([])
+const selectedRows = ref<OperationLogRecord[]>([])
 const showDetail = ref(false)
 const showCleanDialog = ref(false)
-const currentRow = ref(null)
+const currentRow = ref<OperationLogRecord | null>(null)
 
-// 查询表单
-const queryForm = reactive({
+const queryForm = reactive<{
+  module: string
+  operationType: string
+  operatorName: string
+  status: number | null
+}>({
   module: '',
   operationType: '',
   operatorName: '',
-  status: null,
+  status: null
 })
 
-// 分页信息
 const pagination = reactive({
   page: 1,
   size: 10,
-  total: 0,
+  total: 0
 })
 
-// 清理表单
 const cleanForm = reactive({
   type: 'days',
-  days: 30,
+  days: 30
 })
 
-// 页面加载时获取数据
+const operationTypeOptions = [
+  { label: '查询', value: 'SELECT' },
+  { label: '新增', value: 'INSERT' },
+  { label: '修改', value: 'UPDATE' },
+  { label: '删除', value: 'DELETE' },
+  { label: '授权', value: 'GRANT' },
+  { label: '导出', value: 'EXPORT' },
+  { label: '导入', value: 'IMPORT' },
+  { label: '强退', value: 'FORCE' },
+  { label: '生成代码', value: 'GENCODE' },
+  { label: '清空数据', value: 'CLEAN' },
+  { label: '其它', value: 'OTHER' }
+]
+
+const filterFields: CnFilterField[] = [
+  { prop: 'module', label: '操作模块', type: 'input', placeholder: '请输入操作模块' },
+  { prop: 'operationType', label: '操作类型', type: 'select', placeholder: '请选择操作类型', options: operationTypeOptions },
+  { prop: 'operatorName', label: '操作人', type: 'input', placeholder: '请输入操作人' },
+  {
+    prop: 'status',
+    label: '操作状态',
+    type: 'select',
+    placeholder: '请选择操作状态',
+    options: [
+      { label: '成功', value: 0 },
+      { label: '失败', value: 1 }
+    ]
+  }
+]
+
+const tableColumns: CnTableColumn<OperationLogRecord>[] = [
+  { type: 'selection', width: 52 },
+  { prop: 'id', label: 'ID', width: 80 },
+  { prop: 'module', label: '操作模块', minWidth: 120, showOverflowTooltip: true },
+  { prop: 'operationType', label: '操作类型', width: 110, slot: 'operationType' },
+  { prop: 'description', label: '操作描述', minWidth: 160, showOverflowTooltip: true },
+  { prop: 'operatorName', label: '操作人', minWidth: 120 },
+  { prop: 'operatorIp', label: '操作 IP', minWidth: 140 },
+  { prop: 'status', label: '操作状态', width: 110, slot: 'status' },
+  { prop: 'costTime', label: '耗时', width: 100, slot: 'costTime' },
+  { prop: 'operationTime', label: '操作时间', width: 180, slot: 'operationTime' },
+  { label: '操作', width: 160, fixed: 'right', slot: 'actions' }
+]
+
+const tablePagination = computed<CnPagination>(() => ({
+  page: pagination.page,
+  pageSize: pagination.size,
+  total: pagination.total,
+  pageSizes: [10, 20, 50, 100]
+}))
+
+const successCount = computed(() => tableData.value.filter((item) => item.status === 0).length)
+const failedCount = computed(() => tableData.value.filter((item) => item.status === 1).length)
+
 onMounted(() => {
   getOperationLogs()
 })
 
-// 获取操作日志数据
 const getOperationLogs = async () => {
   try {
     loading.value = true
-    
+
     const params = {
       ...queryForm,
       pageNum: pagination.page,
-      pageSize: pagination.size,
+      pageSize: pagination.size
     }
-    
+
     const result = await logApi.getOperationLogs(params)
-    
+
     tableData.value = result.records || []
     pagination.total = result.total || 0
-    
   } catch (error) {
     console.error('获取操作日志失败:', error)
     ElMessage.error('获取操作日志失败')
@@ -298,26 +325,27 @@ const getOperationLogs = async () => {
   }
 }
 
-// 查询
 const handleQuery = () => {
   pagination.page = 1
   getOperationLogs()
 }
 
-// 重置
 const handleReset = () => {
   Object.assign(queryForm, {
     module: '',
     operationType: '',
     operatorName: '',
-    status: null,
+    status: null
   })
   pagination.page = 1
   getOperationLogs()
 }
 
-// 查看详情
-const handleView = async (row) => {
+const handleQueryFormUpdate = (value: Record<string, unknown>) => {
+  Object.assign(queryForm, value)
+}
+
+const handleView = async (row: OperationLogRecord) => {
   try {
     const result = await logApi.getOperationLogById(row.id)
     currentRow.value = result
@@ -328,24 +356,18 @@ const handleView = async (row) => {
   }
 }
 
-// 删除单条记录
-const handleDelete = async (row) => {
+const handleDelete = async (row: OperationLogRecord) => {
   try {
-    await ElMessageBox.confirm(
-      `确定要删除这条操作日志吗？`,
-      '确认删除',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    )
-    
+    await ElMessageBox.confirm('确定要删除这条操作日志吗？', '确认删除', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
     await logApi.deleteOperationLogs([row.id])
-    
+
     ElMessage.success('删除成功')
     getOperationLogs()
-    
   } catch (error) {
     if (error !== 'cancel') {
       console.error('删除操作日志失败:', error)
@@ -354,30 +376,24 @@ const handleDelete = async (row) => {
   }
 }
 
-// 批量删除
 const handleBatchDelete = async () => {
   if (selectedRows.value.length === 0) {
     ElMessage.warning('请选择要删除的记录')
     return
   }
-  
+
   try {
-    await ElMessageBox.confirm(
-      `确定要删除选中的 ${selectedRows.value.length} 条操作日志吗？`,
-      '确认批量删除',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    )
-    
-    const ids = selectedRows.value.map(row => row.id)
+    await ElMessageBox.confirm(`确定要删除选中的 ${selectedRows.value.length} 条操作日志吗？`, '确认批量删除', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
+    const ids = selectedRows.value.map((row) => row.id)
     await logApi.deleteOperationLogs(ids)
-    
+
     ElMessage.success('批量删除成功')
     getOperationLogs()
-    
   } catch (error) {
     if (error !== 'cancel') {
       console.error('批量删除操作日志失败:', error)
@@ -386,32 +402,28 @@ const handleBatchDelete = async () => {
   }
 }
 
-// 清理日志
 const handleClean = async () => {
   try {
-    let confirmText = ''
-    if (cleanForm.type === 'all') {
-      confirmText = '确定要清空所有操作日志吗？此操作不可恢复！'
-    } else {
-      confirmText = `确定要清理 ${cleanForm.days} 天前的操作日志吗？此操作不可恢复！`
-    }
-    
+    const confirmText =
+      cleanForm.type === 'all'
+        ? '确定要清空所有操作日志吗？此操作不可恢复！'
+        : `确定要清理 ${cleanForm.days} 天前的操作日志吗？此操作不可恢复！`
+
     await ElMessageBox.confirm(confirmText, '警告', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
-      type: 'warning',
+      type: 'warning'
     })
-    
+
     if (cleanForm.type === 'all') {
       await logApi.clearOperationLogs()
     } else {
       await logApi.cleanOperationLogs(cleanForm.days)
     }
-    
+
     ElMessage.success('清理成功')
     showCleanDialog.value = false
     getOperationLogs()
-    
   } catch (error) {
     if (error !== 'cancel') {
       console.error('清理操作日志失败:', error)
@@ -420,49 +432,77 @@ const handleClean = async () => {
   }
 }
 
-// 选择变化
-const handleSelectionChange = (selection) => {
+const handleSelectionChange = (selection: OperationLogRecord[]) => {
   selectedRows.value = selection
 }
 
-// 分页大小变化
-const handleSizeChange = (size) => {
+const handleSizeChange = (size: number) => {
   pagination.size = size
   pagination.page = 1
   getOperationLogs()
 }
 
-// 页码变化
-const handleCurrentChange = (page) => {
+const handleCurrentChange = (page: number) => {
   pagination.page = page
   getOperationLogs()
 }
 
-// 获取操作类型标签颜色
-const getOperationTypeTagType = (operationType) => {
-  const typeMap = {
-    'SELECT': '',
-    'INSERT': 'success',
-    'UPDATE': 'warning',
-    'DELETE': 'danger',
-    'GRANT': 'info',
-    'EXPORT': 'primary',
-    'IMPORT': 'primary',
-    'FORCE': 'danger',
-    'GENCODE': 'success',
-    'CLEAN': 'danger',
-    'OTHER': ''
+const getOperationTypeTone = (operationType?: string): CnTone => {
+  const typeMap: Record<string, CnTone> = {
+    SELECT: 'neutral',
+    INSERT: 'success',
+    UPDATE: 'warning',
+    DELETE: 'danger',
+    GRANT: 'info',
+    EXPORT: 'brand',
+    IMPORT: 'brand',
+    FORCE: 'danger',
+    GENCODE: 'success',
+    CLEAN: 'danger',
+    OTHER: 'neutral'
   }
-  return typeMap[operationType] || ''
+  return typeMap[operationType || ''] || 'neutral'
 }
 
-// 格式化日期时间
-const formatDateTime = (dateTime) => {
-  if (!dateTime) return '—'
+const getOperationTypeText = (row: OperationLogRecord) => {
+  if (row.operationTypeText) return row.operationTypeText
+  return operationTypeOptions.find((item) => item.value === row.operationType)?.label || row.operationType || '-'
+}
+
+const getStatusText = (row: OperationLogRecord) => {
+  if (row.statusText) return row.statusText
+  return row.status === 0 ? '成功' : '失败'
+}
+
+const formatDateTime = (dateTime?: string) => {
+  if (!dateTime) return '-'
   return new Date(dateTime).toLocaleString()
 }
 </script>
 
 <style scoped>
-/* 移除多余的padding，使用布局统一的样式 */
-</style> 
+.operation-logs-page {
+  min-height: 100%;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
+}
+
+.table-actions .el-button {
+  margin-left: 0;
+}
+
+.clean-days-field {
+  display: grid;
+  gap: var(--cn-space-2);
+}
+
+.clean-days-field span {
+  color: var(--cn-color-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+</style>

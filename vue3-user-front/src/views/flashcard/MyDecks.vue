@@ -1,52 +1,94 @@
 <template>
-  <div class="my-decks">
-    <div class="page-header">
-      <div class="header-left">
-        <el-button :icon="ArrowLeft" text @click="$router.push('/flashcard')">返回</el-button>
-        <h1 class="page-title">我的卡组</h1>
-        <el-badge :value="deckList.length" class="deck-count" />
-      </div>
-      <div class="header-right">
-        <el-button type="primary" :icon="Plus" @click="goToCreate">创建卡组</el-button>
-      </div>
-    </div>
-
-    <div v-loading="loading" class="deck-list">
-      <DeckCard 
-        v-for="deck in deckList" 
-        :key="deck.id"
-        :deck="deck"
-        :show-progress="true"
-        @click="goToDeckDetail(deck)"
-      />
-    </div>
-
-    <el-empty 
-      v-if="!loading && deckList.length === 0" 
-      description="还没有卡组，创建一个吧"
-      :image-size="150"
+  <CnPage class="my-decks-page" max-width="1180px" full-height>
+    <CnPageHeader
+      title="我的卡组"
+      description="管理自己创建或收藏的闪卡卡组，继续编辑、学习或进入详情。"
+      eyebrow="MY FLASHCARD DECKS"
+      :breadcrumbs="[{ label: '闪卡记忆', to: '/flashcard' }, { label: '我的卡组' }]"
     >
-      <el-button type="primary" @click="goToCreate">创建第一个卡组</el-button>
-    </el-empty>
-  </div>
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">共 {{ deckList.length }} 个卡组</CnStatusTag>
+        <CnStatusTag type="success" size="sm" subtle>显示学习进度</CnStatusTag>
+      </template>
+
+      <template #actions>
+        <el-button :icon="ArrowLeft" @click="router.push('/flashcard')">返回</el-button>
+        <el-button type="primary" :icon="Plus" @click="goToCreate">创建卡组</el-button>
+      </template>
+    </CnPageHeader>
+
+    <div class="summary-grid">
+      <CnStatCard title="我的卡组" :value="deckList.length" description="当前账户下的卡组数量" tone="brand" :loading="loading" />
+      <CnStatCard title="总卡片" :value="totalCards" description="卡组内卡片总量" tone="info" :loading="loading" />
+      <CnStatCard title="待复习" :value="totalDue" description="当前待复习卡片" tone="warning" :loading="loading" />
+    </div>
+
+    <CnSection title="卡组列表" description="点击卡组进入详情，继续管理卡片或启动学习。" divided>
+      <template #actions>
+        <el-button type="primary" :icon="Plus" @click="goToCreate">新建卡组</el-button>
+      </template>
+
+      <div v-loading="loading" class="deck-shell">
+        <div v-if="deckList.length" class="deck-list">
+          <DeckCard
+            v-for="deck in deckList"
+            :key="deck.id"
+            :deck="deck"
+            :show-progress="true"
+            @click="goToDeckDetail(deck)"
+          />
+        </div>
+
+        <CnEmptyState
+          v-else-if="!loading"
+          title="还没有卡组"
+          description="创建一个卡组，把面试题、知识点或错题沉淀成长期记忆材料。"
+          icon="MD"
+          surface="transparent"
+          size="sm"
+        >
+          <template #actions>
+            <el-button type="primary" :icon="Plus" @click="goToCreate">创建第一个卡组</el-button>
+          </template>
+        </CnEmptyState>
+      </div>
+    </CnSection>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, Plus } from '@element-plus/icons-vue'
+import {
+  CnEmptyState,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag
+} from '@/design-system'
 import { flashcardApi } from '@/api/flashcard'
 import DeckCard from './components/DeckCard.vue'
 
+interface DeckItem extends Record<string, unknown> {
+  id: number | string
+  cardCount?: number
+  dueCount?: number
+}
+
 const router = useRouter()
 const loading = ref(false)
-const deckList = ref([])
+const deckList = ref<DeckItem[]>([])
+
+const totalCards = computed(() => deckList.value.reduce((total, deck) => total + Number(deck.cardCount || 0), 0))
+const totalDue = computed(() => deckList.value.reduce((total, deck) => total + Number(deck.dueCount || 0), 0))
 
 const loadMyDecks = async () => {
   loading.value = true
   try {
-    const data = await flashcardApi.getMyDecks()
+    const data = (await flashcardApi.getMyDecks()) as DeckItem[]
     deckList.value = data || []
   } catch (error) {
     console.error('加载卡组失败:', error)
@@ -60,7 +102,7 @@ const goToCreate = () => {
   router.push('/flashcard/deck/create')
 }
 
-const goToDeckDetail = (deck) => {
+const goToDeckDetail = (deck: DeckItem) => {
   router.push(`/flashcard/deck/${deck.id}`)
 }
 
@@ -69,65 +111,41 @@ onMounted(() => {
 })
 </script>
 
-<style lang="scss" scoped>
-.my-decks {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px;
+<style scoped>
+.my-decks-page {
+  min-height: calc(100vh - 68px);
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  
-  .header-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    
-    .page-title {
-      font-size: 24px;
-      font-weight: 600;
-      margin: 0;
-      color: var(--el-text-color-primary);
-    }
-    
-    .deck-count {
-      :deep(.el-badge__content) {
-        font-size: 12px;
-      }
-    }
-  }
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cn-space-4);
+}
+
+.deck-shell {
+  min-height: 220px;
 }
 
 .deck-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
-  min-height: 200px;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: var(--cn-space-4);
+}
+
+:deep(.deck-card) {
+  border-color: var(--cn-card-border);
+  border-radius: var(--cn-radius-panel);
+  background: var(--cn-card-bg);
+  box-shadow: var(--cn-card-shadow);
+}
+
+@media (max-width: 820px) {
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
-  .my-decks {
-    padding: 16px;
-  }
-  
-  .page-header {
-    flex-direction: column;
-    gap: 16px;
-    align-items: flex-start;
-    
-    .header-right {
-      width: 100%;
-      
-      .el-button {
-        width: 100%;
-      }
-    }
-  }
-  
   .deck-list {
     grid-template-columns: 1fr;
   }

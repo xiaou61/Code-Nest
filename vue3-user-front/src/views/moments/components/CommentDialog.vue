@@ -22,6 +22,10 @@
 
     <el-divider />
 
+    <div class="dialog-meta">
+      <CnStatusTag type="info" size="sm">最多 200 字</CnStatusTag>
+    </div>
+
     <el-form :model="form" :rules="rules" ref="formRef" label-width="0">
       <el-form-item prop="content">
         <el-input
@@ -51,28 +55,45 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
+import { CnStatusTag } from '@/design-system'
 import { publishComment } from '@/api/moment'
 import EmojiPicker from '@/components/EmojiPicker.vue'
 
-const props = defineProps({
-  modelValue: {
-    type: Boolean,
-    default: false
-  },
-  moment: {
-    type: Object,
-    default: null
-  }
+interface MomentPreview {
+  id: number
+  content?: string
+  createTime?: string
+  userAvatar?: string
+  userNickname?: string
+}
+
+interface CommentResult {
+  id: number
+  content: string
+  createTime: string
+  canDelete: boolean
+}
+
+const props = withDefaults(defineProps<{
+  modelValue?: boolean
+  moment?: MomentPreview | null
+}>(), {
+  modelValue: false,
+  moment: null
 })
 
-const emit = defineEmits(['update:modelValue', 'commented'])
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: boolean): void
+  (e: 'commented', comment: CommentResult): void
+}>()
 
 // 响应式数据
-const formRef = ref(null)
-const textareaRef = ref(null)
+const formRef = ref<FormInstance | null>(null)
+const textareaRef = ref()
 const commenting = ref(false)
 
 // 表单数据
@@ -81,7 +102,7 @@ const form = reactive({
 })
 
 // 表单验证规则
-const rules = {
+const rules: FormRules = {
   content: [
     { required: true, message: '请输入评论内容', trigger: 'blur' },
     { min: 1, max: 200, message: '评论长度应在1-200字符之间', trigger: 'blur' }
@@ -128,7 +149,7 @@ const handleComment = async () => {
       content: form.content
     }
     
-    const commentId = await publishComment(data)
+    const commentId = await publishComment(data) as number
     
     ElMessage.success('评论发表成功！')
     
@@ -143,7 +164,7 @@ const handleComment = async () => {
     emit('commented', comment)
     visible.value = false
   } catch (error) {
-    if (error.message) {
+    if (error instanceof Error && error.message) {
       ElMessage.error('评论发表失败：' + error.message)
     }
   } finally {
@@ -152,7 +173,7 @@ const handleComment = async () => {
 }
 
 // 插入表情
-const insertEmoji = (emoji) => {
+const insertEmoji = (emoji: string) => {
   const textarea = textareaRef.value?.$refs?.textarea
   if (textarea) {
     const start = textarea.selectionStart
@@ -173,97 +194,91 @@ const insertEmoji = (emoji) => {
 </script>
 
 <style scoped>
-/* 对话框装饰 */
 :deep(.el-dialog) {
-  border-radius: 16px;
+  border-radius: var(--cn-radius-panel);
   overflow: hidden;
+  background: var(--cn-color-bg-surface);
 }
 
 :deep(.el-dialog__header) {
-  background: linear-gradient(135deg, #f0f4ff 0%, #f5f0ff 50%, #fff5f7 100%);
-  border-bottom: 1px solid #e3edfa;
-  padding: 16px 20px;
+  background: var(--cn-color-bg-surface-muted);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
+  padding: var(--cn-space-4) var(--cn-space-5);
   margin: 0;
 }
 
 :deep(.el-dialog__title) {
   font-weight: 700;
-  color: var(--cn-text-primary, #1a2233);
+  color: var(--cn-color-text-primary);
 }
 
 :deep(.el-dialog__body) {
-  padding: 16px 20px;
+  padding: var(--cn-space-4) var(--cn-space-5);
 }
 
 :deep(.el-dialog__footer) {
-  padding: 12px 20px 16px;
-  border-top: 1px solid #e8eef8;
+  padding: var(--cn-space-3) var(--cn-space-5) var(--cn-space-4);
+  border-top: 1px solid var(--cn-color-border-subtle);
 }
 
-/* textarea 美化 */
 :deep(.el-textarea__inner) {
-  border-radius: 10px;
-  border-color: #d7e4f8;
-  transition: all 0.25s;
+  border-radius: var(--cn-radius-control);
+  border-color: var(--cn-color-border);
+  transition:
+    border-color var(--cn-motion-fast) var(--cn-ease-out),
+    box-shadow var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 :deep(.el-textarea__inner:focus) {
-  border-color: #6c63ff;
-  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.1);
-}
-
-/* 按钮美化 */
-:deep(.el-button--primary) {
-  background: linear-gradient(135deg, #6c63ff 0%, #4f46e5 100%);
-  border: none;
-  border-radius: 10px;
-  font-weight: 600;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
-}
-
-:deep(.el-button--primary:hover) {
-  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35);
-  transform: translateY(-1px);
+  border-color: var(--cn-color-brand-primary);
+  box-shadow: 0 0 0 3px var(--cn-color-focus-ring);
 }
 
 .moment-preview {
-  background: #faf9ff;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 10px;
-  border-left: 3px solid #d4ccff;
+  background: var(--cn-color-bg-surface-muted);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-left: 3px solid var(--cn-color-brand-primary);
+  border-radius: var(--cn-radius-card);
+  padding: var(--cn-space-4);
+  margin-bottom: var(--cn-space-3);
 }
 
 .user-info {
   display: flex;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: var(--cn-space-3);
 }
 
 .user-detail {
-  margin-left: 10px;
+  margin-left: var(--cn-space-3);
 }
 
 .user-name {
   font-weight: 600;
-  color: #6c63ff;
+  color: var(--cn-color-brand-primary);
   font-size: 14px;
 }
 
 .publish-time {
-  color: #8ea0bd;
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
-  margin-top: 2px;
+  margin-top: var(--cn-space-1);
 }
 
 .moment-content {
-  color: var(--cn-text-primary, #1a2233);
+  color: var(--cn-color-text-primary);
   line-height: 1.6;
   font-size: 14px;
 }
 
+.dialog-meta {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--cn-space-3);
+}
+
 :deep(.el-divider) {
-  margin: 15px 0;
-  border-color: #e8eef8;
+  margin: var(--cn-space-4) 0;
+  border-color: var(--cn-color-border-subtle);
 }
 </style>

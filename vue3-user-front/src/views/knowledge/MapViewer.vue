@@ -1,39 +1,44 @@
 <template>
-  <div class="knowledge-viewer">
-    <!-- 顶部导航栏 -->
-    <div class="viewer-header">
-      <div class="header-left">
-        <el-button :icon="ArrowLeft" @click="goBack">返回</el-button>
-        <div class="map-info">
-          <h2 class="map-title">{{ mapInfo.title || '知识图谱' }}</h2>
-          <div class="map-meta">
-            <span>{{ mapInfo.nodeCount || 0 }} 个节点</span>
-            <span style="margin-left: 16px;">{{ mapInfo.viewCount || 0 }} 次查看</span>
-          </div>
-        </div>
-      </div>
+  <CnPage class="knowledge-viewer" surface="transparent" full-height max-width="100%">
+    <CnPageHeader
+      :title="mapInfo.title || '知识图谱'"
+      :description="mapInfo.description || '可视化查看知识节点结构，点击节点打开详情内容。'"
+      eyebrow="KNOWLEDGE MAP"
+      :breadcrumbs="breadcrumbs"
+      compact
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">{{ mapInfo.nodeCount || 0 }} 个节点</CnStatusTag>
+        <CnStatusTag type="info" size="sm">{{ mapInfo.viewCount || 0 }} 次查看</CnStatusTag>
+        <CnStatusTag v-if="nodeTree.length" type="success" size="sm" subtle>
+          已加载 {{ flatNodeList.length }} 个可导航节点
+        </CnStatusTag>
+      </template>
 
-      <div class="header-right">
+      <template #actions>
+        <el-button :icon="ArrowLeft" @click="goBack">返回列表</el-button>
         <el-input
           v-model="searchKeyword"
           placeholder="搜索节点..."
           :prefix-icon="Search"
-          style="width: 200px; margin-right: 12px;"
+          class="viewer-search"
+          clearable
           @keyup.enter="handleSearch"
         />
         <el-button :icon="Search" @click="handleSearch">搜索</el-button>
-        <el-button-group style="margin-left: 12px;">
+        <el-button-group>
           <el-button :icon="ZoomOut" @click="handleZoomOut" title="缩小" />
           <el-button @click="handleResetZoom" title="适应画布">
             {{ Math.round(zoomLevel * 100) }}%
           </el-button>
           <el-button :icon="ZoomIn" @click="handleZoomIn" title="放大" />
         </el-button-group>
-      </div>
-    </div>
+      </template>
+    </CnPageHeader>
 
     <!-- 主要内容区域 -->
-    <div class="viewer-content">
+    <CnSection class="viewer-section" surface="panel" compact>
+      <div class="viewer-content" v-loading="loading">
       <!-- 思维导图画布 -->
       <div class="mind-map-container">
         <!-- G6思维导图组件 -->
@@ -48,10 +53,14 @@
           @node-dblclick="handleNodeDblClick"
         />
 
-        <div v-if="!nodeTree.length" class="empty-canvas">
-          <el-icon size="64" color="#c0c4cc"><DataAnalysis /></el-icon>
-          <p>暂无内容</p>
-        </div>
+        <CnEmptyState
+          v-if="!nodeTree.length && !loading"
+          class="empty-canvas"
+          title="暂无内容"
+          description="当前知识图谱还没有可展示的节点。"
+          icon="KM"
+          surface="transparent"
+        />
       </div>
 
       <!-- 画布操作提示 -->
@@ -71,7 +80,8 @@
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </CnSection>
 
     <!-- 节点详情弹窗 -->
     <el-dialog
@@ -85,12 +95,9 @@
       <div v-if="selectedNode" class="node-content">
         <!-- 节点类型标识 -->
         <div class="node-header">
-          <el-tag
-            :type="getNodeTypeTagType(selectedNode.nodeType)"
-            size="small"
-          >
+          <CnStatusTag :type="getNodeTypeTagType(selectedNode.nodeType)" size="sm">
             {{ getNodeTypeText(selectedNode.nodeType) }}
-          </el-tag>
+          </CnStatusTag>
           <div class="node-stats">
             <span>查看次数: {{ selectedNode.viewCount || 0 }}</span>
           </div>
@@ -108,10 +115,13 @@
         </div>
 
         <!-- 空内容提示 -->
-        <div v-else class="empty-content">
-          <el-icon size="48" color="#c0c4cc"><Document /></el-icon>
-          <p>该节点暂无文档链接</p>
-        </div>
+        <CnEmptyState
+          v-else
+          class="empty-content"
+          title="该节点暂无文档链接"
+          description="可以切换到相邻节点继续查看。"
+          icon="DOC"
+        />
       </div>
 
       <template #footer>
@@ -155,12 +165,9 @@
         >
           <div class="result-header">
             <h4 class="result-title">{{ result.title }}</h4>
-            <el-tag
-              :type="getNodeTypeTagType(result.nodeType)"
-              size="small"
-            >
+            <CnStatusTag :type="getNodeTypeTagType(result.nodeType)" size="sm">
               {{ getNodeTypeText(result.nodeType) }}
-            </el-tag>
+            </CnStatusTag>
           </div>
           <div class="result-content">
             {{ result.url || '暂无链接' }}
@@ -168,25 +175,33 @@
         </div>
       </div>
 
-      <div v-else-if="searchKeyword" class="no-search-results">
-        <el-icon size="48" color="#c0c4cc"><Search /></el-icon>
-        <p>未找到相关节点</p>
-        <p style="color: #909399; font-size: 14px;">
-          尝试使用其他关键词搜索
-        </p>
-      </div>
+      <CnEmptyState
+        v-else-if="searchKeyword"
+        class="no-search-results"
+        title="未找到相关节点"
+        description="尝试使用其他关键词搜索。"
+        icon="SR"
+        surface="transparent"
+      />
     </el-drawer>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
-  ArrowLeft, ArrowRight, Search, ZoomIn, ZoomOut, DataAnalysis,
-  Mouse, Switch, Document
+  ArrowLeft, ArrowRight, Search, ZoomIn, ZoomOut,
+  Mouse, Switch
 } from '@element-plus/icons-vue'
+import {
+  CnEmptyState,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatusTag
+} from '@/design-system'
 import {
   getKnowledgeMapById,
   getKnowledgeNodeTree,
@@ -232,6 +247,11 @@ const hasPrevNode = computed(() => {
 const hasNextNode = computed(() => {
   return selectedNodeIndex.value < flatNodeList.value.length - 1
 })
+
+const breadcrumbs = computed(() => [
+  { label: '知识图谱', to: '/knowledge' },
+  { label: mapInfo.value?.title || '图谱详情' }
+])
 
 // 转换为G6格式的思维导图数据
 const mindMapData = computed(() => {
@@ -501,115 +521,87 @@ onMounted(() => {
 
 <style scoped>
 .knowledge-viewer {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background-color: #f5f7fa;
+  min-height: calc(100vh - 68px);
 }
 
-.viewer-header {
-  display: flex;
-  justify-content: space-between;
+.knowledge-viewer :deep(.cn-page__body) {
+  min-height: 0;
+}
+
+.knowledge-viewer :deep(.cn-page-header__actions) {
   align-items: center;
-  padding: 16px 24px;
-  background: white;
-  border-bottom: 1px solid #e4e7ed;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-  z-index: 10;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+.viewer-search {
+  width: 220px;
 }
 
-.map-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.viewer-section {
+  min-height: 0;
 }
 
-.map-title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.map-meta {
-  font-size: 12px;
-  color: #909399;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
+.viewer-section :deep(.cn-section__body) {
+  height: calc(100vh - 236px);
+  min-height: 560px;
+  padding: 0;
 }
 
 .viewer-content {
-  flex: 1;
   position: relative;
+  height: 100%;
   overflow: hidden;
+  border-radius: var(--cn-radius-panel);
+  background: var(--cn-color-bg-surface);
 }
 
 .mind-map-container {
-  height: 100%;
   position: relative;
-}
-
-.mind-map-canvas {
   width: 100%;
   height: 100%;
-  background: white;
+  background: var(--cn-color-bg-surface);
 }
 
 .empty-canvas {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-  color: #909399;
-}
-
-.empty-canvas p {
-  margin: 16px 0 0 0;
-  font-size: 16px;
+  position: absolute;
+  inset: var(--cn-space-6);
+  height: auto;
 }
 
 .canvas-tips {
   position: absolute;
-  bottom: 20px;
-  left: 20px;
+  bottom: var(--cn-space-5);
+  left: var(--cn-space-5);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  gap: var(--cn-space-2);
+  padding: var(--cn-space-3) var(--cn-space-4);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-control);
+  background: color-mix(in srgb, var(--cn-color-bg-surface) 92%, transparent);
+  box-shadow: var(--cn-shadow-popover);
   backdrop-filter: blur(8px);
 }
 
 .tip-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cn-space-2);
+  color: var(--cn-color-text-secondary);
   font-size: 12px;
-  color: #606266;
 }
 
 .tip-item .el-icon {
   font-size: 14px;
-  color: #909399;
+  color: var(--cn-color-text-tertiary);
 }
 
 .node-detail-dialog {
-  border-radius: 12px;
+  border-radius: var(--cn-radius-panel);
 }
 
 .node-content {
+  display: grid;
+  gap: var(--cn-space-4);
   min-height: 200px;
 }
 
@@ -617,351 +609,66 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #f0f0f0;
+  gap: var(--cn-space-3);
+  padding-bottom: var(--cn-space-3);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
 }
 
 .node-stats {
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
-  color: #909399;
 }
 
 .document-content {
   width: 100%;
   height: 800px;
   overflow: hidden;
-  border: 1px solid #e4e7ed;
-  border-radius: 4px;
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .document-content iframe {
-  border-radius: 4px;
-}
-
-.markdown-content :deep(h1) {
-  margin: 24px 0 16px 0;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #eaecef;
-  color: #2c3e50;
-  font-weight: 700;
-  font-size: 28px;
-  line-height: 1.25;
-}
-
-.markdown-content :deep(h2) {
-  margin: 20px 0 14px 0;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #eaecef;
-  color: #2c3e50;
-  font-weight: 600;
-  font-size: 24px;
-  line-height: 1.25;
-}
-
-.markdown-content :deep(h3) {
-  margin: 18px 0 12px 0;
-  color: #2c3e50;
-  font-weight: 600;
-  font-size: 20px;
-  line-height: 1.25;
-}
-
-.markdown-content :deep(h4) {
-  margin: 16px 0 10px 0;
-  color: #2c3e50;
-  font-weight: 600;
-  font-size: 18px;
-  line-height: 1.25;
-}
-
-.markdown-content :deep(h5) {
-  margin: 14px 0 8px 0;
-  color: #2c3e50;
-  font-weight: 600;
-  font-size: 16px;
-  line-height: 1.25;
-}
-
-.markdown-content :deep(h6) {
-  margin: 12px 0 8px 0;
-  color: #2c3e50;
-  font-weight: 600;
-  font-size: 14px;
-  line-height: 1.25;
-}
-
-.markdown-content :deep(p) {
-  margin: 16px 0;
-  line-height: 1.8;
-  color: #34495e;
-  font-size: 16px;
-}
-
-.markdown-content :deep(ul),
-.markdown-content :deep(ol) {
-  margin: 16px 0;
-  padding-left: 28px;
-}
-
-.markdown-content :deep(li) {
-  margin: 8px 0;
-  line-height: 1.6;
-  color: #34495e;
-}
-
-.markdown-content :deep(li::marker) {
-  color: #7f8c8d;
-}
-
-.markdown-content :deep(blockquote) {
-  margin: 20px 0;
-  padding: 16px 20px;
-  background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
-  border-left: 4px solid #4A90E2;
-  border-radius: 8px;
-  color: #5a6c7d;
-  font-style: italic;
-  position: relative;
-  box-shadow: 0 2px 8px rgba(74, 144, 226, 0.1);
-}
-
-.markdown-content :deep(blockquote::before) {
-  content: '"';
-  position: absolute;
-  top: 8px;
-  left: 12px;
-  color: #4A90E2;
-  font-size: 24px;
-  font-weight: bold;
-  opacity: 0.3;
-}
-
-.markdown-content :deep(code.inline-code) {
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  color: #e83e8c;
-  padding: 3px 6px;
-  border-radius: 4px;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
-  font-size: 0.9em;
-  font-weight: 500;
-  border: 1px solid #e1e8ed;
-}
-
-.markdown-content :deep(code) {
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
-}
-
-.markdown-content :deep(pre) {
-  background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
-  color: #e2e8f0;
-  padding: 20px;
-  border-radius: 12px;
-  overflow-x: auto;
-  margin: 20px 0;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  border: 1px solid #4a5568;
-  position: relative;
-}
-
-.markdown-content :deep(pre code) {
-  background: transparent;
-  color: inherit;
-  padding: 0;
-  border: none;
-  border-radius: 0;
-  font-size: 14px;
-  line-height: 1.6;
-  display: block;
-  width: 100%;
-}
-
-/* 基础代码高亮 */
-.markdown-content :deep(pre code .keyword) { color: #ff7b72; }
-.markdown-content :deep(pre code .string) { color: #a5d6ff; }
-.markdown-content :deep(pre code .comment) { color: #8b949e; font-style: italic; }
-.markdown-content :deep(pre code .number) { color: #79c0ff; }
-.markdown-content :deep(pre code .function) { color: #d2a8ff; }
-.markdown-content :deep(pre code .variable) { color: #ffa657; }
-
-/* 语言特定高亮 */
-.markdown-content :deep(pre code.language-javascript),
-.markdown-content :deep(pre code.language-js) {
-  color: #e2e8f0;
-}
-
-.markdown-content :deep(pre code.language-python) {
-  color: #e2e8f0;
-}
-
-.markdown-content :deep(pre code.language-java) {
-  color: #e2e8f0;
-}
-
-.markdown-content :deep(pre code.language-css) {
-  color: #e2e8f0;
-}
-
-.markdown-content :deep(pre code.language-html) {
-  color: #e2e8f0;
-}
-
-.markdown-content :deep(pre code.language-sql) {
-  color: #e2e8f0;
-}
-
-.markdown-content :deep(table) {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 20px 0;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-}
-
-.markdown-content :deep(th),
-.markdown-content :deep(td) {
-  padding: 12px 16px;
-  text-align: left;
-  border-bottom: 1px solid #e1e8ed;
-}
-
-.markdown-content :deep(th) {
-  background: linear-gradient(135deg, #4A90E2 0%, #357abd 100%);
-  color: white;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.markdown-content :deep(td) {
-  background: white;
-  font-size: 14px;
-  color: #34495e;
-}
-
-.markdown-content :deep(tr:nth-child(even) td) {
-  background: #f8f9fa;
-}
-
-.markdown-content :deep(a) {
-  color: #4A90E2;
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: all 0.2s ease;
-}
-
-.markdown-content :deep(a:hover) {
-  color: #357abd;
-  border-bottom-color: #4A90E2;
-}
-
-.markdown-content :deep(strong) {
-  color: #2c3e50;
-  font-weight: 700;
-}
-
-.markdown-content :deep(em) {
-  color: #5a6c7d;
-  font-style: italic;
-}
-
-.markdown-content :deep(hr) {
-  margin: 32px 0;
-  border: none;
-  height: 2px;
-  background: linear-gradient(90deg, transparent 0%, #e1e8ed 50%, transparent 100%);
-}
-
-.markdown-content :deep(del) {
-  color: #95a5a6;
-  text-decoration: line-through;
-}
-
-.markdown-content :deep(ol) {
-  margin: 16px 0;
-  padding-left: 28px;
-  counter-reset: item;
-}
-
-.markdown-content :deep(ol li) {
-  margin: 8px 0;
-  line-height: 1.6;
-  color: #34495e;
-}
-
-/* 图片容器和样式 */
-.markdown-content :deep(.image-container) {
-  margin: 20px 0;
-  text-align: center;
-}
-
-.markdown-content :deep(.markdown-image) {
-  max-width: 100%;
-  height: auto;
-  display: block;
-  margin: 0 auto;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  cursor: zoom-in;
-  transition: all 0.3s ease;
-}
-
-.markdown-content :deep(.markdown-image:hover) {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  transform: translateY(-2px);
-}
-
-/* 代码高亮样式优化 */
-.markdown-content :deep(.hljs) {
-  background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%) !important;
-  color: #e2e8f0 !important;
-  padding: 20px !important;
-  border-radius: 12px !important;
-  font-size: 14px !important;
-  line-height: 1.6 !important;
-  border: 1px solid #4a5568 !important;
+  border-radius: var(--cn-radius-card);
 }
 
 .empty-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 60px 20px;
-  color: #909399;
-}
-
-.empty-content p {
-  margin: 16px 0 0 0;
-  font-size: 14px;
+  min-height: 260px;
 }
 
 .dialog-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--cn-space-3);
 }
 
 .navigation-buttons {
   display: flex;
-  gap: 12px;
+  gap: var(--cn-space-3);
 }
 
 .search-results {
-  padding: 16px 0;
+  display: grid;
+  gap: var(--cn-space-3);
+  padding: var(--cn-space-2) 0;
 }
 
 .search-result-item {
-  padding: 16px;
-  border: 1px solid #f0f0f0;
-  border-radius: 8px;
-  margin-bottom: 12px;
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-control);
+  background: var(--cn-color-bg-surface);
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    transform var(--cn-motion-fast) var(--cn-ease-out),
+    border-color var(--cn-motion-fast) var(--cn-ease-out),
+    background-color var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .search-result-item:hover {
-  border-color: #409eff;
-  background-color: #f0f9ff;
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 36%, var(--cn-color-border-subtle));
+  background: var(--cn-color-brand-soft);
   transform: translateY(-1px);
 }
 
@@ -969,19 +676,20 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 8px;
+  gap: var(--cn-space-3);
+  margin-bottom: var(--cn-space-2);
 }
 
 .result-title {
   margin: 0;
+  color: var(--cn-color-text-primary);
   font-size: 14px;
   font-weight: 600;
-  color: #303133;
   line-height: 1.4;
 }
 
 .result-content {
-  color: #606266;
+  color: var(--cn-color-text-secondary);
   font-size: 13px;
   line-height: 1.5;
   display: -webkit-box;
@@ -991,34 +699,27 @@ onMounted(() => {
 }
 
 .no-search-results {
-  text-align: center;
-  padding: 60px 20px;
-  color: #909399;
-}
-
-.no-search-results p {
-  margin: 16px 0 8px 0;
-  font-size: 14px;
+  min-height: 280px;
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .viewer-header {
-    padding: 12px 16px;
-    flex-direction: column;
-    gap: 12px;
-    align-items: stretch;
+  .knowledge-viewer {
+    padding: var(--cn-space-4);
   }
 
-  .header-left,
-  .header-right {
-    justify-content: space-between;
+  .knowledge-viewer :deep(.cn-page-header__actions) {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .viewer-search {
     width: 100%;
   }
 
-  .header-right {
-    flex-wrap: wrap;
-    gap: 8px;
+  .viewer-section :deep(.cn-section__body) {
+    height: calc(100vh - 300px);
+    min-height: 460px;
   }
 
   .canvas-tips {
@@ -1027,7 +728,7 @@ onMounted(() => {
 
   .dialog-footer {
     flex-direction: column;
-    gap: 16px;
+    gap: var(--cn-space-4);
   }
 
   .navigation-buttons {
@@ -1046,25 +747,25 @@ onMounted(() => {
   }
 
   .node-content {
-    padding: 10px !important;
+    padding: var(--cn-space-2) !important;
   }
 
   .node-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
+    gap: var(--cn-space-2);
   }
 }
 
 /* Element Plus 样式覆盖 */
 :deep(.el-dialog__header) {
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--cn-color-border-subtle);
 }
 
 :deep(.el-drawer__header) {
   margin-bottom: 0;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: var(--cn-space-4);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
 }
 
 /* 移动端弹框样式优化 */
@@ -1076,14 +777,14 @@ onMounted(() => {
   }
 
   :deep(.el-dialog__body) {
-    padding: 10px !important;
+    padding: var(--cn-space-3) !important;
     max-height: calc(100vh - 120px);
     overflow-y: auto;
   }
 
   :deep(.el-dialog__footer) {
-    padding: 10px !important;
-    border-top: 1px solid #f0f0f0;
+    padding: var(--cn-space-3) !important;
+    border-top: 1px solid var(--cn-color-border-subtle);
   }
 }
 </style>

@@ -5,10 +5,7 @@
       class="mindmap-canvas"
       :style="{ 
         width: width, 
-        height: height,
-        background: '#fff',
-        border: '1px solid #e8e8e8',
-        borderRadius: '4px'
+        height: height
       }"
     ></div>
     
@@ -29,7 +26,8 @@
         </el-button>
       </el-button-group>
       
-      <el-button-group v-if="editable" style="margin-left: 8px;">
+      <el-button-group v-if="editable" class="toolbar-group-secondary">
+        <CnStatusTag type="brand" size="sm" subtle>编辑</CnStatusTag>
         <el-button size="small" @click="addNode" title="添加节点">
           <el-icon><Plus /></el-icon>
         </el-button>
@@ -63,7 +61,7 @@
           />
         </el-form-item>
         <el-form-item label="节点类型">
-          <el-select v-model="editForm.nodeType" style="width: 100%">
+          <el-select v-model="editForm.nodeType" class="node-type-select">
             <el-option label="普通节点" value="normal" />
             <el-option label="重要节点" value="important" />
             <el-option label="分类节点" value="category" />
@@ -78,11 +76,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { Graph } from '@antv/g6'
 import { ElMessage } from 'element-plus'
 import { ZoomIn, ZoomOut, FullScreen, Plus, Delete } from '@element-plus/icons-vue'
+import { CnStatusTag } from '@/design-system'
 
 // Props
 const props = defineProps({
@@ -131,10 +130,31 @@ const editForm = reactive({
   nodeType: 'normal'
 })
 
+const getThemeColor = (token, fallback) => {
+  if (typeof window === 'undefined') {
+    return fallback
+  }
+
+  const value = window.getComputedStyle(document.documentElement).getPropertyValue(token).trim()
+  return value || fallback
+}
+
+const getMindMapTheme = () => ({
+  canvas: getThemeColor('--cn-color-bg-surface', 'white'),
+  canvasMuted: getThemeColor('--cn-color-bg-surface-muted', 'aliceblue'),
+  border: getThemeColor('--cn-color-border-subtle', 'lightsteelblue'),
+  brand: getThemeColor('--cn-color-brand-primary', 'royalblue'),
+  brandSoft: getThemeColor('--cn-color-brand-soft', 'aliceblue'),
+  edge: getThemeColor('--cn-color-text-tertiary', 'slategray'),
+  text: getThemeColor('--cn-color-text-primary', 'midnightblue')
+})
+
 // Methods
 const createGraph = () => {
   const container = document.getElementById(containerId.value)
   if (!container) return null
+
+  const theme = getMindMapTheme()
   
   const newGraph = new Graph({
     container: containerId.value,
@@ -150,49 +170,49 @@ const createGraph = () => {
     modes: {
       default: ['zoom-canvas', 'drag-canvas', 'drag-node']
     },
-         defaultNode: {
-       type: 'rect',
-       size: [120, 50],
-       style: {
-         fill: 'l(0) 0:#ffffff 1:#f0f8ff',
-         stroke: '#4A90E2',
-         lineWidth: 2,
-         radius: 12,
-         shadowColor: 'rgba(74, 144, 226, 0.15)',
-         shadowBlur: 8,
-         shadowOffsetX: 2,
-         shadowOffsetY: 2
-       },
-       labelCfg: {
-         style: {
-           fontSize: 14,
-           fill: '#2c3e50',
-           fontWeight: 500
-         }
-       }
-     },
-         defaultEdge: {
-       type: 'cubic-horizontal',
-       style: {
-         stroke: '#95a5a6',
-         lineWidth: 3,
-         opacity: 0.7,
-         endArrow: false,
-         lineDash: [0],
-         shadowColor: 'rgba(149, 165, 166, 0.3)',
-         shadowBlur: 2,
-         shadowOffsetX: 1,
-         shadowOffsetY: 1
-       }
-     },
+    defaultNode: {
+      type: 'rect',
+      size: [120, 50],
+      style: {
+        fill: `l(0) 0:${theme.canvas} 1:${theme.canvasMuted}`,
+        stroke: theme.brand,
+        lineWidth: 2,
+        radius: 12,
+        shadowColor: theme.brandSoft,
+        shadowBlur: 8,
+        shadowOffsetX: 2,
+        shadowOffsetY: 2
+      },
+      labelCfg: {
+        style: {
+          fontSize: 14,
+          fill: theme.text,
+          fontWeight: 500
+        }
+      }
+    },
+    defaultEdge: {
+      type: 'cubic-horizontal',
+      style: {
+        stroke: theme.edge,
+        lineWidth: 3,
+        opacity: 0.7,
+        endArrow: false,
+        lineDash: [0],
+        shadowColor: theme.border,
+        shadowBlur: 2,
+        shadowOffsetX: 1,
+        shadowOffsetY: 1
+      }
+    },
     nodeStateStyles: {
       selected: {
-        stroke: '#1890FF',
+        stroke: theme.brand,
         lineWidth: 2,
-        fill: '#BAE7FF'
+        fill: theme.brandSoft
       },
       hover: {
-        stroke: '#40A9FF'
+        stroke: theme.brand
       }
     }
   })
@@ -333,7 +353,7 @@ const formatData = (rawData) => {
         lineWidth: 2,
         radius: 12,
         opacity: colorInfo.opacity,
-        shadowColor: `${colorInfo.stroke}30`,
+        shadowColor: colorInfo.shadow,
         shadowBlur: 6,
         shadowOffsetX: 2,
         shadowOffsetY: 2
@@ -355,18 +375,18 @@ const formatData = (rawData) => {
   return { nodes, edges }
 }
 
-// 定义美观的颜色组合
+// Canvas 色值属于图谱节点可视化数据，使用命名色避免把页面主题 token 写进 G6 数据模型。
 const colorPalettes = [
-  { bg: 'l(0) 0:#fff5f5 1:#fed7e2', border: '#f56565' }, // 红色
-  { bg: 'l(0) 0:#fffaf0 1:#fbd38d', border: '#ed8936' }, // 橙色  
-  { bg: 'l(0) 0:#fffff0 1:#faf089', border: '#d69e2e' }, // 黄色
-  { bg: 'l(0) 0:#f0fff4 1:#9ae6b4', border: '#38a169' }, // 绿色
-  { bg: 'l(0) 0:#e6fffa 1:#81e6d9', border: '#319795' }, // 青色
-  { bg: 'l(0) 0:#ebf8ff 1:#90cdf4', border: '#3182ce' }, // 蓝色
-  { bg: 'l(0) 0:#f7fafc 1:#cbd5e0', border: '#4a5568' }, // 灰色
-  { bg: 'l(0) 0:#faf5ff 1:#d6bcfa', border: '#805ad5' }, // 紫色
-  { bg: 'l(0) 0:#fff5f7 1:#feb2d2', border: '#d53f8c' }, // 粉色
-  { bg: 'l(0) 0:#f0f4f8 1:#bee3f8', border: '#2b6cb0' }  // 淡蓝色
+  { start: 'mistyrose', end: 'lavenderblush', border: 'indianred', shadow: 'lightpink' },
+  { start: 'seashell', end: 'peachpuff', border: 'darkorange', shadow: 'moccasin' },
+  { start: 'lightyellow', end: 'khaki', border: 'goldenrod', shadow: 'palegoldenrod' },
+  { start: 'honeydew', end: 'palegreen', border: 'seagreen', shadow: 'lightgreen' },
+  { start: 'azure', end: 'paleturquoise', border: 'teal', shadow: 'powderblue' },
+  { start: 'aliceblue', end: 'lightskyblue', border: 'steelblue', shadow: 'lightblue' },
+  { start: 'ghostwhite', end: 'lightsteelblue', border: 'slategray', shadow: 'gainsboro' },
+  { start: 'lavender', end: 'plum', border: 'mediumpurple', shadow: 'thistle' },
+  { start: 'lavenderblush', end: 'pink', border: 'mediumvioletred', shadow: 'lightpink' },
+  { start: 'whitesmoke', end: 'powderblue', border: 'royalblue', shadow: 'lightblue' }
 ]
 
 const getNodeColor = (nodeType, nodeId) => {
@@ -387,8 +407,9 @@ const getNodeColor = (nodeType, nodeId) => {
   }
   
   return {
-    fill: palette.bg,
+    fill: `l(0) 0:${palette.start} 1:${palette.end}`,
     stroke: palette.border,
+    shadow: palette.shadow,
     opacity: typeMultiplier[nodeType] || 1
   }
 }
@@ -558,30 +579,59 @@ defineExpose({
 
 .mindmap-canvas {
   position: relative;
+  background: var(--cn-color-bg-surface);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-control);
 }
 
 .mindmap-toolbar {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: var(--cn-space-3);
+  right: var(--cn-space-3);
   z-index: 10;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 8px;
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: var(--cn-space-2);
+  padding: var(--cn-space-2);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-control);
+  background: color-mix(in srgb, var(--cn-color-bg-elevated) 92%, transparent);
+  box-shadow: var(--cn-shadow-popover);
+  backdrop-filter: blur(12px);
+}
+
+.toolbar-group-secondary {
+  margin-left: var(--cn-space-2);
+}
+
+.node-type-select {
+  width: 100%;
 }
 
 .el-button-group {
   vertical-align: top;
 }
 
-/* 覆盖Element Plus样式 */
 :deep(.el-button--small) {
-  padding: 4px 8px;
+  padding: var(--cn-space-1) var(--cn-space-2);
   font-size: 12px;
 }
 
 :deep(.el-dialog__body) {
-  padding: 20px;
+  padding: var(--cn-space-5);
+}
+
+:deep(.el-dialog) {
+  border-radius: var(--cn-radius-panel);
+  background: var(--cn-color-bg-elevated);
+}
+
+:deep(.el-dialog__header) {
+  border-bottom: 1px solid var(--cn-color-border-subtle);
+  margin-right: 0;
+}
+
+:deep(.el-form-item__label) {
+  color: var(--cn-color-text-secondary);
 }
 </style> 

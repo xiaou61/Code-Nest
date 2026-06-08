@@ -22,15 +22,9 @@
       <p class="deck-description">{{ deck.description || '暂无描述' }}</p>
       
       <div class="deck-tags" v-if="deck.tags">
-        <el-tag 
-          v-for="tag in tagList" 
-          :key="tag"
-          size="small"
-          type="info"
-          effect="plain"
-        >
+        <CnStatusTag v-for="tag in tagList" :key="tag" size="sm" type="info" subtle>
           {{ tag }}
-        </el-tag>
+        </CnStatusTag>
       </div>
       
       <div class="deck-progress" v-if="showProgress && deck.learnedCount !== undefined">
@@ -52,35 +46,45 @@
           <span class="author-name">{{ deck.userName }}</span>
         </div>
         <div class="deck-due" v-if="deck.dueCount > 0">
-          <el-tag type="warning" size="small" effect="light">
+          <CnStatusTag type="warning" size="sm">
             {{ deck.dueCount }} 待复习
-          </el-tag>
+          </CnStatusTag>
         </div>
       </div>
     </div>
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 import { Collection, Files, DocumentCopy } from '@element-plus/icons-vue'
+import { CnStatusTag } from '@/design-system'
 
-const props = defineProps({
-  deck: {
-    type: Object,
-    required: true
-  },
-  showProgress: {
-    type: Boolean,
-    default: false
-  }
+interface DeckCardData {
+  coverImage?: string
+  cardCount?: number
+  forkCount?: number
+  name?: string
+  description?: string
+  tags?: string
+  learnedCount?: number
+  userAvatar?: string
+  userName?: string
+  dueCount?: number
+}
+
+const props = withDefaults(defineProps<{
+  deck: DeckCardData
+  showProgress?: boolean
+}>(), {
+  showProgress: false
 })
 
 defineEmits(['click'])
 
 const tagList = computed(() => {
   if (!props.deck.tags) return []
-  return props.deck.tags.split(',').filter(t => t.trim()).slice(0, 3)
+  return props.deck.tags.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 3)
 })
 
 const progressPercent = computed(() => {
@@ -91,24 +95,28 @@ const progressPercent = computed(() => {
 
 <style lang="scss" scoped>
 .deck-card {
-  background: var(--el-bg-color);
-  border-radius: 12px;
+  background: var(--cn-color-bg-surface);
+  border-radius: var(--cn-radius-panel);
   overflow: hidden;
   cursor: pointer;
-  transition: all 0.3s ease;
-  border: 1px solid var(--el-border-color-light);
+  transition:
+    transform var(--cn-motion-base) var(--cn-ease-out),
+    border-color var(--cn-motion-base) var(--cn-ease-out),
+    box-shadow var(--cn-motion-base) var(--cn-ease-out);
+  border: 1px solid var(--cn-color-border-subtle);
+  box-shadow: var(--cn-shadow-card);
   
   &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
-    border-color: var(--el-color-primary-light-5);
+    transform: translateY(-3px);
+    box-shadow: var(--cn-shadow-md);
+    border-color: color-mix(in srgb, var(--cn-color-brand-primary) 34%, var(--cn-color-border-subtle));
   }
 }
 
 .deck-cover {
   position: relative;
   height: 120px;
-  background: linear-gradient(135deg, var(--el-color-primary-light-7) 0%, var(--el-color-primary-light-5) 100%);
+  background: color-mix(in srgb, var(--cn-color-brand-soft) 72%, var(--cn-color-bg-surface));
   
   img {
     width: 100%;
@@ -121,7 +129,7 @@ const progressPercent = computed(() => {
     align-items: center;
     justify-content: center;
     height: 100%;
-    color: var(--el-color-primary);
+    color: var(--cn-color-brand-primary);
     opacity: 0.6;
   }
   
@@ -137,22 +145,22 @@ const progressPercent = computed(() => {
       align-items: center;
       gap: 4px;
       padding: 4px 8px;
-      background: rgba(0, 0, 0, 0.5);
-      color: #fff;
-      border-radius: 4px;
+      background: color-mix(in srgb, var(--cn-color-text-primary) 72%, transparent);
+      color: var(--cn-button-primary-color);
+      border-radius: var(--cn-radius-control);
       font-size: 12px;
     }
   }
 }
 
 .deck-info {
-  padding: 16px;
+  padding: var(--cn-space-4);
 }
 
 .deck-name {
   font-size: 16px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--cn-color-text-primary);
   margin: 0 0 8px 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -161,7 +169,7 @@ const progressPercent = computed(() => {
 
 .deck-description {
   font-size: 13px;
-  color: var(--el-text-color-secondary);
+  color: var(--cn-color-text-secondary);
   margin: 0 0 12px 0;
   line-height: 1.5;
   overflow: hidden;
@@ -174,23 +182,19 @@ const progressPercent = computed(() => {
 
 .deck-tags {
   display: flex;
-  gap: 6px;
+  gap: var(--cn-space-2);
   flex-wrap: wrap;
-  margin-bottom: 12px;
-  
-  .el-tag {
-    border-radius: 4px;
-  }
+  margin-bottom: var(--cn-space-3);
 }
 
 .deck-progress {
-  margin-bottom: 12px;
+  margin-bottom: var(--cn-space-3);
   
   .progress-text {
     display: block;
-    margin-top: 4px;
+    margin-top: var(--cn-space-1);
     font-size: 12px;
-    color: var(--el-text-color-secondary);
+    color: var(--cn-color-text-secondary);
   }
 }
 
@@ -202,11 +206,11 @@ const progressPercent = computed(() => {
   .deck-author {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--cn-space-2);
     
     .author-name {
       font-size: 12px;
-      color: var(--el-text-color-secondary);
+      color: var(--cn-color-text-secondary);
     }
   }
 }

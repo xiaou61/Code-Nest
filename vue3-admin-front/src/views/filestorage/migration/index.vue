@@ -1,24 +1,27 @@
 <template>
-  <div class="file-migration">
-    <div class="header">
-      <h2>文件迁移管理</h2>
-      <div class="header-actions">
-        <el-button type="primary" @click="showCreateDialog">
-          <el-icon><Plus /></el-icon>
-          创建迁移任务
-        </el-button>
-        <el-button @click="refreshList">
-          <el-icon><Refresh /></el-icon>
-          刷新
-        </el-button>
-      </div>
-    </div>
+  <CnPage class="file-migration-page" surface="transparent" max-width="1400px">
+    <CnPageHeader
+      title="文件迁移管理"
+      description="创建和执行跨存储迁移任务，跟踪全量、增量、时间范围和文件类型迁移进度。"
+      eyebrow="File Migration"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand">任务 {{ migrationList.length }} 个</CnStatusTag>
+        <CnStatusTag type="warning">执行中 {{ runningCount }} 个</CnStatusTag>
+        <CnStatusTag type="success">已完成 {{ completedCount }} 个</CnStatusTag>
+      </template>
 
-    <!-- 筛选条件 -->
-    <div class="filters">
-      <el-form :model="queryParams" inline>
-        <el-form-item label="任务状态：">
-          <el-select v-model="queryParams.status" placeholder="请选择状态" clearable>
+      <template #actions>
+        <el-button :icon="Refresh" :loading="loading" @click="refreshList">刷新</el-button>
+        <el-button type="primary" :icon="Plus" @click="showCreateDialog">创建迁移任务</el-button>
+      </template>
+    </CnPageHeader>
+
+    <CnSection title="筛选条件" description="按任务状态和返回数量查看迁移任务。" divided>
+      <el-form :model="queryParams" inline class="filter-form">
+        <el-form-item label="任务状态">
+          <el-select v-model="queryParams.status" placeholder="请选择状态" clearable class="filter-control">
             <el-option label="全部" value="" />
             <el-option label="待执行" value="PENDING" />
             <el-option label="执行中" value="RUNNING" />
@@ -27,8 +30,8 @@
             <el-option label="已停止" value="STOPPED" />
           </el-select>
         </el-form-item>
-        <el-form-item label="任务数量：">
-          <el-select v-model="queryParams.limit" placeholder="显示数量">
+        <el-form-item label="任务数量">
+          <el-select v-model="queryParams.limit" placeholder="显示数量" class="filter-control">
             <el-option label="20条" :value="20" />
             <el-option label="50条" :value="50" />
             <el-option label="100条" :value="100" />
@@ -39,104 +42,79 @@
           <el-button @click="resetQuery">重置</el-button>
         </el-form-item>
       </el-form>
-    </div>
+    </CnSection>
 
-    <!-- 迁移任务列表 -->
-    <el-table v-loading="loading" :data="migrationList" style="width: 100%">
-      <el-table-column prop="id" label="任务ID" width="80" />
-      <el-table-column prop="taskName" label="任务名称" min-width="150" show-overflow-tooltip />
-      <el-table-column prop="migrationType" label="迁移类型" width="120">
-        <template #default="{ row }">
-          <el-tag :type="getMigrationTypeTagType(row.migrationType)">
+    <CnSection title="迁移任务列表" description="执行待处理任务，停止运行中任务，并查看任务执行详情。" divided>
+      <CnDataTable
+        :columns="tableColumns"
+        :data="migrationList"
+        :loading="loading"
+        :pagination="null"
+        row-key="id"
+        empty-title="暂无迁移任务"
+        empty-description="当前条件下没有迁移任务，可以创建新的存储迁移任务。"
+        empty-icon="MG"
+      >
+        <template #migrationType="{ row }">
+          <CnStatusTag :type="getMigrationTypeTone(row.migrationType)" size="sm">
             {{ getMigrationTypeName(row.migrationType) }}
-          </el-tag>
+          </CnStatusTag>
         </template>
-      </el-table-column>
-      <el-table-column label="源存储" width="150">
-        <template #default="{ row }">
-          <span v-if="storageConfigMap[row.sourceStorageId]">
-            {{ storageConfigMap[row.sourceStorageId].configName }}
-          </span>
-          <span v-else>-</span>
+
+        <template #sourceStorage="{ row }">
+          <span>{{ storageConfigMap[row.sourceStorageId]?.configName || '-' }}</span>
         </template>
-      </el-table-column>
-      <el-table-column label="目标存储" width="150">
-        <template #default="{ row }">
-          <span v-if="storageConfigMap[row.targetStorageId]">
-            {{ storageConfigMap[row.targetStorageId].configName }}
-          </span>
-          <span v-else>-</span>
+
+        <template #targetStorage="{ row }">
+          <span>{{ storageConfigMap[row.targetStorageId]?.configName || '-' }}</span>
         </template>
-      </el-table-column>
-      <el-table-column label="进度" width="200">
-        <template #default="{ row }">
+
+        <template #progress="{ row }">
           <div class="progress-info">
-            <el-progress
-              :percentage="getProgressPercentage(row)"
-              :status="getProgressStatus(row.status)"
-              :stroke-width="8"
-            />
+            <el-progress :percentage="getProgressPercentage(row)" :status="getProgressStatus(row.status)" :stroke-width="8" />
             <div class="progress-text">
               {{ row.successCount || 0 }} / {{ row.totalFiles || 0 }}
               <span v-if="row.failCount > 0" class="fail-count">(失败: {{ row.failCount }})</span>
             </div>
           </div>
         </template>
-      </el-table-column>
-      <el-table-column prop="status" label="状态" width="120">
-        <template #default="{ row }">
-          <el-tag :type="getStatusTagType(row.status)">
-            {{ getStatusName(row.status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="createTime" label="创建时间" width="180" />
-      <el-table-column label="操作" width="280" fixed="right">
-        <template #default="{ row }">
-          <el-button type="info" size="small" @click="viewTaskDetail(row)">
-            详情
-          </el-button>
-          <el-button
-            v-if="row.status === 'PENDING'"
-            type="success"
-            size="small"
-            @click="executeTask(row)"
-          >
-            执行
-          </el-button>
-          <el-button
-            v-if="row.status === 'RUNNING'"
-            type="warning"
-            size="small"
-            @click="stopTask(row)"
-          >
-            停止
-          </el-button>
-          <el-button
-            v-if="['COMPLETED', 'FAILED', 'STOPPED'].includes(row.status)"
-            type="danger"
-            size="small"
-            @click="deleteTask(row)"
-          >
-            删除
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
 
-    <!-- 创建迁移任务对话框 -->
+        <template #status="{ row }">
+          <CnStatusTag :type="getStatusTone(row.status)" size="sm">
+            {{ getStatusName(row.status) }}
+          </CnStatusTag>
+        </template>
+
+        <template #actions="{ row }">
+          <div class="table-actions">
+            <el-button type="info" link size="small" @click="viewTaskDetail(row)">详情</el-button>
+            <el-button v-if="row.status === 'PENDING'" type="success" link size="small" @click="executeTask(row)">
+              执行
+            </el-button>
+            <el-button v-if="row.status === 'RUNNING'" type="warning" link size="small" @click="stopTask(row)">
+              停止
+            </el-button>
+            <el-button
+              v-if="['COMPLETED', 'FAILED', 'STOPPED'].includes(row.status)"
+              type="danger"
+              link
+              size="small"
+              @click="deleteTask(row)"
+            >
+              删除
+            </el-button>
+          </div>
+        </template>
+      </CnDataTable>
+    </CnSection>
+
     <el-dialog v-model="createDialogVisible" title="创建迁移任务" width="600px">
-      <el-form
-        ref="createFormRef"
-        :model="createForm"
-        :rules="createRules"
-        label-width="120px"
-      >
+      <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="120px">
         <el-form-item label="任务名称" prop="taskName">
           <el-input v-model="createForm.taskName" placeholder="请输入任务名称" />
         </el-form-item>
         <el-form-item label="源存储" prop="sourceStorageId">
-          <el-select v-model="createForm.sourceStorageId" placeholder="请选择源存储">
+          <el-select v-model="createForm.sourceStorageId" placeholder="请选择源存储" class="full-width">
             <el-option
               v-for="config in storageConfigs"
               :key="config.id"
@@ -146,7 +124,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="目标存储" prop="targetStorageId">
-          <el-select v-model="createForm.targetStorageId" placeholder="请选择目标存储">
+          <el-select v-model="createForm.targetStorageId" placeholder="请选择目标存储" class="full-width">
             <el-option
               v-for="config in storageConfigs"
               :key="config.id"
@@ -157,7 +135,12 @@
           </el-select>
         </el-form-item>
         <el-form-item label="迁移类型" prop="migrationType">
-          <el-select v-model="createForm.migrationType" placeholder="请选择迁移类型" @change="handleMigrationTypeChange">
+          <el-select
+            v-model="createForm.migrationType"
+            placeholder="请选择迁移类型"
+            class="full-width"
+            @change="handleMigrationTypeChange"
+          >
             <el-option label="全量迁移" value="FULL" />
             <el-option label="增量迁移" value="INCREMENTAL" />
             <el-option label="时间范围迁移" value="TIME_RANGE" />
@@ -165,9 +148,7 @@
           </el-select>
         </el-form-item>
 
-        <!-- 筛选参数 -->
-        <div class="filter-params" v-if="createForm.migrationType">
-          <!-- 时间范围迁移 -->
+        <div v-if="createForm.migrationType" class="filter-params">
           <template v-if="createForm.migrationType === 'TIME_RANGE'">
             <el-form-item label="开始时间">
               <el-date-picker
@@ -176,6 +157,7 @@
                 placeholder="选择开始时间"
                 format="YYYY-MM-DD HH:mm:ss"
                 value-format="YYYY-MM-DD HH:mm:ss"
+                class="full-width"
               />
             </el-form-item>
             <el-form-item label="结束时间">
@@ -185,11 +167,11 @@
                 placeholder="选择结束时间"
                 format="YYYY-MM-DD HH:mm:ss"
                 value-format="YYYY-MM-DD HH:mm:ss"
+                class="full-width"
               />
             </el-form-item>
           </template>
 
-          <!-- 文件类型迁移 -->
           <template v-if="createForm.migrationType === 'FILE_TYPE'">
             <el-form-item label="文件类型">
               <el-checkbox-group v-model="filterParams.contentTypes">
@@ -201,7 +183,6 @@
             </el-form-item>
           </template>
 
-          <!-- 增量迁移 -->
           <template v-if="createForm.migrationType === 'INCREMENTAL'">
             <el-form-item label="增量起始时间">
               <el-date-picker
@@ -210,6 +191,7 @@
                 placeholder="选择增量起始时间"
                 format="YYYY-MM-DD HH:mm:ss"
                 value-format="YYYY-MM-DD HH:mm:ss"
+                class="full-width"
               />
             </el-form-item>
           </template>
@@ -223,21 +205,20 @@
       </template>
     </el-dialog>
 
-    <!-- 任务详情对话框 -->
     <el-dialog v-model="detailDialogVisible" title="迁移任务详情" width="800px">
       <div v-if="taskDetail" class="task-detail">
         <el-descriptions :column="2" border>
           <el-descriptions-item label="任务ID">{{ taskDetail.id }}</el-descriptions-item>
           <el-descriptions-item label="任务名称">{{ taskDetail.taskName }}</el-descriptions-item>
           <el-descriptions-item label="迁移类型">
-            <el-tag :type="getMigrationTypeTagType(taskDetail.migrationType)">
+            <CnStatusTag :type="getMigrationTypeTone(taskDetail.migrationType)" size="sm">
               {{ getMigrationTypeName(taskDetail.migrationType) }}
-            </el-tag>
+            </CnStatusTag>
           </el-descriptions-item>
           <el-descriptions-item label="状态">
-            <el-tag :type="getStatusTagType(taskDetail.status)">
+            <CnStatusTag :type="getStatusTone(taskDetail.status)" size="sm">
               {{ getStatusName(taskDetail.status) }}
-            </el-tag>
+            </CnStatusTag>
           </el-descriptions-item>
           <el-descriptions-item label="源存储">
             {{ storageConfigMap[taskDetail.sourceStorageId]?.configName || '-' }}
@@ -253,140 +234,141 @@
           <el-descriptions-item label="结束时间">{{ taskDetail.endTime || '-' }}</el-descriptions-item>
         </el-descriptions>
 
-        <!-- 筛选参数 -->
-        <div v-if="taskDetail.filterParams" class="filter-params-display">
+        <div v-if="taskDetail.filterParams" class="detail-block">
           <h4>筛选参数</h4>
           <el-descriptions :column="1" border>
-            <el-descriptions-item
-              v-for="(value, key) in JSON.parse(taskDetail.filterParams)"
-              :key="key"
-              :label="key"
-            >
+            <el-descriptions-item v-for="(value, key) in parseFilterParams(taskDetail.filterParams)" :key="key" :label="key">
               {{ Array.isArray(value) ? value.join(', ') : value }}
             </el-descriptions-item>
           </el-descriptions>
         </div>
 
-        <!-- 错误信息 -->
-        <div v-if="taskDetail.errorMessage" class="error-message">
+        <div v-if="taskDetail.errorMessage" class="detail-block">
           <h4>错误信息</h4>
-          <el-alert
-            :title="taskDetail.errorMessage"
-            type="error"
-            :closable="false"
-            show-icon
-          />
+          <el-alert :title="taskDetail.errorMessage" type="error" :closable="false" show-icon />
         </div>
 
-        <!-- 实时进度 -->
-        <div v-if="taskDetail.status === 'RUNNING'" class="real-time-progress">
+        <div v-if="taskDetail.status === 'RUNNING'" class="detail-block">
           <h4>实时进度</h4>
-          <el-progress
-            :percentage="getProgressPercentage(taskDetail)"
-            :stroke-width="12"
-            text-inside
-          />
+          <el-progress :percentage="getProgressPercentage(taskDetail)" :stroke-width="12" text-inside />
           <div class="progress-details">
-            <p>已处理: {{ taskDetail.successCount + taskDetail.failCount }} / {{ taskDetail.totalFiles }}</p>
-            <p>成功: {{ taskDetail.successCount }}, 失败: {{ taskDetail.failCount }}</p>
+            <p>已处理: {{ (taskDetail.successCount || 0) + (taskDetail.failCount || 0) }} / {{ taskDetail.totalFiles || 0 }}</p>
+            <p>成功: {{ taskDetail.successCount || 0 }}, 失败: {{ taskDetail.failCount || 0 }}</p>
           </div>
         </div>
       </div>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh } from '@element-plus/icons-vue'
 import { migrationAPI, storageAPI } from '@/api/filestorage'
+import { CnDataTable, CnPage, CnPageHeader, CnSection, CnStatusTag } from '@/design-system'
+import type { CnBreadcrumbItem, CnTableColumn, CnTone } from '@/design-system'
 
-// 响应式数据
+interface StorageConfig extends Record<string, unknown> {
+  id: number
+  configName: string
+  storageType: string
+}
+
+interface MigrationTask extends Record<string, unknown> {
+  id: number
+  taskName: string
+  migrationType: string
+  sourceStorageId: number
+  targetStorageId: number
+  status: string
+  totalFiles?: number
+  successCount?: number
+  failCount?: number
+  createTime?: string
+  startTime?: string
+  endTime?: string
+  filterParams?: string
+  errorMessage?: string
+}
+
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '文件存储' }, { label: '文件迁移' }]
+
 const loading = ref(false)
-const migrationList = ref([])
-const storageConfigs = ref([])
-const storageConfigMap = ref({})
-
-// 对话框状态
+const migrationList = ref<MigrationTask[]>([])
+const storageConfigs = ref<StorageConfig[]>([])
+const storageConfigMap = ref<Record<number, StorageConfig>>({})
 const createDialogVisible = ref(false)
 const detailDialogVisible = ref(false)
-const taskDetail = ref(null)
+const taskDetail = ref<MigrationTask | null>(null)
 const createFormRef = ref()
 
-// 查询参数
 const queryParams = reactive({
   status: '',
   limit: 50
 })
 
-// 创建任务表单
 const createForm = reactive({
   taskName: '',
-  sourceStorageId: null,
-  targetStorageId: null,
+  sourceStorageId: null as number | null,
+  targetStorageId: null as number | null,
   migrationType: ''
 })
 
-// 筛选参数
-const filterParams = reactive({})
+const filterParams = reactive<Record<string, unknown>>({})
 
-// 迁移类型配置
-const migrationTypeConfig = {
-  'FULL': { name: '全量迁移', color: 'primary' },
-  'INCREMENTAL': { name: '增量迁移', color: 'success' },
-  'TIME_RANGE': { name: '时间范围迁移', color: 'warning' },
-  'FILE_TYPE': { name: '文件类型迁移', color: 'info' }
+const migrationTypeConfig: Record<string, { name: string; tone: CnTone }> = {
+  FULL: { name: '全量迁移', tone: 'brand' },
+  INCREMENTAL: { name: '增量迁移', tone: 'success' },
+  TIME_RANGE: { name: '时间范围迁移', tone: 'warning' },
+  FILE_TYPE: { name: '文件类型迁移', tone: 'info' }
 }
 
-// 状态配置
-const statusConfig = {
-  'PENDING': { name: '待执行', color: 'info' },
-  'RUNNING': { name: '执行中', color: 'warning' },
-  'COMPLETED': { name: '已完成', color: 'success' },
-  'FAILED': { name: '失败', color: 'danger' },
-  'STOPPED': { name: '已停止', color: 'info' }
+const statusConfig: Record<string, { name: string; tone: CnTone }> = {
+  PENDING: { name: '待执行', tone: 'info' },
+  RUNNING: { name: '执行中', tone: 'warning' },
+  COMPLETED: { name: '已完成', tone: 'success' },
+  FAILED: { name: '失败', tone: 'danger' },
+  STOPPED: { name: '已停止', tone: 'neutral' }
 }
 
-// 存储类型配置
-const storageTypeConfig = {
-  'LOCAL': { name: '本地存储' },
-  'OSS': { name: '阿里云OSS' },
-  'COS': { name: '腾讯云COS' },
-  'KODO': { name: '七牛云KODO' },
-  'OBS': { name: '华为云OBS' }
+const storageTypeConfig: Record<string, { name: string }> = {
+  LOCAL: { name: '本地存储' },
+  OSS: { name: '阿里云OSS' },
+  COS: { name: '腾讯云COS' },
+  KODO: { name: '七牛云KODO' },
+  OBS: { name: '华为云OBS' }
 }
 
-// 表单验证规则
 const createRules = reactive({
-  taskName: [
-    { required: true, message: '请输入任务名称', trigger: 'blur' }
-  ],
-  sourceStorageId: [
-    { required: true, message: '请选择源存储', trigger: 'change' }
-  ],
-  targetStorageId: [
-    { required: true, message: '请选择目标存储', trigger: 'change' }
-  ],
-  migrationType: [
-    { required: true, message: '请选择迁移类型', trigger: 'change' }
-  ]
+  taskName: [{ required: true, message: '请输入任务名称', trigger: 'blur' }],
+  sourceStorageId: [{ required: true, message: '请选择源存储', trigger: 'change' }],
+  targetStorageId: [{ required: true, message: '请选择目标存储', trigger: 'change' }],
+  migrationType: [{ required: true, message: '请选择迁移类型', trigger: 'change' }]
 })
 
-// 生命周期
-onMounted(() => {
-  loadMigrationList()
-  loadStorageConfigs()
-})
+const tableColumns: CnTableColumn<MigrationTask>[] = [
+  { prop: 'id', label: '任务ID', width: 90 },
+  { prop: 'taskName', label: '任务名称', minWidth: 170, showOverflowTooltip: true },
+  { prop: 'migrationType', label: '迁移类型', width: 130, slot: 'migrationType' },
+  { label: '源存储', width: 150, slot: 'sourceStorage' },
+  { label: '目标存储', width: 150, slot: 'targetStorage' },
+  { label: '进度', width: 220, slot: 'progress' },
+  { prop: 'status', label: '状态', width: 120, slot: 'status' },
+  { prop: 'createTime', label: '创建时间', width: 180, showOverflowTooltip: true },
+  { label: '操作', width: 240, fixed: 'right', slot: 'actions' }
+]
 
-// 方法
+const runningCount = computed(() => migrationList.value.filter((item) => item.status === 'RUNNING').length)
+const completedCount = computed(() => migrationList.value.filter((item) => item.status === 'COMPLETED').length)
+
 const loadMigrationList = async () => {
   loading.value = true
   try {
     const data = await migrationAPI.getMigrationTasks(queryParams)
-    migrationList.value = data
+    migrationList.value = Array.isArray(data) ? data : []
   } catch (error) {
-    ElMessage.error('获取迁移任务列表失败：' + error.message)
+    ElMessage.error('获取迁移任务列表失败：' + (error.message || '未知错误'))
   } finally {
     loading.value = false
   }
@@ -395,11 +377,10 @@ const loadMigrationList = async () => {
 const loadStorageConfigs = async () => {
   try {
     const data = await storageAPI.getStorageConfigs({ isEnabled: 1 })
-    storageConfigs.value = data
+    storageConfigs.value = Array.isArray(data) ? data : []
 
-    // 构建存储配置映射
-    const configMap = {}
-    data.forEach(config => {
+    const configMap: Record<number, StorageConfig> = {}
+    storageConfigs.value.forEach((config) => {
       configMap[config.id] = config
     })
     storageConfigMap.value = configMap
@@ -434,14 +415,12 @@ const resetCreateForm = () => {
     targetStorageId: null,
     migrationType: ''
   })
-  Object.keys(filterParams).forEach(key => delete filterParams[key])
+  Object.keys(filterParams).forEach((key) => delete filterParams[key])
 }
 
 const handleMigrationTypeChange = () => {
-  // 清空筛选参数
-  Object.keys(filterParams).forEach(key => delete filterParams[key])
+  Object.keys(filterParams).forEach((key) => delete filterParams[key])
 
-  // 根据迁移类型初始化参数
   if (createForm.migrationType === 'FILE_TYPE') {
     filterParams.contentTypes = []
   }
@@ -453,7 +432,7 @@ const handleCreateTask = async () => {
 
     const taskData = {
       ...createForm,
-      filterParams: filterParams
+      filterParams
     }
 
     await migrationAPI.createMigrationTask(taskData)
@@ -467,22 +446,21 @@ const handleCreateTask = async () => {
   }
 }
 
-const viewTaskDetail = async (task) => {
+const viewTaskDetail = async (task: MigrationTask) => {
   try {
     const data = await migrationAPI.getMigrationTask(task.id)
     taskDetail.value = data
     detailDialogVisible.value = true
 
-    // 如果任务正在运行，定时刷新进度
     if (data.status === 'RUNNING') {
       refreshTaskProgress(task.id)
     }
   } catch (error) {
-    ElMessage.error('获取任务详情失败：' + error.message)
+    ElMessage.error('获取任务详情失败：' + (error.message || '未知错误'))
   }
 }
 
-const executeTask = async (task) => {
+const executeTask = async (task: MigrationTask) => {
   try {
     await ElMessageBox.confirm('确定要执行此迁移任务吗？', '提示', {
       confirmButtonText: '确定',
@@ -495,12 +473,12 @@ const executeTask = async (task) => {
     loadMigrationList()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('执行迁移任务失败：' + error.message)
+      ElMessage.error('执行迁移任务失败：' + (error.message || '未知错误'))
     }
   }
 }
 
-const stopTask = async (task) => {
+const stopTask = async (task: MigrationTask) => {
   try {
     await ElMessageBox.confirm('确定要停止此迁移任务吗？', '提示', {
       confirmButtonText: '确定',
@@ -513,12 +491,12 @@ const stopTask = async (task) => {
     loadMigrationList()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('停止迁移任务失败：' + error.message)
+      ElMessage.error('停止迁移任务失败：' + (error.message || '未知错误'))
     }
   }
 }
 
-const deleteTask = async (task) => {
+const deleteTask = async (task: MigrationTask) => {
   try {
     await ElMessageBox.confirm('确定要删除此迁移任务吗？删除后无法恢复！', '提示', {
       confirmButtonText: '确定',
@@ -531,20 +509,19 @@ const deleteTask = async (task) => {
     loadMigrationList()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('删除迁移任务失败：' + error.message)
+      ElMessage.error('删除迁移任务失败：' + (error.message || '未知错误'))
     }
   }
 }
 
-const refreshTaskProgress = async (taskId) => {
+const refreshTaskProgress = async (taskId: number) => {
   try {
     const progress = await migrationAPI.getMigrationProgress(taskId)
     if (taskDetail.value && taskDetail.value.id === taskId) {
       Object.assign(taskDetail.value, progress)
 
-      // 如果任务还在运行，3秒后再次刷新
       if (progress.status === 'RUNNING') {
-        setTimeout(() => refreshTaskProgress(taskId), 3000)
+        window.setTimeout(() => refreshTaskProgress(taskId), 3000)
       }
     }
   } catch (error) {
@@ -552,88 +529,90 @@ const refreshTaskProgress = async (taskId) => {
   }
 }
 
-// 工具方法
-const getMigrationTypeName = (type) => {
+const getMigrationTypeName = (type: string) => {
   return migrationTypeConfig[type]?.name || type
 }
 
-const getMigrationTypeTagType = (type) => {
-  return migrationTypeConfig[type]?.color || 'info'
+const getMigrationTypeTone = (type: string): CnTone => {
+  return migrationTypeConfig[type]?.tone || 'info'
 }
 
-const getStatusName = (status) => {
+const getStatusName = (status: string) => {
   return statusConfig[status]?.name || status
 }
 
-const getStatusTagType = (status) => {
-  return statusConfig[status]?.color || 'info'
+const getStatusTone = (status: string): CnTone => {
+  return statusConfig[status]?.tone || 'info'
 }
 
-const getStorageTypeName = (type) => {
+const getStorageTypeName = (type: string) => {
   return storageTypeConfig[type]?.name || type
 }
 
-const getProgressPercentage = (task) => {
+const getProgressPercentage = (task: MigrationTask) => {
   if (!task.totalFiles || task.totalFiles === 0) return 0
   const processed = (task.successCount || 0) + (task.failCount || 0)
   return Math.round((processed / task.totalFiles) * 100)
 }
 
-const getProgressStatus = (status) => {
+const getProgressStatus = (status: string) => {
   if (status === 'COMPLETED') return 'success'
   if (status === 'FAILED') return 'exception'
-  return null
+  return undefined
 }
+
+const parseFilterParams = (value: string) => {
+  try {
+    return JSON.parse(value)
+  } catch {
+    return { raw: value }
+  }
+}
+
+onMounted(() => {
+  loadMigrationList()
+  loadStorageConfigs()
+})
 </script>
 
 <style scoped>
-.file-migration {
-  padding: 20px;
+.file-migration-page {
+  min-height: 100%;
 }
 
-.header {
+.filter-form {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2) var(--cn-space-3);
 }
 
-.header h2 {
-  margin: 0;
-  color: #303133;
-}
-
-.header-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.filters {
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 4px;
-  margin-bottom: 20px;
+.filter-control,
+.full-width {
+  width: 100%;
+  min-width: 180px;
 }
 
 .progress-info {
-  min-width: 150px;
+  min-width: 0;
 }
 
 .progress-text {
-  margin-top: 5px;
+  margin-top: var(--cn-space-1);
+  color: var(--cn-color-text-secondary);
   font-size: 12px;
-  color: #606266;
+  line-height: 1.4;
 }
 
 .fail-count {
-  color: #F56C6C;
+  color: var(--cn-color-danger);
 }
 
 .filter-params {
-  margin-top: 20px;
-  padding: 15px;
-  background: #f8f9fa;
-  border-radius: 4px;
+  margin-top: var(--cn-space-5);
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .task-detail {
@@ -641,29 +620,41 @@ const getProgressStatus = (status) => {
   overflow-y: auto;
 }
 
-.filter-params-display,
-.error-message,
-.real-time-progress {
-  margin-top: 20px;
+.detail-block {
+  margin-top: var(--cn-space-5);
 }
 
-.filter-params-display h4,
-.error-message h4,
-.real-time-progress h4 {
-  margin: 0 0 10px 0;
-  color: #303133;
+.detail-block h4 {
+  margin: 0 0 var(--cn-space-3);
+  color: var(--cn-color-text-primary);
+  font-size: 15px;
+  font-weight: 650;
 }
 
 .progress-details {
-  margin-top: 10px;
-  color: #606266;
+  margin-top: var(--cn-space-3);
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
 }
 
 .progress-details p {
-  margin: 5px 0;
+  margin: var(--cn-space-1) 0;
+}
+
+.table-actions,
+.dialog-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
 }
 
 .dialog-footer {
-  text-align: right;
+  justify-content: flex-end;
+}
+
+@media (max-width: 680px) {
+  .dialog-footer {
+    justify-content: flex-start;
+  }
 }
 </style>

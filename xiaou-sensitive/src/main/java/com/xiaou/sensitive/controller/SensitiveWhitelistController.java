@@ -3,6 +3,7 @@ package com.xiaou.sensitive.controller;
 import com.xiaou.common.annotation.RequireAdmin;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.core.domain.ResultCode;
 import com.xiaou.sensitive.domain.SensitiveWhitelist;
 import com.xiaou.sensitive.dto.SensitiveWhitelistQuery;
 import com.xiaou.sensitive.service.SensitiveWhitelistService;
@@ -41,7 +42,7 @@ public class SensitiveWhitelistController {
     public Result<SensitiveWhitelist> getById(@PathVariable Long id) {
         SensitiveWhitelist whitelist = whitelistService.getWhitelistById(id);
         if (whitelist == null) {
-            return Result.error("白名单不存在");
+            return Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "白名单不存在");
         }
         return Result.success(whitelist);
     }
@@ -53,7 +54,7 @@ public class SensitiveWhitelistController {
     @RequireAdmin
     public Result<Void> add(@RequestBody SensitiveWhitelist whitelist) {
         boolean success = whitelistService.addWhitelist(whitelist);
-        return success ? Result.success() : Result.error("新增白名单失败");
+        return success ? Result.success() : Result.error(ResultCode.BUSINESS_ERROR.getCode(), "新增白名单失败");
     }
 
     /**
@@ -63,10 +64,10 @@ public class SensitiveWhitelistController {
     @RequireAdmin
     public Result<Void> update(@RequestBody SensitiveWhitelist whitelist) {
         if (whitelist.getId() == null) {
-            return Result.error("ID不能为空");
+            return Result.error(ResultCode.PARAM_VALIDATE_ERROR.getCode(), "ID不能为空");
         }
         boolean success = whitelistService.updateWhitelist(whitelist);
-        return success ? Result.success() : Result.error("更新白名单失败");
+        return success ? Result.success() : Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "白名单不存在");
     }
 
     /**
@@ -76,7 +77,7 @@ public class SensitiveWhitelistController {
     @RequireAdmin
     public Result<Void> delete(@PathVariable Long id) {
         boolean success = whitelistService.deleteWhitelist(id);
-        return success ? Result.success() : Result.error("删除白名单失败");
+        return success ? Result.success() : Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "白名单不存在");
     }
 
     /**
@@ -86,10 +87,10 @@ public class SensitiveWhitelistController {
     @RequireAdmin
     public Result<Void> deleteBatch(@RequestBody List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
-            return Result.error("ID列表不能为空");
+            return Result.error(ResultCode.PARAM_VALIDATE_ERROR.getCode(), "ID列表不能为空");
         }
         boolean success = whitelistService.deleteWhitelistBatch(ids);
-        return success ? Result.success() : Result.error("批量删除白名单失败");
+        return success ? Result.success() : Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "白名单不存在");
     }
 
     /**
@@ -99,7 +100,7 @@ public class SensitiveWhitelistController {
     @RequireAdmin
     public Result<SensitiveWhitelistService.ImportResult> importWhitelist(@RequestBody ImportRequest request) {
         if (request.getWords() == null || request.getWords().isEmpty()) {
-            return Result.error("导入词汇列表不能为空");
+            return Result.error(ResultCode.PARAM_VALIDATE_ERROR.getCode(), "导入词汇列表不能为空");
         }
         
         SensitiveWhitelistService.ImportResult result = whitelistService.importWhitelist(

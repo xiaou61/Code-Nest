@@ -1,6 +1,7 @@
 package com.xiaou.mockinterview.service.impl;
 
 import com.xiaou.ai.dto.jobbattle.JobBattleJdParseResult;
+import com.xiaou.ai.dto.jobbattle.JobBattleInterviewReviewResult;
 import com.xiaou.ai.dto.jobbattle.JobBattlePlanResult;
 import com.xiaou.ai.dto.jobbattle.JobBattleResumeMatchResult;
 import com.xiaou.ai.dto.jobbattle.JobBattleTargetAnalysisResult;
@@ -8,7 +9,9 @@ import com.xiaou.ai.service.AiJobBattleService;
 import com.xiaou.mockinterview.domain.JobBattleMatchRecord;
 import com.xiaou.mockinterview.domain.JobBattlePlanRecord;
 import com.xiaou.mockinterview.dto.request.JobBattleGeneratePlanRequest;
+import com.xiaou.mockinterview.dto.request.JobBattleInterviewReviewRequest;
 import com.xiaou.mockinterview.dto.request.JobBattleMatchEngineRunRequest;
+import com.xiaou.mockinterview.dto.request.JobBattleResumeMatchRequest;
 import com.xiaou.mockinterview.dto.response.JobBattleMatchEngineResult;
 import com.xiaou.mockinterview.mapper.JobBattleMatchRecordMapper;
 import com.xiaou.mockinterview.mapper.JobBattlePlanRecordMapper;
@@ -19,11 +22,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertTimeout;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -105,6 +111,73 @@ class JobBattleServiceImplTest {
         verify(careerLoopService).onEvent(eq(2002L), any());
     }
 
+    @Test
+    void shouldFallbackResumeMatchWhenAiTimesOut() {
+        ReflectionTestUtils.setField(jobBattleService, "aiTimeoutSeconds", 1L);
+        when(aiJobBattleService.matchResume(any(), any(), any(), any()))
+                .thenAnswer(invocation -> {
+                    sleepSilently(1500);
+                    return new JobBattleResumeMatchResult().setOverallScore(99).setFallback(false);
+                });
+
+        JobBattleResumeMatchRequest request = new JobBattleResumeMatchRequest();
+        request.setParsedJdJson("{\"mustSkills\":[\"Java\",\"Redis\"]}");
+        request.setResumeText("Java 后端工程师");
+        request.setProjectHighlights("高并发项目");
+        request.setTargetCompanyType("互联网");
+
+        JobBattleResumeMatchResult result = assertTimeout(Duration.ofMillis(1800),
+                () -> jobBattleService.matchResume(3003L, request));
+
+        assertTrue(result.isFallback());
+        verify(careerLoopService).onEvent(eq(3003L), any());
+    }
+
+    @Test
+    void shouldFallbackGeneratePlanWhenAiTimesOutAndPersistFallbackRecord() {
+        ReflectionTestUtils.setField(jobBattleService, "aiTimeoutSeconds", 1L);
+        when(aiJobBattleService.generatePlan(any(), any(), any(), any(), any()))
+                .thenAnswer(invocation -> {
+                    sleepSilently(1500);
+                    return new JobBattlePlanResult().setPlanName("AI计划").setTotalDays(28).setFallback(false);
+                });
+        doAnswer(invocation -> {
+            JobBattlePlanRecord record = invocation.getArgument(0);
+            record.setId(99L);
+            return 1;
+        }).when(planRecordMapper).insert(any(JobBattlePlanRecord.class));
+
+        JobBattlePlanResult result = assertTimeout(Duration.ofMillis(1800),
+                () -> jobBattleService.generatePlan(4004L, buildGeneratePlanRequest()));
+
+        assertTrue(result.isFallback());
+        ArgumentCaptor<JobBattlePlanRecord> captor = ArgumentCaptor.forClass(JobBattlePlanRecord.class);
+        verify(planRecordMapper).insert(captor.capture());
+        assertTrue(Boolean.TRUE.equals(captor.getValue().getFallback()));
+        verify(careerLoopService).onEvent(eq(4004L), any());
+    }
+
+    @Test
+    void shouldFallbackInterviewReviewWhenAiTimesOut() {
+        ReflectionTestUtils.setField(jobBattleService, "aiTimeoutSeconds", 1L);
+        when(aiJobBattleService.reviewInterview(any(), any(), any(), any(), any()))
+                .thenAnswer(invocation -> {
+                    sleepSilently(1500);
+                    return new JobBattleInterviewReviewResult().setConfidenceScore(99).setFallback(false);
+                });
+
+        JobBattleInterviewReviewRequest request = new JobBattleInterviewReviewRequest();
+        request.setInterviewNotes("系统设计题回答不完整");
+        request.setInterviewResult("reject");
+        request.setTargetRole("Java后端");
+
+        JobBattleInterviewReviewResult result = assertTimeout(Duration.ofMillis(1800),
+                () -> jobBattleService.reviewInterview(5005L, request));
+
+        assertTrue(result.isFallback());
+        verify(careerLoopService).onEvent(eq(5005L), any());
+    }
+
     private JobBattleTargetAnalysisResult buildTargetAnalysis(String jobTitle, int overallScore, int passRate,
                                                               boolean fallback, String missingKeyword) {
         Map<String, Integer> dimensionScores = new LinkedHashMap<>();
@@ -174,5 +247,13 @@ class JobBattleServiceImplTest {
         request.setPreferredLearningMode("实战");
         request.setNextInterviewDate("2026-05-15");
         return request;
+    }
+
+    private void sleepSilently(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 }

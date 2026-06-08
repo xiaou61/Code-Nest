@@ -1,169 +1,210 @@
 <template>
-  <div class="developer-calendar">
-    <!-- 头部区域 -->
-    <div class="calendar-header">
-      <div class="header-content">
-        <div class="title-section">
-          <h1 class="page-title">
-            <el-icon class="title-icon"><Calendar /></el-icon>
-            程序员日历
-          </h1>
-          <p class="page-subtitle">发现属于程序员的每一个特殊时刻</p>
+  <CnPage class="developer-calendar-page" max-width="1280px" full-height>
+    <CnPageHeader
+      title="程序员日历"
+      description="查看程序员节日、技术纪念日和开源相关特殊日期。"
+      eyebrow="MOYU TOOL"
+      :breadcrumbs="[{ label: '摸鱼工具箱', to: '/moyu-tools' }, { label: '程序员日历' }]"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">{{ currentYear }}年{{ currentMonth }}月</CnStatusTag>
+        <CnStatusTag type="info" size="sm" subtle>{{ selectedTypeLabel }}</CnStatusTag>
+        <CnStatusTag v-if="majorEventCount" type="warning" size="sm">{{ majorEventCount }} 个重要事件</CnStatusTag>
+      </template>
+
+      <template #actions>
+        <el-button :icon="ArrowLeft" @click="goBack">返回工具箱</el-button>
+        <el-button type="primary" :icon="Refresh" :loading="loading" @click="loadAll">
+          刷新日历
+        </el-button>
+      </template>
+    </CnPageHeader>
+
+    <section class="calendar-stats" aria-label="日历概览">
+      <CnStatCard
+        title="当前月份"
+        :value="`${currentMonth}月`"
+        :description="`${currentYear} 年日历视图`"
+        tone="brand"
+        trend="flat"
+        trend-text="月份"
+      />
+      <CnStatCard
+        title="事件数量"
+        :value="currentMonthEventCount"
+        unit="个"
+        :description="selectedTypeLabel"
+        tone="info"
+        trend="flat"
+        trend-text="事件"
+      />
+      <CnStatCard
+        title="今日事件"
+        :value="filteredTodayEvents.length"
+        unit="个"
+        :description="todayRecommend?.hasMajorEvents ? '包含重要事件' : '今日推荐'"
+        :tone="todayRecommend?.hasMajorEvents ? 'warning' : 'success'"
+        trend="flat"
+        trend-text="今日"
+      />
+    </section>
+
+    <CnSection title="今日推荐" :description="todayDescription" divided>
+      <div v-if="todayRecommend" class="today-panel">
+        <div class="date-tile">
+          <span class="date-tile__month">{{ todayMonth }}月</span>
+          <span class="date-tile__day">{{ todayDay }}</span>
         </div>
 
-        <!-- 今日推荐卡片 -->
-        <div class="today-recommend" v-if="todayRecommend">
-          <div class="recommend-header">
-            <div class="recommend-date">
-              <span class="month">{{ currentMonth }}月</span>
-              <span class="day">{{ currentDay }}</span>
-            </div>
-            <div class="recommend-info">
-              <h3>{{ todayRecommend.hasMajorEvents ? '今天有重要事件！' : '今日推荐' }}</h3>
-              <p v-if="todayRecommend.specialGreeting">{{ todayRecommend.specialGreeting }}</p>
-              <p v-else>{{ getRandomGreeting() }}</p>
-            </div>
+        <div class="today-copy">
+          <div class="today-copy__header">
+            <h2>{{ todayRecommend.hasMajorEvents ? '今天有重要事件' : '今日推荐' }}</h2>
+            <CnStatusTag :type="todayRecommend.hasMajorEvents ? 'warning' : 'success'" size="sm">
+              {{ todayRecommend.hasMajorEvents ? '重要' : '推荐' }}
+            </CnStatusTag>
           </div>
+          <p>{{ todayRecommend.specialGreeting || defaultGreeting }}</p>
 
-          <div class="today-events" v-if="todayRecommend.todayEvents?.length">
-            <div class="event-item"
-                 v-for="event in todayRecommend.todayEvents"
-                 :key="event.id"
-                 :class="{ 'major-event': event.isMajor }"
-                 @click="showEventDetail(event)">
-              <div class="event-icon">
+          <div v-if="filteredTodayEvents.length" class="today-events">
+            <button
+              v-for="event in filteredTodayEvents"
+              :key="event.id"
+              class="event-row"
+              :class="{ 'is-major': event.isMajor }"
+              type="button"
+              @click="showEventDetail(event)"
+            >
+              <span class="event-row__icon">
                 <el-icon><component :is="getEventIcon(event.eventType)" /></el-icon>
-              </div>
-              <div class="event-content">
-                <h4>{{ event.eventName }}</h4>
-                <p>{{ event.description }}</p>
-              </div>
-              <div class="event-badge" v-if="event.isMajor">
-                <el-tag type="danger" size="small">重要</el-tag>
-              </div>
-            </div>
+              </span>
+              <span class="event-row__content">
+                <span class="event-row__title">{{ event.eventName }}</span>
+                <span class="event-row__desc">{{ event.description }}</span>
+              </span>
+              <CnStatusTag v-if="event.isMajor" type="warning" size="sm">重要</CnStatusTag>
+            </button>
           </div>
+
+          <CnEmptyState
+            v-else
+            title="今日暂无匹配事件"
+            description="可以切换事件类型，或查看完整月历。"
+            icon="CAL"
+            size="sm"
+            surface="transparent"
+          />
         </div>
       </div>
-    </div>
 
-    <!-- 日历控制区域 -->
-    <div class="calendar-controls">
-      <div class="control-section">
-        <!-- 月份切换 -->
+      <CnEmptyState
+        v-else
+        title="暂无今日推荐"
+        description="可以刷新日历后再试。"
+        icon="CAL"
+        surface="transparent"
+      >
+        <template #actions>
+          <el-button type="primary" :loading="loading" @click="loadAll">重新加载</el-button>
+        </template>
+      </CnEmptyState>
+    </CnSection>
+
+    <CnSection title="月历视图" :description="calendarDescription" divided>
+      <template #actions>
         <div class="month-selector">
-          <el-button @click="previousMonth" :icon="ArrowLeft" circle />
+          <el-button :icon="ArrowLeft" circle @click="previousMonth" />
           <span class="current-month">{{ currentYear }}年{{ currentMonth }}月</span>
-          <el-button @click="nextMonth" :icon="ArrowRight" circle />
+          <el-button :icon="ArrowRight" circle @click="nextMonth" />
         </div>
+      </template>
 
-        <!-- 事件类型筛选 -->
-        <div class="event-filters">
-          <el-button-group>
-            <el-button
-              :type="selectedEventType === null ? 'primary' : ''"
-              @click="filterByType(null)">
-              全部
-            </el-button>
-            <el-button
-              :type="selectedEventType === 1 ? 'primary' : ''"
-              @click="filterByType(1)">
-              程序员节日
-            </el-button>
-            <el-button
-              :type="selectedEventType === 2 ? 'primary' : ''"
-              @click="filterByType(2)">
-              技术纪念日
-            </el-button>
-            <el-button
-              :type="selectedEventType === 3 ? 'primary' : ''"
-              @click="filterByType(3)">
-              开源节日
-            </el-button>
-          </el-button-group>
-        </div>
+      <div class="calendar-toolbar">
+        <el-button-group class="event-filter-group">
+          <el-button :type="selectedEventType === null ? 'primary' : 'default'" @click="filterByType(null)">
+            全部
+          </el-button>
+          <el-button :type="selectedEventType === 1 ? 'primary' : 'default'" @click="filterByType(1)">
+            程序员节日
+          </el-button>
+          <el-button :type="selectedEventType === 2 ? 'primary' : 'default'" @click="filterByType(2)">
+            技术纪念日
+          </el-button>
+          <el-button :type="selectedEventType === 3 ? 'primary' : 'default'" @click="filterByType(3)">
+            开源节日
+          </el-button>
+        </el-button-group>
       </div>
-    </div>
 
-    <!-- 日历主体 -->
-    <div class="calendar-main" v-loading="loading">
-      <div class="calendar-grid">
-        <!-- 星期头部 -->
+      <div v-loading="loading" class="calendar-grid">
         <div class="weekdays">
-          <div class="weekday" v-for="day in weekdays" :key="day">{{ day }}</div>
+          <div v-for="day in weekdays" :key="day" class="weekday">{{ day }}</div>
         </div>
 
-        <!-- 日期网格 -->
         <div class="days-grid">
-          <div
-            class="day-cell"
+          <button
             v-for="day in calendarDays"
             :key="`${day.year}-${day.month}-${day.day}`"
+            class="day-cell"
             :class="{
-              'other-month': !day.isCurrentMonth,
-              'today': day.isToday,
-              'has-events': day.events?.length > 0,
+              'is-other-month': !day.isCurrentMonth,
+              'is-today': day.isToday,
+              'has-events': day.events.length > 0,
               'has-major': day.hasMajorEvents
             }"
-            @click="selectDate(day)">
+            type="button"
+            @click="selectDate(day)"
+          >
+            <span class="day-number">{{ day.day }}</span>
 
-            <div class="day-number">{{ day.day }}</div>
-
-            <div class="day-events" v-if="day.events?.length">
-              <div
-                class="event-dot"
+            <span v-if="day.events.length" class="day-events">
+              <span
                 v-for="event in day.events.slice(0, 3)"
                 :key="event.id"
-                :class="[`event-type-${event.eventType}`, { 'major': event.isMajor }]"
-                :title="event.eventName">
-              </div>
-              <div class="more-events" v-if="day.events.length > 3">+{{ day.events.length - 3 }}</div>
-            </div>
-          </div>
+                class="event-dot"
+                :class="[`event-type-${event.eventType}`, { 'is-major': event.isMajor }]"
+                :title="event.eventName"
+              />
+              <span v-if="day.events.length > 3" class="more-events">+{{ day.events.length - 3 }}</span>
+            </span>
+          </button>
         </div>
       </div>
-    </div>
+    </CnSection>
 
-    <!-- 事件详情对话框 -->
     <el-dialog
       v-model="eventDialogVisible"
       :title="selectedEvent?.eventName"
-      width="600px"
-      destroy-on-close>
-
-      <div class="event-detail" v-if="selectedEvent">
-        <div class="event-header">
-          <div class="event-type-badge">
-            <el-tag :type="getEventTypeTag(selectedEvent.eventType)">
+      width="min(640px, 92vw)"
+      destroy-on-close
+    >
+      <div v-if="selectedEvent" class="event-detail">
+        <div class="event-detail__header">
+          <div class="event-detail__badges">
+            <CnStatusTag :type="getEventTone(selectedEvent.eventType)" size="sm">
               {{ getEventTypeName(selectedEvent.eventType) }}
-            </el-tag>
-            <el-tag v-if="selectedEvent.isMajor" type="danger" size="small">重要事件</el-tag>
+            </CnStatusTag>
+            <CnStatusTag v-if="selectedEvent.isMajor" type="warning" size="sm">重要事件</CnStatusTag>
           </div>
-          <div class="event-date">{{ formatEventDate(selectedEvent.eventDate) }}</div>
+          <span class="event-date">{{ formatEventDate(selectedEvent.eventDate) }}</span>
         </div>
 
-        <div class="event-description">
-          {{ selectedEvent.description }}
+        <p class="event-description">{{ selectedEvent.description }}</p>
+
+        <div v-if="selectedEvent.blessingText" class="blessing-card">
+          <el-icon><Star /></el-icon>
+          <p>{{ selectedEvent.blessingText }}</p>
         </div>
 
-        <div class="event-blessing" v-if="selectedEvent.blessingText">
-          <el-card class="blessing-card">
-            <div class="blessing-content">
-              <el-icon class="blessing-icon"><Star /></el-icon>
-              <p>{{ selectedEvent.blessingText }}</p>
-            </div>
-          </el-card>
-        </div>
-
-        <div class="event-links" v-if="selectedEvent.relatedLinks?.length">
+        <div v-if="selectedEvent.relatedLinks?.length" class="event-links">
           <h4>相关链接</h4>
           <div class="links-list">
             <el-link
               v-for="(link, index) in selectedEvent.relatedLinks"
-              :key="index"
+              :key="`${link}-${index}`"
               :href="link"
               target="_blank"
-              type="primary">
+              type="primary"
+            >
               <el-icon><Link /></el-icon>
               {{ link }}
             </el-link>
@@ -172,63 +213,96 @@
       </div>
     </el-dialog>
 
-    <!-- 日期事件列表对话框 -->
-    <el-dialog
-      v-model="dateEventsDialogVisible"
-      :title="`${selectedDate} 的事件`"
-      width="500px">
-
+    <el-dialog v-model="dateEventsDialogVisible" :title="`${selectedDate} 的事件`" width="min(560px, 92vw)">
       <div class="date-events-list">
-        <div class="event-list-item"
-             v-for="event in selectedDateEvents"
-             :key="event.id"
-             @click="showEventDetail(event)">
-          <div class="event-icon">
+        <button
+          v-for="event in selectedDateEvents"
+          :key="event.id"
+          class="date-event-item"
+          type="button"
+          @click="showEventDetail(event)"
+        >
+          <span class="event-row__icon">
             <el-icon><component :is="getEventIcon(event.eventType)" /></el-icon>
-          </div>
-          <div class="event-info">
-            <h4>{{ event.eventName }}</h4>
-            <p>{{ event.description }}</p>
-            <div class="event-badges">
-              <el-tag :type="getEventTypeTag(event.eventType)" size="small">
+          </span>
+          <span class="event-row__content">
+            <span class="event-row__title">{{ event.eventName }}</span>
+            <span class="event-row__desc">{{ event.description }}</span>
+            <span class="event-badges">
+              <CnStatusTag :type="getEventTone(event.eventType)" size="sm" subtle>
                 {{ getEventTypeName(event.eventType) }}
-              </el-tag>
-              <el-tag v-if="event.isMajor" type="danger" size="small">重要</el-tag>
-            </div>
-          </div>
-        </div>
+              </CnStatusTag>
+              <CnStatusTag v-if="event.isMajor" type="warning" size="sm">重要</CnStatusTag>
+            </span>
+          </span>
+        </button>
       </div>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
+import type { Component } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import {
-  Calendar, ArrowLeft, ArrowRight, Star, Link,
-  EditPen, Trophy, Box
-} from '@element-plus/icons-vue'
-import {
-  getTodayRecommend,
-  getMonthCalendar
-} from '@/api/moyu'
+import { ArrowLeft, ArrowRight, Box, Calendar, EditPen, Link, Refresh, Star, Trophy } from '@element-plus/icons-vue'
+import { CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
+import type { CnTone } from '@/design-system'
+import { getMonthCalendar, getTodayRecommend } from '@/api/moyu'
 
-// 响应式数据
+type EventType = 1 | 2 | 3
+
+interface CalendarEvent {
+  id: number | string
+  eventName: string
+  description?: string
+  eventDate: string
+  eventType: EventType
+  isMajor?: boolean
+  blessingText?: string
+  relatedLinks?: string[]
+}
+
+interface TodayRecommend {
+  hasMajorEvents?: boolean
+  specialGreeting?: string
+  todayEvents?: CalendarEvent[]
+}
+
+interface MonthCalendar {
+  eventsByDate?: Record<string, CalendarEvent[]>
+}
+
+interface CalendarDay {
+  day: number
+  month: number
+  year: number
+  isCurrentMonth: boolean
+  isToday: boolean
+  events: CalendarEvent[]
+  hasMajorEvents: boolean
+}
+
+const router = useRouter()
+
 const loading = ref(false)
-const todayRecommend = ref(null)
-const monthCalendar = ref(null)
-const selectedEventType = ref(null)
+const todayRecommend = ref<TodayRecommend | null>(null)
+const monthCalendar = ref<MonthCalendar | null>(null)
+const selectedEventType = ref<EventType | null>(null)
 const eventDialogVisible = ref(false)
 const dateEventsDialogVisible = ref(false)
-const selectedEvent = ref(null)
-const selectedDateEvents = ref([])
+const selectedEvent = ref<CalendarEvent | null>(null)
+const selectedDateEvents = ref<CalendarEvent[]>([])
 const selectedDate = ref('')
 
-// 日历数据
+const now = new Date()
+const todayMonth = now.getMonth() + 1
+const todayDay = now.getDate()
+
 const currentDate = reactive({
-  year: new Date().getFullYear(),
-  month: new Date().getMonth() + 1
+  year: now.getFullYear(),
+  month: now.getMonth() + 1
 })
 
 const weekdays = ['日', '一', '二', '三', '四', '五', '六']
@@ -241,12 +315,23 @@ const greetings = [
   '每一行代码都是创造 🚀'
 ]
 
-// 计算属性
+const defaultGreeting = greetings[Math.floor(Math.random() * greetings.length)]
+
 const currentYear = computed(() => currentDate.year)
 const currentMonth = computed(() => currentDate.month)
-const currentDay = computed(() => new Date().getDate())
 
-const calendarDays = computed(() => {
+const selectedTypeLabel = computed(() => {
+  if (!selectedEventType.value) return '全部事件'
+  return getEventTypeName(selectedEventType.value)
+})
+
+const filteredTodayEvents = computed(() => {
+  const events = todayRecommend.value?.todayEvents || []
+  if (!selectedEventType.value) return events
+  return events.filter((event) => event.eventType === selectedEventType.value)
+})
+
+const calendarDays = computed<CalendarDay[]>(() => {
   if (!monthCalendar.value) return []
 
   const year = currentDate.year
@@ -256,11 +341,10 @@ const calendarDays = computed(() => {
   const daysInMonth = lastDay.getDate()
   const startWeekday = firstDay.getDay()
 
-  const days = []
+  const days: CalendarDay[] = []
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]
 
-  // 添加上个月的日期
   const prevMonth = month === 1 ? 12 : month - 1
   const prevYear = month === 1 ? year - 1 : year
   const prevLastDay = new Date(prevYear, prevMonth, 0).getDate()
@@ -278,12 +362,13 @@ const calendarDays = computed(() => {
     })
   }
 
-  // 添加当月日期
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${String(day).padStart(2, '0')}`
     const fullDateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    const dayEvents = monthCalendar.value.eventsByDate?.[dateStr] || []
-    const hasMajorEvents = dayEvents.some(event => event.isMajor)
+    const rawEvents = monthCalendar.value.eventsByDate?.[dateStr] || []
+    const events = selectedEventType.value
+      ? rawEvents.filter((event) => event.eventType === selectedEventType.value)
+      : rawEvents
 
     days.push({
       day,
@@ -291,12 +376,11 @@ const calendarDays = computed(() => {
       year,
       isCurrentMonth: true,
       isToday: fullDateStr === todayStr,
-      events: dayEvents,
-      hasMajorEvents
+      events,
+      hasMajorEvents: events.some((event) => event.isMajor)
     })
   }
 
-  // 填充下个月的日期，使总数为42 (6周 × 7天)
   const remainingDays = 42 - days.length
   const nextMonth = month === 12 ? 1 : month + 1
   const nextYear = month === 12 ? year + 1 : year
@@ -316,47 +400,64 @@ const calendarDays = computed(() => {
   return days
 })
 
-// 工具函数
-const getRandomGreeting = () => {
-  return greetings[Math.floor(Math.random() * greetings.length)]
+const currentMonthEvents = computed(() => {
+  return calendarDays.value
+    .filter((day) => day.isCurrentMonth)
+    .flatMap((day) => day.events)
+})
+
+const currentMonthEventCount = computed(() => currentMonthEvents.value.length)
+const majorEventCount = computed(() => currentMonthEvents.value.filter((event) => event.isMajor).length)
+
+const todayDescription = computed(() => {
+  if (!todayRecommend.value) return '今日推荐暂未加载。'
+  return `今日展示 ${filteredTodayEvents.value.length} 个匹配事件。`
+})
+
+const calendarDescription = computed(() => {
+  return `当前视图包含 ${currentMonthEventCount.value} 个${selectedTypeLabel.value}。`
+})
+
+const goBack = () => {
+  router.push('/moyu-tools')
 }
 
-const getEventTypeName = (type) => {
-  const typeMap = {
+const getEventTypeName = (type?: number) => {
+  const typeMap: Record<number, string> = {
     1: '程序员节日',
     2: '技术纪念日',
     3: '开源节日'
   }
-  return typeMap[type] || '未知'
+  return type ? typeMap[type] || '未知' : '全部事件'
 }
 
-const getEventTypeTag = (type) => {
-  const tagMap = {
+const getEventTone = (type?: number): CnTone => {
+  const toneMap: Record<number, CnTone> = {
     1: 'warning',
     2: 'info',
     3: 'success'
   }
-  return tagMap[type] || 'info'
+  return type ? toneMap[type] || 'neutral' : 'neutral'
 }
 
-const getEventIcon = (type) => {
-  const iconMap = {
+const getEventIcon = (type?: number): Component => {
+  const iconMap: Record<number, Component> = {
     1: EditPen,
     2: Trophy,
     3: Box
   }
-  return iconMap[type] || Calendar
+  return type ? iconMap[type] || Calendar : Calendar
 }
 
-const formatEventDate = (eventDate) => {
+const formatEventDate = (eventDate?: string) => {
+  if (!eventDate) return ''
   const [month, day] = eventDate.split('-')
-  return `${parseInt(month)}月${parseInt(day)}日`
+  return `${parseInt(month, 10)}月${parseInt(day, 10)}日`
 }
 
-// 数据加载
 const loadTodayRecommend = async () => {
   try {
-    const data = await getTodayRecommend()
+    const data = (await getTodayRecommend()) as TodayRecommend | null
     todayRecommend.value = data
   } catch (error) {
     console.error('加载今日推荐失败:', error)
@@ -366,7 +467,7 @@ const loadTodayRecommend = async () => {
 const loadMonthCalendar = async () => {
   try {
     loading.value = true
-    const data = await getMonthCalendar(currentDate.year, currentDate.month)
+    const data = (await getMonthCalendar(currentDate.year, currentDate.month)) as MonthCalendar | null
     monthCalendar.value = data
   } catch (error) {
     console.error('加载月历数据失败:', error)
@@ -376,7 +477,10 @@ const loadMonthCalendar = async () => {
   }
 }
 
-// 事件处理
+const loadAll = async () => {
+  await Promise.all([loadTodayRecommend(), loadMonthCalendar()])
+}
+
 const previousMonth = () => {
   if (currentDate.month === 1) {
     currentDate.month = 12
@@ -397,466 +501,448 @@ const nextMonth = () => {
   loadMonthCalendar()
 }
 
-const filterByType = (eventType) => {
+const filterByType = (eventType: EventType | null) => {
   selectedEventType.value = eventType
   loadMonthCalendar()
 }
 
-const selectDate = (day) => {
-  if (day.events?.length > 0) {
+const selectDate = (day: CalendarDay) => {
+  if (day.events.length > 0) {
     selectedDateEvents.value = day.events
     selectedDate.value = `${day.year}-${String(day.month).padStart(2, '0')}-${String(day.day).padStart(2, '0')}`
     dateEventsDialogVisible.value = true
   }
 }
 
-const showEventDetail = (event) => {
+const showEventDetail = (event: CalendarEvent) => {
   selectedEvent.value = event
   eventDialogVisible.value = true
   dateEventsDialogVisible.value = false
 }
 
-// 初始化
 onMounted(() => {
-  loadTodayRecommend()
-  loadMonthCalendar()
+  loadAll()
 })
 </script>
 
 <style scoped>
-.developer-calendar {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+.developer-calendar-page {
+  min-width: 0;
 }
 
-/* 头部区域 */
-.calendar-header {
-  padding: 60px 20px;
+.calendar-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.header-content {
-  max-width: 1200px;
-  margin: 0 auto;
+.today-panel {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: var(--cn-space-5);
+  align-items: start;
+  min-width: 0;
 }
 
-.title-section {
-  text-align: center;
-  margin-bottom: 40px;
+.date-tile {
+  display: grid;
+  justify-items: center;
+  gap: var(--cn-space-1);
+  padding: var(--cn-space-5);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-panel);
+  background: var(--cn-color-brand-soft);
+  color: var(--cn-color-brand-primary);
 }
 
-.page-title {
-  font-size: 3rem;
+.date-tile__month {
+  font-size: 13px;
   font-weight: 700;
-  margin: 0 0 16px 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
 }
 
-.title-icon {
-  font-size: 3rem;
-  color: #ffd93d;
-}
-
-.page-subtitle {
-  font-size: 1.2rem;
-  opacity: 0.9;
-  margin: 0;
-}
-
-/* 今日推荐卡片 */
-.today-recommend {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 24px;
-  padding: 30px;
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.recommend-header {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-.recommend-date {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
-  padding: 16px;
-  min-width: 80px;
-}
-
-.recommend-date .month {
-  font-size: 0.9rem;
-  opacity: 0.8;
-}
-
-.recommend-date .day {
-  font-size: 2rem;
-  font-weight: bold;
+.date-tile__day {
+  font-family: var(--cn-font-heading);
+  font-size: 42px;
+  font-weight: 800;
   line-height: 1;
 }
 
-.recommend-info h3 {
-  margin: 0 0 8px 0;
-  font-size: 1.4rem;
-  color: #ffd93d;
+.today-copy {
+  display: grid;
+  gap: var(--cn-space-4);
+  min-width: 0;
 }
 
-.recommend-info p {
-  margin: 0;
-  opacity: 0.9;
-}
-
-.today-events {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.event-item {
+.today-copy__header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 16px;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  justify-content: space-between;
+  gap: var(--cn-space-3);
 }
 
-.event-item:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateX(4px);
+.today-copy h2 {
+  margin: 0;
+  color: var(--cn-color-text-primary);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
-.event-item.major-event {
-  border: 2px solid #ffd93d;
-  background: rgba(255, 217, 61, 0.1);
+.today-copy p {
+  margin: 0;
+  color: var(--cn-color-text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
 }
 
-.event-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.2);
+.today-events,
+.date-events-list {
+  display: grid;
+  gap: var(--cn-space-3);
+}
+
+.event-row,
+.date-event-item {
   display: flex;
+  align-items: center;
+  gap: var(--cn-space-3);
+  width: 100%;
+  min-width: 0;
+  padding: var(--cn-space-3);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface);
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color var(--cn-motion-fast) var(--cn-ease-out),
+    border-color var(--cn-motion-fast) var(--cn-ease-out),
+    transform var(--cn-motion-fast) var(--cn-ease-out);
+}
+
+.event-row:hover,
+.date-event-item:hover {
+  transform: translateX(2px);
+  border-color: var(--cn-color-brand-primary);
+  background: var(--cn-color-bg-surface-muted);
+}
+
+.event-row.is-major {
+  border-color: color-mix(in srgb, var(--cn-color-warning) 38%, var(--cn-color-border-subtle));
+  background: var(--cn-color-warning-soft);
+}
+
+.event-row__icon {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-brand-soft);
+  color: var(--cn-color-brand-primary);
+  flex-shrink: 0;
+  font-size: 18px;
 }
 
-.event-content h4 {
-  margin: 0 0 4px 0;
-  font-size: 1.1rem;
+.event-row__content {
+  display: grid;
+  flex: 1;
+  gap: var(--cn-space-1);
+  min-width: 0;
 }
 
-.event-content p {
-  margin: 0;
-  opacity: 0.8;
-  font-size: 0.9rem;
+.event-row__title {
+  color: var(--cn-color-text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
 }
 
-.event-badge {
-  margin-left: auto;
+.event-row__desc {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
-/* 控制区域 */
-.calendar-controls {
-  padding: 0 20px 20px;
-}
-
-.control-section {
-  max-width: 1200px;
-  margin: 0 auto;
+.calendar-toolbar {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  padding: 20px;
-  backdrop-filter: blur(10px);
+  justify-content: flex-end;
+  margin-bottom: var(--cn-space-4);
 }
 
 .month-selector {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--cn-space-3);
 }
 
 .current-month {
-  font-size: 1.2rem;
-  font-weight: 600;
-  min-width: 120px;
+  min-width: 112px;
+  color: var(--cn-color-text-primary);
+  font-size: 15px;
+  font-weight: 700;
   text-align: center;
-}
-
-/* 日历主体 */
-.calendar-main {
-  padding: 0 20px 60px;
 }
 
 .calendar-grid {
-  max-width: 1200px;
-  margin: 0 auto;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 20px;
   overflow: hidden;
-  color: #333;
+  min-width: 0;
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-panel);
+  background: var(--cn-color-bg-surface);
+}
+
+.weekdays,
+.days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
 .weekdays {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  background: #f8f9fa;
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .weekday {
-  padding: 16px;
+  padding: var(--cn-space-3);
+  border-right: 1px solid var(--cn-color-border-subtle);
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
   text-align: center;
-  font-weight: 600;
-  color: #666;
-  border-right: 1px solid #e9ecef;
 }
 
 .weekday:last-child {
-  border-right: none;
-}
-
-.days-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  border-right: 0;
 }
 
 .day-cell {
-  min-height: 120px;
-  padding: 12px;
-  border-right: 1px solid #e9ecef;
-  border-bottom: 1px solid #e9ecef;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
   display: flex;
   flex-direction: column;
+  gap: var(--cn-space-2);
+  min-width: 0;
+  min-height: 116px;
+  padding: var(--cn-space-3);
+  border: 0;
+  border-right: 1px solid var(--cn-color-border-subtle);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
+  background: transparent;
+  color: var(--cn-color-text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color var(--cn-motion-fast) var(--cn-ease-out),
+    border-color var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .day-cell:nth-child(7n) {
-  border-right: none;
+  border-right: 0;
 }
 
 .day-cell:hover {
-  background: #f8f9fa;
+  background: var(--cn-color-bg-surface-muted);
 }
 
-.day-cell.other-month {
-  opacity: 0.3;
+.day-cell.is-other-month {
+  color: var(--cn-color-text-tertiary);
+  opacity: 0.52;
 }
 
-.day-cell.today {
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: white;
-}
-
-.day-cell.today .day-number {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
+.day-cell.is-today {
+  background: var(--cn-color-brand-soft);
+  color: var(--cn-color-brand-primary);
 }
 
 .day-cell.has-major {
-  border: 2px solid #ffd93d;
+  box-shadow: inset 0 0 0 2px var(--cn-color-warning);
 }
 
 .day-number {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  margin-bottom: 8px;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--cn-radius-pill);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.day-cell.is-today .day-number {
+  background: var(--cn-color-brand-primary);
+  color: var(--cn-color-text-inverse);
 }
 
 .day-events {
-  flex: 1;
   display: flex;
+  align-content: flex-start;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 5px;
+  min-height: 18px;
 }
 
 .event-dot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
-  background: #ddd;
+  border-radius: var(--cn-radius-pill);
+  background: var(--cn-color-text-tertiary);
 }
 
 .event-dot.event-type-1 {
-  background: #f39c12;
+  background: var(--cn-color-warning);
 }
 
 .event-dot.event-type-2 {
-  background: #3498db;
+  background: var(--cn-color-info);
 }
 
 .event-dot.event-type-3 {
-  background: #27ae60;
+  background: var(--cn-color-success);
 }
 
-.event-dot.major {
+.event-dot.is-major {
   width: 12px;
   height: 12px;
-  background: #e74c3c;
-  border: 2px solid white;
+  box-shadow: 0 0 0 2px var(--cn-color-bg-surface), 0 0 0 4px var(--cn-color-warning);
 }
 
 .more-events {
-  font-size: 0.7rem;
-  color: #666;
-  margin-top: 2px;
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
 }
 
-/* 事件详情对话框 */
 .event-detail {
-  color: #333;
+  display: grid;
+  gap: var(--cn-space-4);
+  min-width: 0;
 }
 
-.event-header {
+.event-detail__header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  justify-content: space-between;
+  gap: var(--cn-space-3);
 }
 
-.event-type-badge {
+.event-detail__badges,
+.event-badges {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
 }
 
 .event-date {
-  font-weight: 600;
-  color: #666;
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .event-description {
-  line-height: 1.6;
-  margin-bottom: 20px;
-  font-size: 1.1rem;
+  margin: 0;
+  color: var(--cn-color-text-primary);
+  font-size: 15px;
+  line-height: 1.8;
 }
 
 .blessing-card {
-  margin-bottom: 20px;
-  border-left: 4px solid #ffd93d;
-}
-
-.blessing-content {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: var(--cn-space-3);
+  padding: var(--cn-space-4);
+  border-left: 3px solid var(--cn-color-warning);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-warning-soft);
+  color: var(--cn-color-text-primary);
 }
 
-.blessing-icon {
-  color: #ffd93d;
-  font-size: 1.2rem;
+.blessing-card .el-icon {
   margin-top: 2px;
+  color: var(--cn-color-warning);
+  font-size: 18px;
 }
 
-.blessing-content p {
+.blessing-card p {
   margin: 0;
-  font-style: italic;
-  color: #666;
+  color: var(--cn-color-text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.event-links {
+  display: grid;
+  gap: var(--cn-space-3);
 }
 
 .event-links h4 {
-  margin: 0 0 12px 0;
-  color: #333;
+  margin: 0;
+  color: var(--cn-color-text-primary);
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .links-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  gap: var(--cn-space-2);
 }
 
-/* 日期事件列表对话框 */
-.date-events-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+@media (max-width: 980px) {
+  .calendar-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .today-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .date-tile {
+    justify-self: start;
+    width: 120px;
+  }
 }
 
-.event-list-item {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  border-radius: 12px;
-  background: #f8f9fa;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.event-list-item:hover {
-  background: #e9ecef;
-  transform: translateX(4px);
-}
-
-.event-list-item .event-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: white;
-  font-size: 1.3rem;
-}
-
-.event-info h4 {
-  margin: 0 0 8px 0;
-  color: #333;
-}
-
-.event-info p {
-  margin: 0 0 8px 0;
-  color: #666;
-  font-size: 0.9rem;
-}
-
-.event-badges {
-  display: flex;
-  gap: 8px;
-}
-
-/* 响应式设计 */
 @media (max-width: 768px) {
-  .page-title {
-    font-size: 2rem;
-    flex-direction: column;
-    gap: 8px;
+  .calendar-toolbar {
+    justify-content: flex-start;
   }
 
-  .control-section {
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .recommend-header {
-    flex-direction: column;
-    text-align: center;
+  .event-filter-group {
+    display: flex;
+    flex-wrap: wrap;
   }
 
   .day-cell {
-    min-height: 80px;
-    padding: 8px;
+    min-height: 86px;
+    padding: var(--cn-space-2);
   }
 
-  .event-filters :deep(.el-button-group) {
-    display: flex;
-    flex-wrap: wrap;
+  .event-detail__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 560px) {
+  .weekdays,
+  .days-grid {
+    min-width: 560px;
+  }
+
+  .calendar-grid {
+    overflow-x: auto;
+  }
+
+  .today-copy__header,
+  .event-row,
+  .date-event-item {
+    align-items: flex-start;
   }
 }
 </style>

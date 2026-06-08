@@ -3,13 +3,17 @@ package com.xiaou.filestorage.service.impl;
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.DigestUtil;
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
 import com.xiaou.common.utils.JsonUtils;
 import com.xiaou.filestorage.domain.FileInfo;
+import com.xiaou.filestorage.domain.FileStorage;
 import com.xiaou.filestorage.domain.StorageConfig;
 import com.xiaou.filestorage.dto.FileUploadResult;
 import com.xiaou.filestorage.factory.StorageStrategyFactory;
 import com.xiaou.filestorage.event.FileOperationEventPublisher;
 import com.xiaou.filestorage.mapper.FileInfoMapper;
+import com.xiaou.filestorage.mapper.FileStorageMapper;
 import com.xiaou.filestorage.mapper.StorageConfigMapper;
 import com.xiaou.filestorage.service.FileBackupService;
 import com.xiaou.filestorage.service.FileStorageService;
@@ -38,6 +42,9 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @Autowired
     private FileInfoMapper fileInfoMapper;
+
+    @Autowired
+    private FileStorageMapper fileStorageMapper;
 
     @Autowired
     private StorageConfigMapper storageConfigMapper;
@@ -102,26 +109,34 @@ public class FileStorageServiceImpl implements FileStorageService {
             // 获取默认存储配置并尝试上传
             StorageConfig defaultConfig = storageConfigMapper.selectDefault();
             FileUploadResult uploadResult;
+            StorageConfig selectedConfig;
             
             if (defaultConfig != null && defaultConfig.getIsEnabled() == 1) {
                 // 尝试默认存储
                 uploadResult = tryUploadWithStorage(defaultConfig, file);
+                selectedConfig = defaultConfig;
                 if (uploadResult != null && uploadResult.isSuccess()) {
                     // 主存储上传成功
                 } else {
                     log.warn("主存储上传失败，切换到本地存储");
                     // 主存储失败，直接使用本地存储
                     uploadResult = tryLocalStorage(file);
+                    selectedConfig = resolveLocalStorageConfig();
                 }
             } else {
                 // 没有默认配置，直接使用本地存储
                 log.info("未找到默认存储配置，使用本地存储");
                 uploadResult = tryLocalStorage(file);
+                selectedConfig = resolveLocalStorageConfig();
             }
             
             if (uploadResult == null || !uploadResult.isSuccess()) {
                 return uploadResult != null ? uploadResult : FileUploadResult.failure("文件上传失败");
             }
+            if (selectedConfig == null) {
+                return FileUploadResult.failure("未找到可用的存储配置");
+            }
+            uploadResult.setStorageConfigId(selectedConfig.getId());
 
             // 保存文件信息到数据库
             FileInfo fileInfo = new FileInfo();
@@ -132,6 +147,7 @@ public class FileStorageServiceImpl implements FileStorageService {
             fileInfo.setMd5Hash(md5Hash);
             fileInfo.setModuleName(moduleName);
             fileInfo.setBusinessType(businessType);
+            fileInfo.setStorageConfigId(selectedConfig.getId());
             fileInfo.setUploadTime(new Date());
             fileInfo.setAccessUrl(uploadResult.getAccessUrl());
             fileInfo.setStatus(1);
@@ -141,6 +157,10 @@ public class FileStorageServiceImpl implements FileStorageService {
 
             int inserted = fileInfoMapper.insert(fileInfo);
             if (inserted > 0) {
+                if (!createPrimaryStorageRecord(fileInfo, selectedConfig, uploadResult.getStoragePath())) {
+                    deleteStoredObject(selectedConfig, uploadResult.getStoragePath());
+                    return FileUploadResult.failure("保存文件存储记录失败");
+                }
                 // 发布上传事件
                 eventPublisher.publishUploadEvent(fileInfo.getId(), originalName, moduleName, businessType, fileSize);
                 
@@ -306,13 +326,17 @@ public class FileStorageServiceImpl implements FileStorageService {
     @Override
     public Map<String, Object> listFiles(String moduleName, String businessType, Integer pageNum, Integer pageSize) {
         try {
+            int currentPage = pageNum == null || pageNum < 1 ? 1 : pageNum;
+            int currentSize = pageSize == null || pageSize < 1 ? 10 : pageSize;
+            PageHelper.startPage(currentPage, currentSize);
             List<FileInfo> files = fileInfoMapper.selectByCondition(moduleName, businessType, 1, null, null);
+            PageInfo<FileInfo> pageInfo = new PageInfo<>(files);
             
             Map<String, Object> result = new HashMap<>();
-            result.put("records", files);
-            result.put("total", files.size());
-            result.put("pageNum", pageNum);
-            result.put("pageSize", pageSize);
+            result.put("records", pageInfo.getList());
+            result.put("total", pageInfo.getTotal());
+            result.put("pageNum", pageInfo.getPageNum());
+            result.put("pageSize", pageInfo.getPageSize());
 
             return result;
 
@@ -439,7 +463,7 @@ public class FileStorageServiceImpl implements FileStorageService {
             // 初始化本地存储配置
             Map<String, Object> localParams = new HashMap<>();
             localParams.put("basePath", System.getProperty("user.dir") + "/uploads");
-            localParams.put("urlPrefix", "http://localhost:9999/api/files");
+            localParams.put("urlPrefix", "http://localhost:9999/files");
             
             boolean initialized = localStrategy.initialize(localParams);
             if (!initialized) {
@@ -503,7 +527,7 @@ public class FileStorageServiceImpl implements FileStorageService {
             
             Map<String, Object> localParams = new HashMap<>();
             localParams.put("basePath", System.getProperty("user.dir") + "/uploads");
-            localParams.put("urlPrefix", "http://localhost:9999/api/files");
+            localParams.put("urlPrefix", "http://localhost:9999/files");
             
             boolean initialized = localStrategy.initialize(localParams);
             if (!initialized) {
@@ -560,7 +584,7 @@ public class FileStorageServiceImpl implements FileStorageService {
             
             Map<String, Object> localParams = new HashMap<>();
             localParams.put("basePath", System.getProperty("user.dir") + "/uploads");
-            localParams.put("urlPrefix", "http://localhost:9999/api/files");
+            localParams.put("urlPrefix", "http://localhost:9999/files");
             
             boolean initialized = localStrategy.initialize(localParams);
             if (!initialized) {
@@ -572,6 +596,48 @@ public class FileStorageServiceImpl implements FileStorageService {
         } catch (Exception e) {
             log.error("本地存储获取URL异常: {}", e.getMessage(), e);
             return null;
+        }
+    }
+
+    private StorageConfig resolveLocalStorageConfig() {
+        List<StorageConfig> localConfigs = storageConfigMapper.selectByCondition("LOCAL", 1);
+        if (CollectionUtil.isNotEmpty(localConfigs)) {
+            return localConfigs.get(0);
+        }
+        StorageConfig defaultConfig = storageConfigMapper.selectDefault();
+        if (defaultConfig != null && "LOCAL".equals(defaultConfig.getStorageType()) && defaultConfig.getIsEnabled() == 1) {
+            return defaultConfig;
+        }
+        return null;
+    }
+
+    private boolean createPrimaryStorageRecord(FileInfo fileInfo, StorageConfig storageConfig, String storagePath) {
+        try {
+            FileStorage fileStorage = new FileStorage();
+            fileStorage.setFileId(fileInfo.getId());
+            fileStorage.setStorageConfigId(storageConfig.getId());
+            fileStorage.setStoragePath(storagePath);
+            fileStorage.setIsPrimary(1);
+            fileStorage.setSyncStatus(1);
+            fileStorage.setCreateTime(new Date());
+            fileStorage.setUpdateTime(new Date());
+            return fileStorageMapper.insert(fileStorage) > 0;
+        } catch (Exception e) {
+            log.error("创建主存储记录失败: fileId={}, error={}", fileInfo.getId(), e.getMessage(), e);
+            return false;
+        }
+    }
+
+    private void deleteStoredObject(StorageConfig storageConfig, String storagePath) {
+        try {
+            Map<String, Object> configParams = JsonUtils.parseMap(storageConfig.getConfigParams());
+            FileStorageStrategy strategy = strategyFactory.createAndInitialize(
+                storageConfig.getId(), storageConfig.getStorageType(), configParams);
+            if (strategy != null) {
+                strategy.deleteFile(storagePath);
+            }
+        } catch (Exception e) {
+            log.warn("清理上传失败文件异常: configId={}, storagePath={}, error={}", storageConfig.getId(), storagePath, e.getMessage());
         }
     }
 }

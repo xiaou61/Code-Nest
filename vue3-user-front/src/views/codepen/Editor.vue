@@ -1,135 +1,184 @@
 <template>
-  <div class="codepen-editor">
-    <!-- 顶部工具栏 -->
-    <div class="editor-header">
-      <div class="header-left">
-        <el-button 
-          type="primary" 
-          icon="Back" 
-          @click="goBack"
-        >
-          返回
-        </el-button>
+  <CnPage class="codepen-editor" max-width="100%" full-height dense>
+    <CnPageHeader
+      :title="pageTitle"
+      :description="pageDescription"
+      eyebrow="CODEPEN EDITOR"
+      :breadcrumbs="[{ label: '首页', to: '/' }, { label: '代码广场', to: '/codepen' }, { label: pageTitle }]"
+      compact
+    >
+      <template #meta>
+        <CnStatusTag :type="penData.status === 1 ? 'success' : 'warning'" size="sm" dot>
+          {{ penData.status === 1 ? '已发布' : '草稿' }}
+        </CnStatusTag>
+        <CnStatusTag :type="penData.isPublic === 1 ? 'brand' : 'neutral'" size="sm" subtle>
+          {{ penData.isPublic === 1 ? '公开可见' : '私密作品' }}
+        </CnStatusTag>
+        <CnStatusTag :type="penData.isFree === 1 ? 'info' : 'success'" size="sm" subtle>
+          {{ penData.isFree === 1 ? '免费 Fork' : `${penData.forkPrice || 0} 积分 Fork` }}
+        </CnStatusTag>
+      </template>
+
+      <template #actions>
+        <el-button icon="Back" @click="goBack">返回</el-button>
+        <el-button icon="Document" :loading="saving" @click="saveDraft">保存草稿</el-button>
+        <el-button type="success" icon="Upload" :loading="publishing" @click="publish">发布作品</el-button>
+        <el-button icon="Setting" @click="showSettings = true">设置</el-button>
+      </template>
+    </CnPageHeader>
+
+    <section class="editor-stats" aria-label="代码编辑概览">
+      <CnStatCard
+        title="HTML"
+        :value="codeMetrics.htmlLines"
+        unit="行"
+        description="结构代码"
+        tone="brand"
+        trend="flat"
+        trend-text="Markup"
+      />
+      <CnStatCard
+        title="CSS"
+        :value="codeMetrics.cssLines"
+        unit="行"
+        description="样式代码"
+        tone="info"
+        trend="flat"
+        trend-text="Style"
+      />
+      <CnStatCard
+        title="JavaScript"
+        :value="codeMetrics.jsLines"
+        unit="行"
+        description="交互代码"
+        tone="warning"
+        trend="flat"
+        trend-text="Logic"
+      />
+      <CnStatCard
+        title="标签"
+        :value="penData.tags.length"
+        unit="/ 5"
+        description="发布和搜索标识"
+        tone="neutral"
+        trend="flat"
+        trend-text="Meta"
+      />
+    </section>
+
+    <CnSection
+      class="editor-meta-section"
+      title="作品信息"
+      description="标题和描述会同步用于保存草稿、发布作品与广场展示。"
+      compact
+      divided
+    >
+      <div class="editor-meta-form">
         <el-input
           v-model="penData.title"
           placeholder="请输入作品标题"
-          class="title-input"
           maxlength="100"
+          show-word-limit
+        >
+          <template #prefix>
+            <el-icon><Document /></el-icon>
+          </template>
+        </el-input>
+        <el-input
+          v-model="penData.description"
+          type="textarea"
+          :rows="2"
+          placeholder="补充一句作品描述，便于别人理解这个示例的用途。"
+          maxlength="500"
           show-word-limit
         />
       </div>
-      <div class="header-right">
-        <el-button 
-          icon="Document" 
-          @click="saveDraft"
-          :loading="saving"
-        >
-          保存草稿
-        </el-button>
-        <el-button 
-          type="success" 
-          icon="Upload" 
-          @click="publish"
-          :loading="publishing"
-        >
-          发布作品
-        </el-button>
-        <el-button 
-          icon="Setting" 
-          @click="showSettings = true"
-        >
-          设置
-        </el-button>
-      </div>
-    </div>
+    </CnSection>
 
-    <!-- 编辑器主体 -->
-    <div class="editor-body">
-      <!-- 代码编辑区 -->
-      <div class="code-panels">
-        <!-- HTML编辑器 -->
-        <div class="code-panel">
-          <div class="panel-header">
+    <CnSection
+      class="workbench-section"
+      title="代码工作台"
+      description="编辑 HTML、CSS、JavaScript 后自动刷新预览，也可以手动运行当前代码。"
+      compact
+      divided
+    >
+      <template #actions>
+        <el-button text icon="Refresh" @click="runCode">运行</el-button>
+        <el-button text icon="FullScreen" @click="fullscreenPreview = true">全屏预览</el-button>
+      </template>
+
+      <div class="editor-body">
+        <div class="code-panels">
+          <div class="code-panel code-panel--html">
+            <div class="panel-header">
+              <span class="panel-title">
+                <el-icon><Document /></el-icon>
+                HTML
+              </span>
+              <CnStatusTag type="brand" size="sm" subtle>{{ codeMetrics.htmlLines }} 行</CnStatusTag>
+            </div>
+            <textarea
+              v-model="penData.htmlCode"
+              class="code-textarea"
+              placeholder="在这里编写HTML代码..."
+              spellcheck="false"
+              @input="autoRunCode"
+            ></textarea>
+          </div>
+
+          <div class="code-panel code-panel--css">
+            <div class="panel-header">
+              <span class="panel-title">
+                <el-icon><Brush /></el-icon>
+                CSS
+              </span>
+              <CnStatusTag type="info" size="sm" subtle>{{ codeMetrics.cssLines }} 行</CnStatusTag>
+            </div>
+            <textarea
+              v-model="penData.cssCode"
+              class="code-textarea"
+              placeholder="在这里编写CSS代码..."
+              spellcheck="false"
+              @input="autoRunCode"
+            ></textarea>
+          </div>
+
+          <div class="code-panel code-panel--js">
+            <div class="panel-header">
+              <span class="panel-title">
+                <el-icon><Lightning /></el-icon>
+                JavaScript
+              </span>
+              <CnStatusTag type="warning" size="sm" subtle>{{ codeMetrics.jsLines }} 行</CnStatusTag>
+            </div>
+            <textarea
+              v-model="penData.jsCode"
+              class="code-textarea"
+              placeholder="在这里编写JavaScript代码..."
+              spellcheck="false"
+              @input="autoRunCode"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="preview-panel">
+          <div class="panel-header panel-header--preview">
             <span class="panel-title">
-              <el-icon><Document /></el-icon>
-              HTML
+              <el-icon><View /></el-icon>
+              预览
             </span>
-            <el-button 
-              text 
-              size="small" 
-              icon="Refresh"
-              @click="runCode"
-            >
-              运行
+            <el-button text size="small" icon="FullScreen" @click="fullscreenPreview = true">
+              全屏
             </el-button>
           </div>
-          <textarea
-            v-model="penData.htmlCode"
-            class="code-textarea"
-            placeholder="在这里编写HTML代码..."
-            spellcheck="false"
-            @input="autoRunCode"
-          ></textarea>
-        </div>
-
-        <!-- CSS编辑器 -->
-        <div class="code-panel">
-          <div class="panel-header">
-            <span class="panel-title">
-              <el-icon><Brush /></el-icon>
-              CSS
-            </span>
-          </div>
-          <textarea
-            v-model="penData.cssCode"
-            class="code-textarea"
-            placeholder="在这里编写CSS代码..."
-            spellcheck="false"
-            @input="autoRunCode"
-          ></textarea>
-        </div>
-
-        <!-- JavaScript编辑器 -->
-        <div class="code-panel">
-          <div class="panel-header">
-            <span class="panel-title">
-              <el-icon><Lightning /></el-icon>
-              JavaScript
-            </span>
-          </div>
-          <textarea
-            v-model="penData.jsCode"
-            class="code-textarea"
-            placeholder="在这里编写JavaScript代码..."
-            spellcheck="false"
-            @input="autoRunCode"
-          ></textarea>
+          <iframe
+            ref="previewFrame"
+            class="preview-iframe"
+            sandbox="allow-scripts allow-same-origin"
+          ></iframe>
         </div>
       </div>
-
-      <!-- 预览区 -->
-      <div class="preview-panel">
-        <div class="panel-header">
-          <span class="panel-title">
-            <el-icon><View /></el-icon>
-            预览
-          </span>
-          <el-button 
-            text 
-            size="small" 
-            icon="FullScreen"
-            @click="fullscreenPreview = true"
-          >
-            全屏
-          </el-button>
-        </div>
-        <iframe
-          ref="previewFrame"
-          class="preview-iframe"
-          sandbox="allow-scripts allow-same-origin"
-        ></iframe>
-      </div>
-    </div>
+    </CnSection>
 
     <!-- 设置对话框 -->
     <el-dialog
@@ -166,7 +215,7 @@
             filterable
             allow-create
             placeholder="选择或输入标签（最多5个）"
-            style="width: 100%"
+            class="settings-select"
             :max-collapse-tags="3"
           >
             <el-option
@@ -183,7 +232,7 @@
           <el-select
             v-model="penData.category"
             placeholder="选择分类"
-            style="width: 100%"
+            class="settings-select"
           >
             <el-option label="动画特效" value="动画" />
             <el-option label="组件库" value="组件" />
@@ -213,9 +262,9 @@
             :min="1"
             :max="1000"
             placeholder="设置Fork价格"
-            style="width: 200px"
+            class="fork-price-input"
           />
-          <span class="form-tip" style="margin-left: 10px">积分（1-1000）</span>
+          <span class="form-tip fork-price-tip">积分（1-1000）</span>
         </el-form-item>
       </el-form>
 
@@ -239,21 +288,42 @@
         sandbox="allow-scripts allow-same-origin"
       ></iframe>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted, watch, onBeforeUnmount } from 'vue'
+<script setup lang="ts">
+import { computed, ref, reactive, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { codepenApi } from '@/api/codepen'
+import { CnPage, CnPageHeader, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
 import { Document, Brush, Lightning, View } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
 
+interface CodePenTag {
+  tagName: string
+  useCount?: number
+}
+
+interface PenData {
+  id: number | string | null
+  title: string
+  description: string
+  htmlCode: string
+  cssCode: string
+  jsCode: string
+  tags: string[]
+  category: string
+  isPublic: number
+  isFree: number
+  forkPrice: number
+  status: number
+}
+
 // 作品数据
-const penData = reactive({
+const penData = reactive<PenData>({
   id: null,
   title: '',
   description: '',
@@ -273,10 +343,40 @@ const saving = ref(false)
 const publishing = ref(false)
 const showSettings = ref(false)
 const fullscreenPreview = ref(false)
-const allTags = ref([])
-const previewFrame = ref(null)
-const fullscreenFrame = ref(null)
-const autoRunTimer = ref(null)
+const allTags = ref<CodePenTag[]>([])
+const previewFrame = ref<HTMLIFrameElement | null>(null)
+const fullscreenFrame = ref<HTMLIFrameElement | null>(null)
+const autoRunTimer = ref<ReturnType<typeof setTimeout> | null>(null)
+
+const routePenId = computed(() => {
+  const id = route.params.id
+  return Array.isArray(id) ? id[0] : id
+})
+
+const pageTitle = computed(() => (routePenId.value ? '编辑作品' : '创建作品'))
+
+const pageDescription = computed(() => {
+  if (routePenId.value) {
+    return '调整已有作品的源码、可见性与 Fork 设置，保存草稿或重新发布。'
+  }
+  if (route.query.template) {
+    return '从系统模板开始创作，保留预览反馈并逐步完善作品信息。'
+  }
+  return '创建一个可运行的 HTML、CSS、JavaScript 示例，并发布到代码广场。'
+})
+
+const countLines = (code: string) => {
+  if (!code.trim()) {
+    return 0
+  }
+  return code.split(/\r?\n/).length
+}
+
+const codeMetrics = computed(() => ({
+  htmlLines: countLines(penData.htmlCode),
+  cssLines: countLines(penData.cssCode),
+  jsLines: countLines(penData.jsCode)
+}))
 
 // 返回
 const goBack = () => {
@@ -393,13 +493,11 @@ const runCode = () => {
   `
 
   if (previewFrame.value) {
-    const iframe = previewFrame.value
-    iframe.srcdoc = content
+    previewFrame.value.srcdoc = content
   }
 
   if (fullscreenPreview.value && fullscreenFrame.value) {
-    const iframe = fullscreenFrame.value
-    iframe.srcdoc = content
+    fullscreenFrame.value.srcdoc = content
   }
 }
 
@@ -424,7 +522,7 @@ const loadTags = async () => {
 
 // 加载作品数据（编辑模式）
 const loadPenData = async () => {
-  const penId = route.params.id
+  const penId = routePenId.value
   if (!penId) return
 
   try {
@@ -506,135 +604,12 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .codepen-editor {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: #1e1e1e;
-
-  .editor-header {
-    height: 60px;
-    background: #2d2d2d;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 20px;
-    border-bottom: 1px solid #3d3d3d;
-
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-      flex: 1;
-
-      .title-input {
-        max-width: 400px;
-      }
-    }
-
-    .header-right {
-      display: flex;
-      gap: 10px;
-    }
-  }
-
-  .editor-body {
-    flex: 1;
-    display: flex;
-    overflow: hidden;
-
-    .code-panels {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-
-      .code-panel {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        border-right: 1px solid #3d3d3d;
-        border-bottom: 1px solid #3d3d3d;
-
-        .panel-header {
-          height: 40px;
-          background: #252526;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 0 15px;
-          border-bottom: 1px solid #3d3d3d;
-
-          .panel-title {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #d4d4d4;
-            font-size: 14px;
-            font-weight: 500;
-          }
-        }
-
-        .code-textarea {
-          flex: 1;
-          width: 100%;
-          padding: 15px;
-          background: #1e1e1e;
-          color: #d4d4d4;
-          border: none;
-          resize: none;
-          font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-          font-size: 14px;
-          line-height: 1.6;
-
-          &:focus {
-            outline: none;
-          }
-
-          &::placeholder {
-            color: #666;
-          }
-        }
-      }
-    }
-
-    .preview-panel {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      background: #fff;
-
-      .panel-header {
-        height: 40px;
-        background: #f5f5f5;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0 15px;
-        border-bottom: 1px solid #ddd;
-
-        .panel-title {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: #333;
-          font-size: 14px;
-          font-weight: 500;
-        }
-      }
-
-      .preview-iframe {
-        flex: 1;
-        width: 100%;
-        border: none;
-        background: #fff;
-      }
-    }
-  }
+  min-height: calc(100vh - 68px);
 
   .form-tip {
     font-size: 12px;
-    color: #999;
-    margin-top: 5px;
+    color: var(--cn-color-text-tertiary);
+    margin-top: var(--cn-space-1);
   }
 
   .fullscreen-iframe {
@@ -644,9 +619,164 @@ onBeforeUnmount(() => {
   }
 }
 
+.editor-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
+}
+
+.editor-meta-form {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(320px, 1.2fr);
+  gap: var(--cn-space-4);
+  align-items: start;
+}
+
+.workbench-section {
+  min-height: 0;
+}
+
+.editor-body {
+  display: grid;
+  grid-template-columns: minmax(360px, 0.95fr) minmax(420px, 1.05fr);
+  min-height: 680px;
+  overflow: hidden;
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface);
+}
+
+.code-panels {
+  display: grid;
+  grid-template-rows: repeat(3, minmax(180px, 1fr));
+  min-width: 0;
+  overflow: hidden;
+  border-right: 1px solid var(--cn-color-border-subtle);
+  background: color-mix(in srgb, var(--cn-slate-900) 94%, var(--cn-color-bg-surface));
+}
+
+.code-panel {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  border-bottom: 1px solid color-mix(in srgb, var(--cn-slate-700) 72%, transparent);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.panel-header {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cn-space-3);
+  padding: 0 var(--cn-space-4);
+  border-bottom: 1px solid color-mix(in srgb, var(--cn-slate-700) 72%, transparent);
+  background: color-mix(in srgb, var(--cn-slate-800) 84%, var(--cn-color-bg-surface));
+}
+
+.panel-header--preview {
+  border-color: var(--cn-color-border-subtle);
+  background: var(--cn-color-bg-surface-muted);
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: var(--cn-space-2);
+  color: var(--cn-slate-100);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.panel-header--preview .panel-title {
+  color: var(--cn-color-text-primary);
+}
+
+.code-textarea {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  padding: var(--cn-space-4);
+  border: none;
+  background: color-mix(in srgb, var(--cn-slate-900) 96%, var(--cn-color-bg-surface));
+  color: var(--cn-slate-100);
+  font-family: Consolas, Monaco, 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  resize: none;
+  tab-size: 2;
+
+  &:focus {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--cn-color-focus-ring);
+  }
+
+  &::placeholder {
+    color: var(--cn-slate-500);
+  }
+}
+
+.preview-panel {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  background: var(--cn-color-bg-surface);
+}
+
+.preview-iframe {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  border: none;
+  background: var(--cn-color-bg-surface);
+}
+
 :deep(.el-dialog) {
   .el-dialog__body {
-    padding: 20px;
+    padding: var(--cn-space-5);
+  }
+}
+
+.settings-select {
+  width: 100%;
+}
+
+.fork-price-input {
+  width: 200px;
+}
+
+.fork-price-tip {
+  margin-left: var(--cn-space-3);
+}
+
+@media (max-width: 1180px) {
+  .editor-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .editor-body {
+    grid-template-columns: 1fr;
+    min-height: 980px;
+  }
+
+  .code-panels {
+    border-right: 0;
+    border-bottom: 1px solid var(--cn-color-border-subtle);
+  }
+}
+
+@media (max-width: 720px) {
+  .editor-stats,
+  .editor-meta-form {
+    grid-template-columns: 1fr;
+  }
+
+  .editor-body {
+    min-height: 1120px;
   }
 }
 </style>

@@ -112,6 +112,14 @@
         WHERE id = #{id}
     </update>
 
+    <!-- 根据ID更新事件状态 -->
+    <update id="updateStatusById">
+        UPDATE developer_calendar_event SET
+            status = #{status},
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
     <!-- 根据ID删除事件 -->
     <delete id="deleteById">
         DELETE FROM developer_calendar_event WHERE id = #{id}

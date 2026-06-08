@@ -3,6 +3,7 @@ package com.xiaou.notification.controller;
 import com.xiaou.common.annotation.Log;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.core.domain.ResultCode;
 import com.xiaou.common.domain.Notification;
 import com.xiaou.notification.dto.DeleteMessageRequest;
 import com.xiaou.notification.dto.MarkReadRequest;
@@ -81,7 +82,7 @@ public class NotificationController {
         if (success) {
             return Result.success();
         } else {
-            return Result.error("删除消息失败");
+            return Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "删除消息失败");
         }
     }
     

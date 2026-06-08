@@ -1,88 +1,37 @@
 <template>
-  <div class="login-container">
-    <!-- 左侧视觉区 -->
-    <div class="login-left">
-      <!-- 波浪背景 -->
-      <div class="wave-bg">
-        <svg class="wave wave1" viewBox="0 0 1440 320" preserveAspectRatio="none">
-          <path fill="rgba(99, 179, 237, 0.1)" d="M0,192L48,197.3C96,203,192,213,288,229.3C384,245,480,267,576,250.7C672,235,768,181,864,181.3C960,181,1056,235,1152,234.7C1248,235,1344,181,1392,154.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
-        </svg>
-        <svg class="wave wave2" viewBox="0 0 1440 320" preserveAspectRatio="none">
-          <path fill="rgba(79, 209, 197, 0.08)" d="M0,64L48,80C96,96,192,128,288,128C384,128,480,96,576,90.7C672,85,768,107,864,144C960,181,1056,235,1152,234.7C1248,235,1344,181,1392,154.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
-        </svg>
-      </div>
-      <!-- 粒子背景 -->
-      <div class="particles">
-        <span v-for="i in 50" :key="i" class="particle"></span>
-      </div>
-      <!-- 3D装饰卡片 - 展示平台功能 -->
-      <div class="floating-cards">
-        <div class="float-card card-1">
-          <div class="card-icon">📝</div>
-          <div class="card-text">面试刷题</div>
+  <CnPage class="legacy-auth" surface="transparent">
+    <div class="auth-shell">
+      <section class="auth-aside">
+        <CnStatusTag type="brand" size="lg">Code Nest</CnStatusTag>
+        <h1>欢迎回来</h1>
+        <p>继续你的刷题、面试、知识沉淀和作品打磨节奏。</p>
+        <div class="auth-aside__tags">
+          <CnStatusTag type="success" size="sm" subtle>面试题库</CnStatusTag>
+          <CnStatusTag type="info" size="sm" subtle>知识图谱</CnStatusTag>
+          <CnStatusTag type="warning" size="sm" subtle>计划打卡</CnStatusTag>
         </div>
-        <div class="float-card card-2">
-          <div class="card-icon">🤖</div>
-          <div class="card-text">AI模拟面试</div>
-        </div>
-        <div class="float-card card-3">
-          <div class="card-icon">💻</div>
-          <div class="card-text">代码工坊</div>
-        </div>
-        <div class="float-card card-4">
-          <div class="card-icon">📚</div>
-          <div class="card-text">知识图谱</div>
-        </div>
-        <div class="float-card card-5">
-          <div class="card-icon">📝</div>
-          <div class="card-text">在线简历</div>
-        </div>
-        <div class="float-card card-6">
-          <div class="card-icon">💬</div>
-          <div class="card-text">即时聊天</div>
-        </div>
-        <div class="float-card card-7">
-          <div class="card-icon">🏆</div>
-          <div class="card-text">积分抽奖</div>
-        </div>
-        <div class="float-card card-8">
-          <div class="card-icon">📅</div>
-          <div class="card-text">计划打卡</div>
-        </div>
-      </div>
-      <!-- 品牌信息 -->
-      <div class="brand-section">
-        <h1 class="brand-title">Code Nest</h1>
-        <p class="brand-subtitle">开发者成长社区</p>
-        <p class="brand-desc">刷题 · 面试 · 知识图谱 · 代码工坊 · 简历 · 社区</p>
-      </div>
-    </div>
+      </section>
 
-    <!-- 右侧表单区 -->
-    <div class="login-right">
-      <div class="login-card">
-        <div class="login-header">
-          <h2>欢迎回来</h2>
-          <p>登录您的 Code Nest 账户</p>
-        </div>
+      <CnSection surface="plain" class="auth-card">
+        <CnPageHeader
+          compact
+          title="登录账户"
+          description="这个旧登录页已接入 design-system；当前路由默认使用 Auth.vue。"
+        />
 
         <el-form
           ref="loginFormRef"
           :model="loginForm"
           :rules="loginRules"
-          class="login-form"
+          class="auth-form"
+          label-position="top"
           @submit.prevent="handleLogin"
         >
-          <el-form-item prop="username">
-            <el-input
-              v-model="loginForm.username"
-              placeholder="请输入用户名或邮箱"
-              size="large"
-              :prefix-icon="User"
-            />
+          <el-form-item label="用户名或邮箱" prop="username">
+            <el-input v-model="loginForm.username" placeholder="请输入用户名或邮箱" size="large" :prefix-icon="User" />
           </el-form-item>
 
-          <el-form-item prop="password">
+          <el-form-item label="密码" prop="password">
             <el-input
               v-model="loginForm.password"
               type="password"
@@ -94,89 +43,69 @@
             />
           </el-form-item>
 
-          <!-- 验证码 -->
-          <el-form-item prop="captcha" v-if="captchaImage">
+          <el-form-item v-if="captchaImage" label="验证码" prop="captcha">
             <div class="captcha-row">
-              <el-input
-                v-model="loginForm.captcha"
-                placeholder="请输入验证码"
-                size="large"
-                class="captcha-input"
-              />
-              <div class="captcha-image" @click="refreshCaptcha">
+              <el-input v-model="loginForm.captcha" placeholder="请输入验证码" size="large" />
+              <button class="captcha-image" type="button" aria-label="刷新验证码" @click="refreshCaptcha">
                 <img :src="captchaImage" alt="验证码" />
-              </div>
+              </button>
             </div>
           </el-form-item>
 
-          <el-form-item>
-            <el-button
-              type="primary"
-              size="large"
-              :loading="loading"
-              @click="handleLogin"
-              class="login-btn"
-            >
-              登 录
-            </el-button>
-          </el-form-item>
+          <el-button type="primary" size="large" :loading="loading" class="submit-button" @click="handleLogin">
+            登录
+          </el-button>
         </el-form>
 
-        <div class="login-footer">
-          <p>
-            还没有账户？
-            <router-link to="/register" class="register-link">
-              立即注册
-            </router-link>
-          </p>
+        <div class="auth-footer">
+          <span>还没有账户？</span>
+          <router-link to="/register">立即注册</router-link>
         </div>
-      </div>
+      </CnSection>
     </div>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted } from 'vue'
+<script setup lang="ts">
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { Lock, User } from '@element-plus/icons-vue'
+import { CnPage, CnPageHeader, CnSection, CnStatusTag } from '@/design-system'
 import { useUserStore } from '@/stores/user'
 import { authApi } from '@/api/auth'
 import { captchaApi } from '@/api/captcha'
-import { ElMessage } from 'element-plus'
-import { User, Lock } from '@element-plus/icons-vue'
+
+interface LoginForm {
+  username: string
+  password: string
+  captcha: string
+  captchaKey: string
+}
 
 const router = useRouter()
 const userStore = useUserStore()
 
-// 表单引用
-const loginFormRef = ref()
+const loginFormRef = ref<FormInstance | null>(null)
+const captchaImage = ref('')
+const loading = ref(false)
 
-// 表单数据
-const loginForm = reactive({
+const loginForm = reactive<LoginForm>({
   username: '',
   password: '',
   captcha: '',
   captchaKey: ''
 })
 
-// 验证码
-const captchaImage = ref('')
-const loading = ref(false)
-
-// 表单验证规则
-const loginRules = {
-  username: [
-    { required: true, message: '请输入用户名或邮箱', trigger: 'blur' }
-  ],
+const loginRules: FormRules<LoginForm> = {
+  username: [{ required: true, message: '请输入用户名或邮箱', trigger: 'blur' }],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
   ],
-  captcha: [
-    { required: true, message: '请输入验证码', trigger: 'blur' }
-  ]
+  captcha: [{ required: true, message: '请输入验证码', trigger: 'blur' }]
 }
 
-// 获取验证码
 const loadCaptcha = async () => {
   try {
     const result = await captchaApi.generateCaptcha()
@@ -187,36 +116,30 @@ const loadCaptcha = async () => {
   }
 }
 
-// 刷新验证码
 const refreshCaptcha = () => {
   loginForm.captcha = ''
   loadCaptcha()
 }
 
-// 登录处理
 const handleLogin = async () => {
-  try {
-    await loginFormRef.value.validate()
-    loading.value = true
+  const valid = await loginFormRef.value?.validate().catch(() => false)
+  if (!valid) return
 
-    const loginData = {
+  loading.value = true
+  try {
+    const result = await authApi.login({
       username: loginForm.username,
       password: loginForm.password,
       captcha: loginForm.captcha,
       captchaKey: loginForm.captchaKey
-    }
+    })
 
-    const result = await authApi.login(loginData)
-    
-    // 保存用户信息和token
     userStore.login(result.accessToken, result.userInfo)
-    
     ElMessage.success('登录成功')
     router.push('/')
-    
   } catch (error) {
     console.error('登录失败:', error)
-    refreshCaptcha() // 登录失败刷新验证码
+    refreshCaptcha()
   } finally {
     loading.value = false
   }
@@ -228,371 +151,89 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.login-container {
+.legacy-auth {
   min-height: 100vh;
-  display: flex;
-  background: #0f0f1a;
 }
 
-/* ========== 左侧视觉区 ========== */
-.login-left {
-  flex: 1;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  position: relative;
+.auth-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(360px, 460px);
+  gap: var(--cn-space-6);
+  align-items: stretch;
+  min-height: calc(100vh - 2 * var(--cn-space-6));
+}
+
+.auth-aside,
+.auth-card {
+  min-width: 0;
+}
+
+.auth-aside {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: center;
-  padding: 60px;
-  overflow: hidden;
+  gap: var(--cn-space-5);
+  padding: clamp(var(--cn-space-6), 6vw, var(--cn-space-10));
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-panel);
+  background: color-mix(in srgb, var(--cn-color-bg-surface) 88%, var(--cn-color-brand-soft));
+  box-shadow: var(--cn-shadow-card);
 }
 
-/* 粒子效果 */
-.particles {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-.particle {
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  background: rgba(99, 179, 237, 0.6);
-  border-radius: 50%;
-  animation: floatParticle 15s infinite;
-  opacity: 0;
-}
-
-.particle:nth-child(1) { left: 10%; animation-delay: 0s; }
-.particle:nth-child(2) { left: 20%; animation-delay: 1s; }
-.particle:nth-child(3) { left: 30%; animation-delay: 2s; }
-.particle:nth-child(4) { left: 40%; animation-delay: 3s; }
-.particle:nth-child(5) { left: 50%; animation-delay: 4s; }
-.particle:nth-child(6) { left: 60%; animation-delay: 5s; }
-.particle:nth-child(7) { left: 70%; animation-delay: 6s; }
-.particle:nth-child(8) { left: 80%; animation-delay: 7s; }
-.particle:nth-child(9) { left: 90%; animation-delay: 8s; }
-.particle:nth-child(10) { left: 15%; animation-delay: 0.5s; }
-.particle:nth-child(11) { left: 25%; animation-delay: 1.5s; }
-.particle:nth-child(12) { left: 35%; animation-delay: 2.5s; }
-.particle:nth-child(13) { left: 45%; animation-delay: 3.5s; }
-.particle:nth-child(14) { left: 55%; animation-delay: 4.5s; }
-.particle:nth-child(15) { left: 65%; animation-delay: 5.5s; }
-.particle:nth-child(16) { left: 75%; animation-delay: 6.5s; }
-.particle:nth-child(17) { left: 85%; animation-delay: 7.5s; }
-.particle:nth-child(18) { left: 95%; animation-delay: 8.5s; }
-.particle:nth-child(19) { left: 5%; animation-delay: 9s; }
-.particle:nth-child(20) { left: 12%; animation-delay: 9.5s; }
-.particle:nth-child(n+21) { left: calc(5% * (var(--i, 1))); animation-delay: calc(0.3s * var(--i, 1)); }
-
-@keyframes floatParticle {
-  0% {
-    transform: translateY(100vh) scale(0);
-    opacity: 0;
-  }
-  10% {
-    opacity: 1;
-  }
-  90% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(-100vh) scale(1);
-    opacity: 0;
-  }
-}
-
-/* 3D悬浮卡片 */
-.floating-cards {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  perspective: 1000px;
-}
-
-.float-card {
-  position: absolute;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  transform-style: preserve-3d;
-  animation: float3d 6s ease-in-out infinite;
-}
-
-.float-card .card-icon {
-  font-size: 28px;
-}
-
-.float-card .card-text {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.card-1 {
-  top: 8%;
-  left: 8%;
-  animation-delay: 0s;
-}
-
-.card-2 {
-  top: 8%;
-  right: 12%;
-  animation-delay: -1s;
-}
-
-.card-3 {
-  top: 35%;
-  left: 5%;
-  animation-delay: -2s;
-}
-
-.card-4 {
-  top: 38%;
-  right: 8%;
-  animation-delay: -3s;
-}
-
-.card-5 {
-  bottom: 35%;
-  left: 12%;
-  animation-delay: -4s;
-}
-
-.card-6 {
-  bottom: 32%;
-  right: 5%;
-  animation-delay: -5s;
-}
-
-.card-7 {
-  bottom: 8%;
-  left: 6%;
-  animation-delay: -6s;
-}
-
-.card-8 {
-  bottom: 10%;
-  right: 10%;
-  animation-delay: -7s;
-}
-
-@keyframes float3d {
-  0%, 100% {
-    transform: translateY(0) rotateX(0deg) rotateY(0deg);
-  }
-  25% {
-    transform: translateY(-15px) rotateX(5deg) rotateY(5deg);
-  }
-  50% {
-    transform: translateY(-5px) rotateX(0deg) rotateY(-5deg);
-  }
-  75% {
-    transform: translateY(-20px) rotateX(-5deg) rotateY(3deg);
-  }
-}
-
-/* 品牌信息 */
-.brand-section {
-  position: relative;
-  z-index: 10;
-  text-align: center;
-}
-
-.brand-title {
-  font-size: 48px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #63b3ed 0%, #4fd1c5 50%, #9f7aea 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: 16px;
-  text-shadow: 0 0 40px rgba(99, 179, 237, 0.3);
-}
-
-.brand-subtitle {
-  font-size: 20px;
-  color: rgba(255, 255, 255, 0.9);
-  margin-bottom: 12px;
-  font-weight: 500;
-}
-
-.brand-desc {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
-  letter-spacing: 2px;
-}
-
-/* 波浪背景 */
-.wave-bg {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  z-index: 1;
-}
-
-.wave {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 200%;
-  height: 200px;
-}
-
-.wave1 {
-  animation: waveMove 12s linear infinite;
-}
-
-.wave2 {
-  animation: waveMove 8s linear infinite reverse;
-  bottom: 10px;
-}
-
-@keyframes waveMove {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-
-/* ========== 右侧表单区 ========== */
-.login-right {
-  width: 520px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-  background: #f8fafc;
-  position: relative;
-  overflow: hidden;
-}
-
-/* 右侧波浪装饰 */
-.login-right::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: radial-gradient(ellipse at 30% 20%, rgba(66, 153, 225, 0.05) 0%, transparent 50%);
-  animation: pulse 8s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 0.5; }
-  50% { transform: scale(1.1); opacity: 0.8; }
-}
-
-.login-card {
-  width: 100%;
-  max-width: 420px;
-  background: white;
-  border-radius: 24px;
-  padding: 48px 40px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
-  position: relative;
-  z-index: 1;
-  animation: cardEnter 0.5s ease-out;
-}
-
-@keyframes cardEnter {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.login-header {
-  text-align: center;
-  margin-bottom: 40px;
-}
-
-.login-header h2 {
-  color: #1a202c;
-  margin-bottom: 8px;
-  font-size: 28px;
-  font-weight: 700;
-}
-
-.login-header p {
-  color: #718096;
+.auth-aside h1 {
   margin: 0;
+  color: var(--cn-color-text-primary);
+  font-family: var(--cn-font-heading);
+  font-size: clamp(34px, 5vw, 54px);
+  font-weight: 760;
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+.auth-aside p {
+  max-width: 520px;
+  margin: 0;
+  color: var(--cn-color-text-secondary);
   font-size: 15px;
+  line-height: 1.8;
 }
 
-.login-form {
-  margin-bottom: 24px;
+.auth-aside__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
 }
 
-.login-form :deep(.el-form-item) {
-  margin-bottom: 20px;
+.auth-card :deep(.cn-section__body) {
+  display: grid;
+  gap: var(--cn-space-5);
 }
 
-.login-form :deep(.el-input__wrapper) {
-  border-radius: 12px;
-  border: 2px solid #e2e8f0;
-  background: #f8fafc;
-  transition: all 0.3s ease;
-  padding: 4px 12px;
-  box-shadow: none;
-}
-
-.login-form :deep(.el-input__wrapper:hover) {
-  border-color: #cbd5e0;
-}
-
-.login-form :deep(.el-input__wrapper.is-focus) {
-  border-color: #4299e1;
-  background: white;
-  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
-}
-
-.login-form :deep(.el-input__inner) {
-  font-size: 15px;
-  color: #2d3748;
-  height: 44px;
+.auth-form {
+  display: grid;
 }
 
 .captcha-row {
   display: flex;
-  gap: 12px;
-  align-items: center;
+  gap: var(--cn-space-3);
+  width: 100%;
 }
 
-.captcha-input {
+.captcha-row :deep(.el-input) {
   flex: 1;
 }
 
 .captcha-image {
-  cursor: pointer;
-  border-radius: 8px;
+  width: 122px;
+  height: 42px;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
-  width: 120px;
-  height: 44px;
-  border: 2px solid #e2e8f0;
-  transition: all 0.3s ease;
+  border: 1px solid var(--cn-color-border);
+  border-radius: var(--cn-radius-control);
+  background: var(--cn-color-bg-surface-muted);
+  cursor: pointer;
   flex-shrink: 0;
-}
-
-.captcha-image:hover {
-  border-color: #4299e1;
-  transform: scale(1.02);
 }
 
 .captcha-image img {
@@ -601,79 +242,40 @@ onMounted(() => {
   object-fit: cover;
 }
 
-.login-btn {
+.submit-button {
   width: 100%;
-  height: 48px;
-  font-size: 16px;
-  font-weight: 600;
-  background: linear-gradient(135deg, #4299e1 0%, #667eea 100%);
-  border: none;
-  border-radius: 12px;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(66, 153, 225, 0.35);
+  min-height: 44px;
+  margin-top: var(--cn-space-2);
 }
 
-.login-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(66, 153, 225, 0.45);
-}
-
-.login-btn:active {
-  transform: translateY(0);
-}
-
-.login-footer {
-  text-align: center;
-  padding-top: 20px;
-  border-top: 1px solid #e2e8f0;
-}
-
-.login-footer p {
-  color: #718096;
-  margin: 0;
+.auth-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cn-space-2);
+  padding-top: var(--cn-space-4);
+  border-top: 1px solid var(--cn-color-border-subtle);
+  color: var(--cn-color-text-secondary);
   font-size: 14px;
 }
 
-.register-link {
-  color: #4299e1;
+.auth-footer a {
+  color: var(--cn-color-brand-primary);
+  font-weight: 700;
   text-decoration: none;
-  font-weight: 600;
-  margin-left: 4px;
-  transition: color 0.3s ease;
 }
 
-.register-link:hover {
-  color: #2b6cb0;
-}
-
-/* ========== 响应式 ========== */
-@media (max-width: 1024px) {
-  .login-left {
-    display: none;
-  }
-  
-  .login-right {
-    width: 100%;
+@media (max-width: 860px) {
+  .auth-shell {
+    grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 480px) {
-  .login-right {
-    padding: 20px;
-  }
-  
-  .login-card {
-    padding: 32px 24px;
-  }
-  
-  .login-header h2 {
-    font-size: 24px;
-  }
-  
+@media (max-width: 520px) {
   .captcha-row {
-    flex-direction: column;
+    display: grid;
   }
-  
+
   .captcha-image {
     width: 100%;
   }

@@ -1,326 +1,263 @@
 <template>
-  <div class="moyu-statistics">
-    <!-- 页面头部 -->
-    <el-card class="header-card" shadow="never">
-      <div class="header-content">
-        <div class="title-section">
-          <h2>统计分析</h2>
-          <p>摸鱼工具模块的数据统计分析，包括事件统计、内容统计、用户行为分析等</p>
-        </div>
-        <div class="action-section">
-          <el-button type="primary" @click="refreshAllData">
-            <el-icon><Refresh /></el-icon>
-            刷新数据
-          </el-button>
-        </div>
-      </div>
-    </el-card>
-
-    <!-- 概览统计 -->
-    <el-card class="overview-card" shadow="never">
-      <template #header>
-        <div class="card-header">
-          <span>数据概览</span>
-          <el-tag type="info">{{ updateTime }}</el-tag>
-        </div>
+  <CnPage class="moyu-statistics-page" surface="transparent" max-width="1320px">
+    <CnPageHeader
+      title="摸鱼工具统计"
+      description="汇总日历事件、每日内容、收藏和热门内容排行。"
+      eyebrow="Moyu Analytics"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="info" subtle>{{ updateTime }}</CnStatusTag>
+        <CnStatusTag type="brand">事件 {{ eventStats.totalEvents || 0 }}</CnStatusTag>
+        <CnStatusTag type="success">内容 {{ contentStats.totalContents || 0 }}</CnStatusTag>
+        <CnStatusTag type="warning">收藏 {{ collectionStats.totalCollections || 0 }}</CnStatusTag>
       </template>
-      
-      <el-row :gutter="20">
-        <el-col :span="6">
-          <div class="overview-item">
-            <div class="overview-icon events">
-              <el-icon><Calendar /></el-icon>
-            </div>
-            <div class="overview-content">
-              <div class="overview-number">{{ eventStats.totalEvents || 0 }}</div>
-              <div class="overview-label">总事件数</div>
-              <div class="overview-detail">
-                重要事件 {{ eventStats.majorEvents || 0 }} 个
-              </div>
-            </div>
-          </div>
-        </el-col>
-        
-        <el-col :span="6">
-          <div class="overview-item">
-            <div class="overview-icon contents">
-              <el-icon><Document /></el-icon>
-            </div>
-            <div class="overview-content">
-              <div class="overview-number">{{ contentStats.totalContents || 0 }}</div>
-              <div class="overview-label">总内容数</div>
-              <div class="overview-detail">
-                总查看 {{ contentStats.totalViews || 0 }} 次
-              </div>
-            </div>
-          </div>
-        </el-col>
-        
-        <el-col :span="6">
-          <div class="overview-item">
-            <div class="overview-icon views">
-              <el-icon><View /></el-icon>
-            </div>
-            <div class="overview-content">
-              <div class="overview-number">{{ contentStats.totalLikes || 0 }}</div>
-              <div class="overview-label">总点赞数</div>
-              <div class="overview-detail">
-                平均点赞 {{ averageLikes }} 次/内容
-              </div>
-            </div>
-          </div>
-        </el-col>
-        
-        <el-col :span="6">
-          <div class="overview-item">
-            <div class="overview-icon collections">
-              <el-icon><Star /></el-icon>
-            </div>
-            <div class="overview-content">
-              <div class="overview-number">{{ collectionStats.totalCollections || 0 }}</div>
-              <div class="overview-label">总收藏数</div>
-              <div class="overview-detail">
-                事件收藏 {{ collectionStats.eventCollections || 0 }} 个
-              </div>
-            </div>
-          </div>
-        </el-col>
-      </el-row>
-    </el-card>
 
-    <el-row :gutter="20">
-      <!-- 事件统计 -->
-      <el-col :span="12">
-        <el-card class="stats-card" shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span>事件统计</span>
-              <el-button type="text" @click="loadEventStats">
-                <el-icon><Refresh /></el-icon>
-              </el-button>
-            </div>
-          </template>
-          
-          <div class="stats-content">
-            <div class="stat-row">
-              <div class="stat-item">
-                <div class="stat-value primary">{{ eventStats.programmerHolidays || 0 }}</div>
-                <div class="stat-label">程序员节日</div>
-              </div>
-              <div class="stat-item">
-                <div class="stat-value success">{{ eventStats.techMemorials || 0 }}</div>
-                <div class="stat-label">技术纪念日</div>
-              </div>
-              <div class="stat-item">
-                <div class="stat-value warning">{{ eventStats.openSourceHolidays || 0 }}</div>
-                <div class="stat-label">开源节日</div>
-              </div>
-            </div>
-            
-            <el-divider />
-            
-            <div class="progress-list">
-              <div class="progress-item">
-                <div class="progress-label">
-                  <span>程序员节日</span>
-                  <span>{{ getPercentage(eventStats.programmerHolidays, eventStats.totalEvents) }}%</span>
-                </div>
-                <el-progress 
-                  :percentage="getPercentage(eventStats.programmerHolidays, eventStats.totalEvents)"
-                  :stroke-width="8"
-                  :show-text="false"
-                  color="#409eff"
-                />
-              </div>
-              
-              <div class="progress-item">
-                <div class="progress-label">
-                  <span>技术纪念日</span>
-                  <span>{{ getPercentage(eventStats.techMemorials, eventStats.totalEvents) }}%</span>
-                </div>
-                <el-progress 
-                  :percentage="getPercentage(eventStats.techMemorials, eventStats.totalEvents)"
-                  :stroke-width="8"
-                  :show-text="false"
-                  color="#67c23a"
-                />
-              </div>
-              
-              <div class="progress-item">
-                <div class="progress-label">
-                  <span>开源节日</span>
-                  <span>{{ getPercentage(eventStats.openSourceHolidays, eventStats.totalEvents) }}%</span>
-                </div>
-                <el-progress 
-                  :percentage="getPercentage(eventStats.openSourceHolidays, eventStats.totalEvents)"
-                  :stroke-width="8"
-                  :show-text="false"
-                  color="#e6a23c"
-                />
-              </div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
+      <template #actions>
+        <el-button type="primary" :icon="Refresh" @click="refreshAllData">刷新数据</el-button>
+      </template>
+    </CnPageHeader>
 
-      <!-- 内容统计 -->
-      <el-col :span="12">
-        <el-card class="stats-card" shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span>内容统计</span>
-              <el-button type="text" @click="loadContentStats">
-                <el-icon><Refresh /></el-icon>
-              </el-button>
-            </div>
-          </template>
-          
-          <div class="stats-content">
-            <div class="stat-row">
-              <div class="stat-item">
-                <div class="stat-value primary">{{ contentStats.quotes || 0 }}</div>
-                <div class="stat-label">编程格言</div>
-              </div>
-              <div class="stat-item">
-                <div class="stat-value success">{{ contentStats.tips || 0 }}</div>
-                <div class="stat-label">技术小贴士</div>
-              </div>
-            </div>
-            
-            <div class="stat-row">
-              <div class="stat-item">
-                <div class="stat-value warning">{{ contentStats.codeSnippets || 0 }}</div>
-                <div class="stat-label">代码片段</div>
-              </div>
-              <div class="stat-item">
-                <div class="stat-value info">{{ contentStats.histories || 0 }}</div>
-                <div class="stat-label">历史上的今天</div>
-              </div>
-            </div>
-            
-            <el-divider />
-            
-            <div class="engagement-stats">
-              <div class="engagement-item">
-                <el-icon><View /></el-icon>
-                <span>总查看数：{{ contentStats.totalViews || 0 }}</span>
-              </div>
-              <div class="engagement-item">
-                <el-icon><Star /></el-icon>
-                <span>总点赞数：{{ contentStats.totalLikes || 0 }}</span>
-              </div>
-              <div class="engagement-item">
-                <el-icon><DataAnalysis /></el-icon>
-                <span>平均互动率：{{ engagementRate }}%</span>
-              </div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <div class="overview-grid">
+      <CnStatCard
+        title="总事件数"
+        :value="eventStats.totalEvents || 0"
+        :description="`重要事件 ${eventStats.majorEvents || 0} 个`"
+        tone="brand"
+      />
+      <CnStatCard
+        title="总内容数"
+        :value="contentStats.totalContents || 0"
+        :description="`总查看 ${contentStats.totalViews || 0} 次`"
+        tone="success"
+      />
+      <CnStatCard
+        title="总点赞数"
+        :value="contentStats.totalLikes || 0"
+        :description="`平均点赞 ${averageLikes} 次/内容`"
+        tone="warning"
+      />
+      <CnStatCard
+        title="总收藏数"
+        :value="collectionStats.totalCollections || 0"
+        :description="`事件收藏 ${collectionStats.eventCollections || 0} 个`"
+        tone="danger"
+      />
+    </div>
 
-    <!-- 热门内容排行 -->
-    <el-card class="ranking-card" shadow="never">
-      <template #header>
-        <div class="card-header">
-          <span>热门内容排行</span>
-          <div>
-            <el-button type="text" @click="loadPopularContent">
-              <el-icon><Refresh /></el-icon>
-              刷新
-            </el-button>
-            <el-button type="primary" size="small" @click="viewAllPopular">
-              查看全部
-            </el-button>
+    <div class="stats-panels">
+      <CnSection title="事件统计" description="按事件类型拆分当前日历事件库。" divided>
+        <template #actions>
+          <el-button type="primary" link :icon="Refresh" @click="loadEventStats">刷新</el-button>
+        </template>
+
+        <div class="mini-stat-grid">
+          <div class="mini-stat">
+            <span class="mini-stat__value tone-brand">{{ eventStats.programmerHolidays || 0 }}</span>
+            <span class="mini-stat__label">程序员节日</span>
+          </div>
+          <div class="mini-stat">
+            <span class="mini-stat__value tone-success">{{ eventStats.techMemorials || 0 }}</span>
+            <span class="mini-stat__label">技术纪念日</span>
+          </div>
+          <div class="mini-stat">
+            <span class="mini-stat__value tone-warning">{{ eventStats.openSourceHolidays || 0 }}</span>
+            <span class="mini-stat__label">开源节日</span>
           </div>
         </div>
-      </template>
-      
-      <el-table :data="popularContent" v-loading="popularLoading" stripe>
-        <el-table-column type="index" label="排名" width="70" align="center" />
-        <el-table-column prop="title" label="标题" show-overflow-tooltip>
-          <template #default="{ row }">
-            <div class="content-title-ranking">
-              <el-icon :color="getContentTypeColor(row.contentType)">
-                <component :is="getContentTypeIcon(row.contentType)" />
-              </el-icon>
-              <span style="margin-left: 8px;">{{ row.title }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="contentType" label="类型" width="120" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getContentTypeTag(row.contentType)" size="small">
-              {{ getContentTypeName(row.contentType) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="viewCount" label="查看数" width="100" align="center">
-          <template #default="{ row }">
-            <span class="stat-number">{{ row.viewCount || 0 }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="likeCount" label="点赞数" width="100" align="center">
-          <template #default="{ row }">
-            <span class="stat-number">{{ row.likeCount || 0 }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="热度指数" width="100" align="center">
-          <template #default="{ row }">
-            <span class="heat-index">{{ getHeatIndex(row) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="160" align="center">
-          <template #default="{ row }">
-            {{ formatDate(row.createTime) }}
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
 
-    <!-- 近期趋势 -->
-    <el-row :gutter="20">
-      <el-col :span="24">
-        <el-card class="trend-card" shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span>数据趋势</span>
-              <el-radio-group v-model="trendType" size="small">
-                <el-radio-button label="events">事件</el-radio-button>
-                <el-radio-button label="contents">内容</el-radio-button>
-                <el-radio-button label="interactions">互动</el-radio-button>
-              </el-radio-group>
+        <div class="progress-list">
+          <div class="progress-item">
+            <div class="progress-label">
+              <span>程序员节日</span>
+              <span>{{ getPercentage(eventStats.programmerHolidays, eventStats.totalEvents) }}%</span>
             </div>
-          </template>
-          
-          <div class="trend-placeholder">
-            <el-empty description="图表功能开发中，敬请期待">
-              <template #image>
-                <el-icon size="100" color="#409eff"><DataAnalysis /></el-icon>
-              </template>
-            </el-empty>
+            <el-progress
+              :percentage="getPercentage(eventStats.programmerHolidays, eventStats.totalEvents)"
+              :stroke-width="8"
+              :show-text="false"
+              color="var(--cn-color-brand-primary)"
+            />
           </div>
-        </el-card>
-      </el-col>
-    </el-row>
-  </div>
+          <div class="progress-item">
+            <div class="progress-label">
+              <span>技术纪念日</span>
+              <span>{{ getPercentage(eventStats.techMemorials, eventStats.totalEvents) }}%</span>
+            </div>
+            <el-progress
+              :percentage="getPercentage(eventStats.techMemorials, eventStats.totalEvents)"
+              :stroke-width="8"
+              :show-text="false"
+              color="var(--cn-color-success)"
+            />
+          </div>
+          <div class="progress-item">
+            <div class="progress-label">
+              <span>开源节日</span>
+              <span>{{ getPercentage(eventStats.openSourceHolidays, eventStats.totalEvents) }}%</span>
+            </div>
+            <el-progress
+              :percentage="getPercentage(eventStats.openSourceHolidays, eventStats.totalEvents)"
+              :stroke-width="8"
+              :show-text="false"
+              color="var(--cn-color-warning)"
+            />
+          </div>
+        </div>
+      </CnSection>
+
+      <CnSection title="内容统计" description="按内容类型和互动行为观察每日内容质量。" divided>
+        <template #actions>
+          <el-button type="primary" link :icon="Refresh" @click="loadContentStats">刷新</el-button>
+        </template>
+
+        <div class="mini-stat-grid">
+          <div class="mini-stat">
+            <span class="mini-stat__value tone-brand">{{ contentStats.quotes || 0 }}</span>
+            <span class="mini-stat__label">编程格言</span>
+          </div>
+          <div class="mini-stat">
+            <span class="mini-stat__value tone-success">{{ contentStats.tips || 0 }}</span>
+            <span class="mini-stat__label">技术小贴士</span>
+          </div>
+          <div class="mini-stat">
+            <span class="mini-stat__value tone-warning">{{ contentStats.codeSnippets || 0 }}</span>
+            <span class="mini-stat__label">代码片段</span>
+          </div>
+          <div class="mini-stat">
+            <span class="mini-stat__value tone-info">{{ contentStats.histories || 0 }}</span>
+            <span class="mini-stat__label">历史上的今天</span>
+          </div>
+        </div>
+
+        <div class="engagement-stats">
+          <div class="engagement-item">
+            <el-icon><View /></el-icon>
+            <span>总查看数：{{ contentStats.totalViews || 0 }}</span>
+          </div>
+          <div class="engagement-item">
+            <el-icon><Star /></el-icon>
+            <span>总点赞数：{{ contentStats.totalLikes || 0 }}</span>
+          </div>
+          <div class="engagement-item">
+            <el-icon><DataAnalysis /></el-icon>
+            <span>平均互动率：{{ engagementRate }}%</span>
+          </div>
+        </div>
+      </CnSection>
+    </div>
+
+    <CnSection title="热门内容排行" description="按查看数和点赞数计算热度指数。" divided>
+      <template #actions>
+        <el-button type="primary" link :icon="Refresh" @click="loadPopularContent">刷新</el-button>
+        <el-button type="primary" size="small" @click="viewAllPopular">查看全部</el-button>
+      </template>
+
+      <CnDataTable
+        :columns="popularColumns"
+        :data="popularContent"
+        :loading="popularLoading"
+        :pagination="null"
+        row-key="id"
+        empty-title="暂无热门内容"
+        empty-description="还没有可展示的热门内容排行。"
+        empty-icon="MR"
+      >
+        <template #title="{ row }">
+          <div class="content-title-ranking">
+            <el-icon class="type-icon" :class="`type-icon--${row.contentType || 'default'}`">
+              <component :is="getContentTypeIcon(row.contentType)" />
+            </el-icon>
+            <span>{{ row.title }}</span>
+          </div>
+        </template>
+
+        <template #contentType="{ row }">
+          <CnStatusTag :type="getContentTypeTone(row.contentType)" size="sm">
+            {{ getContentTypeName(row.contentType) }}
+          </CnStatusTag>
+        </template>
+
+        <template #viewCount="{ row }">
+          <span class="metric-number">{{ row.viewCount || 0 }}</span>
+        </template>
+
+        <template #likeCount="{ row }">
+          <span class="metric-number">{{ row.likeCount || 0 }}</span>
+        </template>
+
+        <template #heatIndex="{ row }">
+          <CnStatusTag type="danger" size="sm">{{ getHeatIndex(row) }}</CnStatusTag>
+        </template>
+
+        <template #createTime="{ row }">
+          {{ formatDate(row.createTime) }}
+        </template>
+      </CnDataTable>
+    </CnSection>
+
+    <CnSection title="数据趋势" description="趋势图表入口已预留，后续可接入趋势接口。" divided>
+      <template #actions>
+        <el-radio-group v-model="trendType" size="small">
+          <el-radio-button label="events">事件</el-radio-button>
+          <el-radio-button label="contents">内容</el-radio-button>
+          <el-radio-button label="interactions">互动</el-radio-button>
+        </el-radio-group>
+      </template>
+
+      <CnEmptyState title="图表功能开发中" description="趋势数据接口已保留，图表组件接入后可展示事件、内容和互动趋势。" icon="DA" />
+    </CnSection>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { 
-  Refresh, Calendar, Document, View, Star, DataAnalysis
-} from '@element-plus/icons-vue'
+import { DataAnalysis, Refresh, Star, View } from '@element-plus/icons-vue'
 import { statisticsApi } from '@/api/moyu'
+import { CnDataTable, CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
+import type { CnBreadcrumbItem, CnTableColumn, CnTone } from '@/design-system'
 
-// 响应式数据
+interface EventStats {
+  totalEvents: number
+  majorEvents: number
+  programmerHolidays: number
+  techMemorials: number
+  openSourceHolidays: number
+}
+
+interface ContentStats {
+  totalContents: number
+  quotes: number
+  tips: number
+  codeSnippets: number
+  histories: number
+  totalViews: number
+  totalLikes: number
+}
+
+interface CollectionStats {
+  totalCollections: number
+  eventCollections: number
+  contentCollections: number
+}
+
+interface PopularContent extends Record<string, unknown> {
+  id?: number
+  title?: string
+  contentType?: number
+  viewCount?: number
+  likeCount?: number
+  createTime?: string
+}
+
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '摸鱼工具' }, { label: '统计分析' }]
+
 const updateTime = ref('')
 const popularLoading = ref(false)
 const trendType = ref('events')
 
-// 统计数据
-const eventStats = reactive({
+const eventStats = reactive<EventStats>({
   totalEvents: 0,
   majorEvents: 0,
   programmerHolidays: 0,
@@ -328,7 +265,7 @@ const eventStats = reactive({
   openSourceHolidays: 0
 })
 
-const contentStats = reactive({
+const contentStats = reactive<ContentStats>({
   totalContents: 0,
   quotes: 0,
   tips: 0,
@@ -338,15 +275,24 @@ const contentStats = reactive({
   totalLikes: 0
 })
 
-const collectionStats = reactive({
+const collectionStats = reactive<CollectionStats>({
   totalCollections: 0,
   eventCollections: 0,
   contentCollections: 0
 })
 
-const popularContent = ref([])
+const popularContent = ref<PopularContent[]>([])
 
-// 计算属性
+const popularColumns: CnTableColumn<PopularContent>[] = [
+  { type: 'index', label: '排名', width: 70, align: 'center' },
+  { prop: 'title', label: '标题', minWidth: 240, slot: 'title', showOverflowTooltip: true },
+  { prop: 'contentType', label: '类型', width: 120, align: 'center', slot: 'contentType' },
+  { prop: 'viewCount', label: '查看数', width: 100, align: 'center', slot: 'viewCount' },
+  { prop: 'likeCount', label: '点赞数', width: 100, align: 'center', slot: 'likeCount' },
+  { label: '热度指数', width: 110, align: 'center', slot: 'heatIndex' },
+  { prop: 'createTime', label: '创建时间', width: 160, align: 'center', slot: 'createTime' }
+]
+
 const averageLikes = computed(() => {
   if (!contentStats.totalContents || !contentStats.totalLikes) return '0'
   return (contentStats.totalLikes / contentStats.totalContents).toFixed(1)
@@ -358,68 +304,52 @@ const engagementRate = computed(() => {
   return ((totalEngagement / contentStats.totalContents) / 100).toFixed(1)
 })
 
-// 获取百分比
-const getPercentage = (value, total) => {
+const getPercentage = (value: number, total: number) => {
   if (!total) return 0
   return Math.round((value / total) * 100)
 }
 
-// 获取内容类型相关方法
-const getContentTypeName = (type) => {
-  const typeMap = {
+const getContentTypeName = (type?: number) => {
+  const typeMap: Record<number, string> = {
     1: '编程格言',
-    2: '技术小贴士', 
+    2: '技术小贴士',
     3: '代码片段',
     4: '历史上的今天'
   }
-  return typeMap[type] || '未知'
+  return type ? typeMap[type] || '未知' : '未知'
 }
 
-const getContentTypeTag = (type) => {
-  const tagMap = {
+const getContentTypeTone = (type?: number): CnTone => {
+  const tagMap: Record<number, CnTone> = {
     1: 'success',
     2: 'warning',
-    3: 'primary',
+    3: 'brand',
     4: 'info'
   }
-  return tagMap[type] || 'info'
+  return type ? tagMap[type] || 'neutral' : 'neutral'
 }
 
-const getContentTypeColor = (type) => {
-  const colorMap = {
-    1: '#67c23a',
-    2: '#e6a23c',
-    3: '#409eff',
-    4: '#909399'
-  }
-  return colorMap[type] || '#909399'
-}
-
-const getContentTypeIcon = (type) => {
-  const iconMap = {
+const getContentTypeIcon = (type?: number) => {
+  const iconMap: Record<number, string> = {
     1: 'Star',
     2: 'InfoFilled',
     3: 'EditPen',
     4: 'Calendar'
   }
-  return iconMap[type] || 'Document'
+  return type ? iconMap[type] || 'Document' : 'Document'
 }
 
-// 获取热度指数
-const getHeatIndex = (content) => {
+const getHeatIndex = (content: PopularContent) => {
   const views = content.viewCount || 0
   const likes = content.likeCount || 0
-  // 简单的热度计算：查看数 + 点赞数 * 2
   return views + likes * 2
 }
 
-// 格式化日期
-const formatDate = (dateTime) => {
+const formatDate = (dateTime?: string) => {
   if (!dateTime) return '-'
   return new Date(dateTime).toLocaleDateString('zh-CN')
 }
 
-// 加载事件统计
 const loadEventStats = async () => {
   try {
     const data = await statisticsApi.getEventStatistics()
@@ -430,7 +360,6 @@ const loadEventStats = async () => {
   }
 }
 
-// 加载内容统计
 const loadContentStats = async () => {
   try {
     const data = await statisticsApi.getContentStatistics()
@@ -441,7 +370,6 @@ const loadContentStats = async () => {
   }
 }
 
-// 加载收藏统计
 const loadCollectionStats = async () => {
   try {
     const data = await statisticsApi.getCollectionStatistics()
@@ -451,7 +379,6 @@ const loadCollectionStats = async () => {
   }
 }
 
-// 加载热门内容
 const loadPopularContent = async () => {
   try {
     popularLoading.value = true
@@ -465,242 +392,153 @@ const loadPopularContent = async () => {
   }
 }
 
-// 刷新所有数据
 const refreshAllData = async () => {
   updateTime.value = '更新中...'
-  await Promise.all([
-    loadEventStats(),
-    loadContentStats(),
-    loadCollectionStats(),
-    loadPopularContent()
-  ])
+  await Promise.all([loadEventStats(), loadContentStats(), loadCollectionStats(), loadPopularContent()])
   updateTime.value = `最后更新: ${new Date().toLocaleString('zh-CN')}`
   ElMessage.success('数据刷新完成')
 }
 
-// 查看全部热门内容
 const viewAllPopular = () => {
-  // 跳转到内容管理页面并加载热门排行
   window.open('#/moyu/daily-content')
 }
 
-// 初始化
 onMounted(() => {
   refreshAllData()
 })
 </script>
 
 <style scoped>
-.moyu-statistics {
-  padding: 0;
+.moyu-statistics-page {
+  min-height: 100%;
 }
 
-.header-card {
-  margin-bottom: 20px;
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+.stats-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.title-section h2 {
-  margin: 0 0 8px 0;
-  color: #303133;
+.mini-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cn-space-3);
 }
 
-.title-section p {
-  margin: 0;
-  color: #909399;
-  font-size: 14px;
-}
-
-.action-section {
-  display: flex;
-  gap: 12px;
-}
-
-.overview-card {
-  margin-bottom: 20px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.overview-item {
-  display: flex;
-  align-items: center;
-  padding: 20px;
-}
-
-.overview-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 16px;
-  font-size: 24px;
-  color: white;
-}
-
-.overview-icon.events { background: #409eff; }
-.overview-icon.contents { background: #67c23a; }
-.overview-icon.views { background: #e6a23c; }
-.overview-icon.collections { background: #f56c6c; }
-
-.overview-content {
-  flex: 1;
-}
-
-.overview-number {
-  font-size: 24px;
-  font-weight: bold;
-  color: #303133;
-  margin-bottom: 4px;
-}
-
-.overview-label {
-  font-size: 14px;
-  color: #606266;
-  margin-bottom: 4px;
-}
-
-.overview-detail {
-  font-size: 12px;
-  color: #909399;
-}
-
-.stats-card {
-  margin-bottom: 20px;
-}
-
-.stats-content {
-  padding: 10px;
-}
-
-.stat-row {
-  display: flex;
-  justify-content: space-around;
-  margin-bottom: 20px;
-}
-
-.stat-item {
+.mini-stat {
+  display: grid;
+  gap: var(--cn-space-2);
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
   text-align: center;
 }
 
-.stat-value {
-  font-size: 32px;
-  font-weight: bold;
-  margin-bottom: 8px;
+.mini-stat__value {
+  font-family: var(--cn-font-heading);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
 }
 
-.stat-value.primary { color: #409eff; }
-.stat-value.success { color: #67c23a; }
-.stat-value.warning { color: #e6a23c; }
-.stat-value.info { color: #909399; }
-
-.stat-label {
-  font-size: 14px;
-  color: #606266;
-}
-
-.progress-list {
-  margin-top: 20px;
-}
-
-.progress-item {
-  margin-bottom: 16px;
-}
-
-.progress-item:last-child {
-  margin-bottom: 0;
-}
-
-.progress-label {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  font-size: 14px;
-  color: #606266;
-}
-
-.engagement-stats {
-  margin-top: 20px;
-}
-
+.mini-stat__label,
+.progress-label,
 .engagement-item {
-  display: flex;
-  align-items: center;
-  margin-bottom: 12px;
-  color: #606266;
+  color: var(--cn-color-text-secondary);
   font-size: 14px;
 }
 
-.engagement-item .el-icon {
-  margin-right: 8px;
-  color: #909399;
+.tone-brand {
+  color: var(--cn-color-brand-primary);
 }
 
-.ranking-card {
-  margin-bottom: 20px;
+.tone-success {
+  color: var(--cn-color-success);
 }
 
+.tone-warning {
+  color: var(--cn-color-warning);
+}
+
+.tone-info {
+  color: var(--cn-color-info);
+}
+
+.progress-list,
+.engagement-stats {
+  display: grid;
+  gap: var(--cn-space-4);
+  margin-top: var(--cn-space-5);
+}
+
+.progress-label,
+.engagement-item,
 .content-title-ranking {
   display: flex;
   align-items: center;
+  gap: var(--cn-space-2);
 }
 
-.stat-number {
-  font-weight: bold;
-  color: #409eff;
+.progress-label {
+  justify-content: space-between;
+  margin-bottom: var(--cn-space-2);
 }
 
-.heat-index {
-  font-weight: bold;
-  color: #f56c6c;
+.content-title-ranking {
+  min-width: 0;
 }
 
-.trend-card {
-  margin-bottom: 20px;
+.content-title-ranking span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.trend-placeholder {
-  height: 300px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.type-icon--1 {
+  color: var(--cn-color-success);
 }
 
-@media (max-width: 768px) {
-  .header-content {
-    flex-direction: column;
-    gap: 16px;
+.type-icon--2 {
+  color: var(--cn-color-warning);
+}
+
+.type-icon--3 {
+  color: var(--cn-color-brand-primary);
+}
+
+.type-icon--4 {
+  color: var(--cn-color-info);
+}
+
+.type-icon--default {
+  color: var(--cn-color-text-tertiary);
+}
+
+.metric-number {
+  color: var(--cn-color-brand-primary);
+  font-weight: 700;
+}
+
+@media (max-width: 1080px) {
+  .overview-grid,
+  .stats-panels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  
-  .overview-item {
-    padding: 16px;
-  }
-  
-  .overview-icon {
-    width: 50px;
-    height: 50px;
-    font-size: 20px;
-  }
-  
-  .overview-number {
-    font-size: 20px;
-  }
-  
-  .stat-row {
-    flex-direction: column;
-    gap: 16px;
+}
+
+@media (max-width: 720px) {
+  .overview-grid,
+  .stats-panels,
+  .mini-stat-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

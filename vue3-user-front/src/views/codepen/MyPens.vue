@@ -1,27 +1,62 @@
 <template>
-  <div class="my-pens-page">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h1 class="page-title">我的作品</h1>
-      <div class="header-actions">
-        <el-button 
-          type="primary" 
-          icon="Plus" 
-          @click="createNewPen"
-        >
-          创建作品
-        </el-button>
-        <el-button 
-          icon="TrendCharts" 
-          @click="showIncomeStats"
-        >
-          收益统计
-        </el-button>
-      </div>
-    </div>
+  <CnPage class="my-pens-page" max-width="1320px" full-height>
+    <CnPageHeader
+      title="我的作品"
+      description="管理已发布作品、草稿和付费 Fork 收益，快速回到编辑器继续打磨。"
+      eyebrow="MY CODEPEN"
+      :breadcrumbs="[{ label: '首页', to: '/' }, { label: '代码广场', to: '/codepen' }, { label: '我的作品' }]"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">{{ allPens.length }} 个作品</CnStatusTag>
+        <CnStatusTag type="warning" size="sm" subtle>{{ draftList.length }} 个草稿</CnStatusTag>
+      </template>
 
-    <!-- 标签页 -->
-    <el-tabs v-model="activeTab" @tab-change="handleTabChange">
+      <template #actions>
+        <el-button icon="TrendCharts" @click="showIncomeStats">收益统计</el-button>
+        <el-button type="primary" icon="Plus" @click="createNewPen">创建作品</el-button>
+      </template>
+    </CnPageHeader>
+
+    <section class="my-pens-stats" aria-label="我的作品概览">
+      <CnStatCard
+        title="已发布"
+        :value="allPens.length"
+        unit="个"
+        description="当前已发布作品"
+        tone="brand"
+        trend="flat"
+        trend-text="作品"
+      />
+      <CnStatCard
+        title="草稿箱"
+        :value="draftList.length"
+        unit="个"
+        description="待继续编辑"
+        tone="warning"
+        trend="flat"
+        trend-text="草稿"
+      />
+      <CnStatCard
+        title="付费作品"
+        :value="paidPens.length"
+        unit="个"
+        description="可产生 Fork 收益"
+        tone="success"
+        trend="flat"
+        trend-text="收益"
+      />
+      <CnStatCard
+        title="当前视图"
+        :value="activeTabLabel"
+        description="Tabs 切换后的列表"
+        tone="neutral"
+        trend="flat"
+        trend-text="视图"
+      />
+    </section>
+
+    <CnSection title="作品列表" description="按发布状态查看作品，点击卡片进入详情或编辑。" divided>
+      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
       <el-tab-pane label="全部作品" name="all">
         <div class="pen-list" v-loading="loading">
           <div class="pen-grid">
@@ -33,9 +68,13 @@
             />
           </div>
 
-          <el-empty
+          <CnEmptyState
             v-if="!loading && penList.length === 0"
-            description="还没有作品，快去创建吧"
+            title="还没有作品"
+            description="创建一个作品后，它会出现在这里。"
+            icon="CP"
+            size="sm"
+            surface="plain"
           />
         </div>
       </el-tab-pane>
@@ -51,9 +90,13 @@
             />
           </div>
 
-          <el-empty
+          <CnEmptyState
             v-if="!loading && draftList.length === 0"
-            description="暂无草稿"
+            title="暂无草稿"
+            description="保存为草稿的作品会出现在这里。"
+            icon="DR"
+            size="sm"
+            surface="plain"
           />
         </div>
       </el-tab-pane>
@@ -74,38 +117,50 @@
             </div>
           </div>
 
-          <el-empty
+          <CnEmptyState
             v-if="!loading && paidPens.length === 0"
-            description="暂无付费作品"
+            title="暂无付费作品"
+            description="设置 Fork 价格后，付费作品会在这里汇总。"
+            icon="IN"
+            size="sm"
+            surface="plain"
           />
         </div>
       </el-tab-pane>
-    </el-tabs>
+      </el-tabs>
+    </CnSection>
 
-    <!-- 收益统计对话框 -->
     <el-dialog
       v-model="showIncomeDialog"
       title="收益统计"
       width="600px"
     >
       <div class="income-stats" v-loading="loadingStats">
-        <div class="stat-card">
-          <div class="stat-label">总收益</div>
-          <div class="stat-value">{{ incomeStats.totalIncome || 0 }} 积分</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">付费作品数</div>
-          <div class="stat-value">{{ incomeStats.paidPensCount || 0 }}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">总Fork次数</div>
-          <div class="stat-value">{{ incomeStats.totalForkCount || 0 }}</div>
+        <div class="income-stat-grid">
+          <CnStatCard
+            title="总收益"
+            :value="incomeStats.totalIncome || 0"
+            unit="积分"
+            description="累计 Fork 收益"
+            tone="success"
+          />
+          <CnStatCard
+            title="付费作品数"
+            :value="incomeStats.paidPensCount || 0"
+            description="已设置价格的作品"
+            tone="brand"
+          />
+          <CnStatCard
+            title="总 Fork 次数"
+            :value="incomeStats.totalForkCount || 0"
+            description="全部付费 Fork 统计"
+            tone="info"
+          />
         </div>
 
-        <!-- 详细收益列表 -->
         <div class="income-details" v-if="incomeStats.details && incomeStats.details.length > 0">
           <h3>作品收益详情</h3>
-          <el-table :data="incomeStats.details" style="width: 100%">
+          <el-table :data="incomeStats.details" class="income-table">
             <el-table-column prop="title" label="作品标题" />
             <el-table-column prop="forkPrice" label="Fork价格" width="100">
               <template #default="{ row }">
@@ -122,14 +177,15 @@
         </div>
       </div>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { codepenApi } from '@/api/codepen'
+import { CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
 import PenCard from './components/PenCard.vue'
 
 const router = useRouter()
@@ -155,6 +211,15 @@ const penList = computed(() => {
     return paidPens.value
   }
   return allPens.value
+})
+
+const activeTabLabel = computed(() => {
+  const map = {
+    all: '全部作品',
+    draft: '草稿箱',
+    paid: '付费作品'
+  }
+  return map[activeTab.value] || '全部作品'
 })
 
 // 收益统计
@@ -230,88 +295,82 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .my-pens-page {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 20px;
+  min-height: calc(100vh - 68px);
+}
 
-  .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 30px;
+.my-pens-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
+  margin-bottom: var(--cn-space-4);
+}
 
-    .page-title {
-      font-size: 32px;
-      font-weight: 600;
-      color: #333;
-      margin: 0;
-    }
+.pen-list {
+  min-height: 340px;
+}
 
-    .header-actions {
-      display: flex;
-      gap: 10px;
-    }
+.pen-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--cn-space-4);
+  margin-bottom: var(--cn-space-5);
+}
+
+.paid-pen-card {
+  position: relative;
+  cursor: pointer;
+}
+
+.income-badge {
+  position: absolute;
+  top: var(--cn-space-3);
+  right: var(--cn-space-3);
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 var(--cn-space-3);
+  border: 1px solid color-mix(in srgb, var(--cn-color-warning) 26%, var(--cn-color-border-subtle));
+  border-radius: var(--cn-radius-pill);
+  background: var(--cn-color-warning-soft);
+  color: var(--cn-color-warning);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.income-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cn-space-3);
+}
+
+.income-details {
+  margin-top: var(--cn-space-5);
+}
+
+.income-details h3 {
+  margin: 0 0 var(--cn-space-3);
+  color: var(--cn-color-text-primary);
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.income-table {
+  width: 100%;
+}
+
+@media (max-width: 992px) {
+  .my-pens-stats,
+  .income-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
 
-  .pen-list {
-    min-height: 400px;
-
-    .pen-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 20px;
-      margin-bottom: 30px;
-
-      .paid-pen-card {
-        position: relative;
-        cursor: pointer;
-
-        .income-badge {
-          position: absolute;
-          top: 10px;
-          right: 10px;
-          background: rgba(255, 193, 7, 0.95);
-          color: #333;
-          padding: 5px 12px;
-          border-radius: 20px;
-          font-size: 12px;
-          font-weight: 600;
-          z-index: 10;
-        }
-      }
-    }
-  }
-
-  .income-stats {
-    .stat-card {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      margin-bottom: 15px;
-      text-align: center;
-
-      .stat-label {
-        font-size: 14px;
-        opacity: 0.9;
-        margin-bottom: 8px;
-      }
-
-      .stat-value {
-        font-size: 32px;
-        font-weight: 600;
-      }
-    }
-
-    .income-details {
-      margin-top: 20px;
-
-      h3 {
-        font-size: 16px;
-        font-weight: 600;
-        margin-bottom: 15px;
-      }
-    }
+@media (max-width: 640px) {
+  .my-pens-stats,
+  .income-stat-grid,
+  .pen-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

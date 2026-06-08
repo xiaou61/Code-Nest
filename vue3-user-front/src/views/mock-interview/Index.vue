@@ -1,193 +1,200 @@
 <template>
-  <div class="mock-interview-index cn-learn-shell">
-    <div class="cn-learn-shell__inner">
-    <!-- 页面头部 -->
-    <div class="page-header cn-learn-hero cn-wave-reveal">
-      <div class="header-content">
-        <span class="cn-learn-hero__eyebrow">AI Interview</span>
-        <h1 class="page-title cn-learn-hero__title">
-          <el-icon><Mic /></el-icon>
-          AI 模拟面试
-        </h1>
-        <p class="page-subtitle cn-learn-hero__desc">智能面试官，助你轻松拿下心仪 Offer</p>
-      </div>
-      <div class="header-actions cn-learn-hero__meta">
-        <el-button type="primary" size="large" @click="goToHistory" :icon="Clock">
+  <CnPage class="mock-interview-index" surface="transparent" max-width="1280px" full-height>
+    <CnPageHeader
+      title="AI 模拟面试"
+      description="选择技术方向后进入配置页，由 AI 面试官完成出题、追问、评分和报告沉淀。"
+      eyebrow="AI Interview"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">累计 {{ stats.totalInterviews || 0 }} 场</CnStatusTag>
+        <CnStatusTag type="success" size="sm">最高分 {{ stats.highestScore || 0 }}</CnStatusTag>
+        <CnStatusTag type="info" size="sm">方向 {{ directions.length }}</CnStatusTag>
+      </template>
+
+      <template #actions>
+        <el-button plain @click="goToHistory">
+          <el-icon><Clock /></el-icon>
           历史记录
         </el-button>
-      </div>
-    </div>
+        <el-button type="primary" :disabled="!selectedDirection" @click="goToConfig">
+          <el-icon><VideoPlay /></el-icon>
+          开始 AI 面试
+        </el-button>
+      </template>
+    </CnPageHeader>
 
-    <!-- 用户统计 -->
-    <el-row :gutter="20" class="stats-row cn-learn-reveal">
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card cn-learn-panel cn-learn-float">
-          <div class="stat-content">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-              <el-icon><DataLine /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ stats.totalInterviews || 0 }}</div>
-              <div class="stat-label">累计面试</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card cn-learn-panel cn-learn-float">
-          <div class="stat-content">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-              <el-icon><TrophyBase /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ stats.avgScore || 0 }}</div>
-              <div class="stat-label">平均分数</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card cn-learn-panel cn-learn-float">
-          <div class="stat-content">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-              <el-icon><Timer /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ stats.highestScore || 0 }}</div>
-              <div class="stat-label">最高分</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card cn-learn-panel cn-learn-float">
-          <div class="stat-content">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-              <el-icon><Calendar /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ stats.interviewStreak || 0 }}</div>
-              <div class="stat-label">连续练习(天)</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <section class="stats-grid" aria-label="模拟面试统计">
+      <CnStatCard
+        title="累计面试"
+        :value="stats.totalInterviews || 0"
+        unit="场"
+        description="已创建的模拟面试会话"
+        tone="brand"
+        trend="flat"
+        trend-text="累计"
+      />
+      <CnStatCard
+        title="平均分数"
+        :value="stats.avgScore || 0"
+        description="已完成面试的平均得分"
+        tone="warning"
+        trend="flat"
+        trend-text="表现"
+      />
+      <CnStatCard
+        title="最高分"
+        :value="stats.highestScore || 0"
+        description="历史报告中的最佳成绩"
+        tone="success"
+        trend="up"
+        trend-text="峰值"
+      />
+      <CnStatCard
+        title="连续练习"
+        :value="stats.interviewStreak || 0"
+        unit="天"
+        description="持续模拟面试的连续天数"
+        tone="info"
+        trend="flat"
+        trend-text="习惯"
+      />
+    </section>
 
-    <!-- 面试方向选择 -->
-    <el-card shadow="never" class="direction-card cn-learn-panel cn-learn-reveal">
-      <template #header>
-        <div class="card-header">
-          <span class="header-title">
-            <el-icon><Aim /></el-icon>
-            选择面试方向
-          </span>
-          <span class="header-tip">选择你想要挑战的技术方向</span>
-        </div>
+    <CnSection
+      title="选择面试方向"
+      description="先选一个方向，下一步会进入面试配置，继续选择难度、题量和面试风格。"
+      surface="panel"
+      divided
+    >
+      <template #actions>
+        <CnStatusTag v-if="selectedDirection" type="success" size="sm">
+          已选择 {{ selectedDirectionName }}
+        </CnStatusTag>
+        <CnStatusTag v-else type="warning" size="sm">待选择</CnStatusTag>
       </template>
 
       <div v-loading="loading" class="direction-grid">
-        <div 
-          v-for="direction in directions" 
+        <CnEmptyState
+          v-if="!loading && directions.length === 0"
+          title="暂无面试方向"
+          description="当前没有可用方向，请稍后刷新或联系管理员配置题库。"
+          icon="AI"
+          surface="transparent"
+        >
+          <template #actions>
+            <el-button plain @click="fetchDirections">重新加载</el-button>
+          </template>
+        </CnEmptyState>
+
+        <button
+          v-for="direction in directions"
+          v-else
           :key="direction.directionCode"
-          class="direction-item cn-learn-tilt"
+          class="direction-item"
           :class="{ 'is-selected': selectedDirection === direction.directionCode }"
+          type="button"
           @click="selectDirection(direction)"
         >
-          <div class="direction-icon">
-            <el-icon :size="32">
+          <span class="direction-icon">
+            <el-icon :size="26">
               <component :is="getDirectionIcon(direction.directionCode)" />
             </el-icon>
-          </div>
-          <div class="direction-info">
-            <h3 class="direction-name">{{ direction.directionName }}</h3>
-            <p class="direction-desc">{{ direction.description || '技术面试' }}</p>
-          </div>
-          <div class="direction-check" v-if="selectedDirection === direction.directionCode">
+          </span>
+          <span class="direction-info">
+            <strong>{{ direction.directionName }}</strong>
+            <em>{{ direction.description || '技术面试' }}</em>
+          </span>
+          <span v-if="selectedDirection === direction.directionCode" class="direction-check">
             <el-icon><Check /></el-icon>
-          </div>
-        </div>
+          </span>
+        </button>
       </div>
-    </el-card>
 
-    <!-- 开始面试按钮 -->
-    <div class="start-section cn-learn-reveal">
-      <el-button 
-        type="primary" 
-        size="large" 
-        class="start-btn"
-        :disabled="!selectedDirection"
-        @click="goToConfig"
-      >
-        <el-icon><VideoPlay /></el-icon>
-        开始 AI 面试
-      </el-button>
-      <p class="start-tip" v-if="!selectedDirection">请先选择面试方向</p>
-    </div>
+      <div class="start-section">
+        <el-button
+          type="primary"
+          size="large"
+          class="start-btn"
+          :disabled="!selectedDirection"
+          @click="goToConfig"
+        >
+          <el-icon><VideoPlay /></el-icon>
+          开始 AI 面试
+        </el-button>
+        <span v-if="!selectedDirection" class="start-tip">请先选择面试方向</span>
+      </div>
+    </CnSection>
 
-    <!-- 功能介绍 -->
-    <el-card shadow="never" class="feature-card cn-learn-panel cn-learn-reveal">
-      <template #header>
-        <span class="header-title">
-          <el-icon><InfoFilled /></el-icon>
-          功能特点
-        </span>
-      </template>
-
-      <el-row :gutter="20">
-        <el-col :span="6">
-          <div class="feature-item cn-learn-float">
-            <div class="feature-icon">🤖</div>
-            <h4>AI 智能出题</h4>
-            <p>根据方向和难度智能生成面试题</p>
-          </div>
-        </el-col>
-        <el-col :span="6">
-          <div class="feature-item cn-learn-float">
-            <div class="feature-icon">💬</div>
-            <h4>实时评价反馈</h4>
-            <p>AI即时评价答案，给出改进建议</p>
-          </div>
-        </el-col>
-        <el-col :span="6">
-          <div class="feature-item cn-learn-float">
-            <div class="feature-icon">🎯</div>
-            <h4>追问深入考察</h4>
-            <p>模拟真实面试，追问考察深度</p>
-          </div>
-        </el-col>
-        <el-col :span="6">
-          <div class="feature-item cn-learn-float">
-            <div class="feature-icon">📊</div>
-            <h4>详细面试报告</h4>
-            <p>多维度评分，个性化学习建议</p>
-          </div>
-        </el-col>
-      </el-row>
-    </el-card>
-    </div>
-  </div>
+    <CnSection title="功能特点" description="把真实面试中的问答、追问、评价和复盘固定成可重复练习的闭环。" surface="panel" divided>
+      <div class="feature-grid">
+        <article v-for="feature in features" :key="feature.title" class="feature-item">
+          <span class="feature-icon">
+            <el-icon><component :is="feature.icon" /></el-icon>
+          </span>
+          <strong>{{ feature.title }}</strong>
+          <em>{{ feature.description }}</em>
+        </article>
+      </div>
+    </CnSection>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { 
-  Mic, Clock, DataLine, TrophyBase, Timer, Calendar, Aim, Check, 
-  VideoPlay, InfoFilled, Monitor, Cpu, DataBoard, Connection, Setting
+import {
+  Aim,
+  Calendar,
+  Check,
+  Clock,
+  Connection,
+  Cpu,
+  DataBoard,
+  DataLine,
+  InfoFilled,
+  Monitor,
+  Setting,
+  Timer,
+  TrophyBase,
+  VideoPlay
 } from '@element-plus/icons-vue'
+import {
+  CnEmptyState,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag
+} from '@/design-system'
 import { mockInterviewApi } from '@/api/mockInterview'
-import { useRevealMotion } from '@/utils/reveal-motion'
+
+interface InterviewDirection {
+  directionCode: string
+  directionName: string
+  description?: string
+}
+
+interface InterviewStats {
+  totalInterviews: number
+  completedInterviews: number
+  avgScore: number
+  highestScore: number
+  totalQuestions: number
+  correctQuestions: number
+  correctRate: number
+  interviewStreak: number
+  maxStreak: number
+  completionRate: number
+}
 
 const router = useRouter()
-useRevealMotion('.mock-interview-index .cn-learn-reveal')
 
-// 响应式数据
 const loading = ref(false)
-const directions = ref([])
-const selectedDirection = ref(null)
-const stats = reactive({
+const directions = ref<InterviewDirection[]>([])
+const selectedDirection = ref<string | null>(null)
+const stats = reactive<InterviewStats>({
   totalInterviews: 0,
   completedInterviews: 0,
   avgScore: 0,
@@ -195,32 +202,61 @@ const stats = reactive({
   totalQuestions: 0,
   correctQuestions: 0,
   correctRate: 0,
-  interviewStreak: 0,  // 连续面试天数
+  interviewStreak: 0,
   maxStreak: 0,
   completionRate: 0
 })
 
-// 获取方向图标
-const getDirectionIcon = (directionCode) => {
-  const iconMap = {
-    'java': Cpu,
-    'frontend': Monitor,
-    'python': DataBoard,
-    'go': Connection,
-    'fullstack': Setting,
-    'database': DataBoard,
-    'devops': Setting,
-    'algorithm': DataLine
+const breadcrumbs = [
+  { label: '首页', to: '/' },
+  { label: 'AI 模拟面试' }
+]
+
+const features = [
+  {
+    title: 'AI 智能出题',
+    description: '根据方向、难度和题量生成面试题。',
+    icon: Aim
+  },
+  {
+    title: '实时评价反馈',
+    description: '回答后即时评分并给出改进建议。',
+    icon: InfoFilled
+  },
+  {
+    title: '追问深入考察',
+    description: '围绕回答继续追问，模拟真实压力。',
+    icon: Connection
+  },
+  {
+    title: '详细面试报告',
+    description: '沉淀多维评分和下一步学习建议。',
+    icon: DataLine
+  }
+]
+
+const selectedDirectionName = computed(() => {
+  return directions.value.find(direction => direction.directionCode === selectedDirection.value)?.directionName || selectedDirection.value
+})
+
+const getDirectionIcon = (directionCode: string) => {
+  const iconMap: Record<string, unknown> = {
+    java: Cpu,
+    frontend: Monitor,
+    python: DataBoard,
+    go: Connection,
+    fullstack: Setting,
+    database: DataBoard,
+    devops: Setting,
+    algorithm: DataLine
   }
   return iconMap[directionCode] || Cpu
 }
 
-// 选择方向
-const selectDirection = (direction) => {
+const selectDirection = (direction: InterviewDirection) => {
   selectedDirection.value = direction.directionCode
 }
 
-// 跳转到配置页面
 const goToConfig = () => {
   if (!selectedDirection.value) {
     ElMessage.warning('请先选择面试方向')
@@ -232,16 +268,14 @@ const goToConfig = () => {
   })
 }
 
-// 跳转到历史记录
 const goToHistory = () => {
   router.push('/mock-interview/history')
 }
 
-// 获取方向列表
 const fetchDirections = async () => {
   loading.value = true
   try {
-    const data = await mockInterviewApi.getDirections()
+    const data = (await mockInterviewApi.getDirections()) as InterviewDirection[]
     directions.value = data || []
   } catch (error) {
     console.error('获取方向列表失败', error)
@@ -250,10 +284,9 @@ const fetchDirections = async () => {
   }
 }
 
-// 获取统计数据
 const fetchStats = async () => {
   try {
-    const data = await mockInterviewApi.getStats()
+    const data = (await mockInterviewApi.getStats()) as Partial<InterviewStats>
     if (data) {
       Object.assign(stats, data)
     }
@@ -270,228 +303,183 @@ onMounted(() => {
 
 <style scoped>
 .mock-interview-index {
-  min-height: calc(100vh - 68px);
+  min-height: calc(100vh - 74px);
 }
 
-/* 页面头部 */
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding: 24px 28px;
-  border-radius: 24px;
-}
-
-.page-title {
-  font-size: 28px;
-  font-weight: 600;
-  margin: 0 0 8px 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.page-subtitle {
-  margin: 0;
-  opacity: 0.88;
-  font-size: 14px;
-}
-
-/* 统计卡片 */
-.stats-row {
-  margin-bottom: 24px;
-}
-
-.stat-card {
-  border-radius: 16px;
-  border: 1px solid rgba(115, 156, 225, 0.22);
-}
-
-.stat-content {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.stat-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 24px;
-}
-
-.stat-value {
-  font-size: 28px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.stat-label {
-  font-size: 13px;
-  color: #909399;
-  margin-top: 4px;
-}
-
-/* 方向选择 */
-.direction-card {
-  margin-bottom: 24px;
-  border-radius: 16px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.header-title {
-  font-size: 16px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.header-tip {
-  font-size: 13px;
-  color: #909399;
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
 .direction-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
+  min-height: 180px;
 }
 
 .direction-item {
   position: relative;
-  padding: 20px;
-  border: 1px solid #d7e7fb;
-  border-radius: 14px;
+  display: grid;
+  min-width: 0;
+  gap: var(--cn-space-3);
+  padding: var(--cn-space-5);
+  border: 1px solid var(--cn-card-border);
+  border-radius: var(--cn-card-radius);
+  background: var(--cn-card-bg);
+  color: inherit;
   cursor: pointer;
-  transition: all 0.3s;
-  background: #f9fbff;
+  font: inherit;
+  text-align: left;
+  transition:
+    transform var(--cn-motion-fast) var(--cn-ease-out),
+    border-color var(--cn-motion-fast) var(--cn-ease-out),
+    box-shadow var(--cn-motion-fast) var(--cn-ease-out),
+    background-color var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .direction-item:hover {
-  border-color: #2f7cf5;
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 34%, var(--cn-color-border-subtle));
+  box-shadow: var(--cn-shadow-sm);
   transform: translateY(-2px);
-  box-shadow: 0 12px 24px rgba(31, 111, 235, 0.18);
 }
 
 .direction-item.is-selected {
-  border-color: #2f7cf5;
-  background: linear-gradient(135deg, #ebf4ff 0%, #e4f1ff 100%);
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 48%, var(--cn-color-border-subtle));
+  background: color-mix(in srgb, var(--cn-color-brand-soft) 78%, var(--cn-color-bg-surface));
 }
 
 .direction-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--cn-color-brand-primary) 82%, var(--cn-color-info));
   color: white;
-  margin-bottom: 12px;
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--cn-color-brand-primary) 20%, transparent);
 }
 
-.direction-name {
+.direction-info {
+  display: grid;
+  min-width: 0;
+  gap: var(--cn-space-2);
+}
+
+.direction-info strong {
+  color: var(--cn-color-text-primary);
   font-size: 16px;
-  font-weight: 600;
-  margin: 0 0 6px 0;
-  color: #303133;
+  font-weight: 700;
 }
 
-.direction-desc {
+.direction-info em {
+  color: var(--cn-color-text-secondary);
   font-size: 13px;
-  color: #909399;
-  margin: 0;
+  font-style: normal;
+  line-height: 1.65;
 }
 
 .direction-check {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #67c23a;
-  color: white;
-  display: flex;
+  top: var(--cn-space-3);
+  right: var(--cn-space-3);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--cn-radius-pill);
+  background: var(--cn-color-success);
+  color: white;
 }
 
-/* 开始按钮 */
 .start-section {
-  text-align: center;
-  margin-bottom: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cn-space-3);
+  margin-top: var(--cn-space-5);
+  padding-top: var(--cn-space-5);
+  border-top: 1px solid var(--cn-color-border-subtle);
 }
 
 .start-btn {
-  width: 240px;
-  height: 56px;
-  font-size: 18px;
-  border-radius: 28px;
+  min-width: 220px;
+  min-height: 48px;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .start-tip {
-  margin-top: 12px;
+  color: var(--cn-color-text-tertiary);
   font-size: 13px;
-  color: #909399;
 }
 
-/* 功能介绍 */
-.feature-card {
-  border-radius: 16px;
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
 .feature-item {
-  text-align: center;
-  padding: 20px;
-  border-radius: 14px;
-  border: 1px solid rgba(188, 210, 242, 0.65);
-  background: linear-gradient(180deg, #fbfdff 0%, #f3f8ff 100%);
+  display: grid;
+  justify-items: start;
+  min-width: 0;
+  gap: var(--cn-space-3);
+  padding: var(--cn-space-5);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .feature-icon {
-  font-size: 40px;
-  margin-bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: var(--cn-color-brand-soft);
+  color: var(--cn-color-brand-primary);
 }
 
-.feature-item h4 {
+.feature-item strong {
+  color: var(--cn-color-text-primary);
   font-size: 15px;
-  font-weight: 600;
-  margin: 0 0 8px 0;
-  color: #303133;
+  font-weight: 700;
 }
 
-.feature-item p {
+.feature-item em {
+  color: var(--cn-color-text-secondary);
   font-size: 13px;
-  color: #909399;
-  margin: 0;
+  font-style: normal;
+  line-height: 1.65;
 }
 
-/* 响应式 */
-@media (max-width: 1200px) {
-  .direction-grid {
-    grid-template-columns: repeat(3, 1fr);
+@media (max-width: 1180px) {
+  .stats-grid,
+  .direction-grid,
+  .feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 768px) {
-  .direction-grid {
-    grid-template-columns: repeat(2, 1fr);
+@media (max-width: 640px) {
+  .stats-grid,
+  .direction-grid,
+  .feature-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
-  
-  .stats-row .el-col {
-    margin-bottom: 12px;
+
+  .start-section {
+    justify-content: stretch;
+  }
+
+  .start-btn {
+    width: 100%;
   }
 }
 </style>

@@ -1,168 +1,98 @@
 <template>
-  <div class="question-management">
-    <!-- 页面头部 -->
-    <el-card class="header-card" shadow="never">
-      <div class="header-content">
-        <div class="title-section">
-          <h2>题目管理</h2>
-          <p>管理面试题目，支持Markdown编辑、批量导入和批量操作</p>
-          <div v-if="currentQuestionSetTitle" class="breadcrumb">
-            <el-tag type="info">
-              <el-icon><Collection /></el-icon>
-              {{ currentQuestionSetTitle }}
-            </el-tag>
-          </div>
-        </div>
-        <div class="action-section">
-          <el-button
-            type="danger"
-            :disabled="selectedQuestions.length === 0"
-            @click="handleBatchDelete"
-          >
-            <el-icon><Delete /></el-icon>
-            批量删除 ({{ selectedQuestions.length }})
-          </el-button>
-          <el-button type="success" @click="handleImport">
-            <el-icon><Upload /></el-icon>
-            MD导入
-          </el-button>
-          <el-button type="primary" @click="handleAdd">
-            <el-icon><Plus /></el-icon>
-            新增题目
-          </el-button>
-        </div>
-      </div>
-    </el-card>
+  <CnPage class="interview-questions-page" surface="transparent" max-width="1320px">
+    <CnPageHeader
+      title="题目管理"
+      description="管理面试题目，支持 Markdown 参考答案、批量导入和批量删除。"
+      eyebrow="Interview Questions"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand">面试题库</CnStatusTag>
+        <CnStatusTag type="neutral">共 {{ total }} 道题</CnStatusTag>
+        <CnStatusTag v-if="currentQuestionSetTitle" type="info">{{ currentQuestionSetTitle }}</CnStatusTag>
+      </template>
 
-    <!-- 搜索和过滤区 -->
-    <el-card class="search-card" shadow="never">
-      <el-row :gutter="20">
-        <el-col :span="6">
-          <el-select v-model="queryForm.questionSetId" placeholder="请选择题单" clearable @change="handleSearch">
-            <el-option
-              v-for="questionSet in questionSetList"
-              :key="questionSet.id"
-              :label="questionSet.title"
-              :value="questionSet.id"
-            />
-          </el-select>
-        </el-col>
-        <el-col :span="6">
-          <el-input
-            v-model="queryForm.title"
-            placeholder="请输入题目标题"
-            clearable
-            @clear="handleSearch"
-            @keyup.enter="handleSearch"
-          >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
-            </template>
-          </el-input>
-        </el-col>
-        <el-col :span="6">
-          <el-input
-            v-model="queryForm.keyword"
-            placeholder="关键词搜索（标题、答案）"
-            clearable
-            @clear="handleSearch"
-            @keyup.enter="handleSearch"
-          >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
-            </template>
-          </el-input>
-        </el-col>
-        <el-col :span="6">
-          <el-button type="primary" @click="handleSearch">
-            <el-icon><Search /></el-icon>
-            搜索
-          </el-button>
-          <el-button @click="handleReset">
-            <el-icon><Refresh /></el-icon>
-            重置
-          </el-button>
-        </el-col>
-      </el-row>
-    </el-card>
+      <template #actions>
+        <el-button type="danger" :icon="Delete" :disabled="selectedQuestions.length === 0" @click="handleBatchDelete">
+          批量删除 ({{ selectedQuestions.length }})
+        </el-button>
+        <el-button type="success" :icon="Upload" @click="handleImport">MD导入</el-button>
+        <el-button type="primary" :icon="Plus" @click="handleAdd">新增题目</el-button>
+      </template>
+    </CnPageHeader>
 
-    <!-- 题目表格 -->
-    <el-card class="table-card" shadow="never">
-      <el-table
-        v-loading="loading"
+    <div class="interview-stat-grid">
+      <CnStatCard title="题目总量" :value="total" description="当前筛选条件下的题目数量" tone="brand" />
+      <CnStatCard title="当前页浏览" :value="viewCountInPage" description="当前页题目累计浏览量" tone="info" />
+      <CnStatCard title="当前页收藏" :value="favoriteCountInPage" description="当前页题目累计收藏量" tone="success" />
+      <CnStatCard title="已选题目" :value="selectedQuestions.length" description="可用于批量删除操作" tone="warning" />
+    </div>
+
+    <CnSection title="筛选条件" description="按题单、题目标题和关键词筛选面试题目。" divided>
+      <CnFilterForm
+        :model-value="queryForm"
+        :fields="filterFields"
+        :columns="3"
+        :loading="loading"
+        @update:model-value="handleFilterUpdate"
+        @search="handleSearch"
+        @reset="handleReset"
+      />
+    </CnSection>
+
+    <CnSection title="题目列表" :description="`共 ${total} 道题目`" divided>
+      <CnDataTable
+        :columns="tableColumns"
         :data="questionList"
-        style="width: 100%"
-        :row-key="row => row.id"
+        :loading="loading"
+        :pagination="tablePagination"
+        row-key="id"
         @selection-change="handleSelectionChange"
+        @page-change="handleCurrentChange"
+        @page-size-change="handleSizeChange"
       >
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="title" label="题目标题" min-width="300" show-overflow-tooltip />
-        <el-table-column prop="questionSetTitle" label="所属题单" width="180" show-overflow-tooltip />
-        <el-table-column prop="sortOrder" label="排序" width="80" align="center" />
-        <el-table-column prop="viewCount" label="浏览量" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag type="info">{{ row.viewCount || 0 }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="favoriteCount" label="收藏量" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag type="success">{{ row.favoriteCount || 0 }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column label="操作" width="250" fixed="right">
-          <template #default="{ row }">
-            <el-button type="info" size="small" @click="handlePreview(row)">
-              <el-icon><View /></el-icon>
-              预览
-            </el-button>
-            <el-button type="primary" size="small" @click="handleEdit(row)">
-              <el-icon><Edit /></el-icon>
-              编辑
-            </el-button>
-            <el-button type="danger" size="small" @click="handleDelete(row)">
-              <el-icon><Delete /></el-icon>
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+        <template #toolbar>
+          <CnToolbar title="题目数据" description="预览可检查 Markdown 渲染效果，批量操作仅对已选题目生效。" align="center">
+            <template #meta>
+              <CnStatusTag type="neutral" size="sm">每页 {{ queryForm.pageSize }} 条</CnStatusTag>
+              <CnStatusTag type="warning" size="sm">已选 {{ selectedQuestions.length }} 道</CnStatusTag>
+            </template>
+            <el-button type="success" :icon="Upload" @click="handleImport">MD导入</el-button>
+            <el-button type="primary" :icon="Plus" @click="handleAdd">新增题目</el-button>
+          </CnToolbar>
+        </template>
 
-      <!-- 分页组件 -->
-      <div class="pagination-wrapper">
-        <el-pagination
-          v-model:current-page="queryForm.pageNum"
-          v-model:page-size="queryForm.pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
-      </div>
-    </el-card>
+        <template #viewCount="{ row }">
+          <CnStatusTag type="info" size="sm">{{ row.viewCount || 0 }}</CnStatusTag>
+        </template>
 
-    <!-- 添加/编辑对话框 -->
+        <template #favoriteCount="{ row }">
+          <CnStatusTag type="success" size="sm">{{ row.favoriteCount || 0 }}</CnStatusTag>
+        </template>
+
+        <template #actions="{ row }">
+          <div class="table-actions">
+            <el-button type="info" link size="small" :icon="View" @click="handlePreview(row)">预览</el-button>
+            <el-button type="primary" link size="small" :icon="Edit" @click="handleEdit(row)">编辑</el-button>
+            <el-button type="danger" link size="small" :icon="Delete" @click="handleDelete(row)">删除</el-button>
+          </div>
+        </template>
+      </CnDataTable>
+    </CnSection>
+
     <el-dialog
       :title="dialogTitle"
       v-model="dialogVisible"
       width="1200px"
-      @close="resetForm"
       :close-on-click-modal="false"
+      @close="resetForm"
     >
-      <el-form
-        ref="formRef"
-        :model="form"
-        :rules="rules"
-        label-width="100px"
-        style="max-height: 70vh; overflow-y: auto;"
-      >
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" class="question-form">
         <el-form-item label="题目标题" prop="title">
           <el-input v-model="form.title" placeholder="请输入题目标题" maxlength="500" />
         </el-form-item>
         <el-form-item label="所属题单" prop="questionSetId">
-          <el-select v-model="form.questionSetId" placeholder="请选择题单" style="width: 100%">
+          <el-select v-model="form.questionSetId" placeholder="请选择题单" class="full-width-control">
             <el-option
               v-for="questionSet in questionSetList"
               :key="questionSet.id"
@@ -172,72 +102,53 @@
           </el-select>
         </el-form-item>
         <el-form-item label="排序序号" prop="sortOrder">
-          <el-input-number
-            v-model="form.sortOrder"
-            :min="0"
-            :max="9999"
-            placeholder="请输入排序序号"
-          />
+          <el-input-number v-model="form.sortOrder" :min="0" :max="9999" placeholder="请输入排序序号" />
         </el-form-item>
-
         <el-form-item label="参考答案" prop="answer">
           <el-input
             v-model="form.answer"
             type="textarea"
             :rows="12"
             placeholder="请输入参考答案，支持Markdown语法"
-            style="width: 100%"
+            class="full-width-control"
           />
         </el-form-item>
       </el-form>
 
       <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmit" :loading="submitLoading">
-            确定
-          </el-button>
-        </span>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
 
-    <!-- 预览对话框 -->
-    <el-dialog
-      title="题目预览"
-      v-model="previewVisible"
-      width="1000px"
-      :close-on-click-modal="false"
-    >
+    <el-dialog title="题目预览" v-model="previewVisible" width="1000px" :close-on-click-modal="false">
       <div v-if="previewData" class="preview-content">
         <div class="preview-header">
           <h3>{{ previewData.title }}</h3>
-          <el-tag type="info">{{ previewData.questionSetTitle }}</el-tag>
+          <CnStatusTag type="info">{{ previewData.questionSetTitle }}</CnStatusTag>
         </div>
 
         <div class="answer-section">
           <h3>参考答案</h3>
-          <div class="markdown-content" v-html="renderMarkdown(previewData.answer)"></div>
+          <div class="markdown-content" v-html="renderMarkdown(previewData.answer)" />
         </div>
       </div>
 
       <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="previewVisible = false">关闭</el-button>
-        </span>
+        <el-button @click="previewVisible = false">关闭</el-button>
       </template>
     </el-dialog>
 
-    <!-- MD导入对话框 -->
     <el-dialog
       title="Markdown导入"
       v-model="importDialogVisible"
       width="900px"
-      @close="resetImportForm"
       :close-on-click-modal="false"
+      @close="resetImportForm"
     >
       <el-form ref="importFormRef" :model="importForm" :rules="importRules" label-width="100px">
         <el-form-item label="目标题单" prop="questionSetId">
-          <el-select v-model="importForm.questionSetId" placeholder="请选择题单" style="width: 100%">
+          <el-select v-model="importForm.questionSetId" placeholder="请选择题单" class="full-width-control">
             <el-option
               v-for="questionSet in questionSetList"
               :key="questionSet.id"
@@ -247,125 +158,162 @@
           </el-select>
         </el-form-item>
         <el-form-item label="MD内容" prop="markdownContent">
-                     <el-input
-             v-model="importForm.markdownContent"
-             type="textarea"
-             :rows="15"
-             placeholder="请输入Markdown格式的题目内容，格式示例：&#10;&#10;## 什么是Java中的多态？&#10;&#10;多态是面向对象编程的一个重要特性，指同一个接口可以有不同的实现方式。&#10;&#10;在Java中，多态主要体现在：&#10;- 方法重载（编译时多态）&#10;- 方法重写（运行时多态）&#10;&#10;运行时多态的实现条件：&#10;1. 继承关系&#10;2. 方法重写&#10;3. 父类引用指向子类对象"
-             style="width: 100%"
-           />
+          <el-input
+            v-model="importForm.markdownContent"
+            type="textarea"
+            :rows="15"
+            placeholder="请输入Markdown格式的题目内容，格式示例：&#10;&#10;## 什么是Java中的多态？&#10;&#10;多态是面向对象编程的一个重要特性，指同一个接口可以有不同的实现方式。&#10;&#10;在Java中，多态主要体现在：&#10;- 方法重载（编译时多态）&#10;- 方法重写（运行时多态）&#10;&#10;运行时多态的实现条件：&#10;1. 继承关系&#10;2. 方法重写&#10;3. 父类引用指向子类对象"
+            class="full-width-control"
+          />
         </el-form-item>
         <el-form-item>
-                     <el-alert
-             title="格式说明"
-             type="info"
-             :closable="false"
-           >
-             <template #default>
-               <p>使用 ## 作为题目分割标识，## 后的内容作为题目标题</p>
-               <p>题目标题下的所有内容将作为参考答案</p>
-               <p>示例：## 什么是Java中的多态？ [换行] 多态是面向对象编程的一个重要特性...</p>
-             </template>
-           </el-alert>
+          <el-alert title="格式说明" type="info" :closable="false">
+            <template #default>
+              <p>使用 ## 作为题目分割标识，## 后的内容作为题目标题。</p>
+              <p>题目标题下的所有内容将作为参考答案。</p>
+              <p>示例：## 什么是Java中的多态？ [换行] 多态是面向对象编程的一个重要特性...</p>
+            </template>
+          </el-alert>
         </el-form-item>
       </el-form>
 
       <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="importDialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleImportSubmit" :loading="importLoading">
-            导入
-          </el-button>
-        </span>
+        <el-button @click="importDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="importLoading" @click="handleImportSubmit">导入</el-button>
       </template>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  Plus, Search, Refresh, Edit, Delete, View, Collection, Upload
-} from '@element-plus/icons-vue'
+import { Collection, Delete, Edit, Plus, Upload, View } from '@element-plus/icons-vue'
 import { interviewApi } from '@/api/interview'
 import { renderMarkdown as renderSafeMarkdown } from '@/utils/markdown'
+import {
+  CnDataTable,
+  CnFilterForm,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag,
+  CnToolbar
+} from '@/design-system'
+import type { CnBreadcrumbItem, CnFilterField, CnPagination, CnTableColumn } from '@/design-system'
+
+interface InterviewQuestionSet {
+  id: number
+  title: string
+  [key: string]: unknown
+}
+
+interface InterviewQuestion {
+  id: number
+  questionSetId?: number | null
+  title: string
+  answer?: string
+  questionSetTitle?: string
+  sortOrder?: number
+  viewCount?: number
+  favoriteCount?: number
+  createTime?: string
+  [key: string]: unknown
+}
 
 const route = useRoute()
+const breadcrumbs = computed<CnBreadcrumbItem[]>(() => {
+  const items: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '面试题目管理' }, { label: '题目管理' }]
+  if (currentQuestionSetTitle.value) {
+    items.push({ label: currentQuestionSetTitle.value })
+  }
+  return items
+})
 
-// 响应式数据
 const loading = ref(false)
 const submitLoading = ref(false)
 const importLoading = ref(false)
 const dialogVisible = ref(false)
 const previewVisible = ref(false)
 const importDialogVisible = ref(false)
-const questionList = ref([])
-const questionSetList = ref([])
-const selectedQuestions = ref([])
+const questionList = ref<InterviewQuestion[]>([])
+const questionSetList = ref<InterviewQuestionSet[]>([])
+const selectedQuestions = ref<InterviewQuestion[]>([])
 const total = ref(0)
-const formRef = ref(null)
-const importFormRef = ref(null)
-const previewData = ref(null)
+const formRef = ref()
+const importFormRef = ref()
+const previewData = ref<InterviewQuestion | null>(null)
 const currentQuestionSetTitle = ref('')
 
-// 查询表单
 const queryForm = reactive({
-  questionSetId: null,
+  questionSetId: null as number | null,
   title: '',
   keyword: '',
   pageNum: 1,
   pageSize: 10
 })
 
-// 编辑表单
 const form = reactive({
-  id: null,
-  questionSetId: null,
+  id: null as number | null,
+  questionSetId: null as number | null,
   title: '',
   answer: '',
   sortOrder: 0
 })
 
-// 导入表单
 const importForm = reactive({
-  questionSetId: null,
+  questionSetId: null as number | null,
   markdownContent: ''
 })
 
-// 表单验证规则
 const rules = {
   title: [
     { required: true, message: '请输入题目标题', trigger: 'blur' },
     { max: 500, message: '题目标题长度不能超过500字符', trigger: 'blur' }
   ],
-  questionSetId: [
-    { required: true, message: '请选择题单', trigger: 'change' }
-  ]
+  questionSetId: [{ required: true, message: '请选择题单', trigger: 'change' }]
 }
 
-// 导入验证规则
 const importRules = {
-  questionSetId: [
-    { required: true, message: '请选择题单', trigger: 'change' }
-  ],
-  markdownContent: [
-    { required: true, message: '请输入Markdown内容', trigger: 'blur' }
-  ]
+  questionSetId: [{ required: true, message: '请选择题单', trigger: 'change' }],
+  markdownContent: [{ required: true, message: '请输入Markdown内容', trigger: 'blur' }]
 }
 
-// 计算对话框标题
-const dialogTitle = computed(() => {
-  return form.id ? '编辑题目' : '新增题目'
-})
+const questionSetOptions = computed(() => questionSetList.value.map((item) => ({ label: item.title, value: item.id })))
 
-// 简单的Markdown渲染（基本格式支持）
-const renderMarkdown = (text) => {
-  return renderSafeMarkdown(text)
-}
+const filterFields = computed<CnFilterField[]>(() => [
+  { prop: 'questionSetId', label: '所属题单', type: 'select', placeholder: '请选择题单', options: questionSetOptions.value },
+  { prop: 'title', label: '题目标题', type: 'input', placeholder: '请输入题目标题' },
+  { prop: 'keyword', label: '关键词', type: 'input', placeholder: '关键词搜索（标题、答案）' }
+])
 
-// 获取题目列表
+const tableColumns: CnTableColumn<InterviewQuestion>[] = [
+  { type: 'selection', width: 55 },
+  { prop: 'id', label: 'ID', width: 80 },
+  { prop: 'title', label: '题目标题', minWidth: 280, showOverflowTooltip: true },
+  { prop: 'questionSetTitle', label: '所属题单', width: 180, showOverflowTooltip: true },
+  { prop: 'sortOrder', label: '排序', width: 80, align: 'center' },
+  { prop: 'viewCount', label: '浏览量', width: 100, align: 'center', slot: 'viewCount' },
+  { prop: 'favoriteCount', label: '收藏量', width: 100, align: 'center', slot: 'favoriteCount' },
+  { prop: 'createTime', label: '创建时间', width: 180, showOverflowTooltip: true },
+  { label: '操作', width: 170, fixed: 'right', slot: 'actions' }
+]
+
+const tablePagination = computed<CnPagination>(() => ({
+  page: queryForm.pageNum,
+  pageSize: queryForm.pageSize,
+  total: total.value,
+  pageSizes: [10, 20, 50, 100]
+}))
+
+const dialogTitle = computed(() => (form.id ? '编辑题目' : '新增题目'))
+const viewCountInPage = computed(() => questionList.value.reduce((sum, item) => sum + (Number(item.viewCount) || 0), 0))
+const favoriteCountInPage = computed(() => questionList.value.reduce((sum, item) => sum + (Number(item.favoriteCount) || 0), 0))
+
+const renderMarkdown = (text?: string) => renderSafeMarkdown(text || '')
+
 const fetchQuestions = async () => {
   loading.value = true
   try {
@@ -380,7 +328,6 @@ const fetchQuestions = async () => {
   }
 }
 
-// 获取题单列表
 const fetchQuestionSets = async () => {
   try {
     const data = await interviewApi.getQuestionSets({ pageNum: 1, pageSize: 100 })
@@ -391,41 +338,41 @@ const fetchQuestionSets = async () => {
   }
 }
 
-// 搜索
+const handleFilterUpdate = (value: Record<string, unknown>) => {
+  Object.assign(queryForm, value)
+}
+
 const handleSearch = () => {
   queryForm.pageNum = 1
   fetchQuestions()
 }
 
-// 重置搜索
 const handleReset = () => {
-  queryForm.questionSetId = null
-  queryForm.title = ''
-  queryForm.keyword = ''
-  queryForm.pageNum = 1
+  Object.assign(queryForm, {
+    questionSetId: null,
+    title: '',
+    keyword: '',
+    pageNum: 1
+  })
   currentQuestionSetTitle.value = ''
   fetchQuestions()
 }
 
-// 分页大小改变
-const handleSizeChange = (size) => {
+const handleSizeChange = (size: number) => {
   queryForm.pageSize = size
   queryForm.pageNum = 1
   fetchQuestions()
 }
 
-// 当前页改变
-const handleCurrentChange = (page) => {
+const handleCurrentChange = (page: number) => {
   queryForm.pageNum = page
   fetchQuestions()
 }
 
-// 选择改变
-const handleSelectionChange = (selection) => {
-  selectedQuestions.value = selection
+const handleSelectionChange = (selection: unknown[]) => {
+  selectedQuestions.value = selection as InterviewQuestion[]
 }
 
-// 新增题目
 const handleAdd = () => {
   resetForm()
   if (queryForm.questionSetId) {
@@ -434,35 +381,27 @@ const handleAdd = () => {
   dialogVisible.value = true
 }
 
-// 编辑题目
-const handleEdit = (row) => {
+const handleEdit = (row: InterviewQuestion) => {
   form.id = row.id
-  form.questionSetId = row.questionSetId
+  form.questionSetId = row.questionSetId || null
   form.title = row.title
   form.answer = row.answer || ''
   form.sortOrder = row.sortOrder || 0
   dialogVisible.value = true
 }
 
-// 预览题目
-const handlePreview = (row) => {
+const handlePreview = (row: InterviewQuestion) => {
   previewData.value = row
   previewVisible.value = true
 }
 
-// 删除题目
-const handleDelete = async (row) => {
+const handleDelete = async (row: InterviewQuestion) => {
   try {
-    await ElMessageBox.confirm(
-      `确定要删除题目 "${row.title}" 吗？删除后将无法恢复！`,
-      '删除确认',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-
+    await ElMessageBox.confirm(`确定要删除题目 "${row.title}" 吗？删除后将无法恢复！`, '删除确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
     await interviewApi.deleteQuestion(row.id)
     ElMessage.success('删除成功')
     await fetchQuestions()
@@ -474,22 +413,16 @@ const handleDelete = async (row) => {
   }
 }
 
-// 批量删除
 const handleBatchDelete = async () => {
   if (selectedQuestions.value.length === 0) return
 
   try {
-    await ElMessageBox.confirm(
-      `确定要删除选中的 ${selectedQuestions.value.length} 道题目吗？删除后将无法恢复！`,
-      '批量删除确认',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-
-    const ids = selectedQuestions.value.map(item => item.id)
+    await ElMessageBox.confirm(`确定要删除选中的 ${selectedQuestions.value.length} 道题目吗？删除后将无法恢复！`, '批量删除确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    const ids = selectedQuestions.value.map((item) => item.id)
     await interviewApi.batchDeleteQuestions(ids)
     ElMessage.success('批量删除成功')
     selectedQuestions.value = []
@@ -502,7 +435,6 @@ const handleBatchDelete = async () => {
   }
 }
 
-// 提交表单
 const handleSubmit = async () => {
   const formElement = formRef.value
   if (!formElement) return
@@ -510,24 +442,19 @@ const handleSubmit = async () => {
   try {
     await formElement.validate()
     submitLoading.value = true
-
     const data = {
       questionSetId: form.questionSetId,
       title: form.title,
       answer: form.answer,
       sortOrder: form.sortOrder
     }
-
     if (form.id) {
-      // 编辑
       await interviewApi.updateQuestion(form.id, data)
       ElMessage.success('编辑成功')
     } else {
-      // 新增
       await interviewApi.createQuestion(data)
       ElMessage.success('新增成功')
     }
-
     dialogVisible.value = false
     await fetchQuestions()
   } catch (error) {
@@ -540,14 +467,12 @@ const handleSubmit = async () => {
   }
 }
 
-// 导入功能
 const handleImport = () => {
   importForm.questionSetId = queryForm.questionSetId || null
   importForm.markdownContent = ''
   importDialogVisible.value = true
 }
 
-// 提交导入
 const handleImportSubmit = async () => {
   const formElement = importFormRef.value
   if (!formElement) return
@@ -555,12 +480,10 @@ const handleImportSubmit = async () => {
   try {
     await formElement.validate()
     importLoading.value = true
-
     const data = await interviewApi.importMarkdownQuestions({
       questionSetId: importForm.questionSetId,
       markdownContent: importForm.markdownContent
     })
-
     ElMessage.success(`导入成功，共导入 ${data} 道题目`)
     importDialogVisible.value = false
     await fetchQuestions()
@@ -574,103 +497,78 @@ const handleImportSubmit = async () => {
   }
 }
 
-// 重置表单
 const resetForm = () => {
-  if (formRef.value) {
-    formRef.value.resetFields()
-  }
-  form.id = null
-  form.questionSetId = null
-  form.title = ''
-  form.answer = ''
-  form.sortOrder = 0
+  formRef.value?.resetFields()
+  Object.assign(form, {
+    id: null,
+    questionSetId: null,
+    title: '',
+    answer: '',
+    sortOrder: 0
+  })
 }
 
-// 重置导入表单
 const resetImportForm = () => {
-  if (importFormRef.value) {
-    importFormRef.value.resetFields()
-  }
-  importForm.questionSetId = null
-  importForm.markdownContent = ''
+  importFormRef.value?.resetFields()
+  Object.assign(importForm, {
+    questionSetId: null,
+    markdownContent: ''
+  })
 }
 
-// 监听路由参数变化
-watch(() => route.query, (newQuery) => {
-  if (newQuery.questionSetId) {
-    queryForm.questionSetId = Number(newQuery.questionSetId)
-    currentQuestionSetTitle.value = decodeURIComponent(newQuery.title || '')
-  }
-  fetchQuestions()
-}, { immediate: true })
+watch(
+  () => route.query,
+  (newQuery) => {
+    if (newQuery.questionSetId) {
+      queryForm.questionSetId = Number(newQuery.questionSetId)
+      currentQuestionSetTitle.value = decodeURIComponent(String(newQuery.title || ''))
+    }
+    fetchQuestions()
+  },
+  { immediate: true }
+)
 
-// 监听题单选择变化
-watch(() => queryForm.questionSetId, (newValue) => {
-  if (newValue) {
-    const questionSet = questionSetList.value.find(item => item.id === newValue)
-    currentQuestionSetTitle.value = questionSet ? questionSet.title : ''
-  } else {
-    currentQuestionSetTitle.value = ''
+watch(
+  () => queryForm.questionSetId,
+  (newValue) => {
+    if (newValue) {
+      const questionSet = questionSetList.value.find((item) => item.id === newValue)
+      currentQuestionSetTitle.value = questionSet ? questionSet.title : ''
+    } else {
+      currentQuestionSetTitle.value = ''
+    }
   }
-})
+)
 
-// 页面挂载
 onMounted(() => {
   fetchQuestionSets()
-  // fetchQuestions() 会在 watch 中自动调用
 })
 </script>
 
 <style scoped>
-.question-management {
-  padding: 20px;
-  background-color: #f5f7fa;
-  min-height: 100vh;
+.interview-questions-page {
+  min-height: 100%;
 }
 
-.header-card {
-  margin-bottom: 20px;
+.interview-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.header-content {
+.table-actions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
 }
 
-.title-section h2 {
-  margin: 0 0 8px 0;
-  color: #303133;
-  font-size: 24px;
+.table-actions .el-button {
+  margin-left: 0;
 }
 
-.title-section p {
-  margin: 0 0 10px 0;
-  color: #909399;
-  font-size: 14px;
-}
-
-.breadcrumb {
-  margin-top: 5px;
-}
-
-.action-section {
-  display: flex;
-  gap: 10px;
-}
-
-.search-card {
-  margin-bottom: 20px;
-}
-
-.table-card {
-  margin-bottom: 20px;
-}
-
-.pagination-wrapper {
-  margin-top: 20px;
-  display: flex;
-  justify-content: flex-end;
+.question-form {
+  max-height: 70vh;
+  overflow-y: auto;
 }
 
 .preview-content {
@@ -682,79 +580,74 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #ebeef5;
+  margin-bottom: var(--cn-space-5);
+  padding-bottom: var(--cn-space-4);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
 }
 
-.preview-header h3 {
+.preview-header h3,
+.answer-section h3 {
   margin: 0;
-  color: #303133;
+  color: var(--cn-color-text-primary);
 }
 
 .answer-section {
-  margin-top: 20px;
+  margin-top: var(--cn-space-5);
 }
 
 .answer-section h3 {
-  margin: 0 0 15px 0;
-  color: #303133;
+  margin-bottom: var(--cn-space-4);
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 650;
 }
 
 .markdown-content {
-  padding: 20px;
-  background-color: #fafafa;
-  border-radius: 4px;
+  padding: var(--cn-space-5);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
   line-height: 1.8;
 }
 
 .markdown-content :deep(h1) {
+  margin: 20px 0 15px;
+  color: var(--cn-color-text-primary);
   font-size: 24px;
-  color: #303133;
-  margin: 20px 0 15px 0;
 }
 
 .markdown-content :deep(h2) {
+  margin: 18px 0 12px;
+  color: var(--cn-color-text-primary);
   font-size: 20px;
-  color: #303133;
-  margin: 18px 0 12px 0;
 }
 
 .markdown-content :deep(h3) {
+  margin: 15px 0 10px;
+  color: var(--cn-color-text-primary);
   font-size: 16px;
-  color: #303133;
-  margin: 15px 0 10px 0;
 }
 
 .markdown-content :deep(strong) {
-  color: #409eff;
-  font-weight: bold;
+  color: var(--cn-color-primary);
+  font-weight: 700;
 }
 
 .markdown-content :deep(code) {
-  background-color: #f5f5f5;
   padding: 2px 4px;
   border-radius: 3px;
-  font-family: 'Courier New', monospace;
-  color: #e83e8c;
+  background: var(--cn-color-bg-surface);
+  color: var(--cn-color-danger);
+  font-family: "Courier New", monospace;
 }
 
-.dialog-footer {
-  text-align: right;
-}
-
-@media (max-width: 768px) {
-  .header-content {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
+@media (max-width: 1180px) {
+  .interview-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
 
-  .action-section {
-    align-self: stretch;
-    justify-content: flex-end;
+@media (max-width: 680px) {
+  .interview-stat-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

@@ -1,104 +1,90 @@
 <template>
-  <el-dialog
-    v-model="visible"
-    title="修改密码"
-    width="500px"
-    :before-close="handleClose"
-  >
-    <el-form
-      ref="formRef"
-      :model="form"
-      :rules="rules"
-      label-width="100px"
-      @submit.prevent
-    >
-      <el-form-item label="原密码" prop="oldPassword">
-        <el-input
-          v-model="form.oldPassword"
-          type="password"
-          placeholder="请输入原密码"
-          show-password
-          clearable
-        />
-      </el-form-item>
-      
-      <el-form-item label="新密码" prop="newPassword">
-        <el-input
-          v-model="form.newPassword"
-          type="password"
-          placeholder="请输入新密码（6-20位）"
-          show-password
-          clearable
-        />
-      </el-form-item>
-      
-      <el-form-item label="确认密码" prop="confirmPassword">
-        <el-input
-          v-model="form.confirmPassword"
-          type="password"
-          placeholder="请再次输入新密码"
-          show-password
-          clearable
-        />
-      </el-form-item>
-    </el-form>
-    
+  <el-dialog v-model="visible" title="修改密码" width="500px" :before-close="handleClose">
+    <div class="password-dialog">
+      <CnSection surface="plain" compact class="dialog-summary">
+        <div class="dialog-summary__content">
+          <CnStatusTag type="warning" size="sm" subtle>安全操作</CnStatusTag>
+          <span>修改成功后需要重新登录，以保护当前管理员账户。</span>
+        </div>
+      </CnSection>
+
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" @submit.prevent>
+        <el-form-item label="原密码" prop="oldPassword">
+          <el-input v-model="form.oldPassword" type="password" placeholder="请输入原密码" show-password clearable />
+        </el-form-item>
+
+        <el-form-item label="新密码" prop="newPassword">
+          <el-input v-model="form.newPassword" type="password" placeholder="请输入新密码（6-20位）" show-password clearable />
+        </el-form-item>
+
+        <el-form-item label="确认密码" prop="confirmPassword">
+          <el-input v-model="form.confirmPassword" type="password" placeholder="请再次输入新密码" show-password clearable />
+        </el-form-item>
+      </el-form>
+    </div>
+
     <template #footer>
-      <span class="dialog-footer">
+      <div class="dialog-footer">
         <el-button @click="handleClose">取消</el-button>
-        <el-button type="primary" :loading="loading" @click="handleSubmit">
-          修改密码
-        </el-button>
-      </span>
+        <el-button type="primary" :loading="loading" @click="handleSubmit">修改密码</el-button>
+      </div>
     </template>
   </el-dialog>
 </template>
 
-<script setup>
-import { ref, reactive, watch } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+<script setup lang="ts">
+import { reactive, ref, watch } from 'vue'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { CnSection, CnStatusTag } from '@/design-system'
 import { authApi } from '@/api/auth'
 import { useUserStore } from '@/stores/user'
 import router from '@/router'
 
-const props = defineProps({
-  modelValue: {
-    type: Boolean,
-    default: false
-  }
-})
+interface PasswordForm {
+  oldPassword: string
+  newPassword: string
+  confirmPassword: string
+}
 
-const emit = defineEmits(['update:modelValue', 'success'])
+const props = withDefaults(
+  defineProps<{
+    modelValue?: boolean
+  }>(),
+  {
+    modelValue: false
+  }
+)
+
+const emit = defineEmits<{
+  'update:modelValue': [value: boolean]
+  success: []
+}>()
 
 const userStore = useUserStore()
-const formRef = ref()
+const formRef = ref<FormInstance | null>(null)
 const loading = ref(false)
-
-// 控制对话框显示
 const visible = ref(false)
 
-// 表单数据
-const form = reactive({
+const form = reactive<PasswordForm>({
   oldPassword: '',
   newPassword: '',
   confirmPassword: ''
 })
 
-// 自定义验证函数
-const validatePassword = (rule, value, callback) => {
+const validatePassword = (_rule: unknown, value: string, callback: (error?: Error) => void) => {
   if (value === '') {
     callback(new Error('请输入新密码'))
   } else if (value.length < 6 || value.length > 20) {
     callback(new Error('密码长度必须在6-20个字符之间'))
   } else {
     if (form.confirmPassword !== '') {
-      formRef.value.validateField('confirmPassword')
+      formRef.value?.validateField('confirmPassword')
     }
     callback()
   }
 }
 
-const validateConfirmPassword = (rule, value, callback) => {
+const validateConfirmPassword = (_rule: unknown, value: string, callback: (error?: Error) => void) => {
   if (value === '') {
     callback(new Error('请再次输入新密码'))
   } else if (value !== form.newPassword) {
@@ -108,79 +94,58 @@ const validateConfirmPassword = (rule, value, callback) => {
   }
 }
 
-// 表单验证规则
-const rules = reactive({
-  oldPassword: [
-    { required: true, message: '请输入原密码', trigger: 'blur' }
-  ],
-  newPassword: [
-    { required: true, validator: validatePassword, trigger: 'blur' }
-  ],
-  confirmPassword: [
-    { required: true, validator: validateConfirmPassword, trigger: 'blur' }
-  ]
+const rules = reactive<FormRules<PasswordForm>>({
+  oldPassword: [{ required: true, message: '请输入原密码', trigger: 'blur' }],
+  newPassword: [{ required: true, validator: validatePassword, trigger: 'blur' }],
+  confirmPassword: [{ required: true, validator: validateConfirmPassword, trigger: 'blur' }]
 })
 
-// 监听props变化
-watch(() => props.modelValue, (val) => {
-  visible.value = val
-  if (val) {
-    // 重置表单
-    Object.assign(form, {
-      oldPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    })
+watch(
+  () => props.modelValue,
+  (val) => {
+    visible.value = val
+    if (val) {
+      Object.assign(form, {
+        oldPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      })
+    }
   }
-})
+)
 
 watch(visible, (val) => {
   emit('update:modelValue', val)
 })
 
-// 关闭对话框
 const handleClose = () => {
   visible.value = false
-  if (formRef.value) {
-    formRef.value.resetFields()
-  }
+  formRef.value?.resetFields()
 }
 
-// 提交表单
 const handleSubmit = async () => {
-  if (!formRef.value) return
-  
+  const valid = await formRef.value?.validate().catch(() => false)
+  if (!valid) return
+
+  loading.value = true
   try {
-    await formRef.value.validate()
-    
-    loading.value = true
-    
-    // 调用修改密码接口
     await authApi.changePassword(form)
-    
     ElMessage.success('密码修改成功')
-    
     handleClose()
     emit('success')
-    
-    // 提示用户重新登录
-    ElMessageBox.alert(
-      '密码修改成功，为了您的账户安全，请重新登录。',
-      '提示',
-      {
-        confirmButtonText: '确定',
-        type: 'success'
-      }
-    ).then(() => {
-      // 登出并跳转到登录页
-      userStore.logout()
-      router.push('/login')
+
+    await ElMessageBox.alert('密码修改成功，为了您的账户安全，请重新登录。', '提示', {
+      confirmButtonText: '确定',
+      type: 'success'
     })
-    
+
+    userStore.logout()
+    router.push('/login')
   } catch (error) {
-    if (error.name !== 'FormValidateError') {
+    const errorName = error instanceof Error ? error.name : ''
+    if (errorName !== 'FormValidateError') {
       console.error('修改密码失败:', error)
-      ElMessage.error(error.message || '修改密码失败，请重试')
+      ElMessage.error(error instanceof Error ? error.message : '修改密码失败，请重试')
     }
   } finally {
     loading.value = false
@@ -189,9 +154,36 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
+.password-dialog {
+  display: grid;
+  gap: var(--cn-space-5);
+}
+
+.dialog-summary {
+  border-color: color-mix(in srgb, var(--cn-color-warning) 24%, var(--cn-color-border));
+}
+
+.dialog-summary__content {
+  display: grid;
+  gap: var(--cn-space-2);
+}
+
+.dialog-summary__content > span {
+  color: var(--cn-color-text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
+  gap: var(--cn-space-2);
 }
-</style> 
+
+@media (max-width: 560px) {
+  .dialog-footer {
+    justify-content: flex-start;
+  }
+}
+</style>

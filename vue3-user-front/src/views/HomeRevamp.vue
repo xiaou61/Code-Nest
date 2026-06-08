@@ -1,264 +1,384 @@
 <template>
-  <div class="home-container">
-    <section class="hero-section" aria-label="首页首屏">
-      <div class="hero-bg" aria-hidden="true"></div>
+  <CnPage class="home-revamp" surface="transparent" max-width="1440px" full-height>
+    <section class="home-hero cn-learn-reveal" aria-label="首页首屏">
+      <div class="home-hero__copy">
+        <CnPageHeader
+          title="Code Nest"
+          description="在一个站点完成刷题、知识体系建设、社区互动、计划打卡和 AI 模拟面试，让学习、练习和输出形成闭环。"
+          eyebrow="开发者成长社区"
+          compact
+        >
+          <template #meta>
+            <CnStatusTag type="brand" size="sm">成长数据实时汇总</CnStatusTag>
+            <CnStatusTag type="success" size="sm">刷新 {{ refreshAt || '--:--:--' }}</CnStatusTag>
+            <CnStatusTag :type="moduleState.hero.available ? 'success' : 'warning'" size="sm">
+              {{ moduleState.hero.available ? '数据已连接' : moduleState.hero.message }}
+            </CnStatusTag>
+          </template>
 
-      <div class="hero-layout">
-        <div class="hero-brand cn-stagger-enter" style="--stagger-delay: 40ms">
-          <span class="brand-badge">开发者成长社区</span>
-          <h1 class="hero-title">Code Nest</h1>
-          <p class="hero-sub-title">更强内容、更快成长、更高效沉淀</p>
-          <p class="hero-desc">
-            在一个站点完成刷题、知识体系建设、社区互动、计划打卡、AI 模拟面试，让学习和输出形成闭环。
-          </p>
-          <div class="hero-actions">
-            <el-button type="primary" size="large" class="hero-btn" @click="goTo('/interview')">
-              <el-icon><Reading /></el-icon>
-              立即刷题
+          <template #actions>
+            <el-button plain :loading="refreshingRealtime" @click="handleManualRefresh">
+              <el-icon><DataAnalysis /></el-icon>
+              刷新数据
             </el-button>
-            <el-button size="large" class="hero-btn ghost" @click="goTo('/community')">
-              <el-icon><ChatDotRound /></el-icon>
-              进入社区
-            </el-button>
-          </div>
-          <div class="hero-live">
-            <span>实时刷新 {{ refreshAt || '--:--:--' }}</span>
-            <el-button text :loading="refreshingRealtime" @click="handleManualRefresh">手动刷新</el-button>
-          </div>
-        </div>
+          </template>
+        </CnPageHeader>
 
-        <div class="hero-panel cn-stagger-enter cn-glow-border cn-card-shimmer" style="--stagger-delay: 130ms">
-          <div class="panel-head">
-            <h3>成长实时驾驶舱</h3>
-            <span class="panel-dot" :class="{ ready: moduleState.hero.available }"></span>
-          </div>
-          <div v-if="moduleState.hero.loading" class="panel-state">正在加载实时数据...</div>
-          <div v-else-if="!moduleState.hero.available" class="panel-state error">{{ moduleState.hero.message }}</div>
-          <div v-else class="metric-grid">
-            <div v-for="metric in heroMetricCards" :key="metric.key" class="metric-card cn-tilt-card">
-              <p class="metric-label">{{ metric.label }}</p>
-              <p class="metric-value">{{ formatMetric(metric) }}</p>
-            </div>
-          </div>
+        <div class="hero-actions">
+          <el-button type="primary" size="large" @click="goTo('/interview')">
+            <el-icon><Reading /></el-icon>
+            立即刷题
+          </el-button>
+          <el-button size="large" @click="goTo('/learning-cockpit')">
+            <el-icon><DataAnalysis /></el-icon>
+            打开驾驶舱
+          </el-button>
         </div>
       </div>
+
+      <CnSection class="hero-metrics" surface="panel" compact>
+        <div v-if="moduleState.hero.loading" class="home-state">成长数据加载中...</div>
+        <CnEmptyState
+          v-else-if="!moduleState.hero.available"
+          title="实时数据暂不可用"
+          :description="moduleState.hero.message"
+          icon="CN"
+          size="sm"
+          surface="transparent"
+        />
+        <div v-else class="hero-metric-grid">
+          <article v-for="metric in heroMetricCards" :key="metric.key" class="hero-metric-card">
+            <span class="metric-label">{{ metric.label }}</span>
+            <strong>{{ formatMetric(metric) }}</strong>
+          </article>
+        </div>
+      </CnSection>
     </section>
 
-    <section
+    <CnSection
       v-if="recentWorkspaceItems.length"
-      class="content-section section-reveal"
+      class="home-section section-reveal"
       data-section="recent"
       :class="{ 'is-visible': visibleSections.recent }"
+      title="最近继续"
+      description="保留最近使用过的模块，回到站点可以直接接着做。"
+      surface="panel"
+      divided
     >
-      <div class="section-head">
-        <h2>最近继续</h2>
-        <p>保留你最近使用过的模块，回到站点可以直接接着干</p>
-      </div>
       <div class="recent-grid">
-        <article
+        <button
           v-for="item in recentWorkspaceItems"
           :key="item.path"
-          class="recent-card cn-hover-lift"
+          class="recent-card"
+          type="button"
           @click="goTo(item.path)"
         >
-          <div class="recent-icon">
+          <span class="recent-icon">
             <el-icon><component :is="item.icon" /></el-icon>
-          </div>
-          <div class="recent-copy">
-            <h3>{{ item.label }}</h3>
-            <p>{{ item.desc }}</p>
-          </div>
-          <el-icon class="recent-arrow"><ArrowRight /></el-icon>
-        </article>
+          </span>
+          <span class="recent-copy">
+            <strong>{{ item.label }}</strong>
+            <em>{{ item.desc }}</em>
+          </span>
+          <el-icon class="card-arrow"><ArrowRight /></el-icon>
+        </button>
       </div>
+    </CnSection>
+
+    <section class="home-two-column">
+      <CnSection
+        class="home-section section-reveal"
+        data-section="hot"
+        :class="{ 'is-visible': visibleSections.hot }"
+        title="今日热门"
+        description="真实社区热帖与动态广场，优先展示今天值得看的讨论。"
+        surface="panel"
+        divided
+      >
+        <template #actions>
+          <el-button text @click="goTo('/community')">更多社区</el-button>
+        </template>
+
+        <div v-if="moduleState.hot.loading" class="home-state">热门内容加载中...</div>
+        <CnEmptyState
+          v-else-if="!moduleState.hot.available"
+          title="热门内容暂不可用"
+          :description="moduleState.hot.message"
+          icon="HOT"
+          size="sm"
+          surface="transparent"
+        />
+        <div v-else class="hot-stack">
+          <div class="feed-group">
+            <div class="feed-title">
+              <el-icon><ChatDotRound /></el-icon>
+              社区热帖
+            </div>
+            <CnEmptyState
+              v-if="homeData.hotFeed.posts.length === 0"
+              title="暂无热门帖子"
+              icon="POST"
+              size="sm"
+              surface="transparent"
+            />
+            <button
+              v-for="post in homeData.hotFeed.posts"
+              v-else
+              :key="`post-${post.id}`"
+              class="feed-item"
+              type="button"
+              @click="goTo(post.routePath)"
+            >
+              <strong>{{ post.title }}</strong>
+              <span>{{ post.authorName }} · {{ post.likeCount }} 赞 · {{ post.commentCount }} 评</span>
+            </button>
+          </div>
+
+          <div class="feed-group">
+            <div class="feed-title">
+              <el-icon><Connection /></el-icon>
+              热门动态
+            </div>
+            <CnEmptyState
+              v-if="homeData.hotFeed.moments.length === 0"
+              title="暂无热门动态"
+              icon="MOM"
+              size="sm"
+              surface="transparent"
+            />
+            <button
+              v-for="moment in homeData.hotFeed.moments"
+              v-else
+              :key="`moment-${moment.id}`"
+              class="feed-item"
+              type="button"
+              @click="goTo(moment.routePath)"
+            >
+              <strong>{{ moment.title }}</strong>
+              <span>{{ moment.authorName }} · {{ moment.likeCount }} 赞 · {{ moment.commentCount }} 评</span>
+            </button>
+          </div>
+        </div>
+      </CnSection>
+
+      <CnSection
+        class="home-section section-reveal"
+        data-section="challenge"
+        :class="{ 'is-visible': visibleSections.challenge }"
+        title="每日挑战"
+        description="一题算法 + 一轮 AI 模拟面试，把练习强度拉起来。"
+        surface="panel"
+        divided
+      >
+        <template #actions>
+          <el-button text @click="goTo('/oj')">更多题目</el-button>
+        </template>
+
+        <div v-if="moduleState.challenge.loading" class="home-state">挑战数据加载中...</div>
+        <CnEmptyState
+          v-else-if="!moduleState.challenge.available"
+          title="挑战数据暂不可用"
+          :description="moduleState.challenge.message"
+          icon="OJ"
+          size="sm"
+          surface="transparent"
+        />
+        <div v-else class="challenge-stack">
+          <button class="challenge-card" type="button" @click="goTo(homeData.challenge.dailyProblem.routePath)">
+            <span class="challenge-kicker">OJ 每日一题</span>
+            <strong>{{ homeData.challenge.dailyProblem.title }}</strong>
+            <span class="challenge-meta">
+              <CnStatusTag :type="difficultyTone" size="sm" :dot="false">
+                {{ homeData.challenge.dailyProblem.difficultyText }}
+              </CnStatusTag>
+              通过率 {{ homeData.challenge.dailyProblem.acceptanceRate }}%
+            </span>
+            <span class="tag-row">
+              <CnStatusTag
+                v-for="tag in homeData.challenge.dailyProblem.tags"
+                :key="tag"
+                type="neutral"
+                size="sm"
+                :dot="false"
+                subtle
+              >
+                {{ tag }}
+              </CnStatusTag>
+            </span>
+          </button>
+
+          <button class="challenge-card is-secondary" type="button" @click="goTo('/mock-interview')">
+            <span class="challenge-kicker">AI 模拟面试</span>
+            <strong>最高分 {{ homeData.growth.mockInterview.highestScore }}</strong>
+            <span class="challenge-meta">
+              累计 {{ homeData.growth.mockInterview.totalInterviews }} 次 · 平均分 {{ homeData.growth.mockInterview.avgScore }}
+            </span>
+            <el-progress :show-text="false" :percentage="safeCompletionRate" :stroke-width="8" status="success" />
+          </button>
+        </div>
+      </CnSection>
     </section>
 
-    <section class="content-section section-reveal" data-section="hot" :class="{ 'is-visible': visibleSections.hot }">
-      <div class="section-head">
-        <h2>今日热门</h2>
-        <p>真实社区热帖 + 动态广场，直接看今天最有价值的讨论</p>
-      </div>
-      <div class="two-col">
-        <article class="glass-card">
-          <header class="card-head">
-            <h3><el-icon><DataAnalysis /></el-icon> 社区热帖</h3>
-            <el-button text @click="goTo('/community')">更多</el-button>
-          </header>
-          <div v-if="moduleState.hot.loading" class="block-state">拉取热门帖子中...</div>
-          <div v-else-if="!moduleState.hot.available" class="block-state error">{{ moduleState.hot.message }}</div>
-          <div v-else-if="homeData.hotFeed.posts.length === 0" class="block-state">暂无热门帖子</div>
-          <ul v-else class="simple-list">
-            <li v-for="post in homeData.hotFeed.posts" :key="`post-${post.id}`" @click="goTo(post.routePath)">
-              <p class="item-title">{{ post.title }}</p>
-              <p class="item-meta">{{ post.authorName }} · {{ post.likeCount }}赞 · {{ post.commentCount }}评</p>
-            </li>
-          </ul>
-        </article>
-        <article class="glass-card">
-          <header class="card-head">
-            <h3><el-icon><Connection /></el-icon> 热门动态</h3>
-            <el-button text @click="goTo('/moments')">更多</el-button>
-          </header>
-          <div v-if="moduleState.hot.loading" class="block-state">拉取热门动态中...</div>
-          <div v-else-if="!moduleState.hot.available" class="block-state error">{{ moduleState.hot.message }}</div>
-          <div v-else-if="homeData.hotFeed.moments.length === 0" class="block-state">暂无热门动态</div>
-          <ul v-else class="simple-list">
-            <li v-for="moment in homeData.hotFeed.moments" :key="`moment-${moment.id}`" @click="goTo(moment.routePath)">
-              <p class="item-title">{{ moment.title }}</p>
-              <p class="item-meta">{{ moment.authorName }} · {{ moment.likeCount }}赞 · {{ moment.commentCount }}评</p>
-            </li>
-          </ul>
-        </article>
-      </div>
-    </section>
+    <CnSection
+      class="home-section section-reveal"
+      data-section="growth"
+      :class="{ 'is-visible': visibleSections.growth }"
+      title="成长驾驶舱"
+      description="学习执行、面试练习、积分激励，三条成长曲线同屏可见。"
+      surface="panel"
+      divided
+    >
+      <template #actions>
+        <el-button text @click="goTo('/learning-cockpit')">打开完整驾驶舱</el-button>
+      </template>
 
-    <section class="content-section section-reveal" data-section="growth" :class="{ 'is-visible': visibleSections.growth }">
-      <div class="section-head">
-        <h2>成长驾驶舱</h2>
-        <p>学习执行、面试练习、积分激励，三条成长曲线同屏可见</p>
-      </div>
-      <div v-if="moduleState.growth.loading" class="block-state">成长数据加载中...</div>
-      <div v-else-if="!moduleState.growth.available" class="block-state error">{{ moduleState.growth.message }}</div>
-      <div v-else class="three-col">
-        <article class="growth-card cn-tilt-card">
-          <div class="growth-head">
-            <h3>计划打卡</h3>
+      <div v-if="moduleState.growth.loading" class="home-state">成长数据加载中...</div>
+      <CnEmptyState
+        v-else-if="!moduleState.growth.available"
+        title="成长数据暂不可用"
+        :description="moduleState.growth.message"
+        icon="AI"
+        size="sm"
+        surface="transparent"
+      />
+      <div v-else class="growth-grid">
+        <article class="growth-card">
+          <header>
+            <span>计划打卡</span>
             <el-button text @click="goTo('/plan')">进入计划</el-button>
-          </div>
-          <p class="growth-value">{{ homeData.growth.plan.todayCompletionRate }}%</p>
-          <p class="growth-desc">
-            今日完成 {{ homeData.growth.plan.todayCompleted }} / {{ todayTaskTotal }}，累计打卡 {{ homeData.growth.plan.totalCheckins }} 次
+          </header>
+          <strong>{{ homeData.growth.plan.todayCompletionRate }}%</strong>
+          <p>
+            今日完成 {{ homeData.growth.plan.todayCompleted }} / {{ todayTaskTotal }}，累计打卡
+            {{ homeData.growth.plan.totalCheckins }} 次
           </p>
           <el-progress :show-text="false" :percentage="homeData.growth.plan.todayCompletionRate" :stroke-width="8" />
         </article>
-        <article class="growth-card cn-tilt-card">
-          <div class="growth-head">
-            <h3>积分资产</h3>
+
+        <article class="growth-card">
+          <header>
+            <span>积分资产</span>
             <el-button text @click="goTo('/points')">积分中心</el-button>
-          </div>
-          <p class="growth-value">{{ homeData.growth.points.totalPoints }}</p>
-          <p class="growth-desc">价值约 ¥{{ homeData.growth.points.balanceYuan }}，连续打卡 {{ homeData.growth.points.continuousDays }} 天</p>
-          <span class="badge" :class="{ active: homeData.growth.points.todayCheckedIn }">
+          </header>
+          <strong>{{ homeData.growth.points.totalPoints }}</strong>
+          <p>
+            价值约 ¥{{ homeData.growth.points.balanceYuan }}，连续打卡
+            {{ homeData.growth.points.continuousDays }} 天
+          </p>
+          <CnStatusTag :type="homeData.growth.points.todayCheckedIn ? 'success' : 'warning'" size="sm">
             {{ homeData.growth.points.todayCheckedIn ? '今日已打卡' : `今日可得 +${homeData.growth.points.todayPoints}` }}
-          </span>
+          </CnStatusTag>
         </article>
-        <article class="growth-card cn-tilt-card">
-          <div class="growth-head">
-            <h3>模拟面试</h3>
+
+        <article class="growth-card">
+          <header>
+            <span>模拟面试</span>
             <el-button text @click="goTo('/mock-interview')">进入面试</el-button>
-          </div>
-          <p class="growth-value">{{ homeData.growth.mockInterview.totalInterviews }}</p>
-          <p class="growth-desc">
-            累计面试 {{ homeData.growth.mockInterview.totalInterviews }} 次，平均分 {{ homeData.growth.mockInterview.avgScore }}
+          </header>
+          <strong>{{ homeData.growth.mockInterview.totalInterviews }}</strong>
+          <p>
+            累计面试 {{ homeData.growth.mockInterview.totalInterviews }} 次，平均分
+            {{ homeData.growth.mockInterview.avgScore }}
           </p>
           <el-progress :show-text="false" :percentage="safeCompletionRate" :stroke-width="8" status="success" />
         </article>
       </div>
-    </section>
+    </CnSection>
 
-    <section class="content-section section-reveal" data-section="challenge" :class="{ 'is-visible': visibleSections.challenge }">
-      <div class="section-head">
-        <h2>每日挑战</h2>
-        <p>一题算法 + 一轮 AI 模拟面试，把练习强度拉满</p>
-      </div>
-      <div class="two-col">
-        <article class="challenge-card cn-card-shimmer">
-          <header class="card-head">
-            <h3><el-icon><Cpu /></el-icon> OJ 每日一题</h3>
-            <el-button text @click="goTo('/oj')">更多题目</el-button>
-          </header>
-          <div v-if="moduleState.challenge.loading" class="block-state">正在获取每日一题...</div>
-          <div v-else-if="!moduleState.challenge.available" class="block-state error">{{ moduleState.challenge.message }}</div>
-          <template v-else>
-            <h4 class="challenge-title">{{ homeData.challenge.dailyProblem.title }}</h4>
-            <div class="challenge-meta">
-              <span class="difficulty" :class="difficultyClass">{{ homeData.challenge.dailyProblem.difficultyText }}</span>
-              <span>通过率 {{ homeData.challenge.dailyProblem.acceptanceRate }}%</span>
-              <span>{{ homeData.challenge.dailyProblem.acceptedCount }}/{{ homeData.challenge.dailyProblem.submitCount }}</span>
-            </div>
-            <div class="tags">
-              <span v-for="tag in homeData.challenge.dailyProblem.tags" :key="tag">{{ tag }}</span>
-            </div>
-            <el-button type="primary" class="challenge-btn" @click="goTo(homeData.challenge.dailyProblem.routePath)">
-              开始挑战
-              <el-icon class="el-icon--right"><ArrowRight /></el-icon>
-            </el-button>
-          </template>
-        </article>
-        <article class="challenge-card cn-card-shimmer">
-          <header class="card-head">
-            <h3><el-icon><Mic /></el-icon> AI 模拟面试</h3>
-            <el-button text @click="goTo('/mock-interview/history')">历史记录</el-button>
-          </header>
-          <p class="challenge-value">最高分 {{ homeData.growth.mockInterview.highestScore }}</p>
-          <p class="growth-desc">本周安排 3 轮结构化面试训练，覆盖项目追问、算法推演和系统设计表达。</p>
-          <div class="hero-actions">
-            <el-button type="primary" @click="goTo('/mock-interview')">马上开始</el-button>
-            <el-button @click="goTo('/mock-interview/history')">查看报告</el-button>
-          </div>
-        </article>
-      </div>
-    </section>
+    <CnSection
+      class="home-section section-reveal"
+      data-section="version"
+      :class="{ 'is-visible': visibleSections.version }"
+      title="版本播报"
+      description="持续迭代记录，随时掌握平台最新能力。"
+      surface="panel"
+      divided
+    >
+      <template #actions>
+        <el-button text @click="goTo('/version-history')">查看版本历史</el-button>
+      </template>
 
-    <section class="content-section section-reveal" data-section="version" :class="{ 'is-visible': visibleSections.version }">
-      <div class="section-head">
-        <h2>版本播报</h2>
-        <p>持续迭代记录，随时掌握平台最新能力</p>
+      <div v-if="moduleState.version.loading" class="home-state">版本数据加载中...</div>
+      <CnEmptyState
+        v-else-if="!moduleState.version.available"
+        title="版本数据暂不可用"
+        :description="moduleState.version.message"
+        icon="VER"
+        size="sm"
+        surface="transparent"
+      />
+      <CnEmptyState
+        v-else-if="homeData.versions.length === 0"
+        title="暂无版本记录"
+        icon="VER"
+        size="sm"
+        surface="transparent"
+      />
+      <div v-else class="version-list">
+        <button
+          v-for="version in homeData.versions"
+          :key="version.id || version.version"
+          class="version-item"
+          type="button"
+          @click="goTo('/version-history')"
+        >
+          <span>
+            <CnStatusTag type="brand" size="sm" :dot="false">{{ version.typeName }}</CnStatusTag>
+            <strong>{{ version.title }}</strong>
+            <em>{{ version.description || '点击查看完整更新说明' }}</em>
+          </span>
+          <span class="version-meta">
+            <strong>{{ version.version }}</strong>
+            <em>{{ version.dateText }}</em>
+          </span>
+        </button>
       </div>
-      <article class="glass-card">
-        <div v-if="moduleState.version.loading" class="block-state">版本数据加载中...</div>
-        <div v-else-if="!moduleState.version.available" class="block-state error">{{ moduleState.version.message }}</div>
-        <div v-else-if="homeData.versions.length === 0" class="block-state">暂无版本记录</div>
-        <ul v-else class="version-list">
-          <li v-for="version in homeData.versions" :key="version.id || version.version" @click="goTo('/version-history')">
-            <div>
-              <span class="badge">{{ version.typeName }}</span>
-              <h4>{{ version.title }}</h4>
-              <p>{{ version.description || '点击查看完整更新说明' }}</p>
-            </div>
-            <div class="version-right">
-              <span>{{ version.version }}</span>
-              <small>{{ version.dateText }}</small>
-            </div>
-          </li>
-        </ul>
-      </article>
-    </section>
+    </CnSection>
 
-    <section class="content-section section-reveal" data-section="features" :class="{ 'is-visible': visibleSections.features }">
-      <div class="section-head">
-        <h2>核心功能</h2>
-        <p>一站式覆盖程序员从学习到输出的关键场景</p>
-      </div>
-      <div class="feature-grid">
-        <article v-for="feature in features" :key="feature.title" class="feature-card cn-hover-lift" @click="goTo(feature.path)">
-          <div class="feature-icon" :style="{ background: feature.gradient }">
-            <el-icon :size="20"><component :is="feature.icon" /></el-icon>
-          </div>
-          <h3>{{ feature.title }}</h3>
-          <p>{{ feature.desc }}</p>
-        </article>
-      </div>
-    </section>
+    <section class="home-two-column">
+      <CnSection
+        class="home-section section-reveal"
+        data-section="features"
+        :class="{ 'is-visible': visibleSections.features }"
+        title="核心功能"
+        description="一站式覆盖程序员从学习到输出的关键场景。"
+        surface="panel"
+        divided
+      >
+        <div class="feature-grid">
+          <button v-for="feature in features" :key="feature.title" class="feature-card" type="button" @click="goTo(feature.path)">
+            <span class="feature-icon" :class="`is-${feature.tone}`">
+              <el-icon><component :is="feature.icon" /></el-icon>
+            </span>
+            <strong>{{ feature.title }}</strong>
+            <em>{{ feature.desc }}</em>
+          </button>
+        </div>
+      </CnSection>
 
-    <section class="content-section section-reveal" data-section="quick" :class="{ 'is-visible': visibleSections.quick }">
-      <div class="section-head">
-        <h2>快速入口</h2>
-        <p>常用能力一键直达</p>
-      </div>
-      <div class="quick-grid">
-        <article v-for="item in quickAccess" :key="item.title" class="quick-item cn-hover-lift" @click="goTo(item.path)">
-          <div class="quick-icon" :style="{ background: item.color }">
-            <el-icon :size="18"><component :is="item.icon" /></el-icon>
-          </div>
-          <span>{{ item.title }}</span>
-        </article>
-      </div>
+      <CnSection
+        class="home-section section-reveal"
+        data-section="quick"
+        :class="{ 'is-visible': visibleSections.quick }"
+        title="快速入口"
+        description="常用能力一键直达。"
+        surface="panel"
+        divided
+      >
+        <div class="quick-grid">
+          <button v-for="item in quickAccess" :key="item.title" class="quick-item" type="button" @click="goTo(item.path)">
+            <span class="quick-icon" :class="`is-${item.tone}`">
+              <el-icon><component :is="item.icon" /></el-icon>
+            </span>
+            <span>{{ item.title }}</span>
+          </button>
+        </div>
+      </CnSection>
     </section>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -282,6 +402,13 @@ import {
   Ticket,
   Trophy
 } from '@element-plus/icons-vue'
+import {
+  CnEmptyState,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatusTag
+} from '@/design-system'
 import { commandSections, flattenCommandItems } from '@/config/navigation'
 import { readCommandHistory } from '@/utils/command-history'
 import { useHomeData } from '@/utils/home-data'
@@ -310,26 +437,26 @@ const recentWorkspaceItems = computed(() =>
 )
 
 const features = [
-  { title: '面试题库', desc: '海量真题与题单，覆盖前后端、算法与系统设计。', icon: Reading, path: '/interview', gradient: 'linear-gradient(135deg, #2f7bff 0%, #1f6feb 100%)' },
-  { title: '知识图谱', desc: '可视化构建技术知识网络，形成长期可复用资产。', icon: Share, path: '/knowledge', gradient: 'linear-gradient(135deg, #26a6f4 0%, #1f6feb 100%)' },
-  { title: '在线简历', desc: '模板化编辑 + 导出，快速完成高质量简历表达。', icon: Document, path: '/resume', gradient: 'linear-gradient(135deg, #3a8fff 0%, #58bbff 100%)' },
-  { title: '代码工坊', desc: '在线编码与作品分享，沉淀你的代码表达能力。', icon: Monitor, path: '/codepen', gradient: 'linear-gradient(135deg, #2fb987 0%, #20a0a8 100%)' },
-  { title: '技术博客', desc: 'Markdown 写作与持续输出，打造你的技术品牌。', icon: Edit, path: '/blog', gradient: 'linear-gradient(135deg, #ff9d4a 0%, #f07b34 100%)' },
-  { title: '在线判题', desc: '多语言实时判题，提升代码正确性与速度。', icon: Cpu, path: '/oj', gradient: 'linear-gradient(135deg, #15a7a1 0%, #24c78e 100%)' }
+  { title: '面试题库', desc: '海量真题与题单，覆盖前后端、算法与系统设计。', icon: Reading, path: '/interview', tone: 'brand' },
+  { title: '知识图谱', desc: '可视化构建技术知识网络，形成长期可复用资产。', icon: Share, path: '/knowledge', tone: 'info' },
+  { title: '在线简历', desc: '模板化编辑与导出，快速完成高质量简历表达。', icon: Document, path: '/resume', tone: 'brand-soft' },
+  { title: '代码工坊', desc: '在线编码与作品分享，沉淀你的代码表达能力。', icon: Monitor, path: '/codepen', tone: 'success' },
+  { title: '技术博客', desc: 'Markdown 写作与持续输出，打造你的技术品牌。', icon: Edit, path: '/blog', tone: 'warning' },
+  { title: '在线判题', desc: '多语言实时判题，提升代码正确性与速度。', icon: Cpu, path: '/oj', tone: 'success-soft' }
 ]
 
 const quickAccess = [
-  { title: '朋友圈', icon: ChatLineSquare, path: '/moments', color: 'linear-gradient(135deg, #4f89ff, #2f65d9)' },
-  { title: '聊天室', icon: ChatDotRound, path: '/chat', color: 'linear-gradient(135deg, #4b8ef8, #20a0f3)' },
-  { title: '通知中心', icon: Bell, path: '/notification', color: 'linear-gradient(135deg, #20a0f3, #1f6feb)' },
-  { title: '计划打卡', icon: Calendar, path: '/plan', color: 'linear-gradient(135deg, #f59e42, #ef7d2c)' },
-  { title: '我的积分', icon: Trophy, path: '/points', color: 'linear-gradient(135deg, #20b486, #13a67c)' },
-  { title: '幸运抽奖', icon: Ticket, path: '/lottery', color: 'linear-gradient(135deg, #f5b43b, #e0861c)' },
-  { title: '摸鱼工具', icon: Coffee, path: '/moyu-tools', color: 'linear-gradient(135deg, #688eff, #446ddc)' },
-  { title: '开发工具', icon: Compass, path: '/dev-tools', color: 'linear-gradient(135deg, #2ea8d0, #2f78cd)' },
-  { title: '版本历史', icon: DataAnalysis, path: '/version-history', color: 'linear-gradient(135deg, #6aa8ff, #3b76de)' },
-  { title: '成长驾驶舱 2.0', icon: DataAnalysis, path: '/learning-cockpit', color: 'linear-gradient(135deg, #1f6feb, #0fa4ef)' },
-  { title: '自动驾驶', icon: Trophy, path: '/learning-cockpit?tab=autopilot', color: 'linear-gradient(135deg, #0f78e7, #33b2ff)' }
+  { title: '朋友圈', icon: ChatLineSquare, path: '/moments', tone: 'brand' },
+  { title: '聊天室', icon: ChatDotRound, path: '/chat', tone: 'info' },
+  { title: '通知中心', icon: Bell, path: '/notification', tone: 'brand-soft' },
+  { title: '计划打卡', icon: Calendar, path: '/plan', tone: 'warning' },
+  { title: '我的积分', icon: Trophy, path: '/points', tone: 'success' },
+  { title: '幸运抽奖', icon: Ticket, path: '/lottery', tone: 'warning-soft' },
+  { title: '摸鱼工具', icon: Coffee, path: '/moyu-tools', tone: 'neutral' },
+  { title: '开发工具', icon: Compass, path: '/dev-tools', tone: 'info' },
+  { title: '版本历史', icon: DataAnalysis, path: '/version-history', tone: 'brand-soft' },
+  { title: '成长驾驶舱', icon: DataAnalysis, path: '/learning-cockpit', tone: 'brand' },
+  { title: '自动驾驶', icon: Trophy, path: '/learning-cockpit?tab=autopilot', tone: 'info' }
 ]
 
 const heroDisplay = reactive({
@@ -356,8 +483,8 @@ const heroMetricCards = computed(() => [
   { key: 'learned', label: '已学习题目', value: heroDisplay.learnedCount, suffix: '' },
   { key: 'knowledge', label: '已发布图谱', value: heroDisplay.knowledgeCount, suffix: '' },
   { key: 'online', label: '实时在线', value: heroDisplay.onlineCount, suffix: '' },
-  { key: 'hot', label: '今日热门话题', value: heroDisplay.hotTopicCount, suffix: '' },
-  { key: 'plan', label: '今日任务完成率', value: heroDisplay.todayTaskCompletionRate, suffix: '%' }
+  { key: 'hot', label: '热门话题', value: heroDisplay.hotTopicCount, suffix: '' },
+  { key: 'plan', label: '今日完成率', value: heroDisplay.todayTaskCompletionRate, suffix: '%' }
 ])
 
 const todayTaskTotal = computed(() => {
@@ -368,7 +495,12 @@ const safeCompletionRate = computed(() => {
   return Math.min(100, Math.max(0, Math.round(homeData.growth.mockInterview.completionRate)))
 })
 
-const difficultyClass = computed(() => `difficulty-${homeData.challenge.dailyProblem.difficulty || 'easy'}`)
+const difficultyTone = computed(() => {
+  const difficulty = homeData.challenge.dailyProblem.difficulty
+  if (difficulty === 'hard') return 'danger'
+  if (difficulty === 'medium') return 'warning'
+  return 'success'
+})
 
 const formatMetric = (metric) => {
   const value = Number(metric.value) || 0
@@ -381,7 +513,7 @@ const formatMetric = (metric) => {
   return `${value}${metric.suffix || ''}`
 }
 
-const goTo = (path) => {
+const goTo = (path?: string) => {
   if (path) {
     router.push(path)
   }
@@ -418,7 +550,7 @@ watch(
 onMounted(async () => {
   await loadAllData()
   observeSections()
-  bindHeroParallax('.hero-section')
+  bindHeroParallax('.home-hero')
   startAutoRefresh()
 })
 
@@ -429,203 +561,115 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.home-container {
-  min-height: 100vh;
-  color: #1c3659;
-  background: linear-gradient(180deg, #f7fbff 0%, #eef5ff 100%);
-  padding-bottom: 60px;
+.home-revamp {
+  min-height: calc(100vh - 68px);
+  --home-on-accent: white;
 }
 
-.hero-section {
-  position: relative;
-  padding: 58px 20px 48px;
+.home-hero {
   --hero-shift-x: 0px;
   --hero-shift-y: 0px;
+
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(340px, 0.95fr);
+  gap: var(--cn-space-5);
+  align-items: stretch;
+  min-width: 0;
+  padding: var(--cn-space-6);
+  overflow: hidden;
+  border: 1px solid var(--cn-panel-border);
+  border-radius: var(--cn-radius-panel);
+  background: color-mix(in srgb, var(--cn-color-brand-soft) 42%, var(--cn-color-bg-elevated));
+  box-shadow: var(--cn-shadow-card);
 }
 
-.hero-bg {
+.home-hero::before {
+  content: '';
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(circle at 12% 16%, rgba(67, 142, 255, 0.26) 0%, transparent 36%),
-    radial-gradient(circle at 87% 20%, rgba(76, 182, 255, 0.18) 0%, transparent 32%),
-    linear-gradient(165deg, #f9fcff 0%, #f1f7ff 54%, #eaf3ff 100%);
-  transform: translate3d(calc(var(--hero-shift-x) * 0.22), calc(var(--hero-shift-y) * 0.22), 0);
+  background: color-mix(in srgb, var(--cn-color-brand-primary) 7%, transparent);
+  opacity: 0.18;
+  pointer-events: none;
+  transform: translate3d(calc(var(--hero-shift-x) * 0.14), calc(var(--hero-shift-y) * 0.14), 0);
 }
 
-.hero-layout {
+.home-hero__copy,
+.hero-metrics {
   position: relative;
   z-index: 1;
-  max-width: 1240px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: 18px;
+  min-width: 0;
 }
 
-.hero-brand,
-.hero-panel,
-.glass-card,
-.growth-card,
-.challenge-card {
-  border: 1px solid rgba(205, 224, 249, 0.95);
-  background: rgba(255, 255, 255, 0.82);
-  box-shadow: 0 16px 32px rgba(24, 54, 98, 0.08);
-  border-radius: 18px;
-}
-
-.hero-brand,
-.hero-panel {
-  padding: 28px;
-}
-
-.brand-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 7px 14px;
-  border-radius: 999px;
-  color: #1d63c0;
-  background: rgba(69, 140, 246, 0.1);
-  font-size: 12px;
-  border: 1px solid rgba(69, 140, 246, 0.22);
-}
-
-.hero-title {
-  margin: 14px 0 6px;
-  font-size: clamp(42px, 7vw, 64px);
-  line-height: 1;
-  color: #246fdc;
-  letter-spacing: -1px;
-}
-
-.hero-sub-title {
-  margin: 0 0 12px;
-  font-size: clamp(18px, 2.6vw, 28px);
-  color: #1f4069;
-  font-weight: 700;
-}
-
-.hero-desc {
-  margin: 0;
-  color: #4c698e;
-  line-height: 1.8;
+.home-hero__copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--cn-space-5);
 }
 
 .hero-actions {
   display: flex;
-  gap: 10px;
-  margin-top: 20px;
   flex-wrap: wrap;
+  gap: var(--cn-space-3);
 }
 
-.hero-btn {
-  min-width: 126px;
-  border-radius: 12px;
+.hero-metrics :deep(.cn-section__body) {
+  height: 100%;
 }
 
-.hero-btn.ghost {
-  border: 1px solid rgba(54, 122, 229, 0.28);
-  color: #2d63b1;
-}
-
-.hero-live {
-  margin-top: 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.home-state {
+  display: grid;
+  min-height: 156px;
+  place-items: center;
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
+  color: var(--cn-color-text-secondary);
   font-size: 13px;
-  color: #5f7da3;
 }
 
-.panel-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.panel-head h3 {
-  margin: 0;
-  color: #1e3b62;
-}
-
-.panel-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #cfdcf2;
-}
-
-.panel-dot.ready {
-  background: #2fbc87;
-  box-shadow: 0 0 0 5px rgba(47, 188, 135, 0.16);
-}
-
-.panel-state,
-.block-state {
-  padding: 14px;
-  border-radius: 12px;
-  text-align: center;
-  color: #5a769a;
-  background: #f1f7ff;
-}
-
-.panel-state.error,
-.block-state.error {
-  background: #fff0f0;
-  color: #b44a4a;
-}
-
-.metric-grid {
+.hero-metric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--cn-space-3);
 }
 
-.metric-card {
-  border: 1px solid #dbe8fb;
-  background: linear-gradient(170deg, #ffffff, #f6faff);
-  border-radius: 13px;
-  padding: 12px;
+.hero-metric-card {
+  min-width: 0;
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .metric-label {
-  margin: 0 0 8px;
+  display: block;
+  color: var(--cn-color-text-secondary);
   font-size: 12px;
-  color: #5c799c;
 }
 
-.metric-value {
-  margin: 0;
-  font-size: 24px;
-  color: #1f5fb5;
-  font-weight: 700;
+.hero-metric-card strong {
+  display: block;
+  margin-top: var(--cn-space-2);
+  color: var(--cn-color-text-primary);
+  font-family: var(--cn-font-heading);
+  font-size: 28px;
+  line-height: 1.1;
 }
 
-.content-section {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 34px 20px 0;
+.home-section {
+  min-width: 0;
 }
 
-.section-head {
-  margin-bottom: 14px;
-}
-
-.section-head h2 {
-  margin: 0 0 8px;
-  font-size: clamp(24px, 3vw, 34px);
-  color: #203d66;
-}
-
-.section-head p {
-  margin: 0;
-  color: #5a769c;
+.home-two-column {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cn-space-5);
 }
 
 .section-reveal {
   opacity: 0;
-  transform: translateY(24px);
+  transform: translateY(20px);
   transition:
     opacity var(--cn-motion-slow) var(--cn-ease-out),
     transform var(--cn-motion-slow) var(--cn-ease-out);
@@ -636,403 +680,354 @@ onBeforeUnmount(() => {
   transform: translateY(0);
 }
 
-.two-col {
+.recent-grid,
+.growth-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.recent-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+.recent-card,
+.feed-item,
+.challenge-card,
+.version-item,
+.feature-card,
+.quick-item {
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition:
+    transform var(--cn-motion-fast) var(--cn-ease-out),
+    border-color var(--cn-motion-fast) var(--cn-ease-out),
+    box-shadow var(--cn-motion-fast) var(--cn-ease-out);
+}
+
+.recent-card:hover,
+.feed-item:hover,
+.challenge-card:hover,
+.version-item:hover,
+.feature-card:hover,
+.quick-item:hover {
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 30%, var(--cn-color-border-subtle));
+  box-shadow: var(--cn-shadow-sm);
+  transform: translateY(-2px);
 }
 
 .recent-card {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid #dce8fb;
-  border-radius: 16px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(245, 250, 255, 0.92) 100%);
-  box-shadow: 0 10px 24px rgba(20, 52, 96, 0.06);
-  cursor: pointer;
+  gap: var(--cn-space-3);
+  min-width: 0;
+  padding: var(--cn-space-4);
+}
+
+.recent-icon,
+.feature-icon,
+.quick-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  color: var(--home-on-accent);
 }
 
 .recent-icon {
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  background: linear-gradient(135deg, #2f7bff 0%, #1f6feb 100%);
-  flex-shrink: 0;
+  background: var(--cn-color-brand-primary);
 }
 
 .recent-copy {
+  display: grid;
   min-width: 0;
+  gap: 4px;
   flex: 1;
 }
 
-.recent-copy h3 {
-  margin: 0 0 6px;
-  font-size: 16px;
-  color: #1f3d65;
+.recent-copy strong,
+.feed-item strong,
+.challenge-card strong,
+.version-item strong,
+.feature-card strong {
+  min-width: 0;
+  color: var(--cn-color-text-primary);
+  font-weight: 650;
 }
 
-.recent-copy p {
-  margin: 0;
-  color: #5f7ca1;
-  line-height: 1.55;
+.recent-copy em,
+.feed-item span,
+.challenge-meta,
+.version-item em,
+.feature-card em {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--cn-color-text-secondary);
   font-size: 13px;
+  font-style: normal;
+  line-height: 1.6;
+  text-overflow: ellipsis;
 }
 
-.recent-arrow {
-  color: #7e95b9;
+.card-arrow {
+  color: var(--cn-color-text-tertiary);
   flex-shrink: 0;
 }
 
-.three-col {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.glass-card,
-.growth-card,
-.challenge-card {
-  padding: 18px;
-}
-
-.card-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.card-head h3 {
-  margin: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #24466f;
-}
-
-.simple-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.simple-list li {
-  cursor: pointer;
-  border: 1px solid #deebfc;
-  border-radius: 10px;
-  background: #f9fcff;
-  padding: 10px;
-}
-
-.item-title {
-  margin: 0 0 6px;
-  color: #1f3c64;
-  line-height: 1.45;
-}
-
-.item-meta {
-  margin: 0;
-  color: #6381a5;
-  font-size: 12px;
-}
-
-.growth-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.growth-head h3 {
-  margin: 0;
-}
-
-.growth-value,
-.challenge-value {
-  margin: 0;
-  font-size: 34px;
-  font-weight: 800;
-  color: #1f63c6;
-}
-
-.growth-desc {
-  margin: 9px 0 12px;
-  color: #5c799e;
-  line-height: 1.65;
-  min-height: 44px;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  height: 26px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  color: #466a95;
-  border: 1px solid #d7e6fc;
-  background: #eef5ff;
-}
-
-.badge.active {
-  color: #197a58;
-  border-color: #b6ebd2;
-  background: #e7f9f1;
-}
-
-.challenge-title {
-  margin: 0 0 10px;
-  color: #1f3d65;
-  font-size: 21px;
-}
-
-.challenge-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  color: #5d789d;
-  font-size: 13px;
-}
-
-.difficulty {
-  height: 22px;
-  padding: 0 9px;
-  border-radius: 999px;
-  font-size: 12px;
-  display: inline-flex;
-  align-items: center;
-}
-
-.difficulty-easy {
-  color: #1a8d4f;
-  background: #ecf8ef;
-  border: 1px solid #bfe8cf;
-}
-
-.difficulty-medium {
-  color: #c47a17;
-  background: #fff6e9;
-  border: 1px solid #f0d2a0;
-}
-
-.difficulty-hard {
-  color: #bf4d4d;
-  background: #fff0f0;
-  border: 1px solid #efc2c2;
-}
-
-.tags {
-  margin-top: 10px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.tags span {
-  height: 24px;
-  padding: 0 9px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  color: #496e99;
-  border: 1px solid #d9e7fb;
-  background: #f0f7ff;
-  font-size: 12px;
-}
-
-.challenge-btn {
-  margin-top: 14px;
-  border-radius: 11px;
-}
-
+.hot-stack,
+.challenge-stack,
 .version-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.version-list li {
-  border: 1px solid #dce8fb;
-  border-radius: 12px;
-  background: #f9fcff;
-  padding: 12px;
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
-  cursor: pointer;
+  gap: var(--cn-space-4);
 }
 
-.version-list h4 {
-  margin: 8px 0 6px;
-  color: #1f3c64;
+.feed-group {
+  display: grid;
+  gap: var(--cn-space-2);
 }
 
-.version-list p {
-  margin: 0;
-  color: #5f7ca1;
-  font-size: 13px;
-}
-
-.version-right {
+.feed-title {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  color: #285fb3;
+  align-items: center;
+  gap: var(--cn-space-2);
+  color: var(--cn-color-text-primary);
+  font-weight: 650;
 }
 
-.version-right small {
-  color: #6f89aa;
+.feed-item {
+  display: grid;
+  width: 100%;
+  gap: 4px;
+  padding: var(--cn-space-3);
+}
+
+.challenge-card {
+  display: grid;
+  gap: var(--cn-space-3);
+  width: 100%;
+  padding: var(--cn-space-4);
+}
+
+.challenge-card.is-secondary {
+  background: var(--cn-color-bg-surface-muted);
+}
+
+.challenge-kicker {
+  color: var(--cn-color-brand-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.challenge-meta,
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cn-space-2);
+}
+
+.growth-card {
+  display: grid;
+  min-width: 0;
+  gap: var(--cn-space-3);
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface);
+}
+
+.growth-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cn-space-2);
+  color: var(--cn-color-text-primary);
+  font-weight: 650;
+}
+
+.growth-card strong {
+  color: var(--cn-color-brand-primary);
+  font-family: var(--cn-font-heading);
+  font-size: 34px;
+  line-height: 1;
+}
+
+.growth-card p {
+  min-height: 42px;
+  margin: 0;
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.version-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--cn-space-4);
+  width: 100%;
+  padding: var(--cn-space-4);
+}
+
+.version-item > span:first-child,
+.version-meta {
+  display: grid;
+  gap: var(--cn-space-2);
+}
+
+.version-meta {
+  justify-items: end;
 }
 
 .feature-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
 .feature-card {
-  border: 1px solid #dae7f9;
-  border-radius: 14px;
-  background: #fff;
-  padding: 16px;
-  box-shadow: 0 8px 20px rgba(20, 52, 96, 0.06);
-  cursor: pointer;
+  display: grid;
+  min-width: 0;
+  gap: var(--cn-space-3);
+  padding: var(--cn-space-4);
 }
 
 .feature-icon {
   width: 42px;
   height: 42px;
-  border-radius: 11px;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.feature-card h3 {
-  margin: 12px 0 8px;
-  color: #234366;
-}
-
-.feature-card p {
-  margin: 0;
-  color: #5c799f;
-  line-height: 1.65;
+  border-radius: 12px;
 }
 
 .quick-grid {
   display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cn-space-3);
 }
 
 .quick-item {
-  border: 1px solid #dce9fb;
-  border-radius: 13px;
-  background: #f8fbff;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 7px;
-  padding: 10px 6px;
-  cursor: pointer;
+  display: grid;
+  justify-items: center;
+  gap: var(--cn-space-2);
+  min-width: 0;
+  padding: var(--cn-space-3) var(--cn-space-2);
+  text-align: center;
 }
 
 .quick-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
 }
 
-.quick-item span {
+.feature-icon.is-brand,
+.quick-icon.is-brand {
+  background: var(--cn-color-brand-primary);
+}
+
+.feature-icon.is-brand-soft,
+.quick-icon.is-brand-soft {
+  background: color-mix(in srgb, var(--cn-color-brand-primary) 82%, var(--cn-color-info));
+}
+
+.feature-icon.is-info,
+.quick-icon.is-info {
+  background: var(--cn-color-info);
+}
+
+.feature-icon.is-success,
+.quick-icon.is-success {
+  background: var(--cn-color-success);
+}
+
+.feature-icon.is-success-soft,
+.quick-icon.is-success-soft {
+  background: color-mix(in srgb, var(--cn-color-success) 82%, var(--cn-color-info));
+}
+
+.feature-icon.is-warning,
+.quick-icon.is-warning {
+  background: var(--cn-color-warning);
+}
+
+.feature-icon.is-warning-soft,
+.quick-icon.is-warning-soft {
+  background: color-mix(in srgb, var(--cn-color-warning) 84%, var(--cn-color-brand-primary));
+}
+
+.feature-icon.is-neutral,
+.quick-icon.is-neutral {
+  background: var(--cn-color-text-tertiary);
+}
+
+.quick-item span:last-child {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--cn-color-text-secondary);
   font-size: 12px;
-  color: #2f4f78;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-@media (max-width: 1200px) {
-  .hero-layout {
-    grid-template-columns: 1fr;
+@media (max-width: 1180px) {
+  .home-hero,
+  .home-two-column {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .feature-grid {
+  .recent-grid,
+  .growth-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .quick-grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-
-  .recent-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 992px) {
-  .two-col,
-  .three-col,
-  .feature-grid,
-  .recent-grid {
-    grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 768px) {
-  .hero-section {
-    padding-top: 36px;
+  .home-hero {
+    padding: var(--cn-space-4);
   }
 
-  .hero-brand,
-  .hero-panel {
-    padding: 20px;
+  .hero-actions {
+    display: grid;
   }
 
-  .metric-grid {
-    grid-template-columns: 1fr;
+  .hero-metric-grid,
+  .recent-grid,
+  .growth-grid,
+  .feature-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .quick-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+  .version-item {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .version-list li {
-    grid-template-columns: 1fr;
-  }
-
-  .version-right {
-    align-items: flex-start;
+  .version-meta {
+    justify-items: start;
   }
 }
 
-@media (max-width: 480px) {
-  .hero-actions {
-    flex-direction: column;
-    align-items: stretch;
+@media (max-width: 520px) {
+  .quick-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section-reveal,
+  .recent-card,
+  .feed-item,
+  .challenge-card,
+  .version-item,
+  .feature-card,
+  .quick-item {
+    transition: none !important;
+    transform: none !important;
   }
 
-  .quick-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .section-reveal {
+    opacity: 1 !important;
   }
 }
 </style>

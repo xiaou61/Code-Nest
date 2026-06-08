@@ -3,6 +3,7 @@ package com.xiaou.sensitive.controller;
 import com.xiaou.common.annotation.RequireAdmin;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.core.domain.ResultCode;
 import com.xiaou.sensitive.domain.SensitiveStrategy;
 import com.xiaou.sensitive.dto.SensitiveStrategyQuery;
 import com.xiaou.sensitive.service.SensitiveStrategyService;
@@ -39,7 +40,7 @@ public class SensitiveStrategyController {
     public Result<SensitiveStrategy> getById(@PathVariable Integer id) {
         SensitiveStrategy strategy = strategyService.getStrategyById(id);
         if (strategy == null) {
-            return Result.error("策略不存在");
+            return Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "策略不存在");
         }
         return Result.success(strategy);
     }
@@ -60,10 +61,10 @@ public class SensitiveStrategyController {
     @RequireAdmin
     public Result<Void> update(@RequestBody SensitiveStrategy strategy) {
         if (strategy.getId() == null) {
-            return Result.error("ID不能为空");
+            return Result.error(ResultCode.PARAM_VALIDATE_ERROR.getCode(), "ID不能为空");
         }
         boolean success = strategyService.updateStrategy(strategy);
-        return success ? Result.success() : Result.error("更新策略失败");
+        return success ? Result.success() : Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "策略不存在");
     }
 
     /**
@@ -73,7 +74,7 @@ public class SensitiveStrategyController {
     @RequireAdmin
     public Result<Void> reset(@PathVariable Integer id) {
         boolean success = strategyService.resetStrategy(id);
-        return success ? Result.success() : Result.error("重置策略失败");
+        return success ? Result.success() : Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "策略不存在");
     }
 
     /**

@@ -1,99 +1,92 @@
 <template>
-  <div class="team-detail-container">
-    <!-- 小组头部信息 -->
-    <div class="team-header-card" v-loading="loading">
+  <CnPage class="team-detail-container" surface="transparent" max-width="1220px">
+    <CnSection class="team-hero" surface="panel" v-loading="loading">
       <div class="team-header">
-        <el-button class="back-btn" text @click="goBack">
-          <el-icon><ArrowLeft /></el-icon>
-          返回
-        </el-button>
+        <el-button class="back-btn" text :icon="ArrowLeft" @click="goBack">返回</el-button>
 
         <div class="team-avatar">
-          <img v-if="team.teamAvatar" :src="team.teamAvatar" />
+          <img v-if="team.teamAvatar" :src="team.teamAvatar" alt="小组头像" />
           <span v-else class="avatar-text">{{ team.teamName?.charAt(0) || '组' }}</span>
-          <span class="type-badge" :class="getTypeClass(team.teamType)">
-            {{ getTypeText(team.teamType) }}
-          </span>
         </div>
 
         <div class="team-info">
-          <h1 class="team-name">{{ team.teamName }}</h1>
+          <div class="team-title-row">
+            <h1 class="team-name">{{ team.teamName || '小组详情' }}</h1>
+            <CnStatusTag :type="getTypeTone(team.teamType)" size="sm">
+              {{ getTypeText(team.teamType) }}
+            </CnStatusTag>
+          </div>
           <p class="team-desc">{{ team.teamDesc || '暂无简介' }}</p>
           <div class="team-meta">
             <span class="meta-item">
               <el-icon><User /></el-icon>
-              {{ team.currentMembers }}/{{ team.maxMembers }}人
+              {{ team.currentMembers || 0 }}/{{ team.maxMembers || 0 }} 人
             </span>
             <span class="meta-item">
               <el-icon><Calendar /></el-icon>
               创建于 {{ formatDate(team.createTime) }}
             </span>
-            <span v-if="team.tags" class="meta-tags">
-              <span v-for="tag in parseTags(team.tags)" :key="tag" class="tag">{{ tag }}</span>
-            </span>
+            <CnStatusTag
+              v-for="tag in parseTags(team.tags)"
+              :key="tag"
+              type="neutral"
+              size="sm"
+              subtle
+            >
+              {{ tag }}
+            </CnStatusTag>
           </div>
         </div>
 
         <div class="team-actions">
           <template v-if="!team.joined">
-            <el-button type="primary" @click="handleJoin" :loading="joining">
+            <el-button type="primary" :loading="joining" @click="handleJoin">
               {{ team.joinType === 1 ? '加入小组' : '申请加入' }}
             </el-button>
           </template>
           <template v-else>
-            <el-button v-if="isAdmin" type="primary" @click="goToEdit">
-              <el-icon><Edit /></el-icon>
-              编辑
-            </el-button>
-            <el-button v-if="isAdmin" @click="showInviteCodeDialog">
-              <el-icon><Share /></el-icon>
-              邀请
-            </el-button>
-            <el-button type="danger" plain @click="handleQuit" v-if="!isLeader">
-              退出小组
-            </el-button>
+            <el-button v-if="isAdmin" type="primary" :icon="Edit" @click="goToEdit">编辑</el-button>
+            <el-button v-if="isAdmin" :icon="Share" @click="showInviteCodeDialog">邀请</el-button>
+            <el-button v-if="!isLeader" type="danger" plain @click="handleQuit">退出小组</el-button>
           </template>
         </div>
       </div>
 
-      <!-- 小组目标 -->
-      <div class="team-goal" v-if="team.goalTitle">
+      <div v-if="team.goalTitle" class="team-goal">
         <div class="goal-header">
           <el-icon><Aim /></el-icon>
           <span class="goal-title">{{ team.goalTitle }}</span>
         </div>
-        <p class="goal-desc" v-if="team.goalDesc">{{ team.goalDesc }}</p>
+        <p v-if="team.goalDesc" class="goal-desc">{{ team.goalDesc }}</p>
         <div class="goal-meta">
           <span v-if="team.goalStartDate">
             {{ formatDate(team.goalStartDate) }} - {{ formatDate(team.goalEndDate) }}
           </span>
-          <span v-if="team.dailyTarget">每日目标: {{ team.dailyTarget }}</span>
+          <span v-if="team.dailyTarget">每日目标：{{ team.dailyTarget }}</span>
         </div>
       </div>
 
-      <!-- 统计概览 -->
       <div class="stats-overview">
-        <div class="stat-item">
+        <div class="stat-tile">
           <div class="stat-value">{{ team.currentMembers || 0 }}</div>
           <div class="stat-label">成员</div>
         </div>
-        <div class="stat-item">
+        <div class="stat-tile">
           <div class="stat-value">{{ team.totalCheckins || 0 }}</div>
           <div class="stat-label">总打卡</div>
         </div>
-        <div class="stat-item">
+        <div class="stat-tile">
           <div class="stat-value">{{ team.totalDiscussions || 0 }}</div>
           <div class="stat-label">讨论</div>
         </div>
-        <div class="stat-item">
+        <div class="stat-tile">
           <div class="stat-value">{{ team.activeDays || 0 }}</div>
           <div class="stat-label">活跃天</div>
         </div>
       </div>
-    </div>
+    </CnSection>
 
-    <!-- Tab内容区域 -->
-    <div class="tab-container">
+    <CnSection class="tab-container" surface="panel" compact>
       <el-tabs v-model="activeTab">
         <el-tab-pane label="概览" name="overview">
           <template #label>
@@ -121,48 +114,36 @@
           </template>
         </el-tab-pane>
       </el-tabs>
-    </div>
+    </CnSection>
 
-    <!-- Tab内容 -->
     <div class="tab-content">
-      <!-- 概览 -->
       <div v-if="activeTab === 'overview'" class="overview-content">
         <div class="content-grid">
-          <!-- 今日任务 -->
-          <div class="content-card">
-            <div class="card-header">
-              <h3><el-icon><Calendar /></el-icon>今日任务</h3>
-              <el-button v-if="isAdmin" size="small" type="primary" @click="openTaskCreate">
-                <el-icon><Plus /></el-icon>创建任务
+          <CnSection title="今日任务" surface="panel" compact divided>
+            <template #actions>
+              <el-button v-if="isAdmin" size="small" type="primary" :icon="Plus" @click="openTaskCreate">
+                创建任务
               </el-button>
-            </div>
+            </template>
             <TaskList
               ref="overviewTaskListRef"
               :team-id="teamId"
               :is-admin="isAdmin"
               @checkin="openCheckinDialog"
             />
-          </div>
+          </CnSection>
 
-          <!-- 最近动态 -->
-          <div class="content-card">
-            <div class="card-header">
-              <h3><el-icon><Timer /></el-icon>最近打卡</h3>
-            </div>
+          <CnSection title="最近打卡" surface="panel" compact divided>
             <CheckinList ref="overviewCheckinListRef" :team-id="teamId" :limit="5" />
-          </div>
+          </CnSection>
 
-          <div class="content-card full-width">
-            <div class="card-header">
-              <h3><el-icon><Trophy /></el-icon>小组统计</h3>
-            </div>
+          <CnSection class="full-width" title="小组统计" surface="panel" compact divided>
             <TeamStats :team-id="teamId" />
-          </div>
+          </CnSection>
         </div>
       </div>
 
-      <!-- 成员 -->
-      <div v-if="activeTab === 'members'" class="members-content">
+      <CnSection v-if="activeTab === 'members'" surface="panel" compact>
         <MemberList
           :team-id="teamId"
           :is-admin="isAdmin"
@@ -170,29 +151,28 @@
           :current-user-id="currentUserId"
           @refresh="loadTeamDetail"
         />
-      </div>
+      </CnSection>
 
-      <!-- 打卡 -->
       <div v-if="activeTab === 'checkin'" class="checkin-content">
-        <div class="checkin-header">
-          <div class="checkin-stats">
-            <div class="stat">
-              <span class="stat-num">{{ myStreak }}</span>
-              <span class="stat-text">连续打卡</span>
+        <CnSection surface="panel" compact>
+          <div class="checkin-header">
+            <div class="checkin-stats">
+              <div class="checkin-stat">
+                <span class="stat-num">{{ myStreak }}</span>
+                <span class="stat-text">连续打卡</span>
+              </div>
+              <div class="checkin-stat">
+                <span class="stat-num">{{ myTotal }}</span>
+                <span class="stat-text">累计打卡</span>
+              </div>
             </div>
-            <div class="stat">
-              <span class="stat-num">{{ myTotal }}</span>
-              <span class="stat-text">累计打卡</span>
-            </div>
+            <el-button v-if="team.joined" type="primary" :icon="Check" @click="openCheckinDialog(null)">
+              去打卡
+            </el-button>
           </div>
-          <el-button type="primary" @click="openCheckinDialog(null)" v-if="team.joined">
-            <el-icon><Check /></el-icon>
-            去打卡
-          </el-button>
-        </div>
+        </CnSection>
 
-        <div class="tasks-section">
-          <h3>打卡任务</h3>
+        <CnSection title="打卡任务" surface="panel" compact divided>
           <TaskList
             ref="allTaskListRef"
             :team-id="teamId"
@@ -201,37 +181,27 @@
             @checkin="openCheckinDialog"
             @edit="editTask"
           />
-        </div>
+        </CnSection>
 
-        <div class="checkin-feed-section">
-          <h3>打卡动态</h3>
+        <CnSection title="打卡动态" surface="panel" compact divided>
           <CheckinList ref="allCheckinListRef" :team-id="teamId" />
-        </div>
+        </CnSection>
       </div>
 
-      <!-- 排行 -->
-      <div v-if="activeTab === 'rank'" class="rank-content">
+      <CnSection v-if="activeTab === 'rank'" surface="panel" compact>
         <RankBoard :team-id="teamId" />
-      </div>
+      </CnSection>
 
-      <!-- 讨论 -->
-      <div v-if="activeTab === 'discussion'" class="discussion-content">
-        <div class="discussion-header">
-          <h3>小组讨论区</h3>
-          <el-button type="primary" @click="showDiscussionForm = true" v-if="team.joined">
-            <el-icon><Edit /></el-icon>
+      <CnSection v-if="activeTab === 'discussion'" title="小组讨论区" surface="panel" compact divided>
+        <template #actions>
+          <el-button v-if="team.joined" type="primary" :icon="Edit" @click="showDiscussionForm = true">
             发布讨论
           </el-button>
-        </div>
-        <DiscussionList
-          ref="discussionListRef"
-          :team-id="teamId"
-          :is-admin="isAdmin"
-        />
-      </div>
+        </template>
+        <DiscussionList ref="discussionListRef" :team-id="teamId" :is-admin="isAdmin" />
+      </CnSection>
     </div>
 
-    <!-- 打卡弹窗 -->
     <CheckinDialog
       v-model="showCheckinDialog"
       :team-id="teamId"
@@ -239,7 +209,6 @@
       @success="onCheckinSuccess"
     />
 
-    <!-- 任务创建弹窗 -->
     <TaskFormDialog
       v-model="showTaskForm"
       :team-id="teamId"
@@ -247,36 +216,29 @@
       @success="onTaskSaved"
     />
 
-    <!-- 讨论发布弹窗 -->
     <DiscussionFormDialog
       v-model="showDiscussionForm"
       :team-id="teamId"
       @success="onDiscussionPosted"
     />
 
-    <!-- 邀请码弹窗 -->
     <el-dialog v-model="showInviteDialog" title="邀请成员" width="400px">
       <div class="invite-dialog-content">
         <div class="invite-code-box">
           <span class="invite-code">{{ inviteCode }}</span>
-          <el-button type="primary" size="small" @click="copyInviteCode">
-            <el-icon><DocumentCopy /></el-icon>
+          <el-button type="primary" size="small" :icon="DocumentCopy" @click="copyInviteCode">
             复制
           </el-button>
         </div>
         <div class="invite-actions">
-          <el-button @click="refreshInviteCode" :loading="refreshingCode">
-            <el-icon><Refresh /></el-icon>
+          <el-button :icon="Refresh" :loading="refreshingCode" @click="refreshInviteCode">
             刷新邀请码
           </el-button>
         </div>
-        <div class="invite-tip">
-          分享邀请码给好友，好友输入邀请码即可加入小组
-        </div>
+        <div class="invite-tip">分享邀请码给好友，好友输入邀请码即可加入小组</div>
       </div>
     </el-dialog>
 
-    <!-- 申请加入弹窗 -->
     <el-dialog v-model="showApplyDialog" title="申请加入" width="400px">
       <el-form>
         <el-form-item label="申请理由">
@@ -292,20 +254,32 @@
       </el-form>
       <template #footer>
         <el-button @click="showApplyDialog = false">取消</el-button>
-        <el-button type="primary" @click="submitApply" :loading="applying">提交</el-button>
+        <el-button type="primary" :loading="applying" @click="submitApply">提交</el-button>
       </template>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+<script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  ArrowLeft, User, Calendar, Edit, Share, Aim, HomeFilled,
-  Check, Trophy, ChatDotRound, Plus, Timer, DocumentCopy, Refresh
+  Aim,
+  ArrowLeft,
+  Calendar,
+  ChatDotRound,
+  Check,
+  DocumentCopy,
+  Edit,
+  HomeFilled,
+  Plus,
+  Refresh,
+  Share,
+  Trophy,
+  User
 } from '@element-plus/icons-vue'
+import { CnPage, CnSection, CnStatusTag } from '@/design-system'
 import { useUserStore } from '@/stores/user'
 import teamApi from '@/api/team'
 import TaskList from './components/TaskList.vue'
@@ -318,75 +292,95 @@ import DiscussionFormDialog from './components/DiscussionFormDialog.vue'
 import MemberList from './components/MemberList.vue'
 import TeamStats from './components/TeamStats.vue'
 
+interface TeamDetail {
+  id?: number | string
+  teamName?: string
+  teamDesc?: string
+  teamAvatar?: string
+  teamType?: number
+  currentMembers?: number
+  maxMembers?: number
+  createTime?: string
+  tags?: string
+  joined?: boolean
+  isMember?: boolean
+  joinType?: number
+  memberRole?: number
+  goalTitle?: string
+  goalDesc?: string
+  goalStartDate?: string
+  goalEndDate?: string
+  dailyTarget?: number | string
+  totalCheckins?: number
+  totalDiscussions?: number
+  activeDays?: number
+}
+
+interface TaskRecord {
+  id?: number | string
+  [key: string]: unknown
+}
+
+interface TaskListExpose {
+  loadTasks?: () => void
+}
+
+interface CheckinListExpose {
+  loadCheckins?: () => void
+}
+
+interface DiscussionListExpose {
+  loadDiscussions?: () => void
+}
+
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
-const teamId = computed(() => route.params.id)
+const teamId = computed(() => getFirstRouteParam(route.params.id))
 const currentUserId = computed(() => userStore.userInfo?.id)
 
-// 小组信息
-const team = ref({})
+const team = ref<TeamDetail>({})
 const loading = ref(false)
-
-// Tab状态
 const activeTab = ref('overview')
 
-// 用户角色
-const isAdmin = computed(() => {
-  return team.value.memberRole === 1 || team.value.memberRole === 2
-})
+const isAdmin = computed(() => team.value.memberRole === 1 || team.value.memberRole === 2)
 const isLeader = computed(() => team.value.memberRole === 1)
 
-// 打卡统计
 const myStreak = ref(0)
 const myTotal = ref(0)
 
-// 打卡弹窗
 const showCheckinDialog = ref(false)
-const checkinTask = ref(null)
-const overviewTaskListRef = ref()
-const allTaskListRef = ref()
-const overviewCheckinListRef = ref()
-const allCheckinListRef = ref()
-const discussionListRef = ref()
+const checkinTask = ref<TaskRecord | null>(null)
+const overviewTaskListRef = ref<TaskListExpose | null>(null)
+const allTaskListRef = ref<TaskListExpose | null>(null)
+const overviewCheckinListRef = ref<CheckinListExpose | null>(null)
+const allCheckinListRef = ref<CheckinListExpose | null>(null)
+const discussionListRef = ref<DiscussionListExpose | null>(null)
 
-// 任务弹窗
 const showTaskForm = ref(false)
-const editingTask = ref(null)
-
-// 讨论弹窗
+const editingTask = ref<TaskRecord | null>(null)
 const showDiscussionForm = ref(false)
 
-// 邀请码
 const showInviteDialog = ref(false)
 const inviteCode = ref('')
 const refreshingCode = ref(false)
 
-// 申请
 const showApplyDialog = ref(false)
 const applyReason = ref('')
 const applying = ref(false)
 const joining = ref(false)
 
-// 页面初始化
-onMounted(() => {
-  loadTeamDetail()
-})
+const getFirstRouteParam = (param: unknown) => {
+  return Array.isArray(param) ? String(param[0] || '') : String(param || '')
+}
 
-// 监听路由变化
-watch(() => route.params.id, () => {
-  loadTeamDetail()
-})
-
-// 加载小组详情
 const loadTeamDetail = async () => {
   loading.value = true
   try {
     const response = await teamApi.getTeamDetail(teamId.value)
     team.value = response || {}
 
-    // 如果是成员，加载打卡统计
     if (team.value.isMember) {
       loadMyStats()
     }
@@ -398,7 +392,6 @@ const loadTeamDetail = async () => {
   }
 }
 
-// 加载我的打卡统计
 const loadMyStats = async () => {
   try {
     const [streak, total] = await Promise.all([
@@ -412,10 +405,8 @@ const loadMyStats = async () => {
   }
 }
 
-// 加入/申请
 const handleJoin = async () => {
   if (team.value.joinType === 1) {
-    // 公开小组，直接加入
     joining.value = true
     try {
       await teamApi.applyJoin(teamId.value)
@@ -427,12 +418,10 @@ const handleJoin = async () => {
       joining.value = false
     }
   } else {
-    // 需要申请
     showApplyDialog.value = true
   }
 }
 
-// 提交申请
 const submitApply = async () => {
   applying.value = true
   try {
@@ -446,7 +435,6 @@ const submitApply = async () => {
   }
 }
 
-// 退出小组
 const handleQuit = async () => {
   try {
     await ElMessageBox.confirm('确定要退出这个小组吗？', '提示', {
@@ -464,7 +452,6 @@ const handleQuit = async () => {
   }
 }
 
-// 显示邀请码弹窗
 const showInviteCodeDialog = async () => {
   showInviteDialog.value = true
   try {
@@ -475,7 +462,6 @@ const showInviteCodeDialog = async () => {
   }
 }
 
-// 刷新邀请码
 const refreshInviteCode = async () => {
   refreshingCode.value = true
   try {
@@ -489,14 +475,12 @@ const refreshInviteCode = async () => {
   }
 }
 
-// 复制邀请码
 const copyInviteCode = () => {
   navigator.clipboard.writeText(inviteCode.value)
   ElMessage.success('已复制到剪贴板')
 }
 
-// 打开打卡弹窗
-const openCheckinDialog = (task) => {
+const openCheckinDialog = (task: TaskRecord | null) => {
   checkinTask.value = task
   showCheckinDialog.value = true
 }
@@ -506,7 +490,6 @@ const openTaskCreate = () => {
   showTaskForm.value = true
 }
 
-// 打卡成功
 const onCheckinSuccess = () => {
   loadMyStats()
   loadTeamDetail()
@@ -516,13 +499,11 @@ const onCheckinSuccess = () => {
   allCheckinListRef.value?.loadCheckins?.()
 }
 
-// 编辑任务
-const editTask = (task) => {
+const editTask = (task: TaskRecord) => {
   editingTask.value = task
   showTaskForm.value = true
 }
 
-// 任务保存成功
 const onTaskSaved = () => {
   editingTask.value = null
   overviewTaskListRef.value?.loadTasks?.()
@@ -530,421 +511,328 @@ const onTaskSaved = () => {
   loadTeamDetail()
 }
 
-// 讨论发布成功
 const onDiscussionPosted = () => {
   discussionListRef.value?.loadDiscussions?.()
   loadTeamDetail()
 }
 
-// 工具函数
-const getTypeText = (type) => {
-  const map = { 1: '目标型', 2: '学习型', 3: '打卡型' }
-  return map[type] || '学习型'
+const getTypeText = (type?: number) => {
+  const map: Record<number, string> = { 1: '目标型', 2: '学习型', 3: '打卡型' }
+  return type ? map[type] || '学习型' : '学习型'
 }
 
-const getTypeClass = (type) => {
-  const map = { 1: 'type-goal', 2: 'type-study', 3: 'type-checkin' }
-  return map[type] || 'type-study'
+const getTypeTone = (type?: number) => {
+  const map: Record<number, 'brand' | 'success' | 'warning'> = {
+    1: 'brand',
+    2: 'success',
+    3: 'warning'
+  }
+  return type ? map[type] || 'success' : 'success'
 }
 
-const parseTags = (tags) => {
+const parseTags = (tags?: string) => {
   if (!tags) return []
-  return tags.split(',').filter(t => t.trim())
+  return tags.split(',').map(tag => tag.trim()).filter(Boolean)
 }
 
-const formatDate = (date) => {
+const formatDate = (date?: string) => {
   if (!date) return ''
   return new Date(date).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
 }
 
-// 路由
 const goBack = () => router.back()
 const goToEdit = () => router.push(`/team/${teamId.value}/edit`)
+
+onMounted(() => {
+  loadTeamDetail()
+})
+
+watch(() => route.params.id, () => {
+  loadTeamDetail()
+})
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .team-detail-container {
-  padding: 24px 32px;
-  background: #f5f7fa;
-  min-height: calc(100vh - 60px);
-
-  @media (max-width: 768px) {
-    padding: 16px;
-  }
+  min-height: calc(100vh - 68px);
 }
 
-// 头部卡片
-.team-header-card {
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
-  margin-bottom: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+.team-hero :deep(.cn-section__body),
+.tab-container :deep(.cn-section__body) {
+  padding: var(--cn-space-5);
 }
 
 .team-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 20px;
-  margin-bottom: 20px;
-  position: relative;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--cn-space-4);
+}
 
-  .back-btn {
-    position: absolute;
-    top: -8px;
-    left: -8px;
-  }
+.back-btn {
+  align-self: start;
 }
 
 .team-avatar {
-  position: relative;
-  width: 80px;
-  height: 80px;
-  border-radius: 16px;
+  width: 84px;
+  height: 84px;
   overflow: hidden;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: var(--cn-radius-panel);
+  background: color-mix(in srgb, var(--cn-color-brand-primary) 74%, var(--cn-color-info));
+  color: white;
   flex-shrink: 0;
-  margin-left: 40px;
+}
 
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
+.team-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 
-  .avatar-text {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    font-size: 32px;
-    font-weight: bold;
-    color: white;
-  }
-
-  .type-badge {
-    position: absolute;
-    bottom: -4px;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 2px 10px;
-    font-size: 11px;
-    border-radius: 10px;
-    white-space: nowrap;
-
-    &.type-goal { background: #e8f4fd; color: #409eff; }
-    &.type-study { background: #f0f9eb; color: #67c23a; }
-    &.type-checkin { background: #fdf2e9; color: #e6a23c; }
-  }
+.avatar-text {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: 800;
 }
 
 .team-info {
-  flex: 1;
+  display: grid;
+  gap: var(--cn-space-3);
   min-width: 0;
+}
 
-  .team-name {
-    font-size: 22px;
-    font-weight: 600;
-    color: #333;
-    margin: 0 0 8px 0;
-  }
+.team-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cn-space-2);
+}
 
-  .team-desc {
-    font-size: 14px;
-    color: #666;
-    margin: 0 0 12px 0;
-    line-height: 1.5;
-  }
+.team-name {
+  margin: 0;
+  color: var(--cn-color-text-primary);
+  font-family: var(--cn-font-heading);
+  font-size: 26px;
+  font-weight: 750;
+  line-height: 1.25;
+}
 
-  .team-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-    align-items: center;
+.team-desc {
+  margin: 0;
+  color: var(--cn-color-text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
+}
 
-    .meta-item {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 13px;
-      color: #999;
-    }
+.team-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cn-space-2);
+}
 
-    .meta-tags {
-      display: flex;
-      gap: 6px;
-
-      .tag {
-        padding: 2px 8px;
-        background: #f5f7fa;
-        color: #909399;
-        border-radius: 4px;
-        font-size: 12px;
-      }
-    }
-  }
+.meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--cn-color-text-tertiary);
+  font-size: 13px;
 }
 
 .team-actions {
   display: flex;
-  gap: 8px;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--cn-space-2);
 }
 
-// 小组目标
 .team-goal {
-  padding: 16px;
-  background: #f8f9fc;
-  border-radius: 12px;
-  margin-bottom: 20px;
-
-  .goal-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-
-    .el-icon {
-      color: #409eff;
-    }
-
-    .goal-title {
-      font-size: 15px;
-      font-weight: 600;
-      color: #333;
-    }
-  }
-
-  .goal-desc {
-    font-size: 14px;
-    color: #666;
-    margin: 0 0 8px 0;
-  }
-
-  .goal-meta {
-    font-size: 12px;
-    color: #999;
-    display: flex;
-    gap: 16px;
-  }
+  display: grid;
+  gap: var(--cn-space-2);
+  margin-top: var(--cn-space-5);
+  border-top: 1px solid var(--cn-color-border-subtle);
+  padding-top: var(--cn-space-5);
 }
 
-// 统计概览
+.goal-header {
+  display: flex;
+  align-items: center;
+  gap: var(--cn-space-2);
+  color: var(--cn-color-brand-primary);
+  font-weight: 700;
+}
+
+.goal-title {
+  color: var(--cn-color-text-primary);
+}
+
+.goal-desc {
+  margin: 0;
+  color: var(--cn-color-text-secondary);
+  line-height: 1.7;
+}
+
+.goal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-3);
+  color: var(--cn-color-text-tertiary);
+  font-size: 13px;
+}
+
 .stats-overview {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-
-  @media (max-width: 600px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .stat-item {
-    text-align: center;
-    padding: 16px;
-    background: #f8f9fc;
-    border-radius: 12px;
-
-    .stat-value {
-      font-size: 24px;
-      font-weight: bold;
-      color: #409eff;
-    }
-
-    .stat-label {
-      font-size: 13px;
-      color: #999;
-      margin-top: 4px;
-    }
-  }
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-3);
+  margin-top: var(--cn-space-5);
 }
 
-// Tab容器
-.tab-container {
-  background: white;
-  border-radius: 12px;
-  padding: 0 20px;
-  margin-bottom: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+.stat-tile {
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
+  padding: var(--cn-space-4);
+  text-align: center;
+}
 
-  :deep(.el-tabs__header) {
-    margin: 0;
-  }
+.stat-value {
+  color: var(--cn-color-brand-primary);
+  font-family: var(--cn-font-heading);
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.stat-label {
+  margin-top: var(--cn-space-1);
+  color: var(--cn-color-text-tertiary);
+  font-size: 13px;
+}
+
+.tab-container :deep(.el-tabs__header) {
+  margin: 0;
 }
 
 .tab-label {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
-// Tab内容
 .tab-content {
   min-height: 400px;
 }
 
-// 概览内容
-.overview-content {
-  .content-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
-
-    @media (max-width: 900px) {
-      grid-template-columns: 1fr;
-    }
-  }
+.content-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cn-space-5);
 }
 
-.content-card {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+.full-width {
+  grid-column: 1 / -1;
+}
 
-  &.full-width {
+.checkin-content {
+  display: grid;
+  gap: var(--cn-space-5);
+}
+
+.checkin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cn-space-4);
+}
+
+.checkin-stats {
+  display: flex;
+  gap: var(--cn-space-6);
+}
+
+.checkin-stat {
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+
+.stat-num {
+  color: var(--cn-color-brand-primary);
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.stat-text {
+  color: var(--cn-color-text-tertiary);
+  font-size: 13px;
+}
+
+.invite-dialog-content {
+  display: grid;
+  justify-items: center;
+  gap: var(--cn-space-4);
+  text-align: center;
+}
+
+.invite-code-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cn-space-3);
+  width: 100%;
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
+  padding: var(--cn-space-4);
+}
+
+.invite-code {
+  color: var(--cn-color-brand-primary);
+  font-family: var(--cn-font-heading);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.invite-tip {
+  color: var(--cn-color-text-tertiary);
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .team-header {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .back-btn,
+  .team-actions {
     grid-column: 1 / -1;
   }
 
-  .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
+  .team-actions {
+    justify-content: flex-start;
+  }
 
-    h3 {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 16px;
-      font-weight: 600;
-      color: #333;
-      margin: 0;
-
-      .el-icon {
-        color: #409eff;
-      }
-    }
+  .content-grid {
+    grid-template-columns: 1fr;
   }
 }
 
-// 打卡内容
-.checkin-content {
+@media (max-width: 640px) {
+  .stats-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .checkin-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px;
-    background: white;
-    border-radius: 12px;
-    margin-bottom: 24px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .checkin-stats {
-    display: flex;
-    gap: 32px;
-
-    .stat {
-      text-align: center;
-
-      .stat-num {
-        font-size: 28px;
-        font-weight: bold;
-        color: #409eff;
-      }
-
-      .stat-text {
-        font-size: 13px;
-        color: #999;
-      }
-    }
-  }
-
-  .tasks-section, .checkin-feed-section {
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 24px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-
-    h3 {
-      font-size: 16px;
-      font-weight: 600;
-      color: #333;
-      margin: 0 0 16px 0;
-    }
-  }
-}
-
-// 成员内容
-.members-content {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-// 排行内容
-.rank-content {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-// 讨论内容
-.discussion-content {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-
-  .discussion-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-
-    h3 {
-      font-size: 16px;
-      font-weight: 600;
-      color: #333;
-      margin: 0;
-    }
-  }
-}
-
-// 邀请码弹窗
-.invite-dialog-content {
-  text-align: center;
-
-  .invite-code-box {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    padding: 16px;
-    background: #f5f7fa;
-    border-radius: 8px;
-    margin-bottom: 16px;
-
-    .invite-code {
-      font-size: 24px;
-      font-weight: bold;
-      color: #409eff;
-      letter-spacing: 2px;
-    }
-  }
-
-  .invite-actions {
-    margin-bottom: 16px;
-  }
-
-  .invite-tip {
-    font-size: 13px;
-    color: #999;
+    justify-content: space-around;
   }
 }
 </style>

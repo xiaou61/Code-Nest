@@ -1,154 +1,204 @@
 <template>
-  <div class="deck-detail" v-loading="loading">
-    <div class="page-header">
-      <el-button :icon="ArrowLeft" text @click="$router.push('/flashcard')">返回</el-button>
+  <CnPage v-loading="loading" class="deck-detail-page" max-width="1080px" full-height>
+    <CnPageHeader
+      :title="deck?.name || '卡组详情'"
+      :description="deck?.description || '查看卡组信息、闪卡内容和学习入口。'"
+      eyebrow="DECK DETAIL"
+      :breadcrumbs="[{ label: '闪卡记忆', to: '/flashcard' }, { label: deck?.name || '卡组详情' }]"
+    >
+      <template #meta>
+        <CnStatusTag v-if="deck" :type="deck.isPublic ? 'success' : 'info'" size="sm">
+          {{ deck.isPublic ? '公开' : '私有' }}
+        </CnStatusTag>
+        <CnStatusTag type="brand" size="sm" subtle>{{ deck?.cardCount || 0 }} 张卡片</CnStatusTag>
+        <CnStatusTag v-if="isOwner" type="warning" size="sm" subtle>拥有者</CnStatusTag>
+      </template>
+
+      <template #actions>
+        <el-button :icon="ArrowLeft" @click="router.push('/flashcard')">返回</el-button>
+        <el-button type="primary" :icon="Reading" :disabled="!deck?.cardCount" @click="startStudy">开始学习</el-button>
+      </template>
+    </CnPageHeader>
+
+    <CnSection v-if="deck" title="卡组概览" description="卡组封面、作者、标签和基础学习数据。" divided>
+      <div class="deck-overview">
+        <div class="deck-cover">
+          <img v-if="deck.coverImage" :src="deck.coverImage" alt="卡组封面" />
+          <div v-else class="default-cover">
+            <el-icon :size="48"><Collection /></el-icon>
+          </div>
+        </div>
+
+        <div class="deck-content">
+          <div class="tag-list" v-if="tagList.length">
+            <CnStatusTag v-for="tag in tagList" :key="tag" type="neutral" size="sm" subtle>
+              {{ tag }}
+            </CnStatusTag>
+          </div>
+
+          <div class="deck-meta">
+            <span>
+              <el-avatar :size="24" :src="deck.userAvatar">
+                {{ deck.userName?.charAt(0) }}
+              </el-avatar>
+              {{ deck.userName || '匿名用户' }}
+            </span>
+            <span>
+              <el-icon><Files /></el-icon>
+              {{ deck.cardCount || 0 }} 张卡片
+            </span>
+            <span>
+              <el-icon><DocumentCopy /></el-icon>
+              {{ deck.forkCount || 0 }} 次 Fork
+            </span>
+            <span v-if="deck.learnedCount !== undefined">
+              <el-icon><Check /></el-icon>
+              已学 {{ deck.learnedCount }}
+            </span>
+          </div>
+
+          <div class="deck-actions">
+            <el-button type="primary" :icon="Reading" :disabled="!deck.cardCount" @click="startStudy">开始学习</el-button>
+            <el-button v-if="!isOwner && isLoggedIn" :icon="DocumentCopy" @click="handleFork">
+              Fork 到我的卡组
+            </el-button>
+            <template v-if="isOwner">
+              <el-button :icon="Edit" @click="goToEdit">编辑卡组</el-button>
+              <el-button :icon="Plus" @click="goToAddCards">添加闪卡</el-button>
+              <el-button type="danger" :icon="Delete" @click="handleDelete">删除</el-button>
+            </template>
+          </div>
+        </div>
+      </div>
+    </CnSection>
+
+    <div v-if="deck" class="summary-grid">
+      <CnStatCard title="卡片总数" :value="deck.cardCount || 0" description="卡组包含的闪卡" tone="brand" />
+      <CnStatCard title="Fork 次数" :value="deck.forkCount || 0" description="被复用次数" tone="info" />
+      <CnStatCard title="已学卡片" :value="deck.learnedCount ?? 0" description="当前账号学习进度" tone="success" />
     </div>
 
-    <div class="deck-info-card" v-if="deck">
-      <div class="deck-cover">
-        <img v-if="deck.coverImage" :src="deck.coverImage" alt="封面" />
-        <div v-else class="default-cover">
-          <el-icon :size="48"><Collection /></el-icon>
-        </div>
-      </div>
-      
-      <div class="deck-content">
-        <div class="deck-header">
-          <h1 class="deck-name">{{ deck.name }}</h1>
-          <el-tag v-if="deck.isPublic" type="success" size="small">公开</el-tag>
-          <el-tag v-else type="info" size="small">私有</el-tag>
-        </div>
-        
-        <p class="deck-description">{{ deck.description || '暂无描述' }}</p>
-        
-        <div class="deck-tags" v-if="deck.tags">
-          <el-tag 
-            v-for="tag in tagList" 
-            :key="tag"
-            size="small"
-            effect="plain"
-          >
-            {{ tag }}
-          </el-tag>
-        </div>
-        
-        <div class="deck-meta">
-          <div class="meta-item">
-            <el-avatar :size="24" :src="deck.userAvatar">
-              {{ deck.userName?.charAt(0) }}
-            </el-avatar>
-            <span>{{ deck.userName }}</span>
-          </div>
-          <div class="meta-item">
-            <el-icon><Files /></el-icon>
-            <span>{{ deck.cardCount || 0 }} 张卡片</span>
-          </div>
-          <div class="meta-item">
-            <el-icon><DocumentCopy /></el-icon>
-            <span>{{ deck.forkCount || 0 }} 次Fork</span>
-          </div>
-          <div class="meta-item" v-if="deck.learnedCount !== undefined">
-            <el-icon><Check /></el-icon>
-            <span>已学 {{ deck.learnedCount }}</span>
-          </div>
-        </div>
-        
-        <div class="deck-actions">
-          <el-button type="primary" size="large" :icon="Reading" @click="startStudy" :disabled="!deck.cardCount">
-            开始学习
-          </el-button>
-          <el-button v-if="!isOwner && isLoggedIn" :icon="DocumentCopy" @click="handleFork">
-            Fork到我的卡组
-          </el-button>
-          <template v-if="isOwner">
-            <el-button :icon="Edit" @click="goToEdit">编辑卡组</el-button>
-            <el-button :icon="Plus" @click="goToAddCards">添加闪卡</el-button>
-            <el-button type="danger" :icon="Delete" @click="handleDelete">删除</el-button>
-          </template>
-        </div>
-      </div>
-    </div>
+    <CnSection v-if="deck" title="闪卡列表" description="快速浏览卡片正反面内容和当前掌握程度。" divided>
+      <template #actions>
+        <CnStatusTag type="brand" size="sm">{{ cardList.length }} 张</CnStatusTag>
+        <el-button v-if="isOwner" type="primary" :icon="Plus" @click="goToAddCards">添加闪卡</el-button>
+      </template>
 
-    <!-- 闪卡列表 -->
-    <div class="cards-section" v-if="deck">
-      <div class="section-header">
-        <h2>闪卡列表</h2>
-        <span class="card-count">{{ cardList.length }} 张</span>
-      </div>
-      
-      <div class="card-list" v-if="cardList.length > 0">
-        <div 
-          v-for="(card, index) in cardList" 
-          :key="card.id"
-          class="card-item"
-        >
+      <div v-if="cardList.length" class="card-list">
+        <article v-for="(card, index) in cardList" :key="card.id" class="card-item">
           <div class="card-index">{{ index + 1 }}</div>
           <div class="card-content">
-            <div class="card-front">
+            <div class="card-side">
               <span class="label">正面</span>
-              <div class="content" v-html="renderContent(card.frontContent, card.contentType)"></div>
+              <div class="content" v-html="renderContent(card.frontContent, card.contentType)" />
             </div>
-            <div class="card-back">
+            <div class="card-side">
               <span class="label">背面</span>
-              <div class="content" v-html="renderContent(card.backContent, card.contentType)"></div>
+              <div class="content" v-html="renderContent(card.backContent, card.contentType)" />
             </div>
           </div>
           <div class="card-status" v-if="card.studyStatus">
-            <el-tag 
-              :type="getMasteryType(card.studyStatus.masteryLevel)" 
-              size="small"
-            >
+            <CnStatusTag :type="getMasteryTone(card.studyStatus.masteryLevel)" size="sm">
               {{ getMasteryText(card.studyStatus.masteryLevel) }}
-            </el-tag>
+            </CnStatusTag>
           </div>
           <div class="card-actions" v-if="isOwner">
-            <el-button text :icon="Delete" @click="handleDeleteCard(card)" />
+            <el-button link type="danger" :icon="Delete" @click="handleDeleteCard(card)" />
           </div>
-        </div>
+        </article>
       </div>
-      
-      <el-empty v-else description="暂无闪卡，点击添加闪卡开始" :image-size="80" />
-    </div>
-  </div>
+
+      <CnEmptyState
+        v-else
+        title="暂无闪卡"
+        description="这个卡组还没有闪卡，拥有者可以继续添加内容。"
+        icon="CD"
+        surface="transparent"
+        size="sm"
+      >
+        <template v-if="isOwner" #actions>
+          <el-button type="primary" :icon="Plus" @click="goToAddCards">添加闪卡</el-button>
+        </template>
+      </CnEmptyState>
+    </CnSection>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, Collection, Files, DocumentCopy, Check, Reading, Edit, Plus, Delete } from '@element-plus/icons-vue'
+import { ArrowLeft, Check, Collection, Delete, DocumentCopy, Edit, Files, Plus, Reading } from '@element-plus/icons-vue'
+import {
+  CnEmptyState,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag,
+  type CnTone
+} from '@/design-system'
 import { useUserStore } from '@/stores/user'
 import { flashcardApi } from '@/api/flashcard'
 import { renderMarkdown, sanitizeHtml } from '@/utils/markdown'
+
+interface DeckDetail extends Record<string, unknown> {
+  id?: number | string
+  name?: string
+  description?: string
+  coverImage?: string
+  isPublic?: boolean | number
+  tags?: string
+  userId?: number | string
+  userName?: string
+  userAvatar?: string
+  cardCount?: number
+  forkCount?: number
+  learnedCount?: number
+}
+
+interface StudyStatus {
+  masteryLevel?: number
+}
+
+interface FlashcardItem extends Record<string, unknown> {
+  id: number | string
+  frontContent?: string
+  backContent?: string
+  contentType?: number
+  studyStatus?: StudyStatus
+}
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
 const loading = ref(false)
-const deck = ref(null)
-const cardList = ref([])
+const deck = ref<DeckDetail | null>(null)
+const cardList = ref<FlashcardItem[]>([])
 
-const deckId = computed(() => route.params.id)
-const isLoggedIn = computed(() => userStore.isLoggedIn)
-const isOwner = computed(() => deck.value && userStore.userInfo?.id === deck.value.userId)
+const deckId = computed(() => route.params.id as string)
+const isLoggedIn = computed(() => Boolean(userStore.isLoggedIn))
+const isOwner = computed(() => {
+  return Boolean(deck.value && String(userStore.userInfo?.id) === String(deck.value.userId))
+})
 
 const tagList = computed(() => {
   if (!deck.value?.tags) return []
-  return deck.value.tags.split(',').filter(t => t.trim())
+  return deck.value.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
 })
 
-// 加载卡组详情
 const loadDeckDetail = async () => {
   loading.value = true
   try {
     if (isLoggedIn.value) {
-      deck.value = await flashcardApi.getDeckById(deckId.value)
-      cardList.value = await flashcardApi.getCardsByDeckId(deckId.value)
+      deck.value = (await flashcardApi.getDeckById(deckId.value)) as DeckDetail
+      cardList.value = (await flashcardApi.getCardsByDeckId(deckId.value)) as FlashcardItem[]
     } else {
-      deck.value = await flashcardApi.getPublicDeckById(deckId.value)
-      cardList.value = await flashcardApi.getPublicDeckCards(deckId.value)
+      deck.value = (await flashcardApi.getPublicDeckById(deckId.value)) as DeckDetail
+      cardList.value = (await flashcardApi.getPublicDeckCards(deckId.value)) as FlashcardItem[]
     }
+    cardList.value = cardList.value || []
   } catch (error) {
     console.error('加载卡组失败:', error)
     ElMessage.error('加载卡组失败')
@@ -158,19 +208,18 @@ const loadDeckDetail = async () => {
   }
 }
 
-// 渲染内容
-const renderContent = (content, contentType) => {
+const renderContent = (content?: string, contentType?: number) => {
   if (!content) return ''
-  if (contentType === 2) { // Markdown
+  if (contentType === 2) {
     return renderMarkdown(content)
   }
-  if (contentType === 3) { // 代码
+  if (contentType === 3) {
     return sanitizeHtml(`<pre><code>${escapeHtml(content)}</code></pre>`)
   }
   return sanitizeHtml(escapeHtml(content).replace(/\n/g, '<br>'))
 }
 
-const escapeHtml = (text) => {
+const escapeHtml = (text: string) => {
   return String(text)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -179,18 +228,24 @@ const escapeHtml = (text) => {
     .replace(/'/g, '&#39;')
 }
 
-// 掌握程度
-const getMasteryType = (level) => {
-  const types = { 1: 'info', 2: 'warning', 3: 'success' }
-  return types[level] || 'info'
+const getMasteryTone = (level?: number): CnTone => {
+  const tones: Record<string, CnTone> = {
+    1: 'info',
+    2: 'warning',
+    3: 'success'
+  }
+  return tones[String(level)] || 'info'
 }
 
-const getMasteryText = (level) => {
-  const texts = { 1: '新学', 2: '学习中', 3: '已掌握' }
-  return texts[level] || '未学习'
+const getMasteryText = (level?: number) => {
+  const texts: Record<string, string> = {
+    1: '新学',
+    2: '学习中',
+    3: '已掌握'
+  }
+  return texts[String(level)] || '未学习'
 }
 
-// 操作
 const startStudy = () => {
   if (!isLoggedIn.value) {
     ElMessage.warning('请先登录')
@@ -206,7 +261,8 @@ const handleFork = async () => {
     ElMessage.success('Fork成功')
     router.push(`/flashcard/deck/${newDeckId}`)
   } catch (error) {
-    ElMessage.error(error.message || 'Fork失败')
+    const message = error instanceof Error ? error.message : 'Fork失败'
+    ElMessage.error(message)
   }
 }
 
@@ -225,29 +281,31 @@ const handleDelete = async () => {
       confirmButtonText: '确定删除',
       cancelButtonText: '取消'
     })
-    
+
     await flashcardApi.deleteDeck(deckId.value)
     ElMessage.success('卡组已删除')
     router.push('/flashcard/my')
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '删除失败')
+      const message = error instanceof Error ? error.message : '删除失败'
+      ElMessage.error(message)
     }
   }
 }
 
-const handleDeleteCard = async (card) => {
+const handleDeleteCard = async (card: FlashcardItem) => {
   try {
     await ElMessageBox.confirm('确定要删除这张闪卡吗？', '删除确认', {
       type: 'warning'
     })
-    
+
     await flashcardApi.deleteCard(card.id)
     ElMessage.success('闪卡已删除')
-    cardList.value = cardList.value.filter(c => c.id !== card.id)
+    cardList.value = cardList.value.filter((item) => item.id !== card.id)
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '删除失败')
+      const message = error instanceof Error ? error.message : '删除失败'
+      ElMessage.error(message)
     }
   }
 }
@@ -257,215 +315,173 @@ onMounted(() => {
 })
 </script>
 
-<style lang="scss" scoped>
-.deck-detail {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 24px;
+<style scoped>
+.deck-detail-page {
+  min-height: calc(100vh - 68px);
 }
 
-.page-header {
-  margin-bottom: 16px;
-}
-
-.deck-info-card {
-  display: flex;
-  gap: 24px;
-  background: var(--el-bg-color);
-  border-radius: 16px;
-  padding: 24px;
-  border: 1px solid var(--el-border-color-light);
-  margin-bottom: 24px;
+.deck-overview {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: var(--cn-space-5);
+  align-items: start;
 }
 
 .deck-cover {
-  width: 200px;
-  height: 150px;
-  border-radius: 12px;
+  width: 100%;
+  aspect-ratio: 4 / 3;
   overflow: hidden;
-  flex-shrink: 0;
-  background: linear-gradient(135deg, var(--el-color-primary-light-7), var(--el-color-primary-light-5));
-  
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  
-  .default-cover {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: var(--el-color-primary);
-    opacity: 0.5;
-  }
+  border-radius: var(--cn-radius-panel);
+  background: color-mix(in srgb, var(--cn-color-bg-surface) 74%, var(--cn-color-brand-soft));
+}
+
+.deck-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.default-cover {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--cn-color-brand-primary);
 }
 
 .deck-content {
-  flex: 1;
+  display: grid;
+  gap: var(--cn-space-4);
   min-width: 0;
 }
 
-.deck-header {
+.tag-list,
+.deck-actions {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-  
-  .deck-name {
-    font-size: 24px;
-    font-weight: 600;
-    margin: 0;
-    color: var(--el-text-color-primary);
-  }
-}
-
-.deck-description {
-  color: var(--el-text-color-secondary);
-  margin: 0 0 12px 0;
-  line-height: 1.6;
-}
-
-.deck-tags {
-  display: flex;
-  gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 16px;
+  gap: var(--cn-space-2);
 }
 
 .deck-meta {
   display: flex;
-  gap: 20px;
   flex-wrap: wrap;
-  margin-bottom: 20px;
-  
-  .meta-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 14px;
-    color: var(--el-text-color-secondary);
-  }
+  gap: var(--cn-space-4);
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
-.deck-actions {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.cards-section {
-  background: var(--el-bg-color);
-  border-radius: 16px;
-  padding: 24px;
-  border: 1px solid var(--el-border-color-light);
-}
-
-.section-header {
-  display: flex;
+.deck-meta span {
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
-  
-  h2 {
-    font-size: 18px;
-    font-weight: 600;
-    margin: 0;
-  }
-  
-  .card-count {
-    padding: 2px 10px;
-    background: var(--el-fill-color-light);
-    border-radius: 10px;
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-  }
+  gap: var(--cn-space-1);
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
 .card-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  gap: var(--cn-space-3);
 }
 
 .card-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 16px;
-  background: var(--el-fill-color-lighter);
-  border-radius: 8px;
-  
-  .card-index {
-    width: 28px;
-    height: 28px;
-    background: var(--el-color-primary-light-8);
-    color: var(--el-color-primary);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 600;
-    flex-shrink: 0;
-  }
-  
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto auto;
+  gap: var(--cn-space-3);
+  align-items: start;
+  min-width: 0;
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-card-border);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
+}
+
+.card-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--cn-radius-pill);
+  background: var(--cn-color-brand-soft);
+  color: var(--cn-color-brand-primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.card-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cn-space-4);
+  min-width: 0;
+}
+
+.card-side {
+  min-width: 0;
+}
+
+.label {
+  display: block;
+  margin-bottom: var(--cn-space-1);
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.content {
+  overflow-wrap: anywhere;
+  color: var(--cn-color-text-primary);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.content :deep(pre) {
+  max-width: 100%;
+  margin: 0;
+  padding: var(--cn-space-3);
+  overflow-x: auto;
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface);
+}
+
+.card-status,
+.card-actions {
+  flex-shrink: 0;
+}
+
+@media (max-width: 860px) {
+  .deck-overview,
+  .summary-grid,
   .card-content {
-    flex: 1;
-    min-width: 0;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    
-    .card-front, .card-back {
-      .label {
-        display: block;
-        font-size: 12px;
-        color: var(--el-text-color-secondary);
-        margin-bottom: 4px;
-      }
-      
-      .content {
-        font-size: 14px;
-        line-height: 1.6;
-        color: var(--el-text-color-primary);
-        
-        :deep(pre) {
-          background: var(--el-fill-color);
-          padding: 8px;
-          border-radius: 4px;
-          overflow-x: auto;
-        }
-      }
-    }
+    grid-template-columns: 1fr;
   }
-  
-  .card-status {
-    flex-shrink: 0;
+
+  .card-item {
+    grid-template-columns: 36px minmax(0, 1fr);
   }
-  
+
+  .card-status,
   .card-actions {
-    flex-shrink: 0;
+    grid-column: 2;
   }
 }
 
-@media (max-width: 768px) {
-  .deck-detail {
-    padding: 16px;
+@media (max-width: 560px) {
+  .deck-actions :deep(.el-button) {
+    width: 100%;
   }
-  
-  .deck-info-card {
-    flex-direction: column;
-    
-    .deck-cover {
-      width: 100%;
-      height: 180px;
-    }
-  }
-  
-  .card-item .card-content {
+
+  .card-item {
     grid-template-columns: 1fr;
+  }
+
+  .card-status,
+  .card-actions {
+    grid-column: auto;
   }
 }
 </style>

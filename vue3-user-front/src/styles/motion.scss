@@ -47,8 +47,8 @@
   inset: -1px;
   border-radius: inherit;
   pointer-events: none;
-  border: 1px solid rgba(98, 157, 255, 0.28);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.55) inset;
+  border: 1px solid color-mix(in srgb, var(--cn-color-brand-primary) 28%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--cn-color-bg-surface) 55%, transparent) inset;
 }
 
 .cn-card-shimmer {
@@ -61,7 +61,7 @@
   position: absolute;
   inset: -120% 0 auto;
   height: 160%;
-  background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.52) 50%, transparent 62%);
+  background: color-mix(in srgb, var(--cn-color-bg-surface) 52%, transparent);
   transform: translateY(-100%);
   transition: transform 560ms var(--cn-ease-out);
 }

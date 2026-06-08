@@ -4,6 +4,7 @@ import com.xiaou.common.annotation.Log;
 import com.xiaou.common.annotation.RequireAdmin;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.core.domain.ResultCode;
 import com.xiaou.common.domain.Notification;
 import com.xiaou.common.domain.NotificationTemplate;
 import com.xiaou.common.utils.NotificationUtil;
@@ -93,7 +94,7 @@ public class AdminNotificationController {
         if (success) {
             return Result.success();
         } else {
-            return Result.error("删除消息失败");
+            return Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "删除消息失败");
         }
     }
     
@@ -119,7 +120,7 @@ public class AdminNotificationController {
         if (success) {
             return Result.success();
         } else {
-            return Result.error("创建模板失败");
+            return Result.error(ResultCode.BUSINESS_ERROR.getCode(), "创建模板失败");
         }
     }
     
@@ -135,7 +136,7 @@ public class AdminNotificationController {
         if (success) {
             return Result.success();
         } else {
-            return Result.error("更新模板失败");
+            return Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "更新模板失败");
         }
     }
     
@@ -150,7 +151,7 @@ public class AdminNotificationController {
         if (success) {
             return Result.success();
         } else {
-            return Result.error("删除模板失败");
+            return Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "删除模板失败");
         }
     }
 } 

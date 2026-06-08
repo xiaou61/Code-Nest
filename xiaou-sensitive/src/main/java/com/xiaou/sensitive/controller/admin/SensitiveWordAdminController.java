@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.xiaou.common.annotation.RequireAdmin;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.core.domain.ResultCode;
 import com.xiaou.common.satoken.StpAdminUtil;
 import com.xiaou.sensitive.api.SensitiveCheckService;
 import com.xiaou.sensitive.domain.SensitiveCategory;
@@ -60,7 +61,7 @@ public class SensitiveWordAdminController {
         try {
             SensitiveWord word = sensitiveWordService.getWordById(id);
             if (word == null) {
-                return Result.error("敏感词不存在");
+                return Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "敏感词不存在");
             }
             return Result.success(word);
         } catch (Exception e) {
@@ -77,7 +78,7 @@ public class SensitiveWordAdminController {
     public Result<Void> addWord(@RequestBody SensitiveWord word) {
         try {
             if (StrUtil.isBlank(word.getWord())) {
-                return Result.error("敏感词不能为空");
+                return Result.error(ResultCode.PARAM_VALIDATE_ERROR.getCode(), "敏感词不能为空");
             }
 
             // 设置创建人
@@ -87,7 +88,7 @@ public class SensitiveWordAdminController {
             if (success) {
                 return Result.success();
             } else {
-                return Result.error("敏感词已存在或添加失败");
+                return Result.error(ResultCode.CONFLICT.getCode(), "敏感词已存在或添加失败");
             }
         } catch (Exception e) {
             log.error("新增敏感词失败：{}", e.getMessage(), e);
@@ -103,7 +104,7 @@ public class SensitiveWordAdminController {
     public Result<Void> updateWord(@RequestBody SensitiveWord word) {
         try {
             if (word.getId() == null) {
-                return Result.error("敏感词ID不能为空");
+                return Result.error(ResultCode.PARAM_VALIDATE_ERROR.getCode(), "敏感词ID不能为空");
             }
             word.setCreatorId(StpAdminUtil.getLoginIdAsLong());
 
@@ -111,7 +112,7 @@ public class SensitiveWordAdminController {
             if (success) {
                 return Result.success();
             } else {
-                return Result.error("更新敏感词失败");
+                return Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "更新敏感词失败");
             }
         } catch (Exception e) {
             log.error("更新敏感词失败：{}", e.getMessage(), e);
@@ -130,7 +131,7 @@ public class SensitiveWordAdminController {
             if (success) {
                 return Result.success();
             } else {
-                return Result.error("删除敏感词失败");
+                return Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "删除敏感词失败");
             }
         } catch (Exception e) {
             log.error("删除敏感词失败：{}", e.getMessage(), e);

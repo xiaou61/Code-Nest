@@ -8,10 +8,15 @@ import App from './App.vue'
 import router from './router'
 import './styles/index.scss'
 import './styles/markdown.scss'
+import { useTheme } from '@/design-system/composables/useTheme'
 
 const app = createApp(App)
 
-app.use(createPinia())
+const pinia = createPinia()
+const { initializeTheme } = useTheme()
+
+initializeTheme()
+app.use(pinia)
 app.use(router)
 app.use(ElementPlus)
 

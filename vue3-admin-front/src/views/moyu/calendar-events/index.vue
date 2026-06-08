@@ -1,196 +1,116 @@
 <template>
-  <div class="calendar-events-management">
-    <!-- 页面头部 -->
-    <el-card class="header-card" shadow="never">
-      <div class="header-content">
-        <div class="title-section">
-          <h2>日历事件管理</h2>
-          <p>管理程序员日历中的节日事件，包括程序员节日、技术纪念日、开源节日等</p>
-        </div>
-        <div class="action-section">
-          <el-button 
-            type="danger" 
-            :disabled="selectedEvents.length === 0"
-            @click="handleBatchDelete"
-          >
-            <el-icon><Delete /></el-icon>
-            批量删除 ({{ selectedEvents.length }})
-          </el-button>
-          <el-button type="primary" @click="handleAdd">
-            <el-icon><Plus /></el-icon>
-            新增事件
-          </el-button>
-        </div>
-      </div>
-    </el-card>
-
-    <!-- 统计信息 -->
-    <el-card class="stats-card" shadow="never" v-if="statistics">
-      <el-row :gutter="16">
-        <el-col :span="6">
-          <div class="stat-item">
-            <div class="stat-number primary">{{ statistics.totalEvents || 0 }}</div>
-            <div class="stat-label">总事件数</div>
-          </div>
-        </el-col>
-        <el-col :span="6">
-          <div class="stat-item">
-            <div class="stat-number success">{{ statistics.majorEvents || 0 }}</div>
-            <div class="stat-label">重要事件</div>
-          </div>
-        </el-col>
-        <el-col :span="4">
-          <div class="stat-item">
-            <div class="stat-number warning">{{ statistics.programmerHolidays || 0 }}</div>
-            <div class="stat-label">程序员节日</div>
-          </div>
-        </el-col>
-        <el-col :span="4">
-          <div class="stat-item">
-            <div class="stat-number info">{{ statistics.techMemorials || 0 }}</div>
-            <div class="stat-label">技术纪念日</div>
-          </div>
-        </el-col>
-        <el-col :span="4">
-          <div class="stat-item">
-            <div class="stat-number danger">{{ statistics.openSourceHolidays || 0 }}</div>
-            <div class="stat-label">开源节日</div>
-          </div>
-        </el-col>
-      </el-row>
-    </el-card>
-
-    <!-- 搜索和操作区域 -->
-    <el-card class="search-card" shadow="never">
-      <el-row :gutter="20">
-        <el-col :span="6">
-          <el-input 
-            v-model="searchForm.eventName" 
-            placeholder="请输入事件名称" 
-            clearable
-            @clear="handleSearch"
-            @keyup.enter="handleSearch"
-          >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
-            </template>
-          </el-input>
-        </el-col>
-        <el-col :span="4">
-          <el-select v-model="searchForm.eventType" placeholder="事件类型" clearable @change="handleSearch">
-            <el-option label="程序员节日" :value="1" />
-            <el-option label="技术纪念日" :value="2" />
-            <el-option label="开源节日" :value="3" />
-          </el-select>
-        </el-col>
-        <el-col :span="4">
-          <el-select v-model="searchForm.isMajor" placeholder="重要程度" clearable @change="handleSearch">
-            <el-option label="重要事件" :value="1" />
-            <el-option label="普通事件" :value="0" />
-          </el-select>
-        </el-col>
-        <el-col :span="4">
-          <el-select v-model="searchForm.status" placeholder="状态" clearable @change="handleSearch">
-            <el-option label="启用" :value="1" />
-            <el-option label="禁用" :value="0" />
-          </el-select>
-        </el-col>
-        <el-col :span="6">
-          <el-button type="primary" @click="handleSearch">
-            <el-icon><Search /></el-icon>
-            搜索
-          </el-button>
-          <el-button @click="handleReset">
-            <el-icon><Refresh /></el-icon>
-            重置
-          </el-button>
-        </el-col>
-      </el-row>
-    </el-card>
-
-    <!-- 事件表格 -->
-    <el-card class="table-card" shadow="never">
-      <el-table 
-        :data="eventList" 
-        v-loading="loading"
-        @selection-change="handleSelectionChange"
-        stripe
-        border
-      >
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="eventName" label="事件名称" width="200" show-overflow-tooltip>
-          <template #default="{ row }">
-            <div class="event-name">
-              <el-icon :style="{ color: row.color }">
-                <component :is="getIconComponent(row.icon)" />
-              </el-icon>
-              <span style="margin-left: 8px;">{{ row.eventName }}</span>
-              <el-tag v-if="row.isMajor" type="danger" size="small" style="margin-left: 8px;">重要</el-tag>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="eventDate" label="日期" width="100" align="center" />
-        <el-table-column prop="eventType" label="事件类型" width="120" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getEventTypeTag(row.eventType)">
-              {{ getEventTypeName(row.eventType) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="description" label="描述" show-overflow-tooltip />
-        <el-table-column prop="blessingText" label="祝福语" width="150" show-overflow-tooltip />
-        <el-table-column prop="status" label="状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-switch
-              v-model="row.status"
-              :active-value="1"
-              :inactive-value="0"
-              @change="handleStatusChange(row)"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right" align="center">
-          <template #default="{ row }">
-            <el-button type="primary" size="small" @click="handleEdit(row)">
-              <el-icon><Edit /></el-icon>
-              编辑
-            </el-button>
-            <el-button type="danger" size="small" @click="handleDelete(row)">
-              <el-icon><Delete /></el-icon>
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <!-- 分页 -->
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="pagination.currentPage"
-          v-model:page-size="pagination.pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="pagination.total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
-      </div>
-    </el-card>
-
-    <!-- 新增/编辑对话框 -->
-    <el-dialog
-      :title="dialogTitle"
-      v-model="dialogVisible"
-      width="800px"
-      :before-close="handleCloseDialog"
-      destroy-on-close
+  <CnPage class="calendar-events-management-page" surface="transparent" max-width="1320px">
+    <CnPageHeader
+      title="日历事件管理"
+      description="维护程序员日历中的节日事件、技术纪念日和开源节日。"
+      eyebrow="Developer Calendar"
+      :breadcrumbs="breadcrumbs"
     >
-      <el-form
-        ref="eventFormRef"
-        :model="eventForm"
-        :rules="eventRules"
-        label-width="120px"
+      <template #meta>
+        <CnStatusTag type="brand">总事件 {{ statistics?.totalEvents || 0 }}</CnStatusTag>
+        <CnStatusTag type="danger">重要 {{ statistics?.majorEvents || 0 }}</CnStatusTag>
+        <CnStatusTag type="warning">程序员节日 {{ statistics?.programmerHolidays || 0 }}</CnStatusTag>
+      </template>
+
+      <template #actions>
+        <el-button type="danger" :icon="Delete" :disabled="selectedEvents.length === 0" @click="handleBatchDelete">
+          批量删除 ({{ selectedEvents.length }})
+        </el-button>
+        <el-button type="primary" :icon="Plus" @click="handleAdd">新增事件</el-button>
+      </template>
+    </CnPageHeader>
+
+    <div v-if="statistics" class="stats-grid">
+      <CnStatCard title="总事件数" :value="statistics.totalEvents || 0" description="日历事件总量" tone="brand" />
+      <CnStatCard title="重要事件" :value="statistics.majorEvents || 0" description="被标记为重要的事件" tone="danger" />
+      <CnStatCard title="程序员节日" :value="statistics.programmerHolidays || 0" description="程序员专属节日" tone="warning" />
+      <CnStatCard title="技术纪念日" :value="statistics.techMemorials || 0" description="技术发展纪念节点" tone="info" />
+      <CnStatCard title="开源节日" :value="statistics.openSourceHolidays || 0" description="开源社区相关节日" tone="success" />
+    </div>
+
+    <CnSection title="筛选条件" description="按名称、事件类型、重要程度和状态筛选日历事件。" divided>
+      <div class="filter-grid">
+        <el-input
+          v-model="searchForm.eventName"
+          placeholder="请输入事件名称"
+          clearable
+          @clear="handleSearch"
+          @keyup.enter="handleSearch"
+        >
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
+        </el-input>
+
+        <el-select v-model="searchForm.eventType" placeholder="事件类型" clearable @change="handleSearch">
+          <el-option label="程序员节日" :value="1" />
+          <el-option label="技术纪念日" :value="2" />
+          <el-option label="开源节日" :value="3" />
+        </el-select>
+
+        <el-select v-model="searchForm.isMajor" placeholder="重要程度" clearable @change="handleSearch">
+          <el-option label="重要事件" :value="1" />
+          <el-option label="普通事件" :value="0" />
+        </el-select>
+
+        <el-select v-model="searchForm.status" placeholder="状态" clearable @change="handleSearch">
+          <el-option label="启用" :value="1" />
+          <el-option label="禁用" :value="0" />
+        </el-select>
+
+        <div class="filter-actions">
+          <el-button type="primary" :icon="Search" @click="handleSearch">搜索</el-button>
+          <el-button :icon="Refresh" @click="handleReset">重置</el-button>
+        </div>
+      </div>
+    </CnSection>
+
+    <CnSection title="事件列表" :description="`共 ${pagination.total} 个事件`" divided>
+      <CnDataTable
+        :columns="tableColumns"
+        :data="eventList"
+        :loading="loading"
+        :pagination="tablePagination"
+        row-key="id"
+        border
+        empty-title="暂无事件"
+        empty-description="当前筛选条件下没有程序员日历事件。"
+        empty-icon="DC"
+        @selection-change="handleSelectionChange"
+        @page-change="handleCurrentChange"
+        @page-size-change="handleSizeChange"
       >
+        <template #eventName="{ row }">
+          <div class="event-name">
+            <el-icon class="event-icon" :style="getEventToneStyle(row)">
+              <component :is="getIconComponent(row.icon)" />
+            </el-icon>
+            <span class="event-title">{{ row.eventName }}</span>
+            <CnStatusTag v-if="row.isMajor" type="danger" size="sm">重要</CnStatusTag>
+          </div>
+        </template>
+
+        <template #eventType="{ row }">
+          <CnStatusTag :type="getEventTypeTone(row.eventType)" size="sm">
+            {{ getEventTypeName(row.eventType) }}
+          </CnStatusTag>
+        </template>
+
+        <template #status="{ row }">
+          <el-switch v-model="row.status" :active-value="1" :inactive-value="0" @change="handleStatusChange(row)" />
+        </template>
+
+        <template #actions="{ row }">
+          <div class="table-actions">
+            <el-button type="primary" link size="small" :icon="Edit" @click="handleEdit(row)">编辑</el-button>
+            <el-button type="danger" link size="small" :icon="Delete" @click="handleDelete(row)">删除</el-button>
+          </div>
+        </template>
+      </CnDataTable>
+    </CnSection>
+
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="800px" :before-close="handleCloseDialog" destroy-on-close>
+      <el-form ref="eventFormRef" :model="eventForm" :rules="eventRules" label-width="120px">
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="事件名称" prop="eventName">
@@ -216,13 +136,7 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="重要程度">
-              <el-switch
-                v-model="eventForm.isMajor"
-                :active-value="1"
-                :inactive-value="0"
-                active-text="重要事件"
-                inactive-text="普通事件"
-              />
+              <el-switch v-model="eventForm.isMajor" :active-value="1" :inactive-value="0" active-text="重要事件" inactive-text="普通事件" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -241,30 +155,15 @@
         </el-row>
 
         <el-form-item label="事件描述" prop="description">
-          <el-input
-            v-model="eventForm.description"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入事件描述"
-          />
+          <el-input v-model="eventForm.description" type="textarea" :rows="3" placeholder="请输入事件描述" />
         </el-form-item>
 
         <el-form-item label="祝福语">
-          <el-input
-            v-model="eventForm.blessingText"
-            type="textarea"
-            :rows="2"
-            placeholder="请输入节日祝福语（可选）"
-          />
+          <el-input v-model="eventForm.blessingText" type="textarea" :rows="2" placeholder="请输入节日祝福语（可选）" />
         </el-form-item>
 
         <el-form-item label="相关链接">
-          <el-input
-            v-model="eventForm.relatedLinksText"
-            type="textarea"
-            :rows="2"
-            placeholder="每行一个链接（可选）"
-          />
+          <el-input v-model="eventForm.relatedLinksText" type="textarea" :rows="2" placeholder="每行一个链接（可选）" />
         </el-form-item>
 
         <el-form-item label="排序值">
@@ -273,55 +172,107 @@
       </el-form>
 
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="handleSubmit">
-          {{ isEdit ? '更新' : '创建' }}
-        </el-button>
+        <div class="dialog-footer">
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="submitLoading" @click="handleSubmit">
+            {{ isEdit ? '更新' : '创建' }}
+          </el-button>
+        </div>
       </template>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Edit, Search, Refresh } from '@element-plus/icons-vue'
+import type { FormInstance, FormRules } from 'element-plus'
+import { Delete, Edit, Plus, Refresh, Search } from '@element-plus/icons-vue'
 import { developerCalendarApi } from '@/api/moyu'
+import { CnDataTable, CnPage, CnPageHeader, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
+import type { CnBreadcrumbItem, CnPagination, CnTableColumn, CnTone } from '@/design-system'
 
-// 响应式数据
+interface CalendarEvent extends Record<string, unknown> {
+  id: number | null
+  eventName: string
+  eventDate?: string
+  eventType?: number | null
+  description?: string
+  icon?: string
+  color?: string
+  isMajor?: number
+  blessingText?: string
+  relatedLinks?: string[]
+  relatedLinksText?: string
+  sortOrder?: number
+  status?: number
+}
+
+interface EventStatistics {
+  totalEvents?: number
+  majorEvents?: number
+  programmerHolidays?: number
+  techMemorials?: number
+  openSourceHolidays?: number
+}
+
+interface EventSearchForm {
+  eventName: string
+  eventType: number | null
+  isMajor: number | null
+  status: number | null
+}
+
+interface EventForm {
+  id: number | null
+  eventName: string
+  eventDate: string
+  eventType: number | null
+  description: string
+  icon: string
+  color: string
+  isMajor: number
+  blessingText: string
+  relatedLinksText: string
+  sortOrder: number
+  status: number
+}
+
+type SubmitEventData = Omit<EventForm, 'relatedLinksText'> & { relatedLinks?: string[] }
+
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '摸鱼工具' }, { label: '日历事件' }]
+const defaultEventColor = ''
+
 const loading = ref(false)
-const eventList = ref([])
-const selectedEvents = ref([])
-const statistics = ref(null)
+const eventList = ref<CalendarEvent[]>([])
+const selectedEvents = ref<CalendarEvent[]>([])
+const statistics = ref<EventStatistics | null>(null)
 const dialogVisible = ref(false)
 const submitLoading = ref(false)
 const isEdit = ref(false)
-const eventFormRef = ref()
+const eventFormRef = ref<FormInstance>()
 
-// 搜索表单
-const searchForm = reactive({
+const searchForm = reactive<EventSearchForm>({
   eventName: '',
   eventType: null,
   isMajor: null,
   status: null
 })
 
-// 分页
 const pagination = reactive({
   currentPage: 1,
   pageSize: 20,
   total: 0
 })
 
-// 事件表单
-const eventForm = reactive({
+const eventForm = reactive<EventForm>({
   id: null,
   eventName: '',
   eventDate: '',
   eventType: null,
   description: '',
   icon: '',
-  color: '#1890ff',
+  color: defaultEventColor,
   isMajor: 0,
   blessingText: '',
   relatedLinksText: '',
@@ -329,58 +280,63 @@ const eventForm = reactive({
   status: 1
 })
 
-// 表单验证规则
-const eventRules = {
-  eventName: [
-    { required: true, message: '请输入事件名称', trigger: 'blur' }
-  ],
+const eventRules: FormRules<EventForm> = {
+  eventName: [{ required: true, message: '请输入事件名称', trigger: 'blur' }],
   eventDate: [
     { required: true, message: '请输入事件日期', trigger: 'blur' },
     { pattern: /^\d{2}-\d{2}$/, message: '日期格式应为MM-dd', trigger: 'blur' }
   ],
-  eventType: [
-    { required: true, message: '请选择事件类型', trigger: 'change' }
-  ],
-  description: [
-    { required: true, message: '请输入事件描述', trigger: 'blur' }
-  ]
+  eventType: [{ required: true, message: '请选择事件类型', trigger: 'change' }],
+  description: [{ required: true, message: '请输入事件描述', trigger: 'blur' }]
 }
 
-// 计算属性
-const dialogTitle = computed(() => isEdit.value ? '编辑事件' : '新增事件')
+const tableColumns: CnTableColumn<CalendarEvent>[] = [
+  { type: 'selection', width: 55 },
+  { prop: 'eventName', label: '事件名称', minWidth: 220, slot: 'eventName', showOverflowTooltip: true },
+  { prop: 'eventDate', label: '日期', width: 110, align: 'center' },
+  { prop: 'eventType', label: '事件类型', width: 130, align: 'center', slot: 'eventType' },
+  { prop: 'description', label: '描述', minWidth: 220, showOverflowTooltip: true },
+  { prop: 'blessingText', label: '祝福语', minWidth: 160, showOverflowTooltip: true },
+  { prop: 'status', label: '状态', width: 100, align: 'center', slot: 'status' },
+  { label: '操作', width: 180, fixed: 'right', align: 'center', slot: 'actions' }
+]
 
-// 获取事件类型名称
-const getEventTypeName = (type) => {
-  const typeMap = {
+const dialogTitle = computed(() => (isEdit.value ? '编辑事件' : '新增事件'))
+const tablePagination = computed<CnPagination>(() => ({
+  page: pagination.currentPage,
+  pageSize: pagination.pageSize,
+  total: pagination.total,
+  pageSizes: [10, 20, 50, 100]
+}))
+
+const getEventTypeName = (type?: number | null) => {
+  const typeMap: Record<number, string> = {
     1: '程序员节日',
     2: '技术纪念日',
     3: '开源节日'
   }
-  return typeMap[type] || '未知'
+  return type ? typeMap[type] || '未知' : '未知'
 }
 
-// 获取事件类型标签
-const getEventTypeTag = (type) => {
-  const tagMap = {
+const getEventTypeTone = (type?: number | null): CnTone => {
+  const tagMap: Record<number, CnTone> = {
     1: 'warning',
-    2: 'info', 
-    3: 'danger'
+    2: 'info',
+    3: 'success'
   }
-  return tagMap[type] || 'info'
+  return type ? tagMap[type] || 'neutral' : 'neutral'
 }
 
-// 获取图标组件
-const getIconComponent = (iconName) => {
-  const iconMap = {
-    'code': 'EditPen',
-    'calendar': 'Calendar',
-    'coffee': 'Mug',
-    'github': 'Platform'
+const getIconComponent = (iconName?: string) => {
+  const iconMap: Record<string, string> = {
+    code: 'EditPen',
+    calendar: 'Calendar',
+    coffee: 'Mug',
+    github: 'Platform'
   }
-  return iconMap[iconName] || 'Calendar'
+  return iconName ? iconMap[iconName] || 'Calendar' : 'Calendar'
 }
 
-// 加载事件列表
 const loadEventList = async () => {
   try {
     loading.value = true
@@ -395,7 +351,6 @@ const loadEventList = async () => {
   }
 }
 
-// 加载统计信息
 const loadStatistics = async () => {
   try {
     const data = await developerCalendarApi.getEventStatistics()
@@ -405,27 +360,26 @@ const loadStatistics = async () => {
   }
 }
 
-// 搜索
 const handleSearch = () => {
   pagination.currentPage = 1
   loadEventList()
 }
 
-// 重置搜索
 const handleReset = () => {
-  Object.keys(searchForm).forEach(key => {
-    searchForm[key] = key === 'status' ? null : ''
+  Object.assign(searchForm, {
+    eventName: '',
+    eventType: null,
+    isMajor: null,
+    status: null
   })
   handleSearch()
 }
 
-// 选择变化
-const handleSelectionChange = (selection) => {
-  selectedEvents.value = selection
+const handleSelectionChange = (selection: unknown[]) => {
+  selectedEvents.value = selection as CalendarEvent[]
 }
 
-// 状态变更
-const handleStatusChange = async (row) => {
+const handleStatusChange = async (row: CalendarEvent) => {
   try {
     await developerCalendarApi.updateEventStatus(row.id, row.status)
     ElMessage.success('状态更新成功')
@@ -433,32 +387,30 @@ const handleStatusChange = async (row) => {
   } catch (error) {
     console.error('状态更新失败:', error)
     ElMessage.error('状态更新失败')
-    // 恢复原状态
     row.status = row.status === 1 ? 0 : 1
   }
 }
 
-// 新增事件
 const handleAdd = () => {
   isEdit.value = false
   resetForm()
   dialogVisible.value = true
 }
 
-// 编辑事件
-const handleEdit = async (row) => {
+const handleEdit = async (row: CalendarEvent) => {
   try {
     isEdit.value = true
     const eventData = await developerCalendarApi.getEventById(row.id)
-    
-    Object.keys(eventForm).forEach(key => {
-      if (key === 'relatedLinksText') {
-        eventForm[key] = eventData.relatedLinks ? eventData.relatedLinks.join('\n') : ''
+
+    Object.keys(eventForm).forEach((key) => {
+      const formKey = key as keyof EventForm
+      if (formKey === 'relatedLinksText') {
+        eventForm[formKey] = eventData.relatedLinks ? eventData.relatedLinks.join('\n') : ''
       } else {
-        eventForm[key] = eventData[key] || (key === 'sortOrder' ? 0 : '')
+        eventForm[formKey] = eventData[formKey] ?? getDefaultFormValue(formKey)
       }
     })
-    
+
     dialogVisible.value = true
   } catch (error) {
     console.error('加载事件详情失败:', error)
@@ -466,19 +418,14 @@ const handleEdit = async (row) => {
   }
 }
 
-// 删除事件
-const handleDelete = async (row) => {
+const handleDelete = async (row: CalendarEvent) => {
   try {
-    await ElMessageBox.confirm(
-      `确定要删除事件 "${row.eventName}" 吗？`,
-      '确认删除',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    )
-    
+    await ElMessageBox.confirm(`确定要删除事件 "${row.eventName}" 吗？`, '确认删除', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
     await developerCalendarApi.deleteEvent(row.id)
     ElMessage.success('删除成功')
     loadEventList()
@@ -490,20 +437,20 @@ const handleDelete = async (row) => {
   }
 }
 
-// 批量删除
 const handleBatchDelete = async () => {
+  if (!selectedEvents.value.length) {
+    ElMessage.warning('请选择要删除的事件')
+    return
+  }
+
   try {
-    await ElMessageBox.confirm(
-      `确定要删除选中的 ${selectedEvents.value.length} 个事件吗？`,
-      '确认批量删除',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    )
-    
-    const ids = selectedEvents.value.map(item => item.id)
+    await ElMessageBox.confirm(`确定要删除选中的 ${selectedEvents.value.length} 个事件吗？`, '确认批量删除', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
+    const ids = selectedEvents.value.map((item) => item.id)
     await developerCalendarApi.batchDeleteEvents(ids)
     ElMessage.success('批量删除成功')
     selectedEvents.value = []
@@ -516,21 +463,19 @@ const handleBatchDelete = async () => {
   }
 }
 
-// 提交表单
 const handleSubmit = async () => {
   if (!eventFormRef.value) return
-  
+
   try {
     await eventFormRef.value.validate()
     submitLoading.value = true
-    
-    const formData = { ...eventForm }
-    // 处理相关链接
-    if (formData.relatedLinksText) {
-      formData.relatedLinks = formData.relatedLinksText.split('\n').filter(link => link.trim())
+
+    const formData: SubmitEventData = { ...eventForm }
+    if (eventForm.relatedLinksText) {
+      formData.relatedLinks = eventForm.relatedLinksText.split('\n').filter((link) => link.trim())
     }
-    delete formData.relatedLinksText
-    
+    delete (formData as Partial<EventForm>).relatedLinksText
+
     if (isEdit.value) {
       await developerCalendarApi.updateEvent(formData.id, formData)
       ElMessage.success('更新成功')
@@ -538,12 +483,12 @@ const handleSubmit = async () => {
       await developerCalendarApi.createEvent(formData)
       ElMessage.success('创建成功')
     }
-    
+
     dialogVisible.value = false
     loadEventList()
     loadStatistics()
-  } catch (error) {
-    if (error.name !== 'ValidationError') {
+  } catch (error: unknown) {
+    if (!(error instanceof Error) || error.name !== 'ValidationError') {
       console.error('提交失败:', error)
       ElMessage.error('提交失败')
     }
@@ -552,41 +497,39 @@ const handleSubmit = async () => {
   }
 }
 
-// 重置表单
+const getDefaultFormValue = (key: keyof EventForm): EventForm[keyof EventForm] => {
+  if (key === 'color') return defaultEventColor
+  if (key === 'isMajor') return 0
+  if (key === 'status') return 1
+  if (key === 'sortOrder') return 0
+  if (key === 'eventType' || key === 'id') return null
+  return ''
+}
+
+const getEventToneStyle = (row: CalendarEvent) => (row.color ? { '--event-tone': row.color } : {})
+
 const resetForm = () => {
-  Object.keys(eventForm).forEach(key => {
-    if (key === 'color') {
-      eventForm[key] = '#1890ff'
-    } else if (key === 'isMajor') {
-      eventForm[key] = 0
-    } else if (key === 'status') {
-      eventForm[key] = 1
-    } else if (key === 'sortOrder') {
-      eventForm[key] = 0
-    } else {
-      eventForm[key] = null
-    }
+  Object.keys(eventForm).forEach((key) => {
+    const formKey = key as keyof EventForm
+    eventForm[formKey] = getDefaultFormValue(formKey)
   })
 }
 
-// 关闭对话框
-const handleCloseDialog = (done) => {
+const handleCloseDialog = (done: () => void) => {
   resetForm()
   done()
 }
 
-// 分页处理
-const handleSizeChange = (size) => {
+const handleSizeChange = (size: number) => {
   pagination.pageSize = size
   loadEventList()
 }
 
-const handleCurrentChange = (page) => {
+const handleCurrentChange = (page: number) => {
   pagination.currentPage = page
   loadEventList()
 }
 
-// 初始化
 onMounted(() => {
   loadEventList()
   loadStatistics()
@@ -594,90 +537,67 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.calendar-events-management {
-  padding: 0;
+.calendar-events-management-page {
+  min-height: 100%;
 }
 
-.header-card {
-  margin-bottom: 16px;
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.title-section h2 {
-  margin: 0 0 8px 0;
-  color: #303133;
-}
-
-.title-section p {
-  margin: 0;
-  color: #909399;
-  font-size: 14px;
-}
-
-.action-section {
-  display: flex;
-  gap: 12px;
-}
-
-.stats-card {
-  margin-bottom: 16px;
-}
-
-.stat-item {
-  text-align: center;
-  padding: 20px;
-}
-
-.stat-number {
-  font-size: 24px;
-  font-weight: bold;
-  margin-bottom: 8px;
-}
-
-.stat-number.primary { color: #409eff; }
-.stat-number.success { color: #67c23a; }
-.stat-number.warning { color: #e6a23c; }
-.stat-number.info { color: #909399; }
-.stat-number.danger { color: #f56c6c; }
-
-.stat-label {
-  color: #909399;
-  font-size: 14px;
-}
-
-.search-card {
-  margin-bottom: 16px;
-}
-
-.table-card {
-  margin-bottom: 16px;
-}
-
-.event-name {
-  display: flex;
+.filter-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(150px, 1fr)) auto;
+  gap: var(--cn-space-3);
   align-items: center;
 }
 
-.pagination-container {
+.filter-actions,
+.table-actions,
+.event-name {
   display: flex;
-  justify-content: right;
-  margin-top: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cn-space-2);
 }
 
-@media (max-width: 768px) {
-  .header-content {
-    flex-direction: column;
-    gap: 16px;
+.event-name {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.event-icon {
+  flex-shrink: 0;
+  color: var(--event-tone, var(--cn-color-brand-primary));
+}
+
+.event-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dialog-footer {
+  text-align: right;
+}
+
+@media (max-width: 1180px) {
+  .stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  
-  .action-section {
-    width: 100%;
-    justify-content: flex-start;
+
+  .filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .stats-grid,
+  .filter-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

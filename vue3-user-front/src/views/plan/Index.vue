@@ -1,328 +1,379 @@
 <template>
-  <div class="plan-container cn-learn-shell">
-    <div class="cn-learn-shell__inner">
-    <section class="cn-learn-hero cn-wave-reveal">
-      <div class="cn-learn-hero__content">
-        <span class="cn-learn-hero__eyebrow">Plan Check-in</span>
-        <h1 class="cn-learn-hero__title">计划打卡执行面板</h1>
-        <p class="cn-learn-hero__desc">把每日任务、打卡状态和长期趋势集中到同一个视图，持续稳定推进目标。</p>
-      </div>
-      <div class="cn-learn-hero__meta">
-        <span class="cn-learn-chip">进行中 {{ stats.totalPlans || 0 }}</span>
-        <span class="cn-learn-chip">今日打卡 {{ stats.todayCheckins || 0 }}</span>
-        <span class="cn-learn-chip">最长连续 {{ stats.maxStreak || 0 }}</span>
-      </div>
-    </section>
+  <CnPage class="plan-page" max-width="1180px" full-height>
+    <CnPageHeader
+      title="计划打卡执行面板"
+      description="把每日任务、打卡状态和长期趋势集中到同一个视图，持续稳定推进目标。"
+      eyebrow="PLAN CHECK-IN"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">进行中 {{ stats.totalPlans || 0 }}</CnStatusTag>
+        <CnStatusTag type="success" size="sm" subtle>今日打卡 {{ stats.todayCheckins || 0 }}</CnStatusTag>
+        <CnStatusTag type="info" size="sm" subtle>最长连续 {{ stats.maxStreak || 0 }} 天</CnStatusTag>
+      </template>
 
-    <!-- 统计概览卡片 -->
-    <div class="stats-card cn-learn-panel cn-learn-reveal">
-      <div class="stats-header">
-        <h2>📋 我的计划打卡</h2>
-        <p class="stats-subtitle">坚持每日打卡，养成好习惯</p>
-      </div>
-      <div class="stats-grid">
-        <div class="stat-item">
-          <div class="stat-value">{{ stats.totalPlans || 0 }}</div>
-          <div class="stat-label">进行中</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">{{ stats.todayCheckins || 0 }}</div>
-          <div class="stat-label">今日已打卡</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">{{ stats.totalCheckins || 0 }}</div>
-          <div class="stat-label">累计打卡</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">{{ stats.maxStreak || 0 }}</div>
-          <div class="stat-label">最长连续</div>
-        </div>
-      </div>
+      <template #actions>
+        <el-button type="primary" :icon="Plus" @click="openCreateDialog">新建计划</el-button>
+      </template>
+    </CnPageHeader>
+
+    <div class="summary-grid">
+      <CnStatCard title="进行中" :value="stats.totalPlans || 0" description="当前活跃计划" tone="brand" />
+      <CnStatCard title="今日已打卡" :value="stats.todayCheckins || 0" description="今日完成任务数" tone="success" />
+      <CnStatCard title="累计打卡" :value="stats.totalCheckins || 0" description="历史打卡总次数" tone="info" />
+      <CnStatCard title="最长连续" :value="stats.maxStreak || 0" unit="天" description="最长连续执行记录" tone="warning" />
     </div>
 
-    <!-- 今日任务区域 -->
-    <div class="section today-section cn-learn-panel cn-learn-reveal">
-      <div class="section-header">
-        <h3>🎯 今日任务</h3>
-        <span class="task-count">{{ todayTasks.length }} 个任务</span>
-      </div>
-      
-      <div v-if="todayLoading" class="loading-state">
-        <el-icon class="is-loading"><Loading /></el-icon>
-        <span>加载中...</span>
-      </div>
-      
-      <div v-else-if="todayTasks.length === 0" class="empty-state">
-        <div class="empty-icon">📝</div>
-        <p>今日暂无任务，快去创建计划吧~</p>
-      </div>
-      
-      <div v-else class="task-list">
-        <div 
-          v-for="task in todayTasks" 
-          :key="task.planId"
-          class="task-card cn-learn-float"
-          :class="{ 'completed': task.todayChecked }"
-        >
-          <div class="task-main">
-            <div class="task-info">
-              <div class="task-name">
-                <span class="type-tag" :class="getPlanTypeClass(task.planType)">
-                  {{ getPlanTypeText(task.planType) }}
-                </span>
-                {{ task.planName }}
+    <CnSection title="今日任务" description="优先处理今天需要完成的计划任务。" divided>
+      <template #actions>
+        <CnStatusTag type="neutral" size="sm" subtle>{{ todayTasks.length }} 个任务</CnStatusTag>
+      </template>
+
+      <div v-loading="todayLoading" class="today-task-shell">
+        <CnEmptyState
+          v-if="!todayLoading && todayTasks.length === 0"
+          title="今日暂无任务"
+          description="可以先创建一个计划，系统会根据计划生成每日打卡任务。"
+          icon="TD"
+          surface="transparent"
+          size="sm"
+        />
+
+        <div v-else class="task-list">
+          <article
+            v-for="task in todayTasks"
+            :key="task.planId"
+            class="task-card"
+            :class="{ 'is-completed': isTaskChecked(task) }"
+          >
+            <div class="task-main">
+              <div class="task-copy">
+                <div class="task-title">
+                  <CnStatusTag :type="getPlanTypeTone(task.planType)" size="sm" subtle>
+                    {{ getPlanTypeText(task.planType) }}
+                  </CnStatusTag>
+                  <h3>{{ task.planName || '未命名任务' }}</h3>
+                </div>
+                <p class="task-target">目标：{{ task.targetValue || 0 }} {{ task.targetUnit || '' }}</p>
+                <p v-if="task.dailyStartTime || task.dailyEndTime" class="task-time">
+                  <el-icon><Clock /></el-icon>
+                  {{ task.dailyStartTime || '--:--' }} - {{ task.dailyEndTime || '--:--' }}
+                </p>
               </div>
-              <div class="task-target">
-                目标: {{ task.targetValue }} {{ task.targetUnit }}
-              </div>
-              <div class="task-time" v-if="task.dailyStartTime || task.dailyEndTime">
-                <el-icon><Clock /></el-icon>
-                {{ task.dailyStartTime || '--:--' }} - {{ task.dailyEndTime || '--:--' }}
-              </div>
-            </div>
-            <div class="task-progress">
-              <div class="streak-info">
+
+              <div class="streak-card">
                 <span class="streak-label">连续</span>
-                <span class="streak-value">{{ task.currentStreak }}</span>
-                <span class="streak-unit">天</span>
+                <strong>{{ task.currentStreak || 0 }}</strong>
+                <span class="streak-label">天</span>
               </div>
             </div>
-          </div>
-          <div class="task-action">
-            <button 
-              v-if="!task.todayChecked"
-              class="checkin-btn"
-              @click="openCheckinDialog(task)"
-            >
-              <el-icon><Check /></el-icon>
-              打卡
-            </button>
-            <div v-else class="checked-badge">
-              <el-icon><SuccessFilled /></el-icon>
-              已完成
+
+            <div class="task-action">
+              <el-button v-if="!isTaskChecked(task)" type="primary" :icon="Check" @click="openCheckinDialog(task)">
+                打卡
+              </el-button>
+              <CnStatusTag v-else type="success" size="lg">
+                <el-icon><SuccessFilled /></el-icon>
+                已完成
+              </CnStatusTag>
             </div>
-          </div>
+          </article>
         </div>
       </div>
-    </div>
+    </CnSection>
 
-    <!-- 我的计划列表 -->
-    <div class="section plan-section cn-learn-panel cn-learn-reveal">
-      <div class="section-header">
-        <h3>📑 我的计划</h3>
-        <button class="create-btn" @click="openCreateDialog">
-          <el-icon><Plus /></el-icon>
-          新建计划
-        </button>
-      </div>
+    <CnSection title="我的计划" description="查看计划执行情况，继续编辑、暂停、恢复或查看打卡记录。" divided>
+      <template #actions>
+        <el-button type="primary" :icon="Plus" @click="openCreateDialog">新建计划</el-button>
+      </template>
 
-      <!-- 筛选条件 -->
-      <div class="filter-bar">
-        <el-select v-model="filterStatus" placeholder="全部状态" clearable @change="loadPlanList">
-          <el-option label="进行中" :value="1" />
-          <el-option label="已暂停" :value="2" />
-          <el-option label="已完成" :value="3" />
-        </el-select>
-        <el-select v-model="filterType" placeholder="全部类型" clearable @change="loadPlanList">
-          <el-option label="刷题计划" :value="1" />
-          <el-option label="学习计划" :value="2" />
-          <el-option label="阅读计划" :value="3" />
-          <el-option label="运动计划" :value="4" />
-          <el-option label="其他计划" :value="5" />
-        </el-select>
-        <el-input 
-          v-model="filterKeyword" 
-          placeholder="搜索计划名称" 
-          clearable
-          @clear="loadPlanList"
-          @keyup.enter="loadPlanList"
-        >
-          <template #prefix>
-            <el-icon><Search /></el-icon>
-          </template>
-        </el-input>
-      </div>
+      <CnFilterForm
+        v-model="filters"
+        :fields="filterFields"
+        :columns="3"
+        :loading="planLoading"
+        @search="handleFilterSearch"
+        @reset="handleFilterReset"
+      >
+        <template #status="{ value }">
+          <el-select
+            :model-value="value"
+            placeholder="全部状态"
+            clearable
+            @update:model-value="(next) => handleSelectFilterChange('status', next)"
+          >
+            <el-option label="进行中" :value="1" />
+            <el-option label="已暂停" :value="2" />
+            <el-option label="已完成" :value="3" />
+          </el-select>
+        </template>
 
-      <div v-if="planLoading" class="loading-state">
-        <el-icon class="is-loading"><Loading /></el-icon>
-        <span>加载中...</span>
-      </div>
+        <template #planType="{ value }">
+          <el-select
+            :model-value="value"
+            placeholder="全部类型"
+            clearable
+            @update:model-value="(next) => handleSelectFilterChange('planType', next)"
+          >
+            <el-option label="刷题计划" :value="1" />
+            <el-option label="学习计划" :value="2" />
+            <el-option label="阅读计划" :value="3" />
+            <el-option label="运动计划" :value="4" />
+            <el-option label="其他计划" :value="5" />
+          </el-select>
+        </template>
 
-      <div v-else-if="planList.length === 0" class="empty-state">
-        <div class="empty-icon">📋</div>
-        <p>暂无计划，点击上方按钮创建你的第一个计划吧</p>
-      </div>
+        <template #keyword="{ value }">
+          <el-input
+            :model-value="String(value || '')"
+            placeholder="搜索计划名称"
+            clearable
+            :prefix-icon="Search"
+            @update:model-value="(next) => updateFilter('keyword', next)"
+            @clear="handleFilterSearch"
+            @keyup.enter="handleFilterSearch"
+          />
+        </template>
+      </CnFilterForm>
 
-      <div v-else class="plan-list">
-        <div 
-          v-for="plan in planList" 
-          :key="plan.id"
-          class="plan-card cn-learn-float"
-        >
-          <div class="plan-header">
-            <div class="plan-title">
-              <span class="type-tag" :class="getPlanTypeClass(plan.planType)">
-                {{ getPlanTypeText(plan.planType) }}
+      <div v-loading="planLoading" class="plan-list-shell">
+        <CnEmptyState
+          v-if="!planLoading && planList.length === 0"
+          title="暂无计划"
+          description="点击新建计划，创建你的第一个每日打卡目标。"
+          icon="PL"
+          surface="transparent"
+          size="sm"
+        />
+
+        <div v-else class="plan-list">
+          <article v-for="plan in planList" :key="plan.id" class="plan-card">
+            <div class="plan-card__top">
+              <div class="plan-title">
+                <CnStatusTag :type="getPlanTypeTone(plan.planType)" size="sm" subtle>
+                  {{ getPlanTypeText(plan.planType) }}
+                </CnStatusTag>
+                <h3>{{ plan.planName || '未命名计划' }}</h3>
+                <CnStatusTag :type="getStatusTone(plan.status)" size="sm">
+                  {{ getStatusText(plan.status) }}
+                </CnStatusTag>
+              </div>
+
+              <el-dropdown trigger="click" @command="(command) => handlePlanAction(command, plan)">
+                <el-button link :icon="MoreFilled" class="more-button" aria-label="计划操作" />
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="edit">
+                      <el-icon><Edit /></el-icon>
+                      编辑
+                    </el-dropdown-item>
+                    <el-dropdown-item command="records">
+                      <el-icon><Document /></el-icon>
+                      打卡记录
+                    </el-dropdown-item>
+                    <el-dropdown-item v-if="Number(plan.status) === 1" command="pause">
+                      <el-icon><VideoPause /></el-icon>
+                      暂停
+                    </el-dropdown-item>
+                    <el-dropdown-item v-if="Number(plan.status) === 2" command="resume">
+                      <el-icon><VideoPlay /></el-icon>
+                      恢复
+                    </el-dropdown-item>
+                    <el-dropdown-item command="delete" divided>
+                      <el-icon><Delete /></el-icon>
+                      删除
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
+
+            <p v-if="plan.planDesc" class="plan-desc">{{ plan.planDesc }}</p>
+
+            <div class="plan-meta">
+              <span>
+                <el-icon><Calendar /></el-icon>
+                {{ formatDate(plan.startDate) }} - {{ plan.endDate ? formatDate(plan.endDate) : '长期' }}
               </span>
-              <span class="plan-name">{{ plan.planName }}</span>
-              <span class="status-tag" :class="getStatusClass(plan.status)">
-                {{ getStatusText(plan.status) }}
+              <span>
+                <el-icon><Aim /></el-icon>
+                {{ plan.targetValue || 0 }} {{ plan.targetUnit || '' }}
               </span>
             </div>
-            <el-dropdown trigger="click" @command="handlePlanAction($event, plan)">
-              <el-icon class="more-btn"><MoreFilled /></el-icon>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="edit">
-                    <el-icon><Edit /></el-icon>编辑
-                  </el-dropdown-item>
-                  <el-dropdown-item command="records">
-                    <el-icon><Document /></el-icon>打卡记录
-                  </el-dropdown-item>
-                  <el-dropdown-item v-if="plan.status === 1" command="pause">
-                    <el-icon><VideoPause /></el-icon>暂停
-                  </el-dropdown-item>
-                  <el-dropdown-item v-if="plan.status === 2" command="resume">
-                    <el-icon><VideoPlay /></el-icon>恢复
-                  </el-dropdown-item>
-                  <el-dropdown-item command="delete" divided>
-                    <el-icon><Delete /></el-icon>删除
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-          
-          <div class="plan-desc" v-if="plan.planDesc">{{ plan.planDesc }}</div>
-          
-          <div class="plan-meta">
-            <div class="meta-item">
-              <el-icon><Calendar /></el-icon>
-              {{ formatDate(plan.startDate) }} - {{ plan.endDate ? formatDate(plan.endDate) : '长期' }}
+
+            <div class="plan-stats">
+              <div>
+                <strong>{{ plan.totalCheckinDays || 0 }}</strong>
+                <span>累计打卡</span>
+              </div>
+              <div>
+                <strong>{{ plan.currentStreak || 0 }}</strong>
+                <span>当前连续</span>
+              </div>
+              <div>
+                <strong>{{ plan.maxStreak || 0 }}</strong>
+                <span>最长连续</span>
+              </div>
             </div>
-            <div class="meta-item">
-              <el-icon><Aim /></el-icon>
-              {{ plan.targetValue }} {{ plan.targetUnit }}
-            </div>
-          </div>
-          
-          <div class="plan-stats">
-            <div class="stat">
-              <span class="stat-num">{{ plan.totalCheckinDays }}</span>
-              <span class="stat-text">累计打卡</span>
-            </div>
-            <div class="stat">
-              <span class="stat-num">{{ plan.currentStreak }}</span>
-              <span class="stat-text">当前连续</span>
-            </div>
-            <div class="stat">
-              <span class="stat-num">{{ plan.maxStreak }}</span>
-              <span class="stat-text">最长连续</span>
-            </div>
-          </div>
+          </article>
         </div>
       </div>
 
-      <!-- 分页 -->
-      <div class="pagination" v-if="total > pageSize">
+      <div v-if="total > pageSize" class="pagination">
         <el-pagination
-          v-model:current-page="pageNum"
-          v-model:page-size="pageSize"
+          :current-page="pageNum"
+          :page-size="pageSize"
           :total="total"
+          background
           layout="prev, pager, next"
-          @current-change="loadPlanList"
+          @current-change="handlePageChange"
         />
       </div>
-    </div>
+    </CnSection>
 
-    <!-- 创建/编辑计划弹窗 -->
-    <PlanFormDialog 
-      v-model="showFormDialog"
-      :plan-data="editingPlan"
-      @success="onPlanSaved"
-    />
+    <PlanFormDialog v-model="showFormDialog" :plan-data="editingPlan" @success="onPlanSaved" />
 
-    <!-- 打卡弹窗 -->
-    <CheckinDialog 
-      v-model="showCheckinDialog"
-      :task="checkinTask"
-      @success="onCheckinSuccess"
-    />
+    <CheckinDialog v-model="showCheckinDialog" :task="checkinTask" @success="onCheckinSuccess" />
 
-    <!-- 打卡记录弹窗 -->
-    <CheckinRecordDialog 
-      v-model="showRecordDialog"
-      :plan-id="recordPlanId"
-      :plan-name="recordPlanName"
-    />
-    </div>
-  </div>
+    <CheckinRecordDialog v-model="showRecordDialog" :plan-id="recordPlanId" :plan-name="recordPlanName" />
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, onMounted } from 'vue'
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  Loading, Clock, Check, SuccessFilled, Plus, Search, MoreFilled,
-  Edit, Document, VideoPause, VideoPlay, Delete, Calendar, Aim
+import {
+  Aim,
+  Calendar,
+  Check,
+  Clock,
+  Delete,
+  Document,
+  Edit,
+  MoreFilled,
+  Plus,
+  Search,
+  SuccessFilled,
+  VideoPause,
+  VideoPlay
 } from '@element-plus/icons-vue'
+import {
+  CnEmptyState,
+  CnFilterForm,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag,
+  type CnFilterField,
+  type CnTone
+} from '@/design-system'
 import planApi from '@/api/plan'
-import { useRevealMotion } from '@/utils/reveal-motion'
 import PlanFormDialog from './components/PlanFormDialog.vue'
 import CheckinDialog from './components/CheckinDialog.vue'
 import CheckinRecordDialog from './components/CheckinRecordDialog.vue'
-useRevealMotion('.plan-container .cn-learn-reveal')
 
-// 统计数据
-const stats = ref({})
+interface StatsOverview extends Record<string, unknown> {
+  totalPlans?: number
+  todayCheckins?: number
+  totalCheckins?: number
+  maxStreak?: number
+}
 
-// 今日任务
-const todayTasks = ref([])
+interface TodayTask extends Record<string, unknown> {
+  planId: number | string
+  planName?: string
+  planType?: number | string
+  targetValue?: number | string
+  targetUnit?: string
+  dailyStartTime?: string
+  dailyEndTime?: string
+  currentStreak?: number
+  todayChecked?: boolean | number
+}
+
+interface PlanItem extends Record<string, unknown> {
+  id: number | string
+  planName?: string
+  planDesc?: string
+  planType?: number | string
+  status?: number | string
+  startDate?: string
+  endDate?: string
+  targetValue?: number | string
+  targetUnit?: string
+  totalCheckinDays?: number
+  currentStreak?: number
+  maxStreak?: number
+}
+
+interface PlanListResponse {
+  records?: PlanItem[]
+  total?: number
+}
+
+type PlanAction = 'edit' | 'records' | 'pause' | 'resume' | 'delete'
+
+const stats = ref<StatsOverview>({})
+const todayTasks = ref<TodayTask[]>([])
 const todayLoading = ref(false)
 
-// 计划列表
-const planList = ref([])
+const planList = ref<PlanItem[]>([])
 const planLoading = ref(false)
 const pageNum = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 
-// 筛选条件
-const filterStatus = ref(null)
-const filterType = ref(null)
-const filterKeyword = ref('')
-
-// 弹窗控制
-const showFormDialog = ref(false)
-const editingPlan = ref(null)
-const showCheckinDialog = ref(false)
-const checkinTask = ref(null)
-const showRecordDialog = ref(false)
-const recordPlanId = ref(null)
-const recordPlanName = ref('')
-
-// 页面初始化
-onMounted(() => {
-  loadStats()
-  loadTodayTasks()
-  loadPlanList()
+const createFilters = () => ({
+  status: '',
+  planType: '',
+  keyword: ''
 })
 
-// 加载统计数据
+const filters = ref<Record<string, unknown>>(createFilters())
+
+const filterFields: CnFilterField[] = [
+  { prop: 'status', label: '状态', type: 'custom', slot: 'status' },
+  { prop: 'planType', label: '类型', type: 'custom', slot: 'planType' },
+  { prop: 'keyword', label: '计划名称', type: 'custom', slot: 'keyword' }
+]
+
+const showFormDialog = ref(false)
+const editingPlan = ref<PlanItem | null>(null)
+const showCheckinDialog = ref(false)
+const checkinTask = ref<TodayTask | null>(null)
+const showRecordDialog = ref(false)
+const recordPlanId = ref<number | null>(null)
+const recordPlanName = ref('')
+
+const nullableFilter = (value: unknown) => {
+  return value === '' || value === undefined ? null : value
+}
+
+const updateFilter = (prop: string, value: unknown) => {
+  filters.value = {
+    ...filters.value,
+    [prop]: value ?? ''
+  }
+}
+
+const handleSelectFilterChange = (prop: string, value: unknown) => {
+  updateFilter(prop, value)
+  handleFilterSearch()
+}
+
 const loadStats = async () => {
   try {
-    const response = await planApi.getStatsOverview()
+    const response = (await planApi.getStatsOverview()) as StatsOverview
     stats.value = response || {}
   } catch (error) {
     console.error('加载统计数据失败:', error)
   }
 }
 
-// 加载今日任务
 const loadTodayTasks = async () => {
   todayLoading.value = true
   try {
-    const response = await planApi.getTodayTasks()
+    const response = (await planApi.getTodayTasks()) as TodayTask[]
     todayTasks.value = response || []
   } catch (error) {
     console.error('加载今日任务失败:', error)
@@ -331,19 +382,18 @@ const loadTodayTasks = async () => {
   }
 }
 
-// 加载计划列表
 const loadPlanList = async () => {
   planLoading.value = true
   try {
-    const response = await planApi.getPlanList({
+    const response = (await planApi.getPlanList({
       pageNum: pageNum.value,
       pageSize: pageSize.value,
-      status: filterStatus.value,
-      planType: filterType.value,
-      keyword: filterKeyword.value
-    })
-    planList.value = response.records || []
-    total.value = response.total || 0
+      status: nullableFilter(filters.value.status),
+      planType: nullableFilter(filters.value.planType),
+      keyword: (filters.value.keyword as string) || ''
+    })) as PlanListResponse
+    planList.value = response?.records || []
+    total.value = response?.total || 0
   } catch (error) {
     console.error('加载计划列表失败:', error)
   } finally {
@@ -351,28 +401,41 @@ const loadPlanList = async () => {
   }
 }
 
-// 打开创建弹窗
+const handleFilterSearch = () => {
+  pageNum.value = 1
+  loadPlanList()
+}
+
+const handleFilterReset = () => {
+  filters.value = createFilters()
+  pageNum.value = 1
+  loadPlanList()
+}
+
+const handlePageChange = (page: number) => {
+  pageNum.value = page
+  loadPlanList()
+}
+
 const openCreateDialog = () => {
   editingPlan.value = null
   showFormDialog.value = true
 }
 
-// 打开打卡弹窗
-const openCheckinDialog = (task) => {
+const openCheckinDialog = (task: TodayTask) => {
   checkinTask.value = task
   showCheckinDialog.value = true
 }
 
-// 处理计划操作
-const handlePlanAction = async (command, plan) => {
-  switch (command) {
+const handlePlanAction = async (command: unknown, plan: PlanItem) => {
+  switch (command as PlanAction) {
     case 'edit':
       editingPlan.value = plan
       showFormDialog.value = true
       break
     case 'records':
-      recordPlanId.value = plan.id
-      recordPlanName.value = plan.planName
+      recordPlanId.value = Number(plan.id)
+      recordPlanName.value = plan.planName || ''
       showRecordDialog.value = true
       break
     case 'pause':
@@ -387,8 +450,7 @@ const handlePlanAction = async (command, plan) => {
   }
 }
 
-// 暂停计划
-const handlePausePlan = async (plan) => {
+const handlePausePlan = async (plan: PlanItem) => {
   try {
     await ElMessageBox.confirm('确定要暂停该计划吗？暂停后将不再生成提醒', '提示', {
       confirmButtonText: '确定',
@@ -407,8 +469,7 @@ const handlePausePlan = async (plan) => {
   }
 }
 
-// 恢复计划
-const handleResumePlan = async (plan) => {
+const handleResumePlan = async (plan: PlanItem) => {
   try {
     await planApi.resumePlan(plan.id)
     ElMessage.success('计划已恢复')
@@ -420,8 +481,7 @@ const handleResumePlan = async (plan) => {
   }
 }
 
-// 删除计划
-const handleDeletePlan = async (plan) => {
+const handleDeletePlan = async (plan: PlanItem) => {
   try {
     await ElMessageBox.confirm('确定要删除该计划吗？删除后数据无法恢复', '警告', {
       confirmButtonText: '删除',
@@ -441,23 +501,24 @@ const handleDeletePlan = async (plan) => {
   }
 }
 
-// 计划保存成功
 const onPlanSaved = () => {
   loadPlanList()
   loadTodayTasks()
   loadStats()
 }
 
-// 打卡成功
 const onCheckinSuccess = () => {
   loadTodayTasks()
   loadPlanList()
   loadStats()
 }
 
-// 获取计划类型文本
-const getPlanTypeText = (type) => {
-  const typeMap = {
+const isTaskChecked = (task: TodayTask) => {
+  return task.todayChecked === true || Number(task.todayChecked) === 1
+}
+
+const getPlanTypeText = (type: unknown) => {
+  const typeMap: Record<string, string> = {
     1: '刷题',
     2: '学习',
     3: '阅读',
@@ -465,444 +526,276 @@ const getPlanTypeText = (type) => {
     5: '其他',
     99: '其他'
   }
-  return typeMap[type] || '其他'
+  return typeMap[String(type)] || '其他'
 }
 
-// 获取计划类型样式
-const getPlanTypeClass = (type) => {
-  const classMap = {
-    1: 'type-code',
-    2: 'type-study',
-    3: 'type-read',
-    4: 'type-sport',
-    5: 'type-other',
-    99: 'type-other'
+const getPlanTypeTone = (type: unknown): CnTone => {
+  const toneMap: Record<string, CnTone> = {
+    1: 'info',
+    2: 'brand',
+    3: 'success',
+    4: 'warning',
+    5: 'neutral',
+    99: 'neutral'
   }
-  return classMap[type] || 'type-other'
+  return toneMap[String(type)] || 'neutral'
 }
 
-// 获取状态文本
-const getStatusText = (status) => {
-  const statusMap = {
+const getStatusText = (status: unknown) => {
+  const statusMap: Record<string, string> = {
     1: '进行中',
     2: '已暂停',
     3: '已完成'
   }
-  return statusMap[status] || '未知'
+  return statusMap[String(status)] || '未知'
 }
 
-// 获取状态样式
-const getStatusClass = (status) => {
-  const classMap = {
-    1: 'status-active',
-    2: 'status-paused',
-    3: 'status-completed'
+const getStatusTone = (status: unknown): CnTone => {
+  const toneMap: Record<string, CnTone> = {
+    1: 'success',
+    2: 'warning',
+    3: 'info'
   }
-  return classMap[status] || ''
+  return toneMap[String(status)] || 'neutral'
 }
 
-// 格式化日期
-const formatDate = (dateStr) => {
+const formatDate = (dateStr?: string) => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
   return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
 }
+
+onMounted(() => {
+  loadStats()
+  loadTodayTasks()
+  loadPlanList()
+})
 </script>
 
-<style lang="scss" scoped>
-.plan-container {
+<style scoped>
+.plan-page {
   min-height: calc(100vh - 68px);
-  
-  @media (max-width: 768px) {
-    min-height: calc(100vh - 62px);
-  }
 }
 
-// 统计卡片
-.stats-card {
-  border-radius: 16px;
-  padding: 24px 32px;
-  margin: 20px 0 24px;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-}
-
-.stats-header {
-  text-align: left;
-  margin-bottom: 20px;
-  
-  h2 {
-    font-size: 20px;
-    font-weight: 600;
-    margin: 0 0 4px 0;
-    color: #333;
-  }
-  
-  .stats-subtitle {
-    font-size: 14px;
-    color: #999;
-    margin: 0;
-  }
-}
-
-.stats-grid {
+.summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  
-  @media (max-width: 600px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.stat-item {
-  text-align: center;
-  padding: 16px 12px;
-  background: #f8f9fc;
-  border-radius: 12px;
-  
-  .stat-value {
-    font-size: 28px;
-    font-weight: bold;
-    color: #409eff;
-  }
-  
-  .stat-label {
-    font-size: 13px;
-    color: #666;
-    margin-top: 4px;
-  }
+.today-task-shell,
+.plan-list-shell {
+  min-height: 180px;
 }
 
-// 区块通用样式
-.section {
-  border-radius: 16px;
-  padding: 24px;
-  margin-bottom: 24px;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
+.task-list,
+.plan-list {
+  display: grid;
+  gap: var(--cn-space-4);
 }
 
-.section-header {
+.task-card,
+.plan-card {
+  min-width: 0;
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-card-border);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-card-bg);
+  box-shadow: var(--cn-card-shadow);
+  transition:
+    transform var(--cn-motion-fast) var(--cn-ease-out),
+    border-color var(--cn-motion-base) var(--cn-ease-out),
+    box-shadow var(--cn-motion-base) var(--cn-ease-out);
+}
+
+.task-card:hover,
+.plan-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 28%, var(--cn-color-border));
+  box-shadow: var(--cn-shadow-sm);
+}
+
+.task-card.is-completed {
+  border-color: color-mix(in srgb, var(--cn-color-success) 28%, var(--cn-color-border));
+  background: color-mix(in srgb, var(--cn-color-success-soft) 36%, var(--cn-card-bg));
+}
+
+.task-main,
+.plan-card__top {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: var(--cn-space-4);
+  min-width: 0;
+}
+
+.task-main {
   align-items: center;
-  margin-bottom: 20px;
-  
-  h3 {
-    font-size: 18px;
-    font-weight: 600;
-    margin: 0;
-    color: #333;
-  }
-  
-  .task-count {
-    font-size: 14px;
-    color: #999;
-  }
-}
-
-.create-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #409eff;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 10px 16px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s;
-  
-  &:hover {
-    background: #337ecc;
-    transform: translateY(-1px);
-  }
-}
-
-// 加载和空状态
-.loading-state, .empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  color: #999;
-  
-  .empty-icon {
-    font-size: 48px;
-    margin-bottom: 12px;
-  }
-  
-  p {
-    margin: 0;
-  }
-}
-
-.loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-// 今日任务卡片
-.task-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  flex: 1;
 }
 
 .task-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px;
-  background: #f8f9fc;
-  border-radius: 12px;
-  border: 2px solid transparent;
-  transition: all 0.3s;
-  
-  &:hover {
-    border-color: #409eff;
-  }
-  
-  &.completed {
-    background: #f0f9eb;
-    border-color: #67c23a;
-  }
+  gap: var(--cn-space-4);
 }
 
-.task-main {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  flex: 1;
+.task-copy {
+  min-width: 0;
 }
 
-.task-info {
-  .task-name {
-    font-size: 16px;
-    font-weight: 500;
-    color: #333;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-  }
-  
-  .task-target {
-    font-size: 13px;
-    color: #666;
-    margin-bottom: 4px;
-  }
-  
-  .task-time {
-    font-size: 12px;
-    color: #999;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-}
-
-.task-progress {
-  .streak-info {
-    text-align: center;
-    
-    .streak-label {
-      font-size: 12px;
-      color: #999;
-    }
-    
-    .streak-value {
-      font-size: 24px;
-      font-weight: bold;
-      color: #409eff;
-      margin: 0 2px;
-    }
-    
-    .streak-unit {
-      font-size: 12px;
-      color: #999;
-    }
-  }
-}
-
-.task-action {
-  .checkin-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: #409eff;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 20px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.3s;
-    
-    &:hover {
-      background: #337ecc;
-      transform: scale(1.02);
-    }
-  }
-  
-  .checked-badge {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: #67c23a;
-    font-size: 14px;
-    font-weight: 500;
-  }
-}
-
-// 类型标签
-.type-tag {
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  
-  &.type-study { background: #e8f4fd; color: #409eff; }
-  &.type-sport { background: #fdf2e9; color: #e6a23c; }
-  &.type-read { background: #f0f9eb; color: #67c23a; }
-  &.type-code { background: #f4ecfb; color: #9c27b0; }
-  &.type-other { background: #f5f5f5; color: #909399; }
-}
-
-// 状态标签
-.status-tag {
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  margin-left: 8px;
-  
-  &.status-active { background: #e8f5e9; color: #4caf50; }
-  &.status-paused { background: #fff3e0; color: #ff9800; }
-  &.status-completed { background: #e3f2fd; color: #2196f3; }
-}
-
-// 筛选条件
-.filter-bar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-  
-  .el-select {
-    width: 120px;
-  }
-  
-  .el-input {
-    width: 200px;
-  }
-  
-  @media (max-width: 600px) {
-    .el-select, .el-input {
-      width: 100%;
-    }
-  }
-}
-
-// 计划列表
-.plan-list {
-  display: grid;
-  gap: 16px;
-}
-
-.plan-card {
-  background: #f8f9fc;
-  border-radius: 12px;
-  padding: 20px;
-  transition: all 0.3s;
-  
-  &:hover {
-    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-  }
-}
-
-.plan-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
-}
-
+.task-title,
 .plan-title {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
-  
-  .plan-name {
-    font-size: 16px;
-    font-weight: 600;
-    color: #333;
-  }
+  gap: var(--cn-space-2);
+  min-width: 0;
 }
 
-.more-btn {
-  cursor: pointer;
-  color: #999;
-  font-size: 20px;
-  padding: 4px;
-  
-  &:hover {
-    color: #409eff;
-  }
+.task-title h3,
+.plan-title h3 {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--cn-color-text-primary);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.task-target,
+.task-time,
+.plan-desc,
+.plan-meta {
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.task-target {
+  margin: var(--cn-space-2) 0 0;
+}
+
+.task-time,
+.plan-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cn-space-1);
+}
+
+.task-time {
+  margin: var(--cn-space-1) 0 0;
+  color: var(--cn-color-text-tertiary);
+}
+
+.streak-card {
+  display: grid;
+  justify-items: center;
+  min-width: 76px;
+  padding: var(--cn-space-3);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
+}
+
+.streak-card strong {
+  color: var(--cn-color-brand-primary);
+  font-family: var(--cn-font-heading);
+  font-size: 26px;
+  line-height: 1;
+}
+
+.streak-label {
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.task-action {
+  flex-shrink: 0;
+}
+
+.task-action :deep(.cn-status-tag__label) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cn-space-1);
+}
+
+.plan-list-shell {
+  margin-top: var(--cn-space-5);
+}
+
+.more-button {
+  color: var(--cn-color-text-tertiary);
 }
 
 .plan-desc {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 12px;
-  line-height: 1.5;
+  margin: var(--cn-space-3) 0 0;
 }
 
 .plan-meta {
   display: flex;
-  gap: 20px;
-  margin-bottom: 16px;
   flex-wrap: wrap;
-  
-  .meta-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    color: #999;
-  }
+  gap: var(--cn-space-4);
+  margin-top: var(--cn-space-3);
 }
 
 .plan-stats {
-  display: flex;
-  gap: 24px;
-  padding-top: 12px;
-  border-top: 1px solid #eee;
-  
-  .stat {
-    text-align: center;
-    
-    .stat-num {
-      display: block;
-      font-size: 20px;
-      font-weight: bold;
-      color: #409eff;
-    }
-    
-    .stat-text {
-      font-size: 12px;
-      color: #999;
-    }
-  }
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cn-space-3);
+  margin-top: var(--cn-space-4);
+  padding-top: var(--cn-space-4);
+  border-top: 1px solid var(--cn-color-border-subtle);
 }
 
-// 分页
+.plan-stats div {
+  display: grid;
+  gap: var(--cn-space-1);
+  min-width: 0;
+}
+
+.plan-stats strong {
+  color: var(--cn-color-text-primary);
+  font-family: var(--cn-font-heading);
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.plan-stats span {
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+  font-weight: 650;
+}
+
 .pagination {
   display: flex;
   justify-content: center;
-  margin-top: 20px;
+  margin-top: var(--cn-space-5);
+  overflow-x: auto;
+}
+
+@media (max-width: 980px) {
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .summary-grid,
+  .plan-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .task-card,
+  .task-main,
+  .plan-card__top {
+    display: grid;
+  }
+
+  .task-action :deep(.el-button) {
+    width: 100%;
+  }
 }
 </style>

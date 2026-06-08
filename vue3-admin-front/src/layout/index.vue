@@ -1,452 +1,19 @@
 <template>
   <div class="layout-container">
     <el-container>
-      <!-- 侧边栏 -->
-      <el-aside :width="sidebarWidth" class="sidebar">
-        <!-- Logo -->
-        <div class="logo">
-          <span v-if="!collapsed">Code-Nest</span>
-          <span v-else>CN</span>
-        </div>
-        
-        <!-- 菜单搜索框 -->
-        <div class="sidebar-search-input-wrapper" v-if="!collapsed">
-          <el-input
-            v-model="searchKeyword"
-            placeholder="🔍 搜索功能... (Ctrl+K)"
-            size="small"
-            @keyup.enter="handleSearchEnter"
-            @input="handleSearchInput"
-            ref="searchInput"
-            class="sidebar-search-input"
-            clearable
-          >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
-            </template>
-          </el-input>
-        </div>
-        
-        <!-- 折叠状态下的搜索按钮 -->
-        <div class="sidebar-search-collapsed" v-else>
-          <el-tooltip content="搜索功能 (Ctrl+K)" placement="right">
-            <el-button 
-              text 
-              @click="expandAndFocusSearch"
-              class="search-toggle-btn"
-            >
-              <el-icon size="18"><Search /></el-icon>
-            </el-button>
-          </el-tooltip>
-        </div>
-        
-        <!-- 搜索结果区域 -->
-        <div v-if="!collapsed && searchKeyword" class="search-results-container">
-          <!-- 有搜索结果 -->
-          <div v-if="filteredMenuItems.length > 0" class="search-results">
-            <div class="search-results-header">
-              找到 {{ filteredMenuItems.length }} 个功能
-            </div>
-            <div 
-              v-for="item in filteredMenuItems" 
-              :key="item.path"
-              class="search-result-item"
-              @click="handleMenuSelect(item)"
-            >
-              <el-icon class="search-result-icon">
-                <component :is="item.icon" />
-              </el-icon>
-              <div class="search-result-content">
-                <div class="search-result-title">{{ item.title }}</div>
-                <div class="search-result-path">{{ item.breadcrumb }}</div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- 无搜索结果 -->
-          <div v-else class="search-no-results">
-            <div class="no-results-icon">🔍</div>
-            <div class="no-results-text">未找到匹配的功能</div>
-          </div>
-        </div>
-
-        <!-- 导航菜单 -->
-        <el-menu
-          :default-active="currentRoute"
-          :collapse="collapsed"
-          router
-          class="sidebar-menu"
-          v-if="!searchKeyword"
-        >
-          <el-menu-item index="/dashboard">
-            <el-icon><Odometer /></el-icon>
-            <span>仪表板</span>
-          </el-menu-item>
-          
-          <el-menu-item index="/user">
-            <el-icon><Avatar /></el-icon>
-            <span>用户管理</span>
-          </el-menu-item>
-          
-          <el-sub-menu index="/interview">
-            <template #title>
-              <el-icon><Document /></el-icon>
-              <span>面试题目管理</span>
-            </template>
-            <el-menu-item index="/interview/categories">
-              <el-icon><FolderOpened /></el-icon>
-              <span>分类管理</span>
-            </el-menu-item>
-            <el-menu-item index="/interview/question-sets">
-              <el-icon><Collection /></el-icon>
-              <span>题单管理</span>
-            </el-menu-item>
-            <el-menu-item index="/interview/questions">
-              <el-icon><Edit /></el-icon>
-              <span>题目管理</span>
-            </el-menu-item>
-          </el-sub-menu>
-
-          <el-sub-menu index="/mock-interview">
-            <template #title>
-              <el-icon><Mic /></el-icon>
-              <span>模拟面试运营</span>
-            </template>
-            <el-menu-item index="/mock-interview/sessions">
-              <el-icon><DataAnalysis /></el-icon>
-              <span>面试会话</span>
-            </el-menu-item>
-            <el-menu-item index="/mock-interview/directions">
-              <el-icon><SetUp /></el-icon>
-              <span>方向配置</span>
-            </el-menu-item>
-          </el-sub-menu>
-          
-          <el-sub-menu index="/oj">
-            <template #title>
-              <el-icon><Monitor /></el-icon>
-              <span>OJ 判题管理</span>
-            </template>
-            <el-menu-item index="/oj/problems">
-              <el-icon><Edit /></el-icon>
-              <span>题目管理</span>
-            </el-menu-item>
-            <el-menu-item index="/oj/contests">
-              <el-icon><Trophy /></el-icon>
-              <span>赛事管理</span>
-            </el-menu-item>
-            <el-menu-item index="/oj/tags">
-              <el-icon><PriceTag /></el-icon>
-              <span>标签管理</span>
-            </el-menu-item>
-          </el-sub-menu>
-          
-          <el-sub-menu index="/resume">
-            <template #title>
-              <el-icon><EditPen /></el-icon>
-              <span>简历中心</span>
-            </template>
-            <el-menu-item index="/resume/templates">
-              <el-icon><Document /></el-icon>
-              <span>模板管理</span>
-            </el-menu-item>
-            <el-menu-item index="/resume/analytics">
-              <el-icon><DataAnalysis /></el-icon>
-              <span>数据总览</span>
-            </el-menu-item>
-            <el-menu-item index="/resume/reports">
-              <el-icon><Warning /></el-icon>
-              <span>健康巡检</span>
-            </el-menu-item>
-          </el-sub-menu>
-          
-          <el-sub-menu index="/knowledge">
-            <template #title>
-              <el-icon><DataAnalysis /></el-icon>
-              <span>知识图谱管理</span>
-            </template>
-            <el-menu-item index="/knowledge/maps">
-              <el-icon><Share /></el-icon>
-              <span>图谱管理</span>
-            </el-menu-item>
-          </el-sub-menu>
-
-          <el-sub-menu index="/learning-assets">
-            <template #title>
-              <el-icon><Collection /></el-icon>
-              <span>学习资产管理</span>
-            </template>
-            <el-menu-item index="/learning-assets/review">
-              <el-icon><Edit /></el-icon>
-              <span>审核台</span>
-            </el-menu-item>
-            <el-menu-item index="/learning-assets/statistics">
-              <el-icon><DataAnalysis /></el-icon>
-              <span>统计分析</span>
-            </el-menu-item>
-          </el-sub-menu>
-          
-          <el-sub-menu index="/community">
-            <template #title>
-              <el-icon><ChatDotRound /></el-icon>
-              <span>社区管理</span>
-            </template>
-            <el-menu-item index="/community/categories">
-              <el-icon><Files /></el-icon>
-              <span>分类管理</span>
-            </el-menu-item>
-            <el-menu-item index="/community/tags">
-              <el-icon><PriceTag /></el-icon>
-              <span>标签管理</span>
-            </el-menu-item>
-            <el-menu-item index="/community/posts">
-              <el-icon><Document /></el-icon>
-              <span>帖子管理</span>
-            </el-menu-item>
-            <el-menu-item index="/community/comments">
-              <el-icon><ChatLineRound /></el-icon>
-              <span>评论管理</span>
-            </el-menu-item>
-            <el-menu-item index="/community/users">
-              <el-icon><User /></el-icon>
-              <span>用户管理</span>
-            </el-menu-item>
-          </el-sub-menu>
-          
-          <el-sub-menu index="/moments">
-            <template #title>
-              <el-icon><Picture /></el-icon>
-              <span>朋友圈管理</span>
-            </template>
-            <el-menu-item index="/moments/list">
-              <el-icon><Document /></el-icon>
-              <span>动态管理</span>
-            </el-menu-item>
-            <el-menu-item index="/moments/comments">
-              <el-icon><ChatLineRound /></el-icon>
-              <span>评论管理</span>
-            </el-menu-item>
-            <el-menu-item index="/moments/statistics">
-              <el-icon><DataAnalysis /></el-icon>
-              <span>数据统计</span>
-            </el-menu-item>
-          </el-sub-menu>
-          
-          <el-sub-menu index="/chat">
-            <template #title>
-              <el-icon><Message /></el-icon>
-              <span>聊天室管理</span>
-            </template>
-            <el-menu-item index="/chat/messages">
-              <el-icon><ChatDotRound /></el-icon>
-              <span>消息管理</span>
-            </el-menu-item>
-            <el-menu-item index="/chat/users">
-              <el-icon><User /></el-icon>
-              <span>在线用户</span>
-            </el-menu-item>
-          </el-sub-menu>
-          
-          <el-sub-menu index="/logs">
-            <template #title>
-              <el-icon><Document /></el-icon>
-              <span>日志管理</span>
-            </template>
-            <el-menu-item index="/logs/login">
-              <el-icon><UserFilled /></el-icon>
-              <span>登录日志</span>
-            </el-menu-item>
-            <el-menu-item index="/logs/operation">
-              <el-icon><Operation /></el-icon>
-              <span>操作日志</span>
-            </el-menu-item>
-          </el-sub-menu>
-          
-          <el-menu-item index="/notification">
-            <el-icon><Bell /></el-icon>
-            <span>通知管理</span>
-          </el-menu-item>
-          
-          <el-sub-menu index="/sensitive">
-            <template #title>
-              <el-icon><Warning /></el-icon>
-              <span>敏感词管理</span>
-            </template>
-            <el-menu-item index="/sensitive/words">
-              <el-icon><EditPen /></el-icon>
-              <span>词库管理</span>
-            </el-menu-item>
-            <el-menu-item index="/sensitive/whitelist">
-              <el-icon><Check /></el-icon>
-              <span>白名单管理</span>
-            </el-menu-item>
-            <el-menu-item index="/sensitive/strategy">
-              <el-icon><SetUp /></el-icon>
-              <span>策略配置</span>
-            </el-menu-item>
-            <el-menu-item index="/sensitive/statistics">
-              <el-icon><DataAnalysis /></el-icon>
-              <span>统计分析</span>
-            </el-menu-item>
-            <el-menu-item index="/sensitive/source">
-              <el-icon><FolderOpened /></el-icon>
-              <span>词库来源</span>
-            </el-menu-item>
-            <el-menu-item index="/sensitive/version">
-              <el-icon><Document /></el-icon>
-              <span>版本历史</span>
-            </el-menu-item>
-            <el-menu-item index="/sensitive/config">
-              <el-icon><Tools /></el-icon>
-              <span>配置管理</span>
-            </el-menu-item>
-          </el-sub-menu>
-          
-          <el-sub-menu index="/filestorage">
-            <template #title>
-              <el-icon><FolderOpened /></el-icon>
-              <span>文件存储管理</span>
-            </template>
-            <el-menu-item index="/filestorage/storage-config">
-              <el-icon><SetUp /></el-icon>
-              <span>存储配置</span>
-            </el-menu-item>
-            <el-menu-item index="/filestorage/file-management">
-              <el-icon><Document /></el-icon>
-              <span>文件管理</span>
-            </el-menu-item>
-            <el-menu-item index="/filestorage/migration">
-              <el-icon><Sort /></el-icon>
-              <span>文件迁移</span>
-            </el-menu-item>
-            <el-menu-item index="/filestorage/system-settings">
-              <el-icon><Tools /></el-icon>
-              <span>系统设置</span>
-            </el-menu-item>
-          </el-sub-menu>
-          
-          <el-sub-menu index="/codepen">
-            <template #title>
-              <el-icon><EditPen /></el-icon>
-              <span>代码共享器管理</span>
-            </template>
-            <el-menu-item index="/codepen/pens">
-              <el-icon><Document /></el-icon>
-              <span>作品管理</span>
-            </el-menu-item>
-            <el-menu-item index="/codepen/templates">
-              <el-icon><Files /></el-icon>
-              <span>模板管理</span>
-            </el-menu-item>
-            <el-menu-item index="/codepen/tags">
-              <el-icon><CollectionTag /></el-icon>
-              <span>标签管理</span>
-            </el-menu-item>
-            <el-menu-item index="/codepen/statistics">
-              <el-icon><DataAnalysis /></el-icon>
-              <span>数据统计</span>
-            </el-menu-item>
-          </el-sub-menu>
-          
-          <el-sub-menu index="/moyu">
-            <template #title>
-              <el-icon><Coffee /></el-icon>
-              <span>摸鱼工具管理</span>
-            </template>
-            <el-menu-item index="/moyu/calendar-events">
-              <el-icon><Calendar /></el-icon>
-              <span>日历事件管理</span>
-            </el-menu-item>
-            <el-menu-item index="/moyu/daily-content">
-              <el-icon><Document /></el-icon>
-              <span>每日内容管理</span>
-            </el-menu-item>
-            <el-menu-item index="/moyu/statistics">
-              <el-icon><DataAnalysis /></el-icon>
-              <span>统计分析</span>
-            </el-menu-item>
-            <el-menu-item index="/moyu/bug-store">
-              <el-icon><Warning /></el-icon>
-              <span>Bug商店管理</span>
-            </el-menu-item>
-          </el-sub-menu>
-          
-          <el-sub-menu index="/points">
-            <template #title>
-              <el-icon><Coin /></el-icon>
-              <span>积分管理</span>
-            </template>
-            <el-menu-item index="/points/index">
-              <el-icon><DataAnalysis /></el-icon>
-              <span>积分概览</span>
-            </el-menu-item>
-            <el-menu-item index="/points/users">
-              <el-icon><Trophy /></el-icon>
-              <span>积分排行</span>
-            </el-menu-item>
-            <el-menu-item index="/points/details">
-              <el-icon><Document /></el-icon>
-              <span>积分明细</span>
-            </el-menu-item>
-            <el-menu-item index="/points/grant">
-              <el-icon><Plus /></el-icon>
-              <span>积分发放</span>
-            </el-menu-item>
-          </el-sub-menu>
-          
-          <el-menu-item index="/lottery">
-            <el-icon><Trophy /></el-icon>
-            <span>抽奖管理</span>
-          </el-menu-item>
-          
-          <el-sub-menu index="/blog">
-            <template #title>
-              <el-icon><Reading /></el-icon>
-              <span>博客管理</span>
-            </template>
-            <el-menu-item index="/blog/articles">
-              <el-icon><Document /></el-icon>
-              <span>文章管理</span>
-            </el-menu-item>
-            <el-menu-item index="/blog/categories">
-              <el-icon><FolderOpened /></el-icon>
-              <span>分类管理</span>
-            </el-menu-item>
-            <el-menu-item index="/blog/tags">
-              <el-icon><PriceTag /></el-icon>
-              <span>标签管理</span>
-            </el-menu-item>
-          </el-sub-menu>
-          
-          <el-sub-menu index="/system">
-            <template #title>
-              <el-icon><Setting /></el-icon>
-              <span>系统管理</span>
-            </template>
-            <el-menu-item index="/system/version">
-              <el-icon><Document /></el-icon>
-              <span>版本管理</span>
-            </el-menu-item>
-            <el-menu-item index="/system/ai-governance">
-              <el-icon><DataAnalysis /></el-icon>
-              <span>AI质量治理</span>
-            </el-menu-item>
-            <el-menu-item index="/system/ai-config">
-              <el-icon><SetUp /></el-icon>
-              <span>AI 配置与观测</span>
-            </el-menu-item>
-            <el-sub-menu index="/system/monitor">
-              <template #title>
-                <el-icon><Monitor /></el-icon>
-                <span>系统监控</span>
-              </template>
-              <el-menu-item index="/system/monitor/sql">
-                <el-icon><DataAnalysis /></el-icon>
-                <span>SQL监控</span>
-              </el-menu-item>
-            </el-sub-menu>
-          </el-sub-menu>
-        </el-menu>
+      <el-aside :width="sidebarWidth" class="sidebar-shell">
+        <CnSidebar
+          ref="sidebarRef"
+          v-model:search-keyword="searchKeyword"
+          :items="sidebarItems"
+          :active-path="currentRoute"
+          :collapsed="collapsed"
+          :search-results="filteredMenuItems"
+          @search-input="handleSearchInput"
+          @search-enter="handleSearchEnter"
+          @search-focus-request="expandAndFocusSearch"
+          @result-select="handleMenuSelect"
+        />
       </el-aside>
       
       <el-container>
@@ -470,6 +37,8 @@
           </div>
           
           <div class="header-right">
+            <CnThemeSwitch class="header-theme-switch" />
+
             <!-- 用户信息 -->
             <div class="user-info">
               <!-- 用户头像 -->
@@ -519,8 +88,8 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { 
@@ -561,9 +130,12 @@ import {
   Calendar,
   Reading,
   Check,
-  Mic
+  Mic,
+  CollectionTag
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
+import { CnSidebar, CnThemeSwitch } from '@/design-system'
+import type { CnSidebarItem, CnSidebarSearchResult } from '@/design-system'
 
 const route = useRoute()
 const router = useRouter()
@@ -583,17 +155,245 @@ const currentTitle = computed(() => route.meta?.title || '仪表板')
 
 // 搜索相关
 const searchKeyword = ref('')
-const searchInput = ref()
+const sidebarRef = ref<InstanceType<typeof CnSidebar> | null>(null)
 const isMainScrolled = ref(false)
 
 const handleMainScroll = (event) => {
   isMainScrolled.value = event.target.scrollTop > 8
 }
 
+const sidebarIconRegistry: Record<string, Component> = {
+  Odometer,
+  Document,
+  UserFilled,
+  Operation,
+  User,
+  Avatar,
+  Setting,
+  Monitor,
+  DataAnalysis,
+  FolderOpened,
+  Collection,
+  Edit,
+  ChatDotRound,
+  ChatLineRound,
+  Files,
+  PriceTag,
+  SetUp,
+  Sort,
+  Tools,
+  Bell,
+  Message,
+  Picture,
+  Warning,
+  EditPen,
+  Share,
+  Coin,
+  Trophy,
+  Plus,
+  Coffee,
+  Calendar,
+  Reading,
+  Check,
+  Mic,
+  CollectionTag
+}
+
+const resolveSidebarIcon = (iconName: string) => sidebarIconRegistry[iconName] || Document
+
+const sidebarItems: CnSidebarItem[] = [
+  { label: '仪表板', path: '/dashboard', icon: Odometer },
+  { label: '用户管理', path: '/user', icon: Avatar },
+  {
+    label: '面试题目管理',
+    index: '/interview',
+    icon: Document,
+    children: [
+      { label: '分类管理', path: '/interview/categories', icon: FolderOpened },
+      { label: '题单管理', path: '/interview/question-sets', icon: Collection },
+      { label: '题目管理', path: '/interview/questions', icon: Edit }
+    ]
+  },
+  {
+    label: '模拟面试运营',
+    index: '/mock-interview',
+    icon: Mic,
+    children: [
+      { label: '面试会话', path: '/mock-interview/sessions', icon: DataAnalysis },
+      { label: '方向配置', path: '/mock-interview/directions', icon: SetUp }
+    ]
+  },
+  {
+    label: 'OJ 判题管理',
+    index: '/oj',
+    icon: Monitor,
+    children: [
+      { label: '题目管理', path: '/oj/problems', icon: Edit },
+      { label: '赛事管理', path: '/oj/contests', icon: Trophy },
+      { label: '标签管理', path: '/oj/tags', icon: PriceTag }
+    ]
+  },
+  {
+    label: '简历中心',
+    index: '/resume',
+    icon: EditPen,
+    children: [
+      { label: '模板管理', path: '/resume/templates', icon: Document },
+      { label: '数据总览', path: '/resume/analytics', icon: DataAnalysis },
+      { label: '健康巡检', path: '/resume/reports', icon: Warning }
+    ]
+  },
+  {
+    label: '知识图谱管理',
+    index: '/knowledge',
+    icon: DataAnalysis,
+    children: [
+      { label: '图谱管理', path: '/knowledge/maps', icon: Share }
+    ]
+  },
+  {
+    label: '学习资产管理',
+    index: '/learning-assets',
+    icon: Collection,
+    children: [
+      { label: '审核台', path: '/learning-assets/review', icon: Edit },
+      { label: '统计分析', path: '/learning-assets/statistics', icon: DataAnalysis }
+    ]
+  },
+  {
+    label: '社区管理',
+    index: '/community',
+    icon: ChatDotRound,
+    children: [
+      { label: '分类管理', path: '/community/categories', icon: Files },
+      { label: '标签管理', path: '/community/tags', icon: PriceTag },
+      { label: '帖子管理', path: '/community/posts', icon: Document },
+      { label: '评论管理', path: '/community/comments', icon: ChatLineRound },
+      { label: '用户管理', path: '/community/users', icon: User }
+    ]
+  },
+  {
+    label: '朋友圈管理',
+    index: '/moments',
+    icon: Picture,
+    children: [
+      { label: '动态管理', path: '/moments/list', icon: Document },
+      { label: '评论管理', path: '/moments/comments', icon: ChatLineRound },
+      { label: '数据统计', path: '/moments/statistics', icon: DataAnalysis }
+    ]
+  },
+  {
+    label: '聊天室管理',
+    index: '/chat',
+    icon: Message,
+    children: [
+      { label: '消息管理', path: '/chat/messages', icon: ChatDotRound },
+      { label: '在线用户', path: '/chat/users', icon: User }
+    ]
+  },
+  {
+    label: '日志管理',
+    index: '/logs',
+    icon: Document,
+    children: [
+      { label: '登录日志', path: '/logs/login', icon: UserFilled },
+      { label: '操作日志', path: '/logs/operation', icon: Operation }
+    ]
+  },
+  { label: '通知管理', path: '/notification', icon: Bell },
+  {
+    label: '敏感词管理',
+    index: '/sensitive',
+    icon: Warning,
+    children: [
+      { label: '词库管理', path: '/sensitive/words', icon: EditPen },
+      { label: '白名单管理', path: '/sensitive/whitelist', icon: Check },
+      { label: '策略配置', path: '/sensitive/strategy', icon: SetUp },
+      { label: '统计分析', path: '/sensitive/statistics', icon: DataAnalysis },
+      { label: '词库来源', path: '/sensitive/source', icon: FolderOpened },
+      { label: '版本历史', path: '/sensitive/version', icon: Document },
+      { label: '配置管理', path: '/sensitive/config', icon: Tools }
+    ]
+  },
+  {
+    label: '文件存储管理',
+    index: '/filestorage',
+    icon: FolderOpened,
+    children: [
+      { label: '存储配置', path: '/filestorage/storage-config', icon: SetUp },
+      { label: '文件管理', path: '/filestorage/file-management', icon: Document },
+      { label: '文件迁移', path: '/filestorage/migration', icon: Sort },
+      { label: '系统设置', path: '/filestorage/system-settings', icon: Tools }
+    ]
+  },
+  {
+    label: '代码共享器管理',
+    index: '/codepen',
+    icon: EditPen,
+    children: [
+      { label: '作品管理', path: '/codepen/pens', icon: Document },
+      { label: '模板管理', path: '/codepen/templates', icon: Files },
+      { label: '标签管理', path: '/codepen/tags', icon: CollectionTag },
+      { label: '数据统计', path: '/codepen/statistics', icon: DataAnalysis }
+    ]
+  },
+  {
+    label: '摸鱼工具管理',
+    index: '/moyu',
+    icon: Coffee,
+    children: [
+      { label: '日历事件管理', path: '/moyu/calendar-events', icon: Calendar },
+      { label: '每日内容管理', path: '/moyu/daily-content', icon: Document },
+      { label: '统计分析', path: '/moyu/statistics', icon: DataAnalysis },
+      { label: 'Bug商店管理', path: '/moyu/bug-store', icon: Warning }
+    ]
+  },
+  {
+    label: '积分管理',
+    index: '/points',
+    icon: Coin,
+    children: [
+      { label: '积分概览', path: '/points/index', icon: DataAnalysis },
+      { label: '积分排行', path: '/points/users', icon: Trophy },
+      { label: '积分明细', path: '/points/details', icon: Document },
+      { label: '积分发放', path: '/points/grant', icon: Plus }
+    ]
+  },
+  { label: '抽奖管理', path: '/lottery', icon: Trophy },
+  {
+    label: '博客管理',
+    index: '/blog',
+    icon: Reading,
+    children: [
+      { label: '文章管理', path: '/blog/articles', icon: Document },
+      { label: '分类管理', path: '/blog/categories', icon: FolderOpened },
+      { label: '标签管理', path: '/blog/tags', icon: PriceTag }
+    ]
+  },
+  {
+    label: '系统管理',
+    index: '/system',
+    icon: Setting,
+    children: [
+      { label: '版本管理', path: '/system/version', icon: Document },
+      { label: 'AI质量治理', path: '/system/ai-governance', icon: DataAnalysis },
+      { label: 'AI 配置与观测', path: '/system/ai-config', icon: SetUp },
+      {
+        label: '系统监控',
+        index: '/system/monitor',
+        icon: Monitor,
+        children: [
+          { label: 'SQL监控', path: '/system/monitor/sql', icon: DataAnalysis }
+        ]
+      }
+    ]
+  }
+]
+
 // 智能图标推断函数
 const getIconByPath = (path, title = '') => {
   // 精确路径匹配（优先级最高）
-  const exactIconMap = {
+  const exactIconMap: Record<string, string> = {
     '/dashboard': 'Odometer',
     '/user': 'Avatar',
     '/notification': 'Bell',
@@ -604,11 +404,11 @@ const getIconByPath = (path, title = '') => {
   }
   
   if (exactIconMap[path]) {
-    return exactIconMap[path]
+    return resolveSidebarIcon(exactIconMap[path])
   }
   
   // 路径关键词匹配
-  const pathKeywords = {
+  const pathKeywords: Record<string, string> = {
     'dashboard': 'Odometer',
     'user': 'Avatar', 
     'interview': 'Document',
@@ -661,12 +461,12 @@ const getIconByPath = (path, title = '') => {
   const pathSegments = path.split('/').filter(segment => segment !== '')
   for (const segment of pathSegments) {
     if (pathKeywords[segment]) {
-      return pathKeywords[segment]
+      return resolveSidebarIcon(pathKeywords[segment])
     }
   }
   
   // 标题关键词匹配
-  const titleKeywords = {
+  const titleKeywords: Record<string, string> = {
     '仪表板': 'Odometer',
     '用户': 'Avatar',
     '管理': 'Setting',
@@ -718,12 +518,12 @@ const getIconByPath = (path, title = '') => {
   // 从标题中匹配关键词
   for (const [keyword, icon] of Object.entries(titleKeywords)) {
     if (title.includes(keyword)) {
-      return icon
+      return resolveSidebarIcon(icon)
     }
   }
   
   // 默认图标
-  return 'Document'
+  return Document
 }
 
 // 智能面包屑生成函数
@@ -863,7 +663,7 @@ const filteredMenuItems = computed(() => {
 })
 
 // 处理菜单选择
-const handleMenuSelect = (item) => {
+const handleMenuSelect = (item: CnSidebarSearchResult) => {
   router.push(item.path)
   searchKeyword.value = ''
 }
@@ -886,9 +686,7 @@ const expandAndFocusSearch = () => {
     collapsed.value = false
     // 等待DOM更新后聚焦搜索框
     setTimeout(() => {
-      if (searchInput.value) {
-        searchInput.value.focus()
-      }
+      sidebarRef.value?.focusSearch()
     }, 300)
   }
 }
@@ -902,8 +700,8 @@ const handleKeyDown = (event) => {
     // 如果侧边栏折叠，先展开
     if (collapsed.value) {
       expandAndFocusSearch()
-    } else if (searchInput.value) {
-      searchInput.value.focus()
+    } else {
+      sidebarRef.value?.focusSearch()
     }
   }
   // Escape 清空搜索
@@ -949,33 +747,20 @@ const handleUserCommand = async (command) => {
 .layout-container {
   height: 100vh;
   background: transparent;
+  --admin-shell-glass: color-mix(in srgb, var(--cn-color-bg-surface) 90%, transparent);
+  --admin-shell-strong: color-mix(in srgb, var(--cn-color-bg-surface) 96%, transparent);
+  --admin-brand-border-soft: color-mix(in srgb, var(--cn-color-brand-primary) 18%, var(--cn-color-border-subtle));
+  --admin-shadow-header: 0 10px 26px color-mix(in srgb, var(--cn-color-text-primary) 8%, transparent);
 }
 
-.sidebar {
-  background: linear-gradient(180deg, #fdfefe 0%, #f7fafe 100%);
-  border-right: 1px solid var(--cn-border-soft);
-  transition: width 0.24s ease;
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-}
-
-.logo {
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--cn-primary);
-  font-family: var(--cn-font-heading);
-  font-size: 19px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  border-bottom: 1px solid var(--cn-border-soft);
-  background: rgba(31, 111, 235, 0.04);
+.sidebar-shell {
+  overflow: hidden;
+  background: var(--cn-color-bg-surface);
+  transition: width var(--cn-motion-base) var(--cn-ease-out);
 }
 
 .header {
-  background-color: rgba(255, 255, 255, 0.9);
+  background-color: var(--admin-shell-glass);
   backdrop-filter: blur(6px);
   border-bottom: 1px solid var(--cn-border-soft);
   display: flex;
@@ -989,9 +774,9 @@ const handleUserCommand = async (command) => {
 }
 
 .header.header-elevated {
-  background-color: rgba(255, 255, 255, 0.96);
-  border-bottom-color: #d8e4f6;
-  box-shadow: 0 10px 26px rgba(18, 38, 63, 0.08);
+  background-color: var(--admin-shell-strong);
+  border-bottom-color: var(--admin-brand-border-soft);
+  box-shadow: var(--admin-shadow-header);
 }
 
 .header-left {
@@ -1008,8 +793,8 @@ const handleUserCommand = async (command) => {
 }
 
 .header-toggle-btn:hover {
-  color: var(--cn-primary);
-  background: var(--cn-primary-soft);
+  color: var(--cn-color-brand-primary);
+  background: var(--cn-color-brand-soft);
 }
 
 .header-title {
@@ -1021,6 +806,11 @@ const handleUserCommand = async (command) => {
 .header-right {
   display: flex;
   align-items: center;
+  gap: 12px;
+}
+
+.header-theme-switch {
+  flex-shrink: 0;
 }
 
 .user-info {
@@ -1030,9 +820,9 @@ const handleUserCommand = async (command) => {
 
 .header-avatar {
   margin-right: 8px;
-  border: 2px solid #dce6f5;
-  color: var(--cn-primary);
-  background-color: #f1f6ff;
+  border: 2px solid var(--admin-brand-border-soft);
+  color: var(--cn-color-brand-primary);
+  background-color: var(--cn-color-brand-soft);
 }
 
 .username {
@@ -1048,60 +838,8 @@ const handleUserCommand = async (command) => {
 }
 
 .username:hover {
-  color: var(--cn-primary);
-  background: var(--cn-primary-soft);
-}
-
-.sidebar-menu {
-  border: none;
-  background: transparent;
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px 10px 14px;
-}
-
-.sidebar-menu :deep(.el-menu-item),
-.sidebar-menu :deep(.el-sub-menu__title) {
-  height: 42px;
-  line-height: 42px;
-  margin: 4px 0;
-  border-radius: 10px;
-  color: var(--cn-text-secondary);
-  font-weight: 500;
-}
-
-.sidebar-menu :deep(.el-menu-item .el-icon),
-.sidebar-menu :deep(.el-sub-menu__title .el-icon) {
-  color: #6281be;
-}
-
-.sidebar-menu :deep(.el-menu-item:hover),
-.sidebar-menu :deep(.el-sub-menu__title:hover) {
-  background: #eef4ff !important;
-  color: var(--cn-primary) !important;
-}
-
-.sidebar-menu :deep(.el-menu-item:hover .el-icon),
-.sidebar-menu :deep(.el-sub-menu__title:hover .el-icon) {
-  color: var(--cn-primary);
-}
-
-.sidebar-menu :deep(.el-menu-item.is-active) {
-  color: var(--cn-primary) !important;
-  background: linear-gradient(90deg, #e5efff 0%, #f3f7ff 100%) !important;
-  box-shadow: inset 3px 0 0 var(--cn-primary);
-}
-
-.sidebar-menu :deep(.el-menu-item.is-active .el-icon) {
-  color: var(--cn-primary);
-}
-
-.sidebar-menu :deep(.el-sub-menu.is-active > .el-sub-menu__title) {
-  color: var(--cn-primary) !important;
-}
-
-.sidebar-menu :deep(.el-menu--inline .el-menu-item) {
-  padding-left: 46px !important;
+  color: var(--cn-color-brand-primary);
+  background: var(--cn-color-brand-soft);
 }
 
 .main-content {
@@ -1112,7 +850,7 @@ const handleUserCommand = async (command) => {
 .page-container {
   height: 100%;
   overflow: auto;
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--admin-shell-glass);
   border: 1px solid var(--cn-border-soft);
   border-radius: var(--cn-radius-md);
   padding: 24px;
@@ -1130,159 +868,6 @@ const handleUserCommand = async (command) => {
 .admin-page-fade-leave-to {
   opacity: 0;
   transform: translateY(8px);
-}
-
-.sidebar-search-input-wrapper {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--cn-border-soft);
-  background: rgba(255, 255, 255, 0.72);
-  flex-shrink: 0;
-}
-
-.sidebar-search-input {
-  width: 100%;
-}
-
-.sidebar-search-input :deep(.el-input__wrapper) {
-  background: #f4f8ff;
-  border: 1px solid #d6e3f5;
-  border-radius: 10px;
-  box-shadow: none;
-  transition: all 0.3s ease;
-}
-
-.sidebar-search-input :deep(.el-input__wrapper:hover) {
-  border-color: #bdd2f2;
-  background: #f8fbff;
-}
-
-.sidebar-search-input :deep(.el-input__wrapper.is-focus) {
-  background: #fff;
-  border-color: var(--cn-primary);
-  box-shadow: 0 0 0 2px rgba(31, 111, 235, 0.12);
-}
-
-.sidebar-search-input :deep(.el-input__inner) {
-  color: var(--cn-text-primary);
-  font-size: 13px;
-}
-
-.sidebar-search-input :deep(.el-input__inner::placeholder) {
-  color: var(--cn-text-tertiary);
-}
-
-.sidebar-search-input :deep(.el-input__prefix) {
-  color: #7690bf;
-}
-
-.search-results-container {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px 14px 16px;
-}
-
-.search-results {
-  border-radius: var(--cn-radius-md);
-  background: var(--cn-surface-1);
-  border: 1px solid var(--cn-border-soft);
-  box-shadow: var(--cn-shadow-xs);
-}
-
-.search-results-header {
-  padding: 10px 12px;
-  font-size: 12px;
-  color: var(--cn-text-secondary);
-  border-bottom: 1px solid var(--cn-border-soft);
-  background: #f6f9ff;
-}
-
-.search-result-item {
-  display: flex;
-  align-items: center;
-  padding: 10px 12px;
-  cursor: pointer;
-  transition: var(--cn-transition);
-  border-bottom: 1px solid #edf2fa;
-}
-
-.search-result-item:hover {
-  background: #f1f6ff;
-}
-
-.search-result-item:last-child {
-  border-bottom: none;
-}
-
-.search-result-icon {
-  margin-right: 10px;
-  color: #5f7fbd;
-  font-size: 16px;
-  flex-shrink: 0;
-}
-
-.search-result-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.search-result-title {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--cn-text-primary);
-  margin-bottom: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.search-result-path {
-  font-size: 11px;
-  color: var(--cn-text-tertiary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.search-no-results {
-  text-align: center;
-  padding: 40px 20px;
-  color: var(--cn-text-tertiary);
-  border-radius: var(--cn-radius-md);
-  background: rgba(255, 255, 255, 0.66);
-  border: 1px dashed var(--cn-border);
-}
-
-.no-results-icon {
-  font-size: 22px;
-  margin-bottom: 8px;
-  opacity: 0.75;
-}
-
-.no-results-text {
-  font-size: 12px;
-}
-
-.sidebar-search-collapsed {
-  display: flex;
-  justify-content: center;
-  padding: 8px;
-  border-bottom: 1px solid var(--cn-border-soft);
-}
-
-.search-toggle-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-  color: var(--cn-text-secondary) !important;
-  transition: var(--cn-transition);
-}
-
-.search-toggle-btn:hover {
-  background: var(--cn-primary-soft) !important;
-  color: var(--cn-primary) !important;
 }
 
 @media (max-width: 768px) {

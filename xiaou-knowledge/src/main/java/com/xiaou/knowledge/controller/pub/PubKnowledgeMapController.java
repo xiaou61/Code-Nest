@@ -3,6 +3,7 @@ package com.xiaou.knowledge.controller.pub;
 import com.xiaou.common.annotation.Log;
 import com.xiaou.common.core.domain.Result;
 import com.xiaou.common.core.domain.PageResult;
+import com.xiaou.common.core.domain.ResultCode;
 import com.xiaou.knowledge.domain.KnowledgeMap;
 import com.xiaou.knowledge.dto.request.PublishedKnowledgeMapQueryRequest;
 import com.xiaou.knowledge.dto.response.KnowledgeMapListResponse;
@@ -52,8 +53,8 @@ public class PubKnowledgeMapController {
         
         KnowledgeMap knowledgeMap = knowledgeMapService.getById(id);
         // 只返回已发布的图谱
-        if (!knowledgeMap.getStatus().equals(KnowledgeMap.Status.PUBLISHED.getCode())) {
-            return Result.error("知识图谱未发布或不存在");
+        if (knowledgeMap == null || !knowledgeMap.getStatus().equals(KnowledgeMap.Status.PUBLISHED.getCode())) {
+            return Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "知识图谱未发布或不存在");
         }
         
         // 增加查看次数
@@ -69,8 +70,8 @@ public class PubKnowledgeMapController {
         
         // 检查图谱是否已发布
         KnowledgeMap knowledgeMap = knowledgeMapService.getById(mapId);
-        if (!knowledgeMap.getStatus().equals(KnowledgeMap.Status.PUBLISHED.getCode())) {
-            return Result.error("知识图谱未发布或不存在");
+        if (knowledgeMap == null || !knowledgeMap.getStatus().equals(KnowledgeMap.Status.PUBLISHED.getCode())) {
+            return Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "知识图谱未发布或不存在");
         }
         
         List<KnowledgeNodeTreeResponse> nodeTree = knowledgeNodeService.getTreeByMapId(mapId);
@@ -85,8 +86,8 @@ public class PubKnowledgeMapController {
         
         // 检查图谱是否已发布
         KnowledgeMap knowledgeMap = knowledgeMapService.getById(mapId);
-        if (!knowledgeMap.getStatus().equals(KnowledgeMap.Status.PUBLISHED.getCode())) {
-            return Result.error("知识图谱未发布或不存在");
+        if (knowledgeMap == null || !knowledgeMap.getStatus().equals(KnowledgeMap.Status.PUBLISHED.getCode())) {
+            return Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "知识图谱未发布或不存在");
         }
         
         List<KnowledgeNodeTreeResponse> nodes = knowledgeNodeService.searchNodes(mapId, keyword);

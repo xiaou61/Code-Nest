@@ -1,11 +1,18 @@
 <template>
-  <div class="sql-workbench-page">
-    <div class="page-header">
-      <div>
-        <h2>SQL 优化工作台 2.0</h2>
-        <p>输入 SQL、EXPLAIN 与表结构，快速拿到可执行优化建议（M1 基础版）。</p>
-      </div>
-      <div class="header-actions">
+  <CnPage class="sql-workbench-page" max-width="1440px" full-height>
+    <CnPageHeader
+      title="SQL 优化工作台 2.0"
+      description="输入 SQL、EXPLAIN 与表结构，快速拿到可执行优化建议（M1 基础版）。"
+      eyebrow="SQL OPTIMIZER"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">案例 {{ historyTotal }}</CnStatusTag>
+        <CnStatusTag v-if="currentRecordId" type="info" size="sm">当前 #{{ currentRecordId }}</CnStatusTag>
+        <CnStatusTag v-if="analysisResult" :type="scoreTagType" size="sm">{{ scoreLabel }}</CnStatusTag>
+        <CnStatusTag v-if="analysisResult?.fallback" type="warning" size="sm">降级结果</CnStatusTag>
+      </template>
+
+      <template #actions>
         <el-button @click="fillDemo">填充示例</el-button>
         <el-button :disabled="!form.sql.trim()" @click="formatSqlInput">格式化SQL</el-button>
         <el-button :disabled="!canAnalyze" @click="runRewrite" :loading="rewriteLoading">生成重写建议</el-button>
@@ -13,8 +20,8 @@
         <el-button type="primary" :loading="analyzeLoading" :disabled="!canAnalyze" @click="runAnalyze">
           开始分析
         </el-button>
-      </div>
-    </div>
+      </template>
+    </CnPageHeader>
 
     <el-row :gutter="18">
       <el-col :xs="24" :lg="16">
@@ -53,7 +60,7 @@
               </el-col>
               <el-col :xs="24" :md="12">
                 <el-form-item label="MySQL 版本">
-                  <el-select v-model="form.mysqlVersion" style="width: 100%">
+                  <el-select v-model="form.mysqlVersion" class="full-width-control">
                     <el-option label="MySQL 8.0" value="8.0" />
                     <el-option label="MySQL 5.7" value="5.7" />
                   </el-select>
@@ -87,8 +94,8 @@
           <div v-if="analysisResult" class="summary-content">
             <el-progress type="dashboard" :percentage="scorePercent" :color="scoreColor" />
             <div class="summary-meta">
-              <el-tag :type="scoreTagType">{{ scoreLabel }}</el-tag>
-              <el-tag v-if="analysisResult.fallback" type="warning">降级结果</el-tag>
+              <CnStatusTag :type="scoreTagType">{{ scoreLabel }}</CnStatusTag>
+              <CnStatusTag v-if="analysisResult.fallback" type="warning">降级结果</CnStatusTag>
             </div>
             <p class="summary-desc">
               记录ID：{{ currentRecordId || '-' }}
@@ -98,7 +105,7 @@
               <el-button size="small" :disabled="!currentRecordId" @click="exportCurrentCase('markdown')">导出Markdown</el-button>
             </div>
           </div>
-          <el-empty v-else description="尚未分析" :image-size="90" />
+          <CnEmptyState v-else title="尚未分析" description="补全输入后开始分析，结果会显示在这里。" icon="SQL" size="sm" surface="transparent" />
         </el-card>
 
         <el-card class="panel-card" shadow="never">
@@ -176,7 +183,7 @@
                 <el-option value="asc" label="升序" />
               </el-select>
             </div>
-            <el-empty v-if="historyList.length === 0" description="暂无记录" :image-size="84" />
+            <CnEmptyState v-if="historyList.length === 0" title="暂无记录" description="执行分析后会生成工作台案例。" icon="CASE" size="sm" surface="transparent" />
             <div v-else class="history-list">
               <div v-for="item in historyList" :key="item.id" class="history-item">
                 <button
@@ -187,12 +194,12 @@
                   <div class="history-title">#{{ item.id }} · 评分 {{ item.score ?? '-' }}</div>
                   <div class="history-preview">{{ item.originalSqlPreview || '无SQL预览' }}</div>
                   <div class="history-tags">
-                    <el-tag v-if="item.highestSeverity && item.highestSeverity !== 'NONE'" :type="severityTagType(item.highestSeverity)" size="small">
+                    <CnStatusTag v-if="item.highestSeverity && item.highestSeverity !== 'NONE'" :type="severityTagType(item.highestSeverity)" size="sm">
                       {{ item.highestSeverity }}
-                    </el-tag>
-                    <el-tag v-if="item.hasRewrite" size="small" type="success">含重写</el-tag>
-                    <el-tag v-if="item.hasCompare" size="small" type="info">含对比</el-tag>
-                    <el-tag v-if="item.fallback" size="small" type="warning">降级</el-tag>
+                    </CnStatusTag>
+                    <CnStatusTag v-if="item.hasRewrite" size="sm" type="success">含重写</CnStatusTag>
+                    <CnStatusTag v-if="item.hasCompare" size="sm" type="info">含对比</CnStatusTag>
+                    <CnStatusTag v-if="item.fallback" size="sm" type="warning">降级</CnStatusTag>
                   </div>
                   <div class="history-time">{{ item.createTime }}</div>
                 </button>
@@ -227,7 +234,7 @@
         <div class="panel-title">分析结果</div>
       </template>
 
-      <el-empty v-if="!analysisResult" description="请先执行分析" />
+      <CnEmptyState v-if="!analysisResult" title="请先执行分析" description="SQL、EXPLAIN 和表结构补齐后即可生成问题清单与优化建议。" icon="SQL" />
 
       <div v-else>
         <el-alert
@@ -304,7 +311,7 @@
                   </el-button>
                 </div>
               </template>
-              <el-empty v-if="!(rewriteResult.indexDdls || []).length" description="暂无索引DDL建议" :image-size="80" />
+              <CnEmptyState v-if="!(rewriteResult.indexDdls || []).length" title="暂无索引 DDL 建议" icon="DDL" size="sm" surface="transparent" />
               <el-input
                 v-else
                 :model-value="(rewriteResult.indexDdls || []).join('\n')"
@@ -315,7 +322,7 @@
             </el-card>
             <el-card shadow="never" class="rewrite-card">
               <template #header>风险提示</template>
-              <el-empty v-if="!(rewriteResult.riskWarnings || []).length" description="暂无风险提示" :image-size="80" />
+              <CnEmptyState v-if="!(rewriteResult.riskWarnings || []).length" title="暂无风险提示" icon="OK" size="sm" surface="transparent" />
               <ul v-else class="risk-list">
                 <li v-for="(risk, idx) in rewriteResult.riskWarnings" :key="`risk-${idx}`">{{ risk }}</li>
               </ul>
@@ -412,10 +419,10 @@
         placeholder="[{...},{...}]"
       />
       <div class="batch-summary" v-if="batchResult">
-        <el-tag type="info">总数 {{ batchResult.total || 0 }}</el-tag>
-        <el-tag type="success">成功 {{ batchResult.successCount || 0 }}</el-tag>
-        <el-tag type="warning">降级 {{ batchResult.fallbackCount || 0 }}</el-tag>
-        <el-tag type="danger">失败 {{ batchResult.failedCount || 0 }}</el-tag>
+        <CnStatusTag type="info">总数 {{ batchResult.total || 0 }}</CnStatusTag>
+        <CnStatusTag type="success">成功 {{ batchResult.successCount || 0 }}</CnStatusTag>
+        <CnStatusTag type="warning">降级 {{ batchResult.fallbackCount || 0 }}</CnStatusTag>
+        <CnStatusTag type="danger">失败 {{ batchResult.failedCount || 0 }}</CnStatusTag>
       </div>
       <div v-if="batchResult?.items?.length" class="batch-tools">
         <el-select v-model="batchSortMode" class="batch-sort" placeholder="选择排序方式">
@@ -437,7 +444,7 @@
         <el-table-column prop="index" label="#" width="70" />
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.success ? 'success' : 'danger'">{{ row.success ? '成功' : '失败' }}</el-tag>
+            <CnStatusTag :type="row.success ? 'success' : 'danger'" size="sm">{{ row.success ? '成功' : '失败' }}</CnStatusTag>
           </template>
         </el-table-column>
         <el-table-column label="评分" width="100">
@@ -447,17 +454,17 @@
         </el-table-column>
         <el-table-column label="降级" width="90">
           <template #default="{ row }">
-            <el-tag v-if="row.success" :type="row?.result?.fallback ? 'warning' : 'success'" size="small">
+            <CnStatusTag v-if="row.success" :type="row?.result?.fallback ? 'warning' : 'success'" size="sm">
               {{ row?.result?.fallback ? '是' : '否' }}
-            </el-tag>
+            </CnStatusTag>
             <span v-else>-</span>
           </template>
         </el-table-column>
         <el-table-column label="严重级别" width="120">
           <template #default="{ row }">
-            <el-tag v-if="getBatchHighestSeverity(row) !== 'NONE'" :type="severityTagType(getBatchHighestSeverity(row))">
+            <CnStatusTag v-if="getBatchHighestSeverity(row) !== 'NONE'" :type="severityTagType(getBatchHighestSeverity(row))" size="sm">
               {{ getBatchHighestSeverity(row) }}
-            </el-tag>
+            </CnStatusTag>
             <span v-else>-</span>
           </template>
         </el-table-column>
@@ -468,12 +475,13 @@
         <el-button type="primary" :loading="batchLoading" @click="runBatchAnalyze">执行批量分析</el-button>
       </template>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { CnEmptyState, CnPage, CnPageHeader, CnStatusTag } from '@/design-system'
 import { sqlOptimizerApi } from '@/api/sqlOptimizer'
 
 const analyzeLoading = ref(false)
@@ -594,12 +602,12 @@ const scorePercent = computed(() => Number(analysisResult.value?.score || 0))
 const scoreColor = computed(() => {
   const score = scorePercent.value
   if (score >= 80) {
-    return '#17b26a'
+    return 'var(--cn-color-success)'
   }
   if (score >= 60) {
-    return '#f79009'
+    return 'var(--cn-color-warning)'
   }
-  return '#f04438'
+  return 'var(--cn-color-danger)'
 })
 
 const scoreTagType = computed(() => {
@@ -1245,75 +1253,56 @@ onMounted(() => {
 
 <style scoped>
 .sql-workbench-page {
-  min-height: calc(100vh - 120px);
-  padding: 24px;
-  background: linear-gradient(180deg, #f3f8ff 0%, #eef3fb 100%);
-}
-
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-
-.page-header h2 {
-  margin: 0;
-  font-size: 28px;
-  color: #13315c;
-}
-
-.page-header p {
-  margin: 8px 0 0;
-  color: #5f6c88;
-}
-
-.header-actions {
-  display: flex;
-  gap: 10px;
+  min-height: calc(100vh - 68px);
 }
 
 .panel-card {
-  margin-bottom: 18px;
-  border-radius: 16px;
-  border: 1px solid #dbe6f6;
+  margin-bottom: var(--cn-space-5);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-panel);
+  background: var(--cn-color-bg-surface);
+  box-shadow: var(--cn-shadow-card);
 }
 
 .panel-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--cn-space-3);
+  color: var(--cn-color-text-primary);
   font-weight: 700;
-  color: #1b3a66;
 }
 
 .history-header-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--cn-space-1);
 }
 
 .ddl-list {
   width: 100%;
 }
 
+.full-width-control {
+  width: 100%;
+}
+
 .ddl-item {
-  padding: 12px;
-  margin-bottom: 12px;
-  border-radius: 12px;
-  border: 1px solid #dce8f8;
-  background: #f8fbff;
+  padding: var(--cn-space-3);
+  margin-bottom: var(--cn-space-3);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .ddl-table-name {
-  margin-bottom: 10px;
+  margin-bottom: var(--cn-space-3);
 }
 
 .ddl-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 6px;
+  margin-top: var(--cn-space-2);
 }
 
 .summary-card {
@@ -1328,27 +1317,31 @@ onMounted(() => {
 
 .summary-meta {
   display: flex;
-  gap: 8px;
-  margin-top: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--cn-space-2);
+  margin-top: var(--cn-space-2);
 }
 
 .summary-desc {
-  margin-top: 10px;
-  color: #51607f;
+  margin-top: var(--cn-space-3);
+  color: var(--cn-color-text-secondary);
   font-size: 13px;
 }
 
 .summary-actions {
-  margin-top: 8px;
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--cn-space-2);
+  margin-top: var(--cn-space-2);
 }
 
 .history-toolbar {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: var(--cn-space-2);
+  margin-bottom: var(--cn-space-3);
 }
 
 .history-filter {
@@ -1358,21 +1351,24 @@ onMounted(() => {
 .history-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--cn-space-3);
 }
 
 .history-item {
   display: flex;
   align-items: stretch;
-  border: 1px solid #dbe5f6;
-  border-radius: 10px;
-  background: #f7faff;
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-control);
+  background: var(--cn-color-bg-surface-muted);
+  transition:
+    border-color var(--cn-motion-fast) var(--cn-ease-out),
+    background-color var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .history-main {
   flex: 1;
   width: 100%;
-  padding: 10px 12px;
+  padding: var(--cn-space-3);
   text-align: left;
   cursor: pointer;
   border: none;
@@ -1380,42 +1376,43 @@ onMounted(() => {
 }
 
 .history-item:hover {
-  border-color: #3a7afe;
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 36%, var(--cn-color-border-subtle));
+  background: color-mix(in srgb, var(--cn-color-brand-soft) 46%, var(--cn-color-bg-surface));
 }
 
 .history-title {
+  color: var(--cn-color-text-primary);
   font-size: 13px;
   font-weight: 600;
-  color: #1b3a66;
 }
 
 .history-preview {
-  margin-top: 6px;
+  margin-top: var(--cn-space-2);
+  color: var(--cn-color-text-secondary);
   font-size: 12px;
-  color: #51607f;
 }
 
 .history-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
+  gap: var(--cn-space-2);
+  margin-top: var(--cn-space-2);
 }
 
 .history-time {
-  margin-top: 4px;
+  margin-top: var(--cn-space-1);
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
-  color: #667892;
 }
 
 .history-actions {
   display: flex;
   align-items: center;
-  padding-right: 10px;
+  padding-right: var(--cn-space-3);
 }
 
 .history-pagination {
-  margin-top: 12px;
+  margin-top: var(--cn-space-3);
   justify-content: flex-end;
 }
 
@@ -1424,67 +1421,72 @@ onMounted(() => {
 }
 
 .section-title {
-  margin: 18px 0 10px;
-  color: #1b3a66;
+  margin: var(--cn-space-5) 0 var(--cn-space-3);
+  color: var(--cn-color-text-primary);
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .section-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 8px;
+  margin-top: var(--cn-space-2);
 }
 
 .rewrite-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 12px;
+  gap: var(--cn-space-3);
+  margin-top: var(--cn-space-3);
 }
 
 .rewrite-card {
-  border: 1px solid #dbe6f6;
-  border-radius: 12px;
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface);
 }
 
 .rewrite-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--cn-space-3);
 }
 
 .risk-list {
   padding-left: 18px;
   margin: 0;
+  color: var(--cn-color-text-secondary);
 }
 
 .risk-list li {
-  margin-bottom: 6px;
-  color: #42526e;
+  margin-bottom: var(--cn-space-2);
 }
 
 .expected-improve {
-  margin-top: 10px;
+  margin-top: var(--cn-space-3);
   margin-bottom: 0;
-  color: #1f6feb;
+  color: var(--cn-color-brand-primary);
   font-size: 13px;
 }
 
 .batch-textarea {
-  margin-top: 12px;
+  margin-top: var(--cn-space-3);
 }
 
 .batch-summary {
   display: flex;
-  gap: 8px;
-  margin: 12px 0;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
+  margin: var(--cn-space-3) 0;
 }
 
 .batch-tools {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: var(--cn-space-3);
+  margin-bottom: var(--cn-space-3);
 }
 
 .batch-sort {
@@ -1497,49 +1499,40 @@ onMounted(() => {
 }
 
 .compare-result {
-  margin-top: 12px;
+  margin-top: var(--cn-space-3);
 }
 
 .compare-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 10px;
+  gap: var(--cn-space-3);
+  margin-top: var(--cn-space-3);
 }
 
 .metric-item {
-  padding: 10px;
-  border-radius: 10px;
-  border: 1px solid #d8e3f6;
-  background: #f8fbff;
+  padding: var(--cn-space-3);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-control);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .metric-item label {
   display: block;
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
-  color: #6c7b95;
 }
 
 .metric-item strong {
   display: block;
-  margin-top: 4px;
-  color: #1b3a66;
+  margin-top: var(--cn-space-1);
+  color: var(--cn-color-text-primary);
 }
 
 .compare-table {
-  margin-top: 10px;
+  margin-top: var(--cn-space-3);
 }
 
 @media (max-width: 992px) {
-  .sql-workbench-page {
-    padding: 16px;
-  }
-
-  .page-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
   .rewrite-grid {
     grid-template-columns: 1fr;
   }

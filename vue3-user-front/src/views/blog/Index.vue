@@ -1,35 +1,61 @@
 <template>
-  <div class="blog-container">
-    <!-- 博客头部 -->
-    <el-card v-if="blogConfig" class="blog-header">
+  <CnPage class="blog-container" surface="transparent" max-width="1220px">
+    <CnPageHeader
+      title="我的博客"
+      description="管理已发布文章和草稿，维护自己的技术博客主页。"
+      eyebrow="Blog Studio"
+    >
+      <template #meta>
+        <CnStatusTag :type="blogConfig ? 'success' : 'warning'" size="sm">
+          {{ blogConfig ? '已开通' : '未开通' }}
+        </CnStatusTag>
+        <CnStatusTag v-if="blogConfig" type="info" size="sm">
+          文章 {{ blogConfig.totalArticles || 0 }}
+        </CnStatusTag>
+      </template>
+
+      <template #actions>
+        <el-button v-if="blogConfig" plain @click="viewMyBlogHome">查看博客主页</el-button>
+        <el-button v-if="blogConfig" type="primary" @click="handleCreateArticle">写文章</el-button>
+      </template>
+    </CnPageHeader>
+
+    <CnSection v-if="blogConfig" surface="panel" class="blog-profile">
       <div class="header-content">
         <el-avatar :size="80" :src="blogConfig.blogAvatar" />
         <div class="header-info">
           <h2>{{ blogConfig.blogName }}</h2>
           <p class="description">{{ blogConfig.blogDescription }}</p>
           <div class="stats">
-            <span>文章：{{ blogConfig.totalArticles }}</span>
+            <CnStatusTag type="brand" size="sm">文章：{{ blogConfig.totalArticles || 0 }}</CnStatusTag>
           </div>
         </div>
       </div>
-    </el-card>
+    </CnSection>
 
-    <!-- 未开通提示 -->
-    <el-card v-else class="open-blog-card">
-      <el-empty description="您还未开通博客">
+    <CnSection v-else surface="panel" class="open-blog-card">
+      <CnEmptyState
+        title="您还未开通博客"
+        description="开通后即可创建文章、管理草稿，并拥有自己的博客主页。"
+        icon="BL"
+      >
+        <template #actions>
         <el-button type="primary" @click="handleOpenBlog">开通博客（消耗50积分）</el-button>
-      </el-empty>
-    </el-card>
+        </template>
+      </CnEmptyState>
+    </CnSection>
 
-    <!-- 文章列表 -->
-    <el-card v-if="blogConfig" class="article-list mt-3">
-      <div class="list-header">
-        <h3>我的文章</h3>
-        <div class="header-actions">
-          <el-button type="success" @click="viewMyBlogHome">查看博客主页</el-button>
-          <el-button type="primary" @click="handleCreateArticle">写文章</el-button>
-        </div>
-      </div>
+    <CnSection
+      v-if="blogConfig"
+      title="我的文章"
+      :description="listDescription"
+      surface="panel"
+      divided
+      class="article-list"
+    >
+      <template #actions>
+        <CnStatusTag type="neutral" size="sm">第 {{ pageNum }} 页</CnStatusTag>
+      </template>
 
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
         <el-tab-pane label="已发布" name="published">
@@ -37,12 +63,14 @@
             <div v-for="article in articleList" :key="article.id" class="article-item">
               <div class="article-content">
                 <h4 class="article-title" @click="viewArticle(article.id)">
-                  <el-tag v-if="article.isTop === 1" type="warning" size="small">置顶</el-tag>
+                  <CnStatusTag v-if="article.isTop === 1" type="warning" size="sm">置顶</CnStatusTag>
                   {{ article.title }}
                 </h4>
                 <p class="article-summary">{{ article.summary }}</p>
                 <div class="article-meta">
-                  <span>{{ article.categoryName }}</span>
+                  <CnStatusTag v-if="article.categoryName" type="info" size="sm" subtle>
+                    {{ article.categoryName }}
+                  </CnStatusTag>
                   <span>{{ article.publishTime }}</span>
                 </div>
               </div>
@@ -52,7 +80,13 @@
               </div>
             </div>
           </div>
-          <el-empty v-else description="暂无文章" />
+          <CnEmptyState
+            v-else
+            title="暂无文章"
+            description="发布第一篇文章后，会在这里显示。"
+            icon="AR"
+            size="sm"
+          />
         </el-tab-pane>
 
         <el-tab-pane label="草稿箱" name="draft">
@@ -71,7 +105,13 @@
               </div>
             </div>
           </div>
-          <el-empty v-else description="暂无草稿" />
+          <CnEmptyState
+            v-else
+            title="暂无草稿"
+            description="编辑器保存的草稿会显示在这里。"
+            icon="DR"
+            size="sm"
+          />
         </el-tab-pane>
       </el-tabs>
 
@@ -84,15 +124,16 @@
           @current-change="getList"
         />
       </div>
-    </el-card>
-  </div>
+    </CnSection>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatusTag } from '@/design-system'
 import {
   checkBlogStatus,
   getBlogConfig,
@@ -102,21 +143,46 @@ import {
   deleteArticle as deleteArticleApi
 } from '@/api/blog'
 
+interface BlogConfig {
+  blogName?: string
+  blogDescription?: string
+  blogAvatar?: string
+  totalArticles?: number
+}
+
+interface BlogArticle {
+  id: number | string
+  title?: string
+  summary?: string
+  categoryName?: string
+  publishTime?: string
+  createTime?: string
+  isTop?: number
+}
+
 const router = useRouter()
-const blogConfig = ref(null)
-const articleList = ref([])
-const draftList = ref([])
-const activeTab = ref('published')
+const userStore = useUserStore()
+
+const blogConfig = ref<BlogConfig | null>(null)
+const articleList = ref<BlogArticle[]>([])
+const draftList = ref<BlogArticle[]>([])
+const activeTab = ref<'published' | 'draft'>('published')
 const pageNum = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
+
+const listDescription = computed(() => {
+  return activeTab.value === 'published'
+    ? '管理公开发布的博客文章。'
+    : '继续编辑未发布的草稿。'
+})
+
+const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : String(error)
 
 const loadBlogStatus = async () => {
   try {
     const res = await checkBlogStatus()
     if (res.isOpened) {
-      // 使用当前用户信息获取博客配置
-      const userStore = useUserStore()
       const userId = userStore.userInfo?.id
       if (userId) {
         const configRes = await getBlogConfig(userId)
@@ -139,7 +205,7 @@ const handleOpenBlog = async () => {
     loadBlogStatus()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '开通失败')
+      ElMessage.error(getErrorMessage(error) || '开通失败')
     }
   }
 }
@@ -159,7 +225,7 @@ const getList = async () => {
       total.value = res.total || 0
     }
   } catch (error) {
-    ElMessage.error(error.message || '获取列表失败')
+    ElMessage.error(getErrorMessage(error) || '获取列表失败')
   }
 }
 
@@ -180,17 +246,16 @@ const viewMyBlogHome = () => {
   }
 }
 
-const editArticle = (id) => {
+const editArticle = (id: number | string) => {
   router.push(`/blog/editor/${id}`)
 }
 
-const viewArticle = (id) => {
-  const userStore = useUserStore()
+const viewArticle = (id: number | string) => {
   const userId = userStore.userInfo?.id
   router.push(`/blog/${userId}/article/${id}`)
 }
 
-const deleteArticle = async (id) => {
+const deleteArticle = async (id: number | string) => {
   try {
     await ElMessageBox.confirm('确定要删除该文章吗？', '提示', {
       type: 'warning'
@@ -200,7 +265,7 @@ const deleteArticle = async (id) => {
     getList()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '删除失败')
+      ElMessage.error(getErrorMessage(error) || '删除失败')
     }
   }
 }
@@ -212,17 +277,10 @@ onMounted(() => {
 
 <style scoped>
 .blog-container {
-  max-width: 1220px;
-  margin: 0 auto;
-  padding: 10px 12px 20px;
-  display: grid;
-  gap: 14px;
+  min-height: calc(100vh - 68px);
 }
 
-.blog-header {
-  margin-bottom: 0;
-  border: 1px solid #d8e5f8;
-  border-radius: 16px;
+.blog-profile {
   overflow: hidden;
 }
 
@@ -239,57 +297,19 @@ onMounted(() => {
 
 .header-info h2 {
   margin: 0 0 8px;
-  color: var(--cn-text-primary);
+  color: var(--cn-color-text-primary);
   font-size: 24px;
   font-weight: 600;
 }
 
 .description {
-  color: var(--cn-text-secondary);
+  color: var(--cn-color-text-secondary);
   margin: 8px 0;
   line-height: 1.6;
 }
 
-.stats span {
-  display: inline-flex;
-  align-items: center;
-  margin-right: 12px;
-  padding: 2px 12px;
-  border-radius: 999px;
-  background: #edf4ff;
-  color: #1f6feb;
-  font-size: 13px;
-}
-
 .open-blog-card {
   text-align: center;
-  padding: 36px;
-  border: 1px dashed #cddcf2;
-  border-radius: 16px;
-  background: linear-gradient(180deg, #fbfdff 0%, #f5f9ff 100%);
-}
-
-.mt-3 {
-  margin-top: 0;
-}
-
-.list-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 18px;
-  gap: 10px;
-}
-
-.list-header h3 {
-  margin: 0;
-  font-size: 20px;
-  color: var(--cn-text-primary);
-}
-
-.header-actions {
-  display: flex;
-  gap: 10px;
 }
 
 .articles {
@@ -301,9 +321,9 @@ onMounted(() => {
   justify-content: space-between;
   gap: 12px;
   padding: 18px;
-  border-bottom: 1px solid #e8eef8;
-  border-radius: 12px;
-  transition: var(--cn-transition);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  transition: background-color var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .article-item:last-child {
@@ -311,7 +331,7 @@ onMounted(() => {
 }
 
 .article-item:hover {
-  background: #f6faff;
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .article-content {
@@ -322,19 +342,20 @@ onMounted(() => {
 .article-title {
   margin: 0 0 10px;
   cursor: pointer;
-  color: var(--cn-text-primary);
+  color: var(--cn-color-text-primary);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   line-height: 1.45;
 }
 
 .article-title:hover {
-  color: var(--cn-primary);
+  color: var(--cn-color-brand-primary);
 }
 
 .article-summary {
-  color: var(--cn-text-secondary);
+  color: var(--cn-color-text-secondary);
   margin: 8px 0 10px;
   line-height: 1.65;
   display: -webkit-box;
@@ -344,7 +365,7 @@ onMounted(() => {
 }
 
 .article-meta {
-  color: var(--cn-text-tertiary);
+  color: var(--cn-color-text-tertiary);
   font-size: 13px;
   display: flex;
   flex-wrap: wrap;
@@ -359,8 +380,7 @@ onMounted(() => {
 }
 
 .article-list {
-  border: 1px solid #d8e5f8;
-  border-radius: 16px;
+  min-width: 0;
 }
 
 .article-list :deep(.el-tabs__header) {
@@ -397,13 +417,9 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
-  .blog-container {
-    padding: 8px 4px 16px;
-    gap: 12px;
-  }
-
   .header-content {
     flex-direction: column;
+    align-items: flex-start;
   }
 
   .article-item {

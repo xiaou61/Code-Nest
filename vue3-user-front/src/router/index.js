@@ -32,6 +32,15 @@ const routes = [
     }
   },
   {
+    path: '/design-system/components',
+    name: 'DesignSystemComponents',
+    component: () => import('@/views/design-system/Components.vue'),
+    meta: {
+      title: 'Design System 组件验收',
+      requiresAuth: false
+    }
+  },
+  {
     path: '/interview',
     name: 'Interview',
     component: () => import('@/views/interview/Index.vue'),

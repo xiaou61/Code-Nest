@@ -3,6 +3,7 @@ package com.xiaou.sensitive.controller;
 import com.xiaou.common.annotation.RequireAdmin;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.core.domain.ResultCode;
 import com.xiaou.sensitive.domain.SensitiveHomophone;
 import com.xiaou.sensitive.dto.SensitiveHomophoneQuery;
 import com.xiaou.sensitive.service.SensitiveHomophoneService;
@@ -41,7 +42,7 @@ public class SensitiveHomophoneController {
     public Result<SensitiveHomophone> getById(@PathVariable Integer id) {
         SensitiveHomophone homophone = homophoneService.getHomophoneById(id);
         if (homophone == null) {
-            return Result.error("同音字不存在");
+            return Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "同音字不存在");
         }
         return Result.success(homophone);
     }
@@ -53,7 +54,7 @@ public class SensitiveHomophoneController {
     @RequireAdmin
     public Result<Void> add(@RequestBody SensitiveHomophone homophone) {
         boolean success = homophoneService.addHomophone(homophone);
-        return success ? Result.success() : Result.error("新增同音字失败");
+        return success ? Result.success() : Result.error(ResultCode.BUSINESS_ERROR.getCode(), "新增同音字失败");
     }
 
     /**
@@ -63,10 +64,10 @@ public class SensitiveHomophoneController {
     @RequireAdmin
     public Result<Void> batchAdd(@RequestBody List<SensitiveHomophone> homophones) {
         if (homophones == null || homophones.isEmpty()) {
-            return Result.error("同音字列表不能为空");
+            return Result.error(ResultCode.PARAM_VALIDATE_ERROR.getCode(), "同音字列表不能为空");
         }
         boolean success = homophoneService.batchAddHomophones(homophones);
-        return success ? Result.success() : Result.error("批量新增同音字失败");
+        return success ? Result.success() : Result.error(ResultCode.BUSINESS_ERROR.getCode(), "批量新增同音字失败");
     }
 
     /**
@@ -76,10 +77,10 @@ public class SensitiveHomophoneController {
     @RequireAdmin
     public Result<Void> update(@RequestBody SensitiveHomophone homophone) {
         if (homophone.getId() == null) {
-            return Result.error("ID不能为空");
+            return Result.error(ResultCode.PARAM_VALIDATE_ERROR.getCode(), "ID不能为空");
         }
         boolean success = homophoneService.updateHomophone(homophone);
-        return success ? Result.success() : Result.error("更新同音字失败");
+        return success ? Result.success() : Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "同音字不存在");
     }
 
     /**
@@ -89,7 +90,7 @@ public class SensitiveHomophoneController {
     @RequireAdmin
     public Result<Void> delete(@PathVariable Integer id) {
         boolean success = homophoneService.deleteHomophone(id);
-        return success ? Result.success() : Result.error("删除同音字失败");
+        return success ? Result.success() : Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "同音字不存在");
     }
 
     /**

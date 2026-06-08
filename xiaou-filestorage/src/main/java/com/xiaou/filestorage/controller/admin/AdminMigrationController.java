@@ -2,6 +2,7 @@ package com.xiaou.filestorage.controller.admin;
 
 import com.xiaou.common.annotation.RequireAdmin;
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.core.domain.ResultCode;
 import com.xiaou.common.utils.JsonUtils;
 import com.xiaou.filestorage.domain.FileMigration;
 import com.xiaou.filestorage.service.FileMigrationService;
@@ -70,7 +71,7 @@ public class AdminMigrationController {
             if (migration != null) {
                 return Result.success(migration);
             } else {
-                return Result.error("迁移任务不存在");
+                return Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "迁移任务不存在");
             }
         } catch (Exception e) {
             log.error("查询迁移任务失败: {}", e.getMessage(), e);

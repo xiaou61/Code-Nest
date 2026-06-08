@@ -2,6 +2,7 @@ package com.xiaou.filestorage.controller.admin;
 
 import com.xiaou.common.annotation.RequireAdmin;
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.core.domain.ResultCode;
 import com.xiaou.common.utils.JsonUtils;
 import com.xiaou.filestorage.domain.FileInfo;
 import com.xiaou.filestorage.domain.StorageConfig;
@@ -124,7 +125,7 @@ public class AdminFileController {
         try {
             FileInfo fileInfo = fileInfoMapper.selectById(id);
             if (fileInfo == null) {
-                return Result.error("文件不存在");
+                return Result.error(ResultCode.FILE_NOT_EXIST.getCode(), "文件不存在");
             }
 
             // 获取源存储配置

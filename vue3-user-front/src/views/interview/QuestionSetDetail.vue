@@ -1,236 +1,263 @@
 <template>
-  <div class="question-set-detail">
-    <!-- 左侧信息栏 -->
-    <aside class="sidebar" v-loading="loading">
-      <!-- 返回按钮 -->
-      <div class="back-btn" @click="goBack">
-        <el-icon><Back /></el-icon>
-        <span>返回题库</span>
-      </div>
+  <CnPage class="question-set-detail-page" max-width="1440px" full-height>
+    <CnPageHeader
+      :title="questionSet.title || '题单详情'"
+      :description="questionSet.description || '暂无描述'"
+      eyebrow="INTERVIEW SET"
+      :breadcrumbs="[{ label: '面试题库', to: '/interview' }, { label: questionSet.title || '题单详情' }]"
+    >
+      <template #meta>
+        <CnStatusTag :type="questionSet.type === 1 ? 'success' : 'info'" size="sm">
+          {{ questionSet.type === 1 ? '官方题单' : '用户题单' }}
+        </CnStatusTag>
+        <CnStatusTag v-if="questionSet.categoryName" type="warning" size="sm" subtle>
+          {{ questionSet.categoryName }}
+        </CnStatusTag>
+        <CnStatusTag type="brand" size="sm" subtle>{{ questionList.length }} 道题目</CnStatusTag>
+      </template>
 
-      <!-- 题单信息卡片 -->
-      <div class="info-card">
-        <div class="info-header">
-          <el-tag :type="questionSet.type === 1 ? 'success' : 'info'" size="small" effect="dark">
-            {{ questionSet.type === 1 ? '官方题单' : '用户题单' }}
-          </el-tag>
-          <el-tag type="warning" size="small" v-if="questionSet.categoryName">
-            {{ questionSet.categoryName }}
-          </el-tag>
-        </div>
-        <h1 class="set-title">{{ questionSet.title }}</h1>
-        <p class="set-description">{{ questionSet.description || '暂无描述' }}</p>
-      </div>
-
-      <!-- 统计数据 -->
-      <div class="stats-card">
-        <div class="stat-item">
-          <div class="stat-icon questions-icon">
-            <el-icon><Edit /></el-icon>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ questionSet.questionCount || 0 }}</span>
-            <span class="stat-label">题目数量</span>
-          </div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-icon views-icon">
-            <el-icon><View /></el-icon>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ questionSet.viewCount || 0 }}</span>
-            <span class="stat-label">浏览次数</span>
-          </div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-icon favorites-icon">
-            <el-icon><Star /></el-icon>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ questionSet.favoriteCount || 0 }}</span>
-            <span class="stat-label">收藏人数</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 学习进度 -->
-      <div class="progress-card">
-        <div class="progress-header">
-          <span>学习进度</span>
-          <span class="progress-text">{{ learnedCount }}/{{ questionList.length }}</span>
-        </div>
-        <el-progress 
-          :percentage="progressPercent" 
-          :stroke-width="8"
-          :color="progressColor"
-        />
-      </div>
-
-      <!-- 操作按钮 -->
-      <div class="action-buttons">
-        <el-button 
-          type="primary" 
-          size="large"
-          :icon="VideoPlay"
-          @click="startLearning"
-          :disabled="questionList.length === 0"
-          class="start-btn"
-        >
-          开始学习
-        </el-button>
-        <el-button 
-          :type="isFavorited ? 'danger' : 'default'" 
-          size="large"
+      <template #actions>
+        <el-button :icon="Back" @click="goBack">返回题库</el-button>
+        <el-button
+          :type="isFavorited ? 'danger' : 'default'"
           :icon="Star"
-          @click="toggleFavorite"
           :loading="favoriteLoading"
-          class="favorite-btn"
+          @click="toggleFavorite"
         >
           {{ isFavorited ? '取消收藏' : '收藏题单' }}
         </el-button>
-      </div>
-    </aside>
+        <el-button type="primary" :icon="VideoPlay" :disabled="questionList.length === 0" @click="startLearning">
+          开始学习
+        </el-button>
+      </template>
+    </CnPageHeader>
 
-    <!-- 右侧题目列表 -->
-    <main class="main-content">
-      <!-- 列表头部 -->
-      <div class="list-header">
-        <div class="header-left">
-          <h2 class="list-title">题目列表</h2>
-          <span class="question-badge">{{ questionList.length }} 道题目</span>
-        </div>
-        <div class="header-right">
-          <el-input 
-            v-model="searchKeyword" 
-            placeholder="搜索题目..." 
-            clearable
-            style="width: 200px"
-          >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
-            </template>
-          </el-input>
-        </div>
-      </div>
+    <section class="set-summary-grid" aria-label="题单概览">
+      <CnStatCard
+        title="题目数量"
+        :value="questionSet.questionCount || questionList.length || 0"
+        unit="题"
+        description="当前题单收录的面试题"
+        tone="brand"
+        trend="flat"
+        :loading="loading"
+        trend-text="题单"
+      />
+      <CnStatCard
+        title="浏览次数"
+        :value="questionSet.viewCount || 0"
+        description="题单累计访问量"
+        tone="info"
+        trend="flat"
+        :loading="loading"
+        trend-text="热度"
+      />
+      <CnStatCard
+        title="收藏人数"
+        :value="questionSet.favoriteCount || 0"
+        description="收藏该题单的用户数量"
+        tone="warning"
+        trend="flat"
+        :loading="loading"
+        trend-text="收藏"
+      />
+      <CnStatCard
+        title="学习进度"
+        :value="`${learnedCount}/${questionList.length}`"
+        description="根据已学习题目统计"
+        tone="success"
+        trend="flat"
+        :loading="questionsLoading"
+        trend-text="进度"
+      />
+    </section>
 
-      <!-- 题目列表 -->
-      <div v-loading="questionsLoading" class="questions-list">
-        <div 
-          v-for="(question, index) in filteredQuestions" 
-          :key="question.id"
-          class="question-item"
-          @click="goToQuestion(question)"
-        >
-          <div class="question-index" :class="getIndexClass(index)">
-            {{ index + 1 }}
+    <div class="detail-layout">
+      <aside class="set-sidebar">
+        <CnSection title="学习进度" description="从第一题开始学习，或直接进入列表中的任意题目。" divided compact>
+          <div class="progress-panel">
+            <div class="progress-header">
+              <span>完成度</span>
+              <strong>{{ progressPercent }}%</strong>
+            </div>
+            <el-progress :percentage="progressPercent" :stroke-width="10" :color="progressColor" />
+            <p class="progress-copy">已学习 {{ learnedCount }} 道，剩余 {{ remainingCount }} 道。</p>
           </div>
-          <div class="question-content">
-            <h4 class="question-title">{{ question.title }}</h4>
-            <div class="question-meta">
-              <span class="meta-item">
-                <el-icon><View /></el-icon>
-                {{ question.viewCount || 0 }}
-              </span>
-              <span class="meta-item">
-                <el-icon><Star /></el-icon>
-                {{ question.favoriteCount || 0 }}
-              </span>
-              <span class="meta-item time">
-                <el-icon><Clock /></el-icon>
-                {{ formatDate(question.createTime) }}
-              </span>
+
+          <div class="sidebar-actions">
+            <el-button type="primary" :icon="VideoPlay" :disabled="questionList.length === 0" @click="startLearning">
+              开始学习
+            </el-button>
+            <el-button :icon="Star" :loading="favoriteLoading" @click="toggleFavorite">
+              {{ isFavorited ? '取消收藏' : '收藏题单' }}
+            </el-button>
+          </div>
+        </CnSection>
+
+        <CnSection title="题单信息" surface="plain" compact>
+          <div class="set-info-list">
+            <div class="info-row">
+              <span>题单类型</span>
+              <strong>{{ questionSet.type === 1 ? '官方题单' : '用户题单' }}</strong>
+            </div>
+            <div class="info-row">
+              <span>分类</span>
+              <strong>{{ questionSet.categoryName || '未分类' }}</strong>
+            </div>
+            <div class="info-row">
+              <span>题目数量</span>
+              <strong>{{ questionSet.questionCount || questionList.length || 0 }}</strong>
             </div>
           </div>
-          <div class="question-status">
-            <el-tag v-if="isLearned(question.id)" type="success" size="small" effect="plain">
-              <el-icon><Check /></el-icon>
-              已学习
-            </el-tag>
-          </div>
-          <div class="question-action">
-            <el-icon><ArrowRight /></el-icon>
-          </div>
-        </div>
-      </div>
+        </CnSection>
+      </aside>
 
-      <!-- 空状态 -->
-      <el-empty 
-        v-if="!questionsLoading && filteredQuestions.length === 0" 
-        :description="searchKeyword ? '未找到匹配的题目' : '该题单暂无题目'"
-        :image-size="120"
-      />
-    </main>
-  </div>
+      <main class="questions-main">
+        <CnSection title="题目列表" :description="questionListDescription" divided>
+          <template #actions>
+            <el-input v-model="searchKeyword" class="search-input" placeholder="搜索题目" clearable>
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+            </el-input>
+          </template>
+
+          <div v-loading="questionsLoading" class="questions-list">
+            <button
+              v-for="(question, index) in filteredQuestions"
+              :key="question.id"
+              class="question-item"
+              type="button"
+              @click="goToQuestion(question)"
+            >
+              <span class="question-index" :class="getIndexClass(index)">{{ index + 1 }}</span>
+
+              <span class="question-content">
+                <span class="question-title">{{ question.title }}</span>
+                <span class="question-meta">
+                  <span>
+                    <el-icon><View /></el-icon>
+                    {{ question.viewCount || 0 }} 浏览
+                  </span>
+                  <span>
+                    <el-icon><Star /></el-icon>
+                    {{ question.favoriteCount || 0 }} 收藏
+                  </span>
+                  <span>
+                    <el-icon><Clock /></el-icon>
+                    {{ formatDate(question.createTime) }}
+                  </span>
+                </span>
+              </span>
+
+              <CnStatusTag v-if="isLearned(question.id)" type="success" size="sm" subtle>
+                已学习
+              </CnStatusTag>
+              <el-icon class="question-arrow"><ArrowRight /></el-icon>
+            </button>
+
+            <CnEmptyState
+              v-if="!questionsLoading && filteredQuestions.length === 0"
+              :title="searchKeyword ? '未找到匹配的题目' : '该题单暂无题目'"
+              description="可以返回题库选择其他题单，或调整搜索关键词。"
+              icon="QS"
+              surface="transparent"
+            >
+              <template #actions>
+                <el-button v-if="searchKeyword" @click="searchKeyword = ''">清空搜索</el-button>
+                <el-button type="primary" @click="goBack">返回题库</el-button>
+              </template>
+            </CnEmptyState>
+          </div>
+        </CnSection>
+      </main>
+    </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, computed, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { 
-  Back, Edit, View, Star, VideoPlay, ArrowRight, Search, Clock, Check
-} from '@element-plus/icons-vue'
+import { ArrowRight, Back, Clock, Search, Star, VideoPlay, View } from '@element-plus/icons-vue'
+import { CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
 import { interviewApi } from '@/api/interview'
+
+interface QuestionSet {
+  id?: number
+  title?: string
+  description?: string
+  type?: number
+  categoryName?: string
+  questionCount?: number
+  viewCount?: number
+  favoriteCount?: number
+}
+
+interface QuestionItem {
+  id: number
+  title: string
+  viewCount?: number
+  favoriteCount?: number
+  createTime?: string
+}
+
+interface LearnProgress {
+  learnedQuestionIds?: number[]
+}
 
 const route = useRoute()
 const router = useRouter()
 
-// 响应式数据
 const loading = ref(false)
 const questionsLoading = ref(false)
 const favoriteLoading = ref(false)
-const questionSet = ref({})
-const questionList = ref([])
+const questionSet = ref<QuestionSet>({})
+const questionList = ref<QuestionItem[]>([])
 const isFavorited = ref(false)
 const searchKeyword = ref('')
-const learnedQuestionIds = ref([]) // 已学习的题目ID列表
+const learnedQuestionIds = ref<number[]>([])
 
-// 获取题单ID
-const questionSetId = ref(parseInt(route.params.id))
+const questionSetId = ref(Number.parseInt(String(route.params.id), 10))
 
-// 计算已学习数量
 const learnedCount = computed(() => learnedQuestionIds.value.length)
 
-// 计算属性 - 搜索过滤
+const remainingCount = computed(() => Math.max(questionList.value.length - learnedCount.value, 0))
+
 const filteredQuestions = computed(() => {
-  if (!searchKeyword.value) return questionList.value
-  const keyword = searchKeyword.value.toLowerCase()
-  return questionList.value.filter(q => 
-    q.title.toLowerCase().includes(keyword)
-  )
+  const keyword = searchKeyword.value.trim().toLowerCase()
+  if (!keyword) return questionList.value
+  return questionList.value.filter((question) => question.title.toLowerCase().includes(keyword))
 })
 
-// 计算进度百分比
 const progressPercent = computed(() => {
   if (questionList.value.length === 0) return 0
   return Math.round((learnedCount.value / questionList.value.length) * 100)
 })
 
-// 进度条颜色
 const progressColor = computed(() => {
-  if (progressPercent.value < 30) return '#909399'
-  if (progressPercent.value < 70) return '#409eff'
-  return '#67c23a'
+  if (progressPercent.value < 30) return 'var(--cn-color-text-tertiary)'
+  if (progressPercent.value < 70) return 'var(--cn-color-brand-primary)'
+  return 'var(--cn-color-success)'
 })
 
-// 获取序号样式
-const getIndexClass = (index) => {
+const questionListDescription = computed(() => {
+  if (searchKeyword.value) return `当前搜索命中 ${filteredQuestions.value.length} 道题目。`
+  return `共 ${questionList.value.length} 道题目，点击任意题目进入学习。`
+})
+
+const getIndexClass = (index: number) => {
   if (index < 3) return `top-${index + 1}`
   return ''
 }
 
-// 判断题目是否已学习
-const isLearned = (questionId) => {
-  return learnedQuestionIds.value.includes(questionId)
-}
+const isLearned = (questionId: number) => learnedQuestionIds.value.includes(questionId)
 
-// 格式化日期
-const formatDate = (dateStr) => {
+const formatDate = (dateStr?: string) => {
   if (!dateStr) return ''
   return new Date(dateStr).toLocaleDateString('zh-CN')
 }
 
-// 获取题单详情
 const fetchQuestionSet = async () => {
   loading.value = true
   try {
@@ -244,7 +271,6 @@ const fetchQuestionSet = async () => {
   }
 }
 
-// 获取题目列表
 const fetchQuestions = async () => {
   questionsLoading.value = true
   try {
@@ -258,17 +284,15 @@ const fetchQuestions = async () => {
   }
 }
 
-// 检查收藏状态
 const checkFavoriteStatus = async () => {
   try {
-    const favorited = await interviewApi.isFavorited(2, questionSetId.value) // 2表示题单类型
-    isFavorited.value = favorited || false
+    const favorited = await interviewApi.isFavorited(2, questionSetId.value)
+    isFavorited.value = Boolean(favorited)
   } catch (error) {
     console.error('检查收藏状态失败:', error)
   }
 }
 
-// 切换收藏状态
 const toggleFavorite = async () => {
   favoriteLoading.value = true
   try {
@@ -289,7 +313,6 @@ const toggleFavorite = async () => {
   }
 }
 
-// 开始学习（跳转到第一题）
 const startLearning = () => {
   if (questionList.value.length === 0) {
     ElMessage.warning('该题单暂无题目')
@@ -299,27 +322,23 @@ const startLearning = () => {
   router.push(`/interview/questions/${questionSetId.value}/${firstQuestion.id}`)
 }
 
-// 跳转到指定题目
-const goToQuestion = (question) => {
+const goToQuestion = (question: QuestionItem) => {
   router.push(`/interview/questions/${questionSetId.value}/${question.id}`)
 }
 
-// 返回题库
 const goBack = () => {
   router.push('/interview')
 }
 
-// 获取学习进度
 const fetchLearnProgress = async () => {
   try {
-    const data = await interviewApi.getLearnProgress(questionSetId.value)
+    const data = (await interviewApi.getLearnProgress(questionSetId.value)) as LearnProgress
     learnedQuestionIds.value = data?.learnedQuestionIds || []
   } catch (error) {
     console.debug('获取学习进度失败:', error)
   }
 }
 
-// 页面挂载
 onMounted(() => {
   fetchQuestionSet()
   fetchQuestions()
@@ -329,458 +348,233 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 整体布局 */
-.question-set-detail {
-  display: flex;
-  gap: 24px;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f8f7ff 0%, #f0eeff 50%, #f5f0ff 100%);
-  padding: 24px;
+.question-set-detail-page {
+  min-width: 0;
 }
 
-/* ========== 左侧边栏 ========== */
-.sidebar {
-  width: 300px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.set-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
+}
+
+.detail-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: var(--cn-space-5);
+  align-items: start;
+}
+
+.set-sidebar {
   position: sticky;
-  top: 24px;
-  height: fit-content;
-  max-height: calc(100vh - 48px);
-  overflow-y: auto;
+  top: var(--cn-space-5);
+  display: grid;
+  gap: var(--cn-space-4);
+  min-width: 0;
 }
 
-/* 返回按钮 */
-.back-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  background: white;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 14px;
-  color: #606266;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-}
-
-.back-btn:hover {
-  color: #6c63ff;
-  transform: translateX(-4px);
-}
-
-/* 信息卡片 */
-.info-card {
-  background: white;
-  border-radius: 14px;
-  padding: 20px;
-  box-shadow: 0 2px 12px rgba(108, 99, 255, 0.06);
-  border: 1px solid rgba(108, 99, 255, 0.06);
-}
-
-.info-header {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.set-title {
-  margin: 0 0 12px 0;
-  font-size: 20px;
-  font-weight: 700;
-  color: #303133;
-  line-height: 1.4;
-}
-
-.set-description {
-  margin: 0;
-  font-size: 14px;
-  color: #909399;
-  line-height: 1.6;
-}
-
-/* 统计卡片 */
-.stats-card {
-  background: white;
-  border-radius: 14px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  box-shadow: 0 2px 12px rgba(108, 99, 255, 0.06);
-  border: 1px solid rgba(108, 99, 255, 0.06);
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.stat-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-}
-
-.questions-icon {
-  background: linear-gradient(135deg, #f0edff 0%, #e8e4ff 100%);
-  color: #6c63ff;
-}
-
-.views-icon {
-  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-  color: #10b981;
-}
-
-.favorites-icon {
-  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
-  color: #f59e0b;
-}
-
-.stat-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.stat-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: #303133;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: #909399;
-}
-
-/* 进度卡片 */
-.progress-card {
-  background: white;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+.progress-panel {
+  display: grid;
+  gap: var(--cn-space-3);
 }
 
 .progress-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #303133;
+  justify-content: space-between;
+  gap: var(--cn-space-3);
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+  font-weight: 650;
 }
 
-.progress-text {
-  background: linear-gradient(135deg, #6c63ff, #ec4899);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-weight: 700;
+.progress-header strong {
+  color: var(--cn-color-brand-primary);
+  font-family: var(--cn-font-heading);
+  font-size: 20px;
 }
 
-/* 操作按钮 */
-.action-buttons {
+.progress-copy {
+  margin: 0;
+  color: var(--cn-color-text-tertiary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.sidebar-actions {
+  display: grid;
+  gap: var(--cn-space-2);
+  margin-top: var(--cn-space-4);
+}
+
+.set-info-list {
+  display: grid;
+  gap: var(--cn-space-3);
+}
+
+.info-row {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cn-space-3);
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
 }
 
-.start-btn {
-  width: 100%;
-  height: 48px;
-  font-size: 16px;
-  font-weight: 600;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #6c63ff 0%, #4f46e5 100%);
-  border: none;
+.info-row strong {
+  color: var(--cn-color-text-primary);
+  font-weight: 650;
+  text-align: right;
 }
 
-.start-btn:hover {
-  background: linear-gradient(135deg, #4f46e5 0%, #6c63ff 100%);
-}
-
-.favorite-btn {
-  width: 100%;
-  height: 44px;
-  border-radius: 12px;
-}
-
-/* ========== 右侧主内容 ========== */
-.main-content {
-  flex: 1;
+.questions-main {
   min-width: 0;
 }
 
-.list-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: white;
-  padding: 16px 20px;
-  border-radius: 14px;
-  margin-bottom: 16px;
-  box-shadow: 0 2px 12px rgba(108, 99, 255, 0.06);
-  border: 1px solid rgba(108, 99, 255, 0.06);
+.search-input {
+  width: 240px;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.list-title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.question-badge {
-  background: linear-gradient(135deg, #6c63ff 0%, #8b5cf6 100%);
-  color: white;
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-}
-
-/* 题目列表 */
 .questions-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  gap: var(--cn-space-3);
+  min-height: 220px;
 }
 
 .question-item {
   display: flex;
   align-items: center;
-  padding: 16px 20px;
-  background: white;
-  border-radius: 14px;
+  gap: var(--cn-space-3);
+  width: 100%;
+  min-width: 0;
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-card-border);
+  border-radius: var(--cn-card-radius);
+  background: var(--cn-card-bg);
+  box-shadow: var(--cn-card-shadow);
+  color: inherit;
   cursor: pointer;
-  transition: all 0.3s;
-  border: 2px solid transparent;
-  box-shadow: 0 2px 12px rgba(108, 99, 255, 0.04);
+  text-align: left;
+  transition:
+    transform var(--cn-motion-base) var(--cn-ease-out),
+    border-color var(--cn-motion-base) var(--cn-ease-out),
+    box-shadow var(--cn-motion-base) var(--cn-ease-out);
 }
 
 .question-item:hover {
-  border-color: rgba(108, 99, 255, 0.3);
-  transform: translateX(8px);
-  box-shadow: 0 8px 24px rgba(108, 99, 255, 0.12);
-}
-
-.question-item:hover .question-action {
-  color: #6c63ff;
-}
-
-.question-item:hover .action-text {
-  opacity: 1;
-  transform: translateX(0);
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 36%, var(--cn-color-border-subtle));
+  box-shadow: var(--cn-shadow-sm);
+  transform: translateX(4px);
 }
 
 .question-index {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: #f0f2f5;
-  color: #606266;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
+  color: var(--cn-color-text-secondary);
   font-size: 14px;
-  margin-right: 16px;
+  font-weight: 800;
   flex-shrink: 0;
 }
 
 .question-index.top-1 {
-  background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
-  color: white;
+  background: var(--cn-color-warning-soft);
+  color: var(--cn-color-warning);
 }
 
 .question-index.top-2 {
-  background: linear-gradient(135deg, #c0c0c0 0%, #a8a8a8 100%);
-  color: white;
+  background: var(--cn-color-info-soft);
+  color: var(--cn-color-info);
 }
 
 .question-index.top-3 {
-  background: linear-gradient(135deg, #cd7f32 0%, #b87333 100%);
-  color: white;
+  background: var(--cn-color-success-soft);
+  color: var(--cn-color-success);
 }
 
 .question-content {
+  display: grid;
   flex: 1;
+  gap: var(--cn-space-2);
   min-width: 0;
 }
 
 .question-title {
-  margin: 0 0 8px 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: #303133;
-  line-height: 1.4;
-  white-space: nowrap;
   overflow: hidden;
+  color: var(--cn-color-text-primary);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.45;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .question-meta {
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: var(--cn-space-3);
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
 }
 
-.question-meta .meta-item {
-  display: flex;
+.question-meta span {
+  display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
-  color: #909399;
 }
 
-.question-meta .meta-item.time {
-  color: #c0c4cc;
+.question-meta .el-icon {
+  color: var(--cn-color-brand-primary);
 }
 
-.question-status {
-  margin-right: 12px;
+.question-arrow {
+  color: var(--cn-color-text-tertiary);
   flex-shrink: 0;
+  transition:
+    color var(--cn-motion-fast) var(--cn-ease-out),
+    transform var(--cn-motion-fast) var(--cn-ease-out);
 }
 
-.question-status .el-tag {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.question-item:hover .question-arrow {
+  color: var(--cn-color-brand-primary);
+  transform: translateX(2px);
 }
 
-.question-action {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: #c0c4cc;
-  font-size: 14px;
-  transition: all 0.3s;
+@media (max-width: 1180px) {
+  .set-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .detail-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .set-sidebar {
+    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-.action-text {
-  font-size: 12px;
-  opacity: 0;
-  transform: translateX(-10px);
-  transition: all 0.3s;
-}
+@media (max-width: 768px) {
+  .set-summary-grid,
+  .set-sidebar {
+    grid-template-columns: minmax(0, 1fr);
+  }
 
-/* ========== 响应式 ========== */
-@media (max-width: 1024px) {
-  .question-set-detail {
-    flex-direction: column;
-    padding: 16px;
-  }
-  
-  .sidebar {
-    width: 100%;
-    position: relative;
-    top: 0;
-    max-height: none;
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-  
-  .back-btn {
-    width: auto;
-  }
-  
-  .info-card {
-    flex: 1;
-    min-width: 200px;
-  }
-  
-  .stats-card {
-    flex-direction: row;
-    flex: 1;
-    min-width: 200px;
-  }
-  
-  .stat-item {
-    flex: 1;
-  }
-  
-  .progress-card {
-    flex: 1;
-    min-width: 200px;
-  }
-  
-  .action-buttons {
-    flex-direction: row;
+  .search-input {
     width: 100%;
   }
-  
-  .start-btn, .favorite-btn {
-    flex: 1;
-  }
-}
 
-@media (max-width: 640px) {
-  .question-set-detail {
-    padding: 12px;
-    gap: 12px;
-  }
-  
-  .sidebar {
-    flex-direction: column;
-  }
-  
-  .stats-card {
-    flex-direction: column;
-  }
-  
-  .action-buttons {
-    flex-direction: column;
-  }
-  
-  .list-header {
-    flex-direction: column;
-    gap: 12px;
+  .question-item {
     align-items: flex-start;
   }
-  
-  .header-right {
-    width: 100%;
-  }
-  
-  .header-right .el-input {
-    width: 100% !important;
-  }
-  
-  .question-item {
-    padding: 12px 16px;
-  }
-  
-  .question-index {
-    width: 32px;
-    height: 32px;
-    font-size: 12px;
-    margin-right: 12px;
-  }
-  
+
   .question-title {
-    font-size: 14px;
-  }
-  
-  .question-meta {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  
-  .action-text {
-    display: none;
+    white-space: normal;
   }
 }
 </style>

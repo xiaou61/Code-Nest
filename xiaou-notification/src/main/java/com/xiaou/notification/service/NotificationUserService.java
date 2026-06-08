@@ -37,7 +37,12 @@ public class NotificationUserService {
         return PageHelper.doPage(request.getPageNum(), request.getPageSize(), () -> {
             // 直接调用Mapper，让PageHelper拦截SQL，使用新的支持阅读记录的方法
             return notificationMapper.selectByUserIdWithReadRecord(
-                userId, request.getStatus(), request.getType()
+                userId,
+                request.getStatus(),
+                request.getType(),
+                request.getTitle(),
+                request.getStartTime(),
+                request.getEndTime()
             );
         });
     }

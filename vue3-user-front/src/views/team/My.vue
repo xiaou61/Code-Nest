@@ -1,25 +1,24 @@
 <template>
-  <div class="my-team-container">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-content">
-        <h1>📁 我的小组</h1>
-        <p class="header-subtitle">管理你的学习小组</p>
-      </div>
-      <div class="header-actions">
-        <el-button type="primary" @click="goToCreate">
-          <el-icon><Plus /></el-icon>
-          创建小组
-        </el-button>
-        <el-button @click="goToSquare">
-          <el-icon><Search /></el-icon>
-          发现小组
-        </el-button>
-      </div>
-    </div>
+  <CnPage class="my-team-container" surface="transparent" max-width="1180px">
+    <CnPageHeader
+      title="我的小组"
+      description="管理已加入的小组、自己创建的小组，以及小组申请记录。"
+      eyebrow="Learning Teams"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">已加入 {{ joinedCount }}</CnStatusTag>
+        <CnStatusTag type="success" size="sm">我创建的 {{ createdCount }}</CnStatusTag>
+        <CnStatusTag v-if="pendingCount" type="warning" size="sm">待处理 {{ pendingCount }}</CnStatusTag>
+      </template>
 
-    <!-- Tab切换 -->
-    <div class="tab-container">
+      <template #actions>
+        <el-button type="primary" :icon="Plus" @click="goToCreate">创建小组</el-button>
+        <el-button plain :icon="Search" @click="goToSquare">发现小组</el-button>
+      </template>
+    </CnPageHeader>
+
+    <CnSection surface="panel" class="tab-container">
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
         <el-tab-pane label="已加入" name="joined">
           <template #label>
@@ -49,10 +48,16 @@
           </template>
         </el-tab-pane>
       </el-tabs>
-    </div>
+    </CnSection>
 
     <!-- 内容区域 -->
-    <div class="content-area">
+    <CnSection
+      :title="sectionTitle"
+      :description="sectionDescription"
+      surface="panel"
+      divided
+      class="content-area"
+    >
       <!-- 已加入小组列表 -->
       <div v-if="activeTab === 'joined'" v-loading="loadingJoined" class="team-list">
         <TeamCard 
@@ -61,11 +66,17 @@
           :team="team"
           @refresh="loadJoinedTeams"
         />
-        <div v-if="!loadingJoined && joinedList.length === 0" class="empty-state">
-          <div class="empty-icon">📋</div>
-          <p>还没有加入任何小组</p>
-          <el-button type="primary" @click="goToSquare">去发现小组</el-button>
-        </div>
+        <CnEmptyState
+          v-if="!loadingJoined && joinedList.length === 0"
+          title="还没有加入任何小组"
+          description="去发现广场看看适合自己的学习小组。"
+          icon="TM"
+          size="sm"
+        >
+          <template #actions>
+            <el-button type="primary" @click="goToSquare">去发现小组</el-button>
+          </template>
+        </CnEmptyState>
       </div>
 
       <!-- 我创建的小组列表 -->
@@ -84,7 +95,9 @@
             <el-button size="small" @click="viewApplications(team)">
               <el-icon><Document /></el-icon>
               审批申请
-              <span v-if="team.pendingApplications" class="badge">{{ team.pendingApplications }}</span>
+              <CnStatusTag v-if="team.pendingApplications" type="danger" size="sm">
+                {{ team.pendingApplications }}
+              </CnStatusTag>
             </el-button>
             <el-button size="small" @click="viewInviteCode(team)">
               <el-icon><Share /></el-icon>
@@ -96,11 +109,17 @@
             </el-button>
           </div>
         </div>
-        <div v-if="!loadingCreated && createdList.length === 0" class="empty-state">
-          <div class="empty-icon">✨</div>
-          <p>还没有创建过小组</p>
-          <el-button type="primary" @click="goToCreate">创建第一个小组</el-button>
-        </div>
+        <CnEmptyState
+          v-if="!loadingCreated && createdList.length === 0"
+          title="还没有创建过小组"
+          description="创建一个学习小组，邀请同伴一起推进目标。"
+          icon="CT"
+          size="sm"
+        >
+          <template #actions>
+            <el-button type="primary" @click="goToCreate">创建第一个小组</el-button>
+          </template>
+        </CnEmptyState>
       </div>
 
       <!-- 申请记录列表 -->
@@ -126,9 +145,9 @@
             {{ app.applyReason }}
           </div>
           <div class="app-status">
-            <span class="status-badge" :class="getStatusClass(app.status)">
+            <CnStatusTag :type="getStatusType(app.status)" size="sm">
               {{ getStatusText(app.status) }}
-            </span>
+            </CnStatusTag>
             <span v-if="app.status === 2" class="reject-reason">
               拒绝原因：{{ app.rejectReason || '无' }}
             </span>
@@ -137,12 +156,15 @@
             <el-button size="small" @click="cancelApplication(app)">取消申请</el-button>
           </div>
         </div>
-        <div v-if="!loadingApplications && applicationList.length === 0" class="empty-state">
-          <div class="empty-icon">📝</div>
-          <p>暂无申请记录</p>
-        </div>
+        <CnEmptyState
+          v-if="!loadingApplications && applicationList.length === 0"
+          title="暂无申请记录"
+          description="申请加入小组后，审核状态会在这里显示。"
+          icon="AP"
+          size="sm"
+        />
       </div>
-    </div>
+    </CnSection>
 
     <!-- 邀请码弹窗 -->
     <el-dialog v-model="showInviteDialog" title="邀请码" width="400px">
@@ -199,10 +221,10 @@
         </div>
       </div>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -210,24 +232,45 @@ import {
   Plus, Search, User, Star, Document, Edit, Share, Delete,
   DocumentCopy, Refresh 
 } from '@element-plus/icons-vue'
+import { CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatusTag } from '@/design-system'
+import type { CnTone } from '@/design-system'
 import teamApi from '@/api/team'
 import TeamCard from './components/TeamCard.vue'
+
+interface TeamRecord {
+  id: number | string
+  teamName?: string
+  teamAvatar?: string
+  pendingApplications?: number
+}
+
+interface ApplicationRecord {
+  id: number | string
+  teamId: number | string
+  teamName?: string
+  teamAvatar?: string
+  userName?: string
+  applyReason?: string
+  rejectReason?: string
+  createTime?: string
+  status: number
+}
 
 const router = useRouter()
 
 // Tab状态
-const activeTab = ref('joined')
+const activeTab = ref<'joined' | 'created' | 'applications'>('joined')
 
 // 已加入小组
-const joinedList = ref([])
+const joinedList = ref<TeamRecord[]>([])
 const loadingJoined = ref(false)
 
 // 我创建的小组
-const createdList = ref([])
+const createdList = ref<TeamRecord[]>([])
 const loadingCreated = ref(false)
 
 // 申请记录
-const applicationList = ref([])
+const applicationList = ref<ApplicationRecord[]>([])
 const loadingApplications = ref(false)
 
 // 统计数量
@@ -237,14 +280,38 @@ const pendingCount = computed(() => applicationList.value.filter(a => a.status =
 
 // 邀请码弹窗
 const showInviteDialog = ref(false)
-const currentTeam = ref(null)
+const currentTeam = ref<TeamRecord | null>(null)
 const inviteCode = ref('')
 const refreshingCode = ref(false)
 
 // 审批弹窗
 const showAppDialog = ref(false)
-const teamApplications = ref([])
+const teamApplications = ref<ApplicationRecord[]>([])
 const loadingTeamApps = ref(false)
+
+const breadcrumbs = [
+  { label: '首页', to: '/' },
+  { label: '学习小组', to: '/team' },
+  { label: '我的小组' }
+]
+
+const sectionTitle = computed(() => {
+  const titleMap = {
+    joined: '已加入小组',
+    created: '我创建的小组',
+    applications: '申请记录'
+  }
+  return titleMap[activeTab.value]
+})
+
+const sectionDescription = computed(() => {
+  const descMap = {
+    joined: '查看自己当前参与的学习小组。',
+    created: '管理自己创建的小组、邀请码和待审批申请。',
+    applications: '查看加入申请的审核状态。'
+  }
+  return descMap[activeTab.value]
+})
 
 // 页面初始化
 onMounted(() => {
@@ -254,7 +321,7 @@ onMounted(() => {
 })
 
 // Tab切换
-const handleTabChange = (tab) => {
+const handleTabChange = (tab: string | number) => {
   if (tab === 'joined' && joinedList.value.length === 0) {
     loadJoinedTeams()
   } else if (tab === 'created' && createdList.value.length === 0) {
@@ -304,7 +371,7 @@ const loadMyApplications = async () => {
 }
 
 // 查看邀请码
-const viewInviteCode = async (team) => {
+const viewInviteCode = async (team: TeamRecord) => {
   currentTeam.value = team
   showInviteDialog.value = true
   try {
@@ -317,6 +384,7 @@ const viewInviteCode = async (team) => {
 
 // 刷新邀请码
 const refreshInviteCode = async () => {
+  if (!currentTeam.value) return
   refreshingCode.value = true
   try {
     const code = await teamApi.refreshInviteCode(currentTeam.value.id)
@@ -336,13 +404,13 @@ const copyInviteCode = () => {
 }
 
 // 查看待审批申请
-const viewApplications = async (team) => {
+const viewApplications = async (team: TeamRecord) => {
   currentTeam.value = team
   showAppDialog.value = true
   loadingTeamApps.value = true
   try {
     const response = await teamApi.getApplicationList(team.id)
-    teamApplications.value = (response || []).filter(a => a.status === 0)
+    teamApplications.value = (response || []).filter((a: ApplicationRecord) => a.status === 0)
   } catch (error) {
     console.error('获取申请列表失败:', error)
   } finally {
@@ -351,11 +419,12 @@ const viewApplications = async (team) => {
 }
 
 // 通过申请
-const approveApp = async (app) => {
+const approveApp = async (app: ApplicationRecord) => {
+  if (!currentTeam.value) return
   try {
     await teamApi.approveApplication(currentTeam.value.id, app.id)
     ElMessage.success('已通过')
-    teamApplications.value = teamApplications.value.filter(a => a.id !== app.id)
+    teamApplications.value = teamApplications.value.filter((a) => a.id !== app.id)
     loadCreatedTeams()
   } catch (error) {
     console.error('审批失败:', error)
@@ -363,7 +432,8 @@ const approveApp = async (app) => {
 }
 
 // 拒绝申请
-const rejectApp = async (app) => {
+const rejectApp = async (app: ApplicationRecord) => {
+  if (!currentTeam.value) return
   try {
     const { value: reason } = await ElMessageBox.prompt('请输入拒绝原因（可选）', '拒绝申请', {
       confirmButtonText: '确定',
@@ -372,7 +442,7 @@ const rejectApp = async (app) => {
     })
     await teamApi.rejectApplication(currentTeam.value.id, app.id, reason)
     ElMessage.success('已拒绝')
-    teamApplications.value = teamApplications.value.filter(a => a.id !== app.id)
+    teamApplications.value = teamApplications.value.filter((a) => a.id !== app.id)
   } catch (error) {
     if (error !== 'cancel') {
       console.error('拒绝失败:', error)
@@ -381,7 +451,7 @@ const rejectApp = async (app) => {
 }
 
 // 取消申请
-const cancelApplication = async (app) => {
+const cancelApplication = async (app: ApplicationRecord) => {
   try {
     await ElMessageBox.confirm('确定要取消这个申请吗？', '提示', {
       confirmButtonText: '确定',
@@ -399,7 +469,7 @@ const cancelApplication = async (app) => {
 }
 
 // 解散小组
-const dissolveTeam = async (team) => {
+const dissolveTeam = async (team: TeamRecord) => {
   try {
     await ElMessageBox.confirm(
       `确定要解散小组"${team.teamName}"吗？此操作不可恢复！`,
@@ -433,8 +503,13 @@ const getStatusClass = (status) => {
   return map[status] || ''
 }
 
+const getStatusType = (status: number): CnTone => {
+  const map: Record<number, CnTone> = { 0: 'warning', 1: 'success', 2: 'danger', 3: 'neutral' }
+  return map[status] || 'neutral'
+}
+
 // 格式化时间
-const formatTime = (time) => {
+const formatTime = (time?: string) => {
   if (!time) return ''
   const date = new Date(time)
   return date.toLocaleDateString('zh-CN', { 
@@ -448,71 +523,17 @@ const formatTime = (time) => {
 // 路由跳转
 const goToCreate = () => router.push('/team/create')
 const goToSquare = () => router.push('/team')
-const goToDetail = (id) => router.push(`/team/${id}`)
-const goToEdit = (id) => router.push(`/team/${id}/edit`)
+const goToDetail = (id: number | string) => router.push(`/team/${id}`)
+const goToEdit = (id: number | string) => router.push(`/team/${id}/edit`)
 </script>
 
 <style lang="scss" scoped>
 .my-team-container {
-  padding: 24px 32px;
-  background: #f5f7fa;
-  min-height: calc(100vh - 60px);
-  
-  @media (max-width: 768px) {
-    padding: 16px;
-  }
-}
-
-// 页面头部
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding: 24px;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  
-  h1 {
-    font-size: 24px;
-    margin: 0 0 4px 0;
-    color: #333;
-  }
-  
-  .header-subtitle {
-    font-size: 14px;
-    color: #999;
-    margin: 0;
-  }
-  
-  .header-actions {
-    display: flex;
-    gap: 12px;
-  }
-  
-  @media (max-width: 600px) {
-    flex-direction: column;
-    gap: 16px;
-    
-    .header-actions {
-      width: 100%;
-      
-      .el-button {
-        flex: 1;
-      }
-    }
-  }
+  min-height: calc(100vh - 68px);
 }
 
 // Tab容器
 .tab-container {
-  background: white;
-  border-radius: 12px;
-  padding: 0 20px;
-  margin-bottom: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  
   :deep(.el-tabs__header) {
     margin: 0;
   }
@@ -528,15 +549,15 @@ const goToEdit = (id) => router.push(`/team/${id}/edit`)
   gap: 6px;
   
   .tab-count {
-    background: #f5f7fa;
-    color: #666;
+    background: var(--cn-color-bg-surface-muted);
+    color: var(--cn-color-text-secondary);
     padding: 2px 8px;
     border-radius: 10px;
     font-size: 12px;
     
     &.pending {
-      background: #fef0f0;
-      color: #f56c6c;
+      background: var(--cn-color-danger-soft);
+      color: var(--cn-color-danger);
     }
   }
 }
@@ -557,20 +578,12 @@ const goToEdit = (id) => router.push(`/team/${id}/edit`)
 .created-team-card {
   .team-manage-bar {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     padding: 12px 20px;
-    background: #f8f9fc;
+    background: var(--cn-color-bg-surface-muted);
     border-radius: 0 0 12px 12px;
     margin-top: -12px;
-    
-    .badge {
-      background: #f56c6c;
-      color: white;
-      padding: 0 6px;
-      border-radius: 10px;
-      font-size: 12px;
-      margin-left: 4px;
-    }
   }
 }
 
@@ -582,22 +595,22 @@ const goToEdit = (id) => router.push(`/team/${id}/edit`)
 }
 
 .application-card {
-  background: white;
-  border-radius: 12px;
+  background: var(--cn-color-bg-surface);
+  border-radius: var(--cn-radius-card);
   padding: 16px 20px;
-  border: 1px solid #eee;
+  border: 1px solid var(--cn-color-border-subtle);
   
   &.pending {
-    border-left: 3px solid #409eff;
+    border-left: 3px solid var(--cn-color-info);
   }
   &.approved {
-    border-left: 3px solid #67c23a;
+    border-left: 3px solid var(--cn-color-success);
   }
   &.rejected {
-    border-left: 3px solid #f56c6c;
+    border-left: 3px solid var(--cn-color-danger);
   }
   &.cancelled {
-    border-left: 3px solid #909399;
+    border-left: 3px solid var(--cn-color-text-tertiary);
   }
 }
 
@@ -612,7 +625,7 @@ const goToEdit = (id) => router.push(`/team/${id}/edit`)
     height: 48px;
     border-radius: 10px;
     overflow: hidden;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: color-mix(in srgb, var(--cn-color-brand-primary) 82%, var(--cn-color-info));
     
     img {
       width: 100%;
@@ -639,26 +652,26 @@ const goToEdit = (id) => router.push(`/team/${id}/edit`)
   .team-name {
     font-size: 16px;
     font-weight: 600;
-    color: #333;
+    color: var(--cn-color-text-primary);
     margin-bottom: 4px;
   }
   
   .apply-time {
     font-size: 12px;
-    color: #999;
+    color: var(--cn-color-text-tertiary);
   }
 }
 
 .app-reason {
   margin: 12px 0;
   padding: 10px 12px;
-  background: #f5f7fa;
+  background: var(--cn-color-bg-surface-muted);
   border-radius: 8px;
   font-size: 14px;
-  color: #666;
+  color: var(--cn-color-text-secondary);
   
   .label {
-    color: #999;
+    color: var(--cn-color-text-tertiary);
   }
 }
 
@@ -668,32 +681,9 @@ const goToEdit = (id) => router.push(`/team/${id}/edit`)
   gap: 12px;
   margin-top: 12px;
   
-  .status-badge {
-    padding: 4px 12px;
-    border-radius: 4px;
-    font-size: 13px;
-    
-    &.pending {
-      background: #ecf5ff;
-      color: #409eff;
-    }
-    &.approved {
-      background: #f0f9eb;
-      color: #67c23a;
-    }
-    &.rejected {
-      background: #fef0f0;
-      color: #f56c6c;
-    }
-    &.cancelled {
-      background: #f5f7fa;
-      color: #909399;
-    }
-  }
-  
   .reject-reason {
     font-size: 13px;
-    color: #f56c6c;
+    color: var(--cn-color-danger);
   }
 }
 
@@ -703,24 +693,6 @@ const goToEdit = (id) => router.push(`/team/${id}/edit`)
   justify-content: flex-end;
 }
 
-// 空状态
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  background: white;
-  border-radius: 12px;
-  
-  .empty-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-  }
-  
-  p {
-    color: #999;
-    margin: 0 0 16px 0;
-  }
-}
-
 // 邀请码弹窗
 .invite-dialog-content {
   text-align: center;
@@ -728,7 +700,7 @@ const goToEdit = (id) => router.push(`/team/${id}/edit`)
   .invite-team-name {
     font-size: 16px;
     font-weight: 600;
-    color: #333;
+    color: var(--cn-color-text-primary);
     margin-bottom: 20px;
   }
   
@@ -738,14 +710,14 @@ const goToEdit = (id) => router.push(`/team/${id}/edit`)
     justify-content: center;
     gap: 12px;
     padding: 16px;
-    background: #f5f7fa;
+    background: var(--cn-color-bg-surface-muted);
     border-radius: 8px;
     margin-bottom: 16px;
     
     .invite-code {
       font-size: 24px;
       font-weight: bold;
-      color: #409eff;
+      color: var(--cn-color-brand-primary);
       letter-spacing: 2px;
     }
   }
@@ -756,7 +728,7 @@ const goToEdit = (id) => router.push(`/team/${id}/edit`)
   
   .invite-tip {
     font-size: 13px;
-    color: #999;
+    color: var(--cn-color-text-tertiary);
   }
 }
 
@@ -768,14 +740,14 @@ const goToEdit = (id) => router.push(`/team/${id}/edit`)
   .empty-tip {
     text-align: center;
     padding: 40px;
-    color: #999;
+    color: var(--cn-color-text-tertiary);
   }
 }
 
 .app-item {
   padding: 16px;
-  border: 1px solid #eee;
-  border-radius: 8px;
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-control);
   margin-bottom: 12px;
   
   &:last-child {
@@ -792,7 +764,7 @@ const goToEdit = (id) => router.push(`/team/${id}/edit`)
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: color-mix(in srgb, var(--cn-color-brand-primary) 82%, var(--cn-color-info));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -804,22 +776,22 @@ const goToEdit = (id) => router.push(`/team/${id}/edit`)
   .applicant-name {
     font-size: 15px;
     font-weight: 500;
-    color: #333;
+    color: var(--cn-color-text-primary);
   }
   
   .apply-time {
     font-size: 12px;
-    color: #999;
+    color: var(--cn-color-text-tertiary);
   }
 }
 
 .apply-reason {
   margin: 12px 0;
   padding: 10px;
-  background: #f5f7fa;
+  background: var(--cn-color-bg-surface-muted);
   border-radius: 6px;
   font-size: 13px;
-  color: #666;
+  color: var(--cn-color-text-secondary);
 }
 
 .app-item .app-actions {

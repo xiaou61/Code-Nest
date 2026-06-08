@@ -32,7 +32,10 @@ public interface NotificationMapper {
      */
     List<Notification> selectByUserId(@Param("userId") Long userId, 
                                       @Param("status") String status,
-                                      @Param("type") String type);
+                                      @Param("type") String type,
+                                      @Param("title") String title,
+                                      @Param("startTime") String startTime,
+                                      @Param("endTime") String endTime);
     
     /**
      * 根据ID查询消息
@@ -53,6 +56,11 @@ public interface NotificationMapper {
      * 删除消息（软删除）
      */
     int deleteMessage(@Param("id") Long id, @Param("userId") Long userId);
+
+    /**
+     * 管理员删除消息（软删除）
+     */
+    int deleteMessageById(@Param("id") Long id);
     
     /**
      * 统计用户消息总数
@@ -98,5 +106,8 @@ public interface NotificationMapper {
      */
     List<Notification> selectByUserIdWithReadRecord(@Param("userId") Long userId, 
                                                    @Param("status") String status,
-                                                   @Param("type") String type);
-} 
+                                                   @Param("type") String type,
+                                                   @Param("title") String title,
+                                                   @Param("startTime") String startTime,
+                                                   @Param("endTime") String endTime);
+}

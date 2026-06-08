@@ -3006,3 +3006,142 @@ DROP VIEW IF EXISTS `v_user_unread_notifications`;
 CREATE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW `v_user_unread_notifications` AS select `n`.`id` AS `id`,`n`.`title` AS `title`,`n`.`content` AS `content`,`n`.`type` AS `type`,`n`.`priority` AS `priority`,`n`.`sender_id` AS `sender_id`,`n`.`receiver_id` AS `receiver_id`,`n`.`source_module` AS `source_module`,`n`.`source_id` AS `source_id`,`n`.`status` AS `status`,`n`.`read_time` AS `read_time`,`n`.`created_time` AS `created_time`,`n`.`updated_time` AS `updated_time` from (`notification` `n` left join `notification_user_read_record` `r` on((`n`.`id` = `r`.`notification_id`))) where ((`n`.`status` <> 'DELETED') and (((`n`.`receiver_id` is not null) and (`n`.`status` = 'UNREAD')) or ((`n`.`receiver_id` is null) and (`r`.`id` is null))));
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- Missing incremental tables found during full API verification on 2026-06-06.
+-- Source migration files:
+-- - sql/v1.8.2/job_battle_match_engine.sql
+-- - sql/v1.8.2/oj_problem_comment.sql
+-- - sql/v1.8.2/sql_optimize_record.sql
+-- - sql/v1.8.4/learning_asset.sql
+
+CREATE TABLE IF NOT EXISTS `job_battle_match_record` (
+    `id` BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+    `user_id` BIGINT NOT NULL COMMENT '用户ID',
+    `analysis_name` VARCHAR(255) NOT NULL COMMENT '分析名称',
+    `target_count` INT NOT NULL DEFAULT 0 COMMENT '目标岗位数量',
+    `best_score` INT NOT NULL DEFAULT 0 COMMENT '最佳匹配分',
+    `average_score` INT NOT NULL DEFAULT 0 COMMENT '平均匹配分',
+    `fallback_count` INT NOT NULL DEFAULT 0 COMMENT '降级岗位数量',
+    `best_target_role` VARCHAR(128) DEFAULT NULL COMMENT '最佳岗位名称',
+    `resume_text` MEDIUMTEXT COMMENT '简历文本快照',
+    `project_highlights` TEXT COMMENT '项目亮点快照',
+    `target_company_type` VARCHAR(64) DEFAULT NULL COMMENT '目标公司类型',
+    `result_json` LONGTEXT COMMENT '完整分析结果JSON',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX `idx_user_create_time` (`user_id`, `create_time` DESC),
+    INDEX `idx_user_best_score` (`user_id`, `best_score` DESC),
+    INDEX `idx_user_analysis_name` (`user_id`, `analysis_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='岗位匹配引擎2.0分析记录';
+
+CREATE TABLE IF NOT EXISTS `oj_problem_comment` (
+    `id`                  BIGINT       NOT NULL AUTO_INCREMENT COMMENT '评论ID',
+    `problem_id`          BIGINT       NOT NULL COMMENT '题目ID',
+    `parent_id`           BIGINT       NOT NULL DEFAULT 0 COMMENT '父评论ID，0表示顶级评论',
+    `content`             TEXT         NOT NULL COMMENT '评论内容',
+    `author_id`           BIGINT       NOT NULL COMMENT '评论者用户ID',
+    `author_name`         VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '评论者用户名',
+    `like_count`          INT          NOT NULL DEFAULT 0 COMMENT '点赞数',
+    `reply_to_id`         BIGINT       NULL COMMENT '回复的评论ID',
+    `reply_to_user_id`    BIGINT       NULL COMMENT '回复的用户ID',
+    `reply_to_user_name`  VARCHAR(64)  NULL COMMENT '回复的用户名',
+    `reply_count`         INT          NOT NULL DEFAULT 0 COMMENT '回复数量（仅一级评论有效）',
+    `status`              TINYINT      NOT NULL DEFAULT 1 COMMENT '状态：1-正常，2-删除',
+    `create_time`         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    INDEX `idx_problem_id` (`problem_id`),
+    INDEX `idx_author_id` (`author_id`),
+    INDEX `idx_parent_id` (`parent_id`),
+    INDEX `idx_reply_to_id` (`reply_to_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='OJ题目评论表';
+
+CREATE TABLE IF NOT EXISTS `oj_problem_comment_like` (
+    `id`          BIGINT   NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `comment_id`  BIGINT   NOT NULL COMMENT '评论ID',
+    `user_id`     BIGINT   NOT NULL COMMENT '用户ID',
+    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    UNIQUE INDEX `uk_comment_user` (`comment_id`, `user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='OJ题目评论点赞表';
+
+CREATE TABLE IF NOT EXISTS `sql_optimize_record` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `user_id` BIGINT NOT NULL COMMENT '用户ID',
+  `original_sql` TEXT NOT NULL COMMENT '原始SQL',
+  `explain_result` TEXT COMMENT 'EXPLAIN结果',
+  `explain_format` VARCHAR(20) DEFAULT 'TABLE' COMMENT 'EXPLAIN格式（TABLE/JSON）',
+  `table_structures` TEXT COMMENT '表结构JSON',
+  `mysql_version` VARCHAR(20) DEFAULT '8.0' COMMENT 'MySQL版本',
+  `analysis_result` MEDIUMTEXT COMMENT '分析结果JSON',
+  `score` INT DEFAULT NULL COMMENT '性能评分（0-100）',
+  `is_favorite` TINYINT DEFAULT 0 COMMENT '是否收藏（0-否 1-是）',
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` TINYINT DEFAULT 0 COMMENT '逻辑删除（0-未删除 1-已删除）',
+  PRIMARY KEY (`id`),
+  INDEX `idx_user_id` (`user_id`),
+  INDEX `idx_create_time` (`create_time`),
+  INDEX `idx_score` (`score`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='慢SQL优化分析记录表';
+
+CREATE TABLE IF NOT EXISTS `learning_asset_record` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `user_id` bigint NOT NULL COMMENT '发起用户ID',
+  `source_type` varchar(32) NOT NULL COMMENT '来源类型：blog/community/codepen/mock_interview',
+  `source_id` bigint NOT NULL COMMENT '来源内容ID',
+  `source_title` varchar(255) DEFAULT NULL COMMENT '来源标题',
+  `source_author_id` bigint DEFAULT NULL COMMENT '来源作者ID',
+  `source_snapshot` longtext COMMENT '来源快照JSON',
+  `transform_mode` varchar(32) DEFAULT NULL COMMENT '转化模式',
+  `target_types` varchar(255) DEFAULT NULL COMMENT '目标资产类型，逗号分隔',
+  `status` varchar(32) NOT NULL DEFAULT 'PENDING_CONFIRM' COMMENT '状态',
+  `source_hash` varchar(64) DEFAULT NULL COMMENT '来源内容哈希',
+  `summary_text` text COMMENT '转化摘要',
+  `fail_reason` varchar(500) DEFAULT NULL COMMENT '失败原因',
+  `total_candidates` int NOT NULL DEFAULT 0 COMMENT '候选总数',
+  `published_candidates` int NOT NULL DEFAULT 0 COMMENT '已发布数量',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_user_status` (`user_id`, `status`),
+  KEY `idx_source` (`source_type`, `source_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='学习资产转化记录';
+
+CREATE TABLE IF NOT EXISTS `learning_asset_candidate` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `record_id` bigint NOT NULL COMMENT '转化记录ID',
+  `user_id` bigint NOT NULL COMMENT '所属用户ID',
+  `asset_type` varchar(32) NOT NULL COMMENT '资产类型',
+  `title` varchar(255) NOT NULL COMMENT '候选标题',
+  `content_json` longtext NOT NULL COMMENT '结构化内容JSON',
+  `tags` varchar(255) DEFAULT NULL COMMENT '标签',
+  `difficulty` varchar(32) DEFAULT NULL COMMENT '难度建议',
+  `confidence_score` decimal(5,2) DEFAULT NULL COMMENT '置信分',
+  `dedupe_key` varchar(128) DEFAULT NULL COMMENT '去重Key',
+  `target_module` varchar(64) DEFAULT NULL COMMENT '目标模块',
+  `target_id` bigint DEFAULT NULL COMMENT '目标记录ID',
+  `status` varchar(32) NOT NULL DEFAULT 'DRAFT' COMMENT '候选状态',
+  `sort_order` int NOT NULL DEFAULT 0 COMMENT '排序序号',
+  `review_note` varchar(500) DEFAULT NULL COMMENT '审核说明',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_record_status` (`record_id`, `status`),
+  KEY `idx_user_asset_type` (`user_id`, `asset_type`),
+  KEY `idx_dedupe_key` (`dedupe_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='学习资产候选项';
+
+CREATE TABLE IF NOT EXISTS `learning_asset_publish_log` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `candidate_id` bigint NOT NULL COMMENT '候选项ID',
+  `publish_type` varchar(32) NOT NULL COMMENT '发布类型',
+  `target_module` varchar(64) NOT NULL COMMENT '目标模块',
+  `target_id` bigint DEFAULT NULL COMMENT '目标记录ID',
+  `operator_id` bigint DEFAULT NULL COMMENT '操作人ID',
+  `publish_result` varchar(32) NOT NULL COMMENT '发布结果',
+  `message` varchar(500) DEFAULT NULL COMMENT '结果说明',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_candidate_create_time` (`candidate_id`, `create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='学习资产发布日志';

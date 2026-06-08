@@ -1,6 +1,8 @@
 package com.xiaou.user.controller;
 
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.core.domain.ResultCode;
+import com.xiaou.common.exception.BusinessException;
 import com.xiaou.common.satoken.StpUserUtil;
 import com.xiaou.user.dto.UserChangePasswordRequest;
 import com.xiaou.user.dto.UserInfoResponse;
@@ -39,6 +41,7 @@ public class UserController {
      */
     @GetMapping("/{userId}")
     public Result<UserInfoResponse> getUserInfo(@Positive(message = "用户ID必须为正数") @PathVariable Long userId) {
+        checkCurrentUser(userId);
         log.info("获取用户信息，用户ID: {}", userId);
         UserInfoResponse userInfo = userInfoService.getUserInfoById(userId);
         log.info("获取用户信息成功，用户ID: {}", userId);
@@ -63,6 +66,7 @@ public class UserController {
     public Result<UserInfoResponse> updateUserInfo(
             @Positive(message = "用户ID必须为正数") @PathVariable Long userId,
             @Valid @RequestBody UserUpdateRequest request) {
+        checkCurrentUser(userId);
         log.info("更新用户信息，用户ID: {}", userId);
         UserInfoResponse userInfo = userInfoService.updateUserInfo(userId, request);
         log.info("更新用户信息成功，用户ID: {}", userId);
@@ -87,10 +91,12 @@ public class UserController {
     public Result<Void> changePassword(
             @Positive(message = "用户ID必须为正数") @PathVariable Long userId,
             @Valid @RequestBody UserChangePasswordRequest request) {
+        checkCurrentUser(userId);
         log.info("修改用户密码，用户ID: {}", userId);
         userInfoService.changePassword(userId, request);
+        StpUserUtil.logout();
         log.info("修改用户密码成功，用户ID: {}", userId);
-        return Result.success("密码修改成功", null);
+        return Result.success("密码修改成功，请重新登录", null);
     }
 
     /**
@@ -155,5 +161,13 @@ public class UserController {
             userId, uploadResult.getAccessUrl());
         
         return Result.success("头像上传成功", uploadResult.getAccessUrl());
+    }
+
+    private void checkCurrentUser(Long userId) {
+        StpUserUtil.checkLogin();
+        Long currentUserId = StpUserUtil.getLoginIdAsLong();
+        if (!currentUserId.equals(userId)) {
+            throw new BusinessException(ResultCode.PERMISSION_DENIED, "权限不足，无法操作其他用户");
+        }
     }
 }

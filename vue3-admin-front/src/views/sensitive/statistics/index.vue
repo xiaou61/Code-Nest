@@ -1,226 +1,275 @@
 <template>
-  <div class="sensitive-statistics-page">
-    <!-- 筛选条件 -->
-    <div class="filter-bar">
-      <el-card shadow="never">
-        <el-form :model="queryForm" inline>
-          <el-form-item label="日期范围">
-            <el-date-picker
-              v-model="dateRange"
-              type="daterange"
-              range-separator="至"
-              start-placeholder="开始日期"
-              end-placeholder="结束日期"
-              value-format="YYYY-MM-DD"
-              @change="handleDateChange"
-              style="width: 280px"
-            />
-          </el-form-item>
-          <el-form-item label="业务模块">
-            <el-select
-              v-model="queryForm.module"
-              placeholder="请选择模块"
-              clearable
-              style="width: 150px"
-            >
-              <el-option label="全部" value="" />
-              <el-option label="社区" value="community" />
-              <el-option label="面试" value="interview" />
-              <el-option label="朋友圈" value="moment" />
-              <el-option label="博客" value="blog" />
-            </el-select>
-          </el-form-item>
-          <el-form-item>
-            <el-button type="primary" @click="handleQuery">
-              <el-icon><Search /></el-icon>
-              查询
-            </el-button>
-            <el-button
-              type="success"
-              :loading="exportingReport"
-              @click="handleExportReport"
-            >
-              <el-icon><Download /></el-icon>
-              导出报表
-            </el-button>
-            <el-button @click="resetQuery">
-              <el-icon><Refresh /></el-icon>
-              重置
-            </el-button>
-          </el-form-item>
-        </el-form>
-      </el-card>
-    </div>
-
-    <!-- 数据总览 -->
-    <div class="overview-section">
-      <el-row :gutter="16">
-        <el-col :span="6">
-          <el-card shadow="hover" class="stats-card">
-            <div class="stats-item">
-              <div class="stats-label">总检测次数</div>
-              <div class="stats-value">{{ overview.totalCheck || 0 }}</div>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :span="6">
-          <el-card shadow="hover" class="stats-card">
-            <div class="stats-item">
-              <div class="stats-label">敏感词命中</div>
-              <div class="stats-value danger">{{ overview.hitCount || 0 }}</div>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :span="6">
-          <el-card shadow="hover" class="stats-card">
-            <div class="stats-item">
-              <div class="stats-label">拦截率</div>
-              <div class="stats-value warning">{{ formatPercent(overview.hitRate) }}</div>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :span="6">
-          <el-card shadow="hover" class="stats-card">
-            <div class="stats-item">
-              <div class="stats-label">违规用户数</div>
-              <div class="stats-value info">{{ overview.violationUserCount || 0 }}</div>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
-    </div>
-
-    <!-- 趋势图 -->
-    <el-card shadow="never" class="chart-card">
-      <template #header>
-        <div class="card-header">
-          <span>命中趋势</span>
-        </div>
+  <CnPage class="sensitive-statistics-page" surface="transparent" max-width="1320px">
+    <CnPageHeader
+      title="统计分析"
+      description="查看敏感词检测总览、命中趋势、热门词汇和分类模块分布，支持按时间范围和业务模块导出报表。"
+      eyebrow="Sensitive Analytics"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand">内容安全</CnStatusTag>
+        <CnStatusTag type="neutral">检测 {{ overview.totalCheck || 0 }} 次</CnStatusTag>
+        <CnStatusTag type="danger">命中 {{ overview.hitCount || 0 }} 次</CnStatusTag>
+        <CnStatusTag type="warning">拦截率 {{ formatPercent(overview.hitRate) }}</CnStatusTag>
       </template>
+
+      <template #actions>
+        <el-button :icon="Refresh" :loading="loading" @click="handleQuery">刷新</el-button>
+        <el-button type="success" :icon="Download" :loading="exportingReport" @click="handleExportReport">
+          导出报表
+        </el-button>
+      </template>
+    </CnPageHeader>
+
+    <CnSection title="筛选条件" description="按日期范围和业务模块查看检测命中情况。" divided>
+      <CnFilterForm
+        :model-value="queryForm"
+        :fields="filterFields"
+        :columns="3"
+        :loading="loading"
+        search-text="查询"
+        @update:model-value="handleQueryFormUpdate"
+        @search="handleQuery"
+        @reset="resetQuery"
+      />
+    </CnSection>
+
+    <div class="sensitive-stat-grid">
+      <CnStatCard title="总检测次数" :value="overview.totalCheck || 0" description="当前筛选条件下的检测总量" tone="brand" />
+      <CnStatCard title="敏感词命中" :value="overview.hitCount || 0" description="当前筛选条件下的命中次数" tone="danger" />
+      <CnStatCard title="拦截率" :value="formatPercent(overview.hitRate)" description="命中次数占检测总量比例" tone="warning" />
+      <CnStatCard title="违规用户数" :value="overview.violationUserCount || 0" description="发生命中行为的用户数量" tone="info" />
+    </div>
+
+    <CnSection title="命中趋势" description="按日期展示敏感词命中次数变化。" divided>
       <div ref="trendChartRef" class="chart-container"></div>
-    </el-card>
+    </CnSection>
 
-    <!-- 热词和分布 -->
-    <el-row :gutter="16" class="analysis-section">
-      <!-- 热门敏感词 -->
-      <el-col :span="8">
-        <el-card shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span>热门敏感词 TOP 10</span>
+    <div class="analysis-grid">
+      <CnSection title="热门敏感词 TOP 10" description="按命中次数排序的高频词汇。" divided>
+        <CnDataTable
+          :columns="hotWordColumns"
+          :data="hotWords"
+          :loading="loading"
+          :pagination="null"
+          row-key="word"
+          empty-title="暂无热词"
+          empty-description="当前筛选条件下没有热门敏感词数据。"
+        >
+          <template #word="{ row, $index }">
+            <div class="hot-word-cell">
+              <CnStatusTag :type="$index < 3 ? 'danger' : 'neutral'" size="sm">#{{ $index + 1 }}</CnStatusTag>
+              <span>{{ row.word || '-' }}</span>
             </div>
           </template>
-          <el-table :data="hotWords" :show-header="false" max-height="400">
-            <el-table-column prop="word" label="敏感词" />
-            <el-table-column prop="hitCount" label="命中次数" width="100" align="right">
-              <template #default="{ row }">
-                <el-tag type="danger" size="small">{{ row.hitCount }}</el-tag>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-card>
-      </el-col>
 
-      <!-- 分类分布 -->
-      <el-col :span="8">
-        <el-card shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span>分类分布</span>
-            </div>
+          <template #hitCount="{ row }">
+            <CnStatusTag type="danger" size="sm">{{ row.hitCount || 0 }}</CnStatusTag>
           </template>
-          <div ref="categoryChartRef" class="chart-container-small"></div>
-        </el-card>
-      </el-col>
+        </CnDataTable>
+      </CnSection>
 
-      <!-- 模块分布 -->
-      <el-col :span="8">
-        <el-card shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span>模块分布</span>
-            </div>
-          </template>
-          <div ref="moduleChartRef" class="chart-container-small"></div>
-        </el-card>
-      </el-col>
-    </el-row>
-  </div>
+      <CnSection title="分类分布" description="按敏感词分类统计命中占比。" divided>
+        <div ref="categoryChartRef" class="chart-container-small"></div>
+      </CnSection>
+
+      <CnSection title="模块分布" description="按业务模块统计命中次数。" divided>
+        <div ref="moduleChartRef" class="chart-container-small"></div>
+      </CnSection>
+    </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
+<script setup lang="ts">
+import { nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Search, Refresh, Download } from '@element-plus/icons-vue'
-import { use, init, graphic } from 'echarts/core'
-import { LineChart, PieChart, BarChart } from 'echarts/charts'
-import { TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
+import { Download, Refresh } from '@element-plus/icons-vue'
+import { BarChart, LineChart, PieChart } from 'echarts/charts'
+import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
+import { graphic, init, use } from 'echarts/core'
+import type { ECharts } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import {
-  getStatisticsOverview,
+  exportStatisticsReport,
+  getCategoryDistribution,
   getHitTrend,
   getHotWords,
-  getCategoryDistribution,
   getModuleDistribution,
-  exportStatisticsReport
+  getStatisticsOverview
 } from '@/api/sensitive'
+import {
+  CnDataTable,
+  CnFilterForm,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag
+} from '@/design-system'
+import type { CnBreadcrumbItem, CnFilterField, CnTableColumn } from '@/design-system'
 
 use([LineChart, PieChart, BarChart, TooltipComponent, LegendComponent, GridComponent, CanvasRenderer])
 
-// 响应式数据
-const dateRange = ref([])
-const overview = ref({})
-const hotWords = ref([])
-const trendChartRef = ref()
-const categoryChartRef = ref()
-const moduleChartRef = ref()
-let trendChart = null
-let categoryChart = null
-let moduleChart = null
-const exportingReport = ref(false)
+interface StatisticsOverview {
+  totalCheck?: number
+  hitCount?: number
+  hitRate?: number
+  violationUserCount?: number
+}
 
-// 查询表单
-const queryForm = reactive({
+interface StatisticsQuery {
+  startDate: string
+  endDate: string
+  module: string
+  dateRange: string[]
+}
+
+interface TrendPoint {
+  date: string
+  hitCount?: number
+}
+
+interface HotWord {
+  word: string
+  hitCount: number
+}
+
+interface DistributionItem {
+  category?: string
+  name?: string
+  categoryName?: string
+  module?: string
+  moduleName?: string
+  count?: number
+  value?: number
+}
+
+interface ExportResult {
+  content?: string
+  fileName?: string
+}
+
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '敏感词管理' }, { label: '统计分析' }]
+
+const overview = ref<StatisticsOverview>({})
+const hotWords = ref<HotWord[]>([])
+const trendChartRef = ref<HTMLElement>()
+const categoryChartRef = ref<HTMLElement>()
+const moduleChartRef = ref<HTMLElement>()
+const loading = ref(false)
+const exportingReport = ref(false)
+let trendChart: ECharts | null = null
+let categoryChart: ECharts | null = null
+let moduleChart: ECharts | null = null
+
+const queryForm = reactive<StatisticsQuery>({
   startDate: '',
   endDate: '',
-  module: ''
+  module: '',
+  dateRange: []
 })
 
-// 方法
-const handleDateChange = (dates) => {
-  if (dates && dates.length === 2) {
-    queryForm.startDate = dates[0]
-    queryForm.endDate = dates[1]
-  } else {
-    queryForm.startDate = ''
-    queryForm.endDate = ''
+const filterFields: CnFilterField[] = [
+  { prop: 'dateRange', label: '日期范围', type: 'daterange', placeholder: '开始日期' },
+  {
+    prop: 'module',
+    label: '业务模块',
+    type: 'select',
+    placeholder: '请选择模块',
+    options: [
+      { label: '全部', value: '' },
+      { label: '社区', value: 'community' },
+      { label: '面试', value: 'interview' },
+      { label: '朋友圈', value: 'moment' },
+      { label: '博客', value: 'blog' }
+    ]
   }
+]
+
+const hotWordColumns: CnTableColumn<HotWord>[] = [
+  { prop: 'word', label: '敏感词', minWidth: 140, slot: 'word', showOverflowTooltip: true },
+  { prop: 'hitCount', label: '命中次数', width: 100, align: 'right', slot: 'hitCount' }
+]
+
+const resolveCssColor = (variableName: string, fallback: string) => {
+  if (typeof window === 'undefined') return fallback
+
+  const probe = document.createElement('span')
+  probe.style.color = `var(${variableName})`
+  probe.style.display = 'none'
+  document.body.appendChild(probe)
+  const color = window.getComputedStyle(probe).color
+  document.body.removeChild(probe)
+
+  return color || fallback
+}
+
+onMounted(() => {
+  setDefaultDateRange()
+  handleQuery()
+  window.addEventListener('resize', handleResize)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+  trendChart?.dispose()
+  categoryChart?.dispose()
+  moduleChart?.dispose()
+})
+
+const setDefaultDateRange = () => {
+  const endDate = new Date()
+  const startDate = new Date()
+  startDate.setDate(startDate.getDate() - 7)
+
+  queryForm.dateRange = [formatDate(startDate), formatDate(endDate)]
+  syncDateFields()
+}
+
+const syncDateFields = () => {
+  if (Array.isArray(queryForm.dateRange) && queryForm.dateRange.length === 2) {
+    queryForm.startDate = queryForm.dateRange[0]
+    queryForm.endDate = queryForm.dateRange[1]
+    return
+  }
+
+  queryForm.startDate = ''
+  queryForm.endDate = ''
+}
+
+const handleQueryFormUpdate = (value: Record<string, unknown>) => {
+  Object.assign(queryForm, value)
+  syncDateFields()
 }
 
 const handleQuery = async () => {
-  await Promise.all([
-    loadOverview(),
-    loadHitTrend(),
-    loadHotWords(),
-    loadCategoryDistribution(),
-    loadModuleDistribution()
-  ])
+  syncDateFields()
+  loading.value = true
+  try {
+    await Promise.all([
+      loadOverview(),
+      loadHitTrend(),
+      loadHotWords(),
+      loadCategoryDistribution(),
+      loadModuleDistribution()
+    ])
+  } finally {
+    loading.value = false
+  }
 }
 
 const resetQuery = () => {
-  dateRange.value = []
-  queryForm.startDate = ''
-  queryForm.endDate = ''
   queryForm.module = ''
+  setDefaultDateRange()
   handleQuery()
 }
 
 const handleExportReport = async () => {
   exportingReport.value = true
   try {
-    const result = await exportStatisticsReport(queryForm)
-    const blob = new Blob([result.content || ''], { type: 'text/csv;charset=utf-8;' })
-    const fileName = result.fileName || `sensitive_statistics_${Date.now()}.csv`
+    const result: ExportResult = await exportStatisticsReport(getQueryPayload())
+    const blob = new Blob([result?.content || ''], { type: 'text/csv;charset=utf-8;' })
+    const fileName = result?.fileName || `sensitive_statistics_${Date.now()}.csv`
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -231,6 +280,7 @@ const handleExportReport = async () => {
     window.URL.revokeObjectURL(url)
     ElMessage.success('统计报表导出成功')
   } catch (error) {
+    console.error('统计报表导出失败:', error)
     ElMessage.error('统计报表导出失败')
   } finally {
     exportingReport.value = false
@@ -239,19 +289,20 @@ const handleExportReport = async () => {
 
 const loadOverview = async () => {
   try {
-    const data = await getStatisticsOverview(queryForm)
-    overview.value = data
+    overview.value = await getStatisticsOverview(getQueryPayload())
   } catch (error) {
+    console.error('加载数据总览失败:', error)
     ElMessage.error('加载数据总览失败')
   }
 }
 
 const loadHitTrend = async () => {
   try {
-    const data = await getHitTrend(queryForm)
+    const data: TrendPoint[] = await getHitTrend(getQueryPayload())
     await nextTick()
-    renderTrendChart(data)
+    renderTrendChart(Array.isArray(data) ? data : [])
   } catch (error) {
+    console.error('加载趋势数据失败:', error)
     ElMessage.error('加载趋势数据失败')
   }
 }
@@ -259,57 +310,58 @@ const loadHitTrend = async () => {
 const loadHotWords = async () => {
   try {
     const data = await getHotWords({
-      ...queryForm,
+      ...getQueryPayload(),
       limit: 10
     })
-    hotWords.value = data
+    hotWords.value = Array.isArray(data) ? data : []
   } catch (error) {
+    console.error('加载热词数据失败:', error)
     ElMessage.error('加载热词数据失败')
   }
 }
 
 const loadCategoryDistribution = async () => {
   try {
-    const data = await getCategoryDistribution(queryForm)
+    const data: DistributionItem[] = await getCategoryDistribution(getQueryPayload())
     await nextTick()
-    renderCategoryChart(data)
+    renderCategoryChart(Array.isArray(data) ? data : [])
   } catch (error) {
+    console.error('加载分类分布失败:', error)
     ElMessage.error('加载分类分布失败')
   }
 }
 
 const loadModuleDistribution = async () => {
   try {
-    const data = await getModuleDistribution(queryForm)
+    const data: DistributionItem[] = await getModuleDistribution(getQueryPayload())
     await nextTick()
-    renderModuleChart(data)
+    renderModuleChart(Array.isArray(data) ? data : [])
   } catch (error) {
+    console.error('加载模块分布失败:', error)
     ElMessage.error('加载模块分布失败')
   }
 }
 
-const renderTrendChart = (data) => {
+const renderTrendChart = (data: TrendPoint[]) => {
   if (!trendChartRef.value) return
-  
+
   if (!trendChart) {
     trendChart = init(trendChartRef.value)
   }
 
-  const dates = data.map(item => item.date)
-  const counts = data.map(item => item.hitCount || 0)
+  const dates = data.map((item) => item.date)
+  const counts = data.map((item) => item.hitCount || 0)
+  const dangerColor = resolveCssColor('--cn-color-danger', 'firebrick')
+  const dangerSoftColor = resolveCssColor('--cn-color-danger-soft', 'mistyrose')
 
-  const option = {
-    tooltip: {
-      trigger: 'axis'
-    },
+  trendChart.setOption({
+    tooltip: { trigger: 'axis' },
     xAxis: {
       type: 'category',
       data: dates,
       boundaryGap: false
     },
-    yAxis: {
-      type: 'value'
-    },
+    yAxis: { type: 'value' },
     series: [
       {
         name: '命中次数',
@@ -318,92 +370,91 @@ const renderTrendChart = (data) => {
         data: counts,
         areaStyle: {
           color: new graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(255, 99, 71, 0.3)' },
-            { offset: 1, color: 'rgba(255, 99, 71, 0.05)' }
+            { offset: 0, color: dangerSoftColor },
+            { offset: 1, color: 'transparent' }
           ])
         },
-        lineStyle: {
-          color: '#ff6347'
-        },
-        itemStyle: {
-          color: '#ff6347'
-        }
+        lineStyle: { color: dangerColor },
+        itemStyle: { color: dangerColor }
       }
     ],
     grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
+      left: 12,
+      right: 18,
+      bottom: 8,
+      top: 24,
       containLabel: true
     }
-  }
-
-  trendChart.setOption(option)
+  })
 }
 
-const renderCategoryChart = (data) => {
+const renderCategoryChart = (data: DistributionItem[]) => {
   if (!categoryChartRef.value) return
-  
+
   if (!categoryChart) {
     categoryChart = init(categoryChartRef.value)
   }
 
-  const chartData = data.map(item => ({
+  const chartData = data.map((item) => ({
     name: item.category || item.name || item.categoryName || '未分类',
     value: item.count ?? item.value ?? 0
   }))
+  const chartTextColor = resolveCssColor('--cn-color-text-secondary', 'slategray')
+  const chartShadowColor = resolveCssColor('--cn-color-border', 'lightgray')
 
-  const option = {
-    tooltip: {
-      trigger: 'item'
-    },
+  categoryChart.setOption({
+    tooltip: { trigger: 'item' },
     legend: {
       orient: 'vertical',
-      left: 'left'
+      left: 0,
+      top: 0,
+      textStyle: { color: chartTextColor }
     },
     series: [
       {
         name: '分类分布',
         type: 'pie',
-        radius: '70%',
+        radius: ['42%', '68%'],
+        center: ['58%', '55%'],
         data: chartData,
         emphasis: {
           itemStyle: {
             shadowBlur: 10,
             shadowOffsetX: 0,
-            shadowColor: 'rgba(0, 0, 0, 0.5)'
+            shadowColor: chartShadowColor
           }
         }
       }
     ]
-  }
-
-  categoryChart.setOption(option)
+  })
 }
 
-const renderModuleChart = (data) => {
+const renderModuleChart = (data: DistributionItem[]) => {
   if (!moduleChartRef.value) return
-  
+
   if (!moduleChart) {
     moduleChart = init(moduleChartRef.value)
   }
 
-  const modules = data.map(item => item.module || item.name || item.moduleName || '未知模块')
-  const counts = data.map(item => item.count ?? item.value ?? 0)
+  const modules = data.map((item) => item.module || item.name || item.moduleName || '未知模块')
+  const counts = data.map((item) => item.count ?? item.value ?? 0)
+  const chartTextColor = resolveCssColor('--cn-color-text-secondary', 'slategray')
+  const brandColor = resolveCssColor('--cn-color-brand-primary', 'steelblue')
+  const brandSoftColor = resolveCssColor('--cn-color-brand-soft', 'aliceblue')
 
-  const option = {
+  moduleChart.setOption({
     tooltip: {
       trigger: 'axis',
-      axisPointer: {
-        type: 'shadow'
-      }
+      axisPointer: { type: 'shadow' }
     },
     xAxis: {
       type: 'category',
-      data: modules
+      data: modules,
+      axisLabel: { color: chartTextColor }
     },
     yAxis: {
-      type: 'value'
+      type: 'value',
+      axisLabel: { color: chartTextColor }
     },
     series: [
       {
@@ -412,31 +463,29 @@ const renderModuleChart = (data) => {
         data: counts,
         itemStyle: {
           color: new graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#409EFF' },
-            { offset: 1, color: '#a0cfff' }
+            { offset: 0, color: brandColor },
+            { offset: 1, color: brandSoftColor }
           ])
         }
       }
     ],
     grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
+      left: 10,
+      right: 12,
+      bottom: 8,
+      top: 24,
       containLabel: true
     }
-  }
-
-  moduleChart.setOption(option)
+  })
 }
 
-// 窗口大小改变时重新渲染图表
 const handleResize = () => {
   trendChart?.resize()
   categoryChart?.resize()
   moduleChart?.resize()
 }
 
-const formatPercent = (value) => {
+const formatPercent = (value: number | string | null | undefined) => {
   if (value === null || value === undefined) {
     return '0%'
   }
@@ -447,99 +496,83 @@ const formatPercent = (value) => {
   return `${numberValue.toFixed(2)}%`
 }
 
-// 生命周期
-onMounted(() => {
-  // 设置默认日期为最近7天
-  const endDate = new Date()
-  const startDate = new Date()
-  startDate.setDate(startDate.getDate() - 7)
-  
-  dateRange.value = [
-    startDate.toISOString().split('T')[0],
-    endDate.toISOString().split('T')[0]
-  ]
-  
-  queryForm.startDate = dateRange.value[0]
-  queryForm.endDate = dateRange.value[1]
-  
-  handleQuery()
-  
-  window.addEventListener('resize', handleResize)
-})
+const formatDate = (date: Date) => date.toISOString().split('T')[0]
 
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', handleResize)
-  trendChart?.dispose()
-  categoryChart?.dispose()
-  moduleChart?.dispose()
+const getQueryPayload = () => ({
+  startDate: queryForm.startDate,
+  endDate: queryForm.endDate,
+  module: queryForm.module
 })
 </script>
 
 <style scoped>
 .sensitive-statistics-page {
-  padding: 20px;
+  min-height: 100%;
 }
 
-.filter-bar {
-  margin-bottom: 16px;
+.sensitive-stat-grid,
+.analysis-grid {
+  display: grid;
+  gap: var(--cn-space-4);
 }
 
-.overview-section {
-  margin-bottom: 16px;
+.sensitive-stat-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.stats-card {
-  text-align: center;
+.analysis-grid {
+  grid-template-columns: minmax(280px, 0.9fr) repeat(2, minmax(280px, 1fr));
+  align-items: stretch;
 }
 
-.stats-item {
-  padding: 20px 0;
-}
-
-.stats-label {
-  font-size: 14px;
-  color: #909399;
-  margin-bottom: 12px;
-}
-
-.stats-value {
-  font-size: 28px;
-  font-weight: bold;
-  color: #303133;
-}
-
-.stats-value.danger {
-  color: #F56C6C;
-}
-
-.stats-value.warning {
-  color: #E6A23C;
-}
-
-.stats-value.info {
-  color: #409EFF;
-}
-
-.chart-card {
-  margin-bottom: 16px;
-}
-
-.card-header {
-  font-size: 16px;
-  font-weight: 600;
+.chart-container,
+.chart-container-small {
+  width: 100%;
+  min-width: 0;
 }
 
 .chart-container {
   height: 350px;
-  width: 100%;
 }
 
 .chart-container-small {
-  height: 350px;
-  width: 100%;
+  height: 320px;
 }
 
-.analysis-section {
-  margin-top: 16px;
+.hot-word-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--cn-space-2);
+  min-width: 0;
+}
+
+.hot-word-cell span {
+  overflow: hidden;
+  color: var(--cn-color-text-primary);
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  .sensitive-stat-grid,
+  .analysis-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .sensitive-stat-grid,
+  .analysis-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-container {
+    height: 300px;
+  }
+
+  .chart-container-small {
+    height: 280px;
+  }
 }
 </style>

@@ -1,47 +1,42 @@
 <template>
-  <div class="post-management">
-    <!-- 页面头部 -->
-    <el-card class="header-card" shadow="never">
-      <div class="header-content">
-        <div class="title-section">
-          <h2>帖子管理</h2>
-          <p>管理社区帖子，支持置顶、下架、删除等操作</p>
-        </div>
-      </div>
-    </el-card>
+  <CnPage class="community-posts-page" surface="transparent" max-width="1320px">
+    <CnPageHeader
+      title="帖子管理"
+      description="管理社区帖子内容、置顶状态和下架删除操作，保障社区内容秩序。"
+      eyebrow="Community Posts"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand">社区管理</CnStatusTag>
+        <CnStatusTag type="neutral">共 {{ pagination.total }} 篇帖子</CnStatusTag>
+        <CnStatusTag type="success">正常 {{ normalCountInPage }} 篇</CnStatusTag>
+        <CnStatusTag type="warning">置顶 {{ topCountInPage }} 篇</CnStatusTag>
+      </template>
 
-    <!-- 搜索和操作区 -->
-    <el-card class="search-card" shadow="never">
-      <el-row :gutter="20">
-        <el-col :span="6">
-          <el-input 
-            v-model="searchForm.keyword" 
-            placeholder="请输入标题或内容关键词" 
-            clearable
-            @clear="handleSearch"
-            @keyup.enter="handleSearch"
-          >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
-            </template>
-          </el-input>
-        </el-col>
-        <el-col :span="4">
-          <el-input 
-            v-model="searchForm.authorName" 
-            placeholder="作者用户名" 
-            clearable
-            @clear="handleSearch"
-            @keyup.enter="handleSearch"
-          />
-        </el-col>
-        <el-col :span="4">
-          <el-select 
-            v-model="searchForm.categoryId" 
-            placeholder="选择分类" 
-            clearable
-            @change="handleSearch"
-          >
+      <template #actions>
+        <el-button :icon="Refresh" :loading="loading" @click="fetchPosts">刷新</el-button>
+      </template>
+    </CnPageHeader>
+
+    <div class="community-stat-grid">
+      <CnStatCard title="帖子总量" :value="pagination.total" description="当前筛选条件下的帖子数量" tone="brand" />
+      <CnStatCard title="正常帖子" :value="normalCountInPage" description="当前页可正常展示的帖子" tone="success" />
+      <CnStatCard title="下架帖子" :value="disabledCountInPage" description="当前页已被运营下架的帖子" tone="danger" />
+      <CnStatCard title="互动总量" :value="engagementCountInPage" description="当前页浏览、点赞、评论、收藏累计" tone="info" />
+    </div>
+
+    <CnSection title="筛选条件" description="按标题内容、作者、分类、状态和发布时间定位帖子。" divided>
+      <CnFilterForm
+        :model-value="searchForm"
+        :fields="filterFields"
+        :columns="4"
+        :loading="loading"
+        @update:model-value="handleSearchFormUpdate"
+        @search="handleSearch"
+        @reset="handleReset"
+      >
+        <template #categoryId="{ value, setValue }">
+          <el-select :model-value="value" placeholder="选择分类" clearable @update:model-value="setValue">
             <el-option
               v-for="category in categoryList"
               :key="category.id"
@@ -49,220 +44,186 @@
               :value="category.id"
             />
           </el-select>
-        </el-col>
-        <el-col :span="4">
-          <el-select v-model="searchForm.status" placeholder="请选择状态" clearable @change="handleSearch">
-            <el-option label="正常" :value="1" />
-            <el-option label="下架" :value="2" />
-            <el-option label="删除" :value="3" />
-          </el-select>
-        </el-col>
-        <el-col :span="6">
-          <el-button type="primary" @click="handleSearch">
-            <el-icon><Search /></el-icon>
-            搜索
-          </el-button>
-          <el-button @click="handleReset">
-            <el-icon><Refresh /></el-icon>
-            重置
-          </el-button>
-        </el-col>
-      </el-row>
-      
-      <el-row :gutter="20" style="margin-top: 15px;">
-        <el-col :span="8">
-          <el-date-picker
-            v-model="searchForm.timeRange"
-            type="datetimerange"
-            range-separator="至"
-            start-placeholder="开始时间"
-            end-placeholder="结束时间"
-            format="YYYY-MM-DD HH:mm:ss"
-            value-format="YYYY-MM-DD HH:mm:ss"
-            @change="handleSearch"
-          />
-        </el-col>
-      </el-row>
-    </el-card>
+        </template>
+      </CnFilterForm>
+    </CnSection>
 
-    <!-- 帖子表格 -->
-    <el-card class="table-card" shadow="never">
-      <el-table 
-        v-loading="loading" 
-        :data="postList" 
-        style="width: 100%"
-        :row-key="row => row.id"
+    <CnSection title="帖子列表" :description="`共 ${pagination.total} 篇帖子`" divided>
+      <CnDataTable
+        :columns="tableColumns"
+        :data="postList"
+        :loading="loading"
+        :pagination="tablePagination"
+        row-key="id"
+        @page-change="handlePageChange"
+        @page-size-change="handlePageSizeChange"
       >
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="title" label="帖子标题" min-width="200" show-overflow-tooltip>
-          <template #default="{ row }">
-            <div style="display: flex; align-items: center;">
-              <el-tag v-if="row.isTop === 1" type="danger" size="small" style="margin-right: 8px;">置顶</el-tag>
-              <span>{{ row.title }}</span>
+        <template #toolbar>
+          <CnToolbar title="帖子数据" description="置顶、下架和删除会直接影响用户端社区内容展示。" align="center">
+            <template #meta>
+              <CnStatusTag type="neutral" size="sm">每页 {{ pagination.pageSize }} 条</CnStatusTag>
+              <CnStatusTag type="warning" size="sm">置顶 {{ topCountInPage }} 篇</CnStatusTag>
+            </template>
+          </CnToolbar>
+        </template>
+
+        <template #title="{ row }">
+          <div class="post-title-cell">
+            <div class="post-title-line">
+              <CnStatusTag v-if="row.isTop === 1" type="danger" size="sm">置顶</CnStatusTag>
+              <strong>{{ row.title || '-' }}</strong>
             </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="categoryName" label="分类" width="120" align="center">
-          <template #default="{ row }">
-            <el-tag v-if="row.categoryName" type="primary" size="small">{{ row.categoryName }}</el-tag>
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="authorName" label="作者" width="120" />
-        <el-table-column label="数据统计" width="200" align="center">
-          <template #default="{ row }">
-            <div style="display: flex; flex-direction: column; gap: 4px;">
-              <div>
-                <el-tag type="info" size="small">浏览 {{ row.viewCount || 0 }}</el-tag>
-                <el-tag type="success" size="small" style="margin-left: 4px;">赞 {{ row.likeCount || 0 }}</el-tag>
-              </div>
-              <div>
-                <el-tag type="warning" size="small">评论 {{ row.commentCount || 0 }}</el-tag>
-                <el-tag type="primary" size="small" style="margin-left: 4px;">收藏 {{ row.collectCount || 0 }}</el-tag>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag 
-              :type="row.status === 1 ? 'success' : row.status === 2 ? 'warning' : 'danger'"
-              size="small"
-            >
-              {{ row.status === 1 ? '正常' : row.status === 2 ? '下架' : '删除' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column label="操作" width="300" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" size="small" @click="handleView(row)">
-              <el-icon><View /></el-icon>
-              查看
-            </el-button>
-            <el-button 
-              v-if="row.status === 1 && row.isTop === 0" 
-              type="warning" 
-              size="small" 
-              @click="handleTop(row)"
-            >
-              <el-icon><Top /></el-icon>
+            <span>ID {{ row.id }}</span>
+          </div>
+        </template>
+
+        <template #categoryName="{ row }">
+          <CnStatusTag v-if="row.categoryName" type="info" size="sm">{{ row.categoryName }}</CnStatusTag>
+          <span v-else class="muted-text">-</span>
+        </template>
+
+        <template #metrics="{ row }">
+          <div class="metric-stack">
+            <span>浏览 {{ row.viewCount || 0 }}</span>
+            <span>赞 {{ row.likeCount || 0 }}</span>
+            <span>评 {{ row.commentCount || 0 }}</span>
+            <span>藏 {{ row.collectCount || 0 }}</span>
+          </div>
+        </template>
+
+        <template #status="{ row }">
+          <CnStatusTag :type="getPostStatusTone(row.status)" size="sm">
+            {{ getPostStatusText(row.status) }}
+          </CnStatusTag>
+        </template>
+
+        <template #actions="{ row }">
+          <div class="table-actions">
+            <el-button type="primary" link size="small" :icon="View" @click="handleView(row)">查看</el-button>
+            <el-button v-if="row.status === 1 && row.isTop === 0" type="warning" link size="small" :icon="Top" @click="handleTop(row)">
               置顶
             </el-button>
-            <el-button 
-              v-if="row.isTop === 1" 
-              type="info" 
-              size="small" 
-              @click="handleCancelTop(row)"
-            >
-              <el-icon><Bottom /></el-icon>
+            <el-button v-if="row.isTop === 1" type="info" link size="small" :icon="Bottom" @click="handleCancelTop(row)">
               取消置顶
             </el-button>
-            <el-button 
-              v-if="row.status === 1" 
-              type="warning" 
-              size="small" 
-              @click="handleDisable(row)"
-            >
-              <el-icon><Lock /></el-icon>
+            <el-button v-if="row.status === 1" type="warning" link size="small" :icon="Lock" @click="handleDisable(row)">
               下架
             </el-button>
-            <el-button 
-              type="danger" 
-              size="small" 
-              @click="handleDelete(row)"
-              :disabled="row.status === 3"
-            >
-              <el-icon><Delete /></el-icon>
+            <el-button type="danger" link size="small" :icon="Delete" :disabled="row.status === 3" @click="handleDelete(row)">
               删除
             </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+          </div>
+        </template>
 
-      <!-- 分页 -->
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="pagination.pageNum"
-          v-model:page-size="pagination.pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="pagination.total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handlePageSizeChange"
-          @current-change="handlePageChange"
-        />
-      </div>
-    </el-card>
+        <template #empty>
+          <CnEmptyState
+            title="暂无帖子"
+            description="当前筛选条件下没有社区帖子，可以重置筛选后再查看。"
+            icon="PT"
+            surface="transparent"
+          >
+            <template #actions>
+              <el-button @click="handleReset">重置筛选</el-button>
+            </template>
+          </CnEmptyState>
+        </template>
+      </CnDataTable>
+    </CnSection>
 
-    <!-- 帖子详情对话框 -->
-    <el-dialog 
-      title="帖子详情" 
-      v-model="detailVisible" 
-      width="800px"
-      :before-close="() => detailVisible = false"
-    >
+    <el-dialog title="帖子详情" v-model="detailVisible" width="800px">
       <div v-if="currentPost" class="post-detail">
         <div class="detail-header">
           <h3>{{ currentPost.title }}</h3>
           <div class="meta-info">
-            <span>作者：{{ currentPost.authorName }}</span>
+            <span>作者：{{ currentPost.authorName || '-' }}</span>
             <span v-if="currentPost.categoryName">分类：{{ currentPost.categoryName }}</span>
-            <span>创建时间：{{ currentPost.createTime }}</span>
+            <span>创建时间：{{ currentPost.createTime || '-' }}</span>
           </div>
         </div>
         <div class="detail-content markdown-content" v-html="formatContent(currentPost.content)"></div>
       </div>
     </el-dialog>
 
-    <!-- 置顶对话框 -->
-    <el-dialog 
-      title="置顶帖子" 
-      v-model="topDialogVisible" 
-      width="400px"
-    >
+    <el-dialog title="置顶帖子" v-model="topDialogVisible" width="400px">
       <el-form :model="topForm" label-width="100px">
         <el-form-item label="置顶时长" required>
-          <el-input-number 
-            v-model="topForm.duration" 
-            :min="1" 
-            :max="8760" 
-            placeholder="小时"
-            style="width: 200px;"
-          />
-          <span style="margin-left: 8px; color: #909399;">小时</span>
+          <div class="duration-field">
+            <el-input-number v-model="topForm.duration" :min="1" :max="8760" />
+            <span>小时</span>
+          </div>
         </el-form-item>
       </el-form>
-      
+
       <template #footer>
-        <span class="dialog-footer">
+        <div class="dialog-footer">
           <el-button @click="topDialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleTopSubmit" :loading="submitLoading">
-            确定
-          </el-button>
-        </span>
+          <el-button type="primary" :loading="submitLoading" @click="handleTopSubmit">确定</el-button>
+        </div>
       </template>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, View, Top, Bottom, Lock, Delete } from '@element-plus/icons-vue'
+import { Bottom, Delete, Lock, Refresh, Top, View } from '@element-plus/icons-vue'
 import { communityApi } from '@/api/community'
 import { renderMarkdown } from '@/utils/markdown'
+import {
+  CnDataTable,
+  CnEmptyState,
+  CnFilterForm,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag,
+  CnToolbar
+} from '@/design-system'
+import type { CnBreadcrumbItem, CnFilterField, CnPagination, CnTableColumn, CnTone } from '@/design-system'
 
-// 响应式数据
+interface CategoryOption {
+  id: number
+  name: string
+}
+
+interface PostRecord {
+  id: number
+  title: string
+  content?: string
+  categoryId?: number | null
+  categoryName?: string
+  authorName?: string
+  viewCount?: number
+  likeCount?: number
+  commentCount?: number
+  collectCount?: number
+  status: number
+  isTop?: number
+  createTime?: string
+  [key: string]: unknown
+}
+
+interface SearchForm {
+  keyword: string
+  authorName: string
+  categoryId: number | null
+  status: number | null
+  timeRange: string[] | null
+}
+
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '社区管理' }, { label: '帖子管理' }]
+
 const loading = ref(false)
 const submitLoading = ref(false)
 const detailVisible = ref(false)
 const topDialogVisible = ref(false)
-const postList = ref([])
-const categoryList = ref([])
-const currentPost = ref(null)
+const postList = ref<PostRecord[]>([])
+const categoryList = ref<CategoryOption[]>([])
+const currentPost = ref<PostRecord | null>(null)
 
-// 搜索表单
-const searchForm = reactive({
+const searchForm = reactive<SearchForm>({
   keyword: '',
   authorName: '',
   categoryId: null,
@@ -270,29 +231,81 @@ const searchForm = reactive({
   timeRange: null
 })
 
-// 分页数据
 const pagination = reactive({
   pageNum: 1,
   pageSize: 10,
   total: 0
 })
 
-// 置顶表单
 const topForm = reactive({
   duration: 24
 })
 
-// 获取帖子列表
+const filterFields: CnFilterField[] = [
+  { prop: 'keyword', label: '帖子关键词', type: 'input', placeholder: '请输入标题或内容关键词' },
+  { prop: 'authorName', label: '作者', type: 'input', placeholder: '作者用户名' },
+  { prop: 'categoryId', label: '分类', type: 'custom', slot: 'categoryId' },
+  {
+    prop: 'status',
+    label: '状态',
+    type: 'select',
+    placeholder: '请选择状态',
+    options: [
+      { label: '正常', value: 1 },
+      { label: '下架', value: 2 },
+      { label: '删除', value: 3 }
+    ]
+  },
+  { prop: 'timeRange', label: '发布时间', type: 'daterange', placeholder: '开始日期' }
+]
+
+const tableColumns: CnTableColumn<PostRecord>[] = [
+  { prop: 'id', label: 'ID', width: 80 },
+  { prop: 'title', label: '帖子标题', minWidth: 220, slot: 'title', showOverflowTooltip: true },
+  { prop: 'categoryName', label: '分类', width: 120, slot: 'categoryName' },
+  { prop: 'authorName', label: '作者', width: 120, showOverflowTooltip: true },
+  { label: '数据统计', width: 190, slot: 'metrics', align: 'center' },
+  { prop: 'status', label: '状态', width: 90, slot: 'status' },
+  { prop: 'createTime', label: '创建时间', width: 180, showOverflowTooltip: true },
+  { label: '操作', width: 240, fixed: 'right', slot: 'actions' }
+]
+
+const tablePagination = computed<CnPagination>(() => ({
+  page: pagination.pageNum,
+  pageSize: pagination.pageSize,
+  total: pagination.total,
+  pageSizes: [10, 20, 50, 100]
+}))
+
+const normalCountInPage = computed(() => postList.value.filter((item) => item.status === 1).length)
+const disabledCountInPage = computed(() => postList.value.filter((item) => item.status === 2).length)
+const topCountInPage = computed(() => postList.value.filter((item) => item.isTop === 1).length)
+const engagementCountInPage = computed(() =>
+  postList.value.reduce(
+    (sum, item) =>
+      sum +
+      (Number(item.viewCount) || 0) +
+      (Number(item.likeCount) || 0) +
+      (Number(item.commentCount) || 0) +
+      (Number(item.collectCount) || 0),
+    0
+  )
+)
+
+onMounted(async () => {
+  await loadCategories()
+  fetchPosts()
+})
+
 const fetchPosts = async () => {
   loading.value = true
   try {
-    const params = {
+    const params: Record<string, unknown> = {
       pageNum: pagination.pageNum,
       pageSize: pagination.pageSize,
       ...searchForm
     }
-    
-    // 处理时间范围
+
     if (searchForm.timeRange && searchForm.timeRange.length === 2) {
       params.startTime = searchForm.timeRange[0]
       params.endTime = searchForm.timeRange[1]
@@ -300,8 +313,8 @@ const fetchPosts = async () => {
     delete params.timeRange
 
     const data = await communityApi.getPostList(params)
-    postList.value = data.records || []
-    pagination.total = data.total || 0
+    postList.value = data?.records || []
+    pagination.total = data?.total || 0
   } catch (error) {
     console.error('获取帖子列表失败:', error)
     ElMessage.error('获取帖子列表失败')
@@ -310,28 +323,30 @@ const fetchPosts = async () => {
   }
 }
 
-// 搜索
 const handleSearch = () => {
   pagination.pageNum = 1
   fetchPosts()
 }
 
-// 重置搜索
 const handleReset = () => {
-  searchForm.keyword = ''
-  searchForm.authorName = ''
-  searchForm.categoryId = null
-  searchForm.status = null
-  searchForm.timeRange = null
+  Object.assign(searchForm, {
+    keyword: '',
+    authorName: '',
+    categoryId: null,
+    status: null,
+    timeRange: null
+  })
   pagination.pageNum = 1
   fetchPosts()
 }
 
-// 查看详情
-const handleView = async (row) => {
+const handleSearchFormUpdate = (value: Record<string, unknown>) => {
+  Object.assign(searchForm, value)
+}
+
+const handleView = async (row: PostRecord) => {
   try {
-    const data = await communityApi.getPostById(row.id)
-    currentPost.value = data
+    currentPost.value = await communityApi.getPostById(row.id)
     detailVisible.value = true
   } catch (error) {
     console.error('获取帖子详情失败:', error)
@@ -339,20 +354,18 @@ const handleView = async (row) => {
   }
 }
 
-// 置顶帖子
-const handleTop = (row) => {
+const handleTop = (row: PostRecord) => {
   currentPost.value = row
   topForm.duration = 24
   topDialogVisible.value = true
 }
 
-// 提交置顶
 const handleTopSubmit = async () => {
+  if (!currentPost.value) return
+
+  submitLoading.value = true
   try {
-    submitLoading.value = true
-    await communityApi.topPost(currentPost.value.id, {
-      duration: topForm.duration
-    })
+    await communityApi.topPost(currentPost.value.id, { duration: topForm.duration })
     ElMessage.success('置顶成功')
     topDialogVisible.value = false
     await fetchPosts()
@@ -364,19 +377,14 @@ const handleTopSubmit = async () => {
   }
 }
 
-// 取消置顶
-const handleCancelTop = async (row) => {
+const handleCancelTop = async (row: PostRecord) => {
   try {
-    await ElMessageBox.confirm(
-      `确定要取消置顶帖子 "${row.title}" 吗？`,
-      '取消置顶确认',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    
+    await ElMessageBox.confirm(`确定要取消置顶帖子 "${row.title}" 吗？`, '取消置顶确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
     await communityApi.cancelTop(row.id)
     ElMessage.success('取消置顶成功')
     await fetchPosts()
@@ -388,19 +396,14 @@ const handleCancelTop = async (row) => {
   }
 }
 
-// 下架帖子
-const handleDisable = async (row) => {
+const handleDisable = async (row: PostRecord) => {
   try {
-    await ElMessageBox.confirm(
-      `确定要下架帖子 "${row.title}" 吗？`,
-      '下架确认',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    
+    await ElMessageBox.confirm(`确定要下架帖子 "${row.title}" 吗？`, '下架确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
     await communityApi.disablePost(row.id)
     ElMessage.success('下架成功')
     await fetchPosts()
@@ -412,19 +415,14 @@ const handleDisable = async (row) => {
   }
 }
 
-// 删除帖子
-const handleDelete = async (row) => {
+const handleDelete = async (row: PostRecord) => {
   try {
-    await ElMessageBox.confirm(
-      `确定要删除帖子 "${row.title}" 吗？删除后无法恢复！`,
-      '删除确认',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    
+    await ElMessageBox.confirm(`确定要删除帖子 "${row.title}" 吗？删除后无法恢复。`, '删除确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
     await communityApi.deletePost(row.id)
     ElMessage.success('删除成功')
     await fetchPosts()
@@ -436,25 +434,22 @@ const handleDelete = async (row) => {
   }
 }
 
-// 分页变化
-const handlePageChange = (page) => {
+const handlePageChange = (page: number) => {
   pagination.pageNum = page
   fetchPosts()
 }
 
-const handlePageSizeChange = (size) => {
+const handlePageSizeChange = (size: number) => {
   pagination.pageSize = size
   pagination.pageNum = 1
   fetchPosts()
 }
 
-// 格式化帖子内容（渲染Markdown）
-const formatContent = (content) => {
+const formatContent = (content: string | undefined) => {
   if (!content) return ''
   return renderMarkdown(content)
 }
 
-// 加载分类列表
 const loadCategories = async () => {
   try {
     const data = await communityApi.getEnabledCategories()
@@ -464,54 +459,91 @@ const loadCategories = async () => {
   }
 }
 
-// 页面挂载
-onMounted(async () => {
-  await loadCategories()
-  fetchPosts()
-})
+const getPostStatusText = (status: number) => {
+  const statusMap: Record<number, string> = {
+    1: '正常',
+    2: '下架',
+    3: '删除'
+  }
+  return statusMap[status] || '未知'
+}
+
+const getPostStatusTone = (status: number): CnTone => {
+  const toneMap: Record<number, CnTone> = {
+    1: 'success',
+    2: 'warning',
+    3: 'danger'
+  }
+  return toneMap[status] || 'neutral'
+}
 </script>
 
 <style scoped>
-.post-management {
-  padding: 20px;
-  background-color: #f5f7fa;
-  min-height: 100vh;
+.community-posts-page {
+  min-height: 100%;
 }
 
-.header-card {
-  margin-bottom: 20px;
+.community-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.header-content {
+.post-title-cell {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.post-title-line {
   display: flex;
-  justify-content: space-between;
+  min-width: 0;
+  align-items: center;
+  gap: var(--cn-space-2);
+}
+
+.post-title-line strong {
+  overflow: hidden;
+  color: var(--cn-color-text-primary);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.post-title-cell span,
+.muted-text,
+.duration-field span {
+  color: var(--cn-color-text-secondary);
+  font-size: 12px;
+}
+
+.metric-stack {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  color: var(--cn-color-text-secondary);
+  font-size: 12px;
+}
+
+.table-actions,
+.dialog-footer,
+.duration-field {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
+}
+
+.duration-field {
   align-items: center;
 }
 
-.title-section h2 {
-  margin: 0 0 8px 0;
-  color: #303133;
-  font-size: 24px;
+.table-actions .el-button {
+  margin-left: 0;
 }
 
-.title-section p {
-  margin: 0;
-  color: #909399;
-  font-size: 14px;
-}
-
-.search-card {
-  margin-bottom: 20px;
-}
-
-.table-card {
-  margin-bottom: 20px;
-}
-
-.pagination-container {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
+.dialog-footer {
+  justify-content: flex-end;
 }
 
 .post-detail {
@@ -520,37 +552,42 @@ onMounted(async () => {
 }
 
 .detail-header {
-  border-bottom: 1px solid #e4e7ed;
-  padding-bottom: 15px;
-  margin-bottom: 20px;
+  margin-bottom: var(--cn-space-5);
+  padding-bottom: var(--cn-space-4);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
 }
 
 .detail-header h3 {
-  margin: 0 0 10px 0;
-  color: #303133;
+  margin: 0 0 var(--cn-space-2);
+  color: var(--cn-color-text-primary);
 }
 
 .meta-info {
   display: flex;
-  gap: 20px;
-  color: #909399;
-  font-size: 14px;
+  flex-wrap: wrap;
+  gap: var(--cn-space-4);
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
 }
 
 .detail-content {
-  line-height: 1.6;
-  color: #606266;
+  color: var(--cn-color-text-primary);
+  line-height: 1.7;
 }
 
-.dialog-footer {
-  text-align: right;
-}
-
-@media (max-width: 768px) {
-  .header-content {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
+@media (max-width: 1180px) {
+  .community-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-</style> 
+
+@media (max-width: 680px) {
+  .community-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dialog-footer {
+    justify-content: flex-start;
+  }
+}
+</style>
