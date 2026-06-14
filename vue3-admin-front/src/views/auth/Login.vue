@@ -1,24 +1,40 @@
 <template>
-  <CnPage class="admin-login-page" surface="transparent" max-width="1180px">
+  <CnPage class="admin-login-page" surface="transparent" max-width="1120px">
     <div class="login-shell">
       <section class="login-hero">
-        <CnStatusTag type="brand" size="lg">Admin Workspace</CnStatusTag>
+        <div class="login-hero__badge">
+          <el-icon><Lock /></el-icon>
+          <span>Admin Workspace</span>
+        </div>
         <div class="login-hero__copy">
           <h1>Code-Nest 管理后台</h1>
-          <p>统一管理用户、内容、系统配置和运营数据，保持后台操作链路清晰稳定。</p>
+          <p>统一处理内容、用户、配置和运营数据，让后台工作台保持清晰、稳定和可控。</p>
         </div>
-        <div class="login-hero__meta">
-          <CnStatusTag type="success" size="sm" subtle>Element Plus</CnStatusTag>
-          <CnStatusTag type="info" size="sm" subtle>Design System</CnStatusTag>
-          <CnStatusTag type="warning" size="sm" subtle>Theme Ready</CnStatusTag>
+        <div class="login-hero__metrics" aria-label="后台能力">
+          <div>
+            <strong>RBAC</strong>
+            <span>权限隔离</span>
+          </div>
+          <div>
+            <strong>Audit</strong>
+            <span>操作追踪</span>
+          </div>
+          <div>
+            <strong>Config</strong>
+            <span>系统配置</span>
+          </div>
         </div>
       </section>
 
       <CnSection class="login-card" surface="plain">
+        <div class="login-card__mark" aria-hidden="true">
+          <el-icon><Lock /></el-icon>
+        </div>
+
         <CnPageHeader
           compact
           title="管理员登录"
-          description="请输入管理端账号密码进入后台工作台。"
+          description="请输入你的管理端凭据进入后台工作台。"
         />
 
         <el-form
@@ -35,6 +51,7 @@
               placeholder="请输入用户名"
               size="large"
               :prefix-icon="User"
+              autocomplete="username"
               clearable
             />
           </el-form-item>
@@ -46,25 +63,27 @@
               placeholder="请输入密码"
               size="large"
               :prefix-icon="Lock"
+              autocomplete="current-password"
               show-password
               clearable
             />
           </el-form-item>
 
-          <el-button type="primary" size="large" class="login-button" :loading="loading" @click="handleLogin">
+          <el-button
+            type="primary"
+            size="large"
+            class="login-button"
+            :loading="loading"
+            :disabled="!canSubmit"
+            @click="handleLogin"
+          >
             {{ loading ? '登录中...' : '登录' }}
           </el-button>
         </el-form>
 
-        <div class="login-hints" aria-label="默认测试账号">
-          <div class="hint-item">
-            <span>默认账户</span>
-            <strong>admin / 123456</strong>
-          </div>
-          <div class="hint-item">
-            <span>系统账户</span>
-            <strong>system / 123456</strong>
-          </div>
+        <div class="login-security-note">
+          <el-icon><Lock /></el-icon>
+          <span>凭据仅用于本次认证，不会在页面中展示或预填。</span>
         </div>
       </CnSection>
     </div>
@@ -72,11 +91,11 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Lock, User } from '@element-plus/icons-vue'
-import { CnPage, CnPageHeader, CnSection, CnStatusTag } from '@/design-system'
+import { CnPage, CnPageHeader, CnSection } from '@/design-system'
 import { useUserStore } from '@/stores/user'
 
 interface LoginForm {
@@ -92,8 +111,12 @@ const loginFormRef = ref<FormInstance | null>(null)
 const loading = ref(false)
 
 const loginForm = reactive<LoginForm>({
-  username: 'admin',
-  password: '123456'
+  username: '',
+  password: ''
+})
+
+const canSubmit = computed(() => {
+  return loginForm.username.trim().length >= 2 && loginForm.password.length >= 6 && !loading.value
 })
 
 const loginRules: FormRules<LoginForm> = {
@@ -133,13 +156,14 @@ const handleLogin = async () => {
   min-height: 100vh;
   display: grid;
   align-items: center;
+  padding-block: clamp(var(--cn-space-5), 4vw, var(--cn-space-9));
 }
 
 .login-shell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 460px);
-  gap: var(--cn-space-6);
-  align-items: stretch;
+  grid-template-columns: minmax(0, 1.08fr) minmax(380px, 430px);
+  gap: clamp(var(--cn-space-5), 4vw, var(--cn-space-8));
+  align-items: center;
 }
 
 .login-hero {
@@ -148,11 +172,28 @@ const handleLogin = async () => {
   justify-content: center;
   gap: var(--cn-space-6);
   min-width: 0;
-  padding: clamp(var(--cn-space-6), 6vw, var(--cn-space-10));
+  min-height: 520px;
+  padding: clamp(var(--cn-space-6), 6vw, var(--cn-space-11));
   border: 1px solid var(--cn-color-border-subtle);
-  border-radius: var(--cn-radius-panel);
-  background: color-mix(in srgb, var(--cn-color-brand-soft) 42%, var(--cn-color-bg-surface));
-  box-shadow: var(--cn-shadow-card);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--cn-color-brand) 18%, transparent) 0 26%, transparent 27%),
+    linear-gradient(135deg, color-mix(in srgb, var(--cn-color-brand-soft) 52%, var(--cn-color-bg-surface)), var(--cn-color-bg-surface));
+  box-shadow: 0 24px 70px color-mix(in srgb, var(--cn-color-brand) 12%, transparent);
+}
+
+.login-hero__badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  gap: var(--cn-space-2);
+  padding: 9px 13px;
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: 999px;
+  color: var(--cn-color-brand);
+  background: color-mix(in srgb, var(--cn-color-bg-surface) 72%, transparent);
+  font-size: 13px;
+  font-weight: 760;
 }
 
 .login-hero__copy {
@@ -164,7 +205,7 @@ const handleLogin = async () => {
   margin: 0;
   color: var(--cn-color-text-primary);
   font-family: var(--cn-font-heading);
-  font-size: clamp(34px, 5vw, 56px);
+  font-size: clamp(36px, 5vw, 58px);
   font-weight: 760;
   line-height: 1.08;
   overflow-wrap: anywhere;
@@ -178,10 +219,54 @@ const handleLogin = async () => {
   line-height: 1.8;
 }
 
-.login-hero__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--cn-space-2);
+.login-hero__metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cn-space-3);
+  max-width: 560px;
+}
+
+.login-hero__metrics > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--cn-color-bg-surface) 70%, transparent);
+}
+
+.login-hero__metrics strong {
+  color: var(--cn-color-text-primary);
+  font-family: var(--cn-font-heading);
+  font-size: 18px;
+  font-weight: 780;
+}
+
+.login-hero__metrics span {
+  color: var(--cn-color-text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.login-card {
+  position: relative;
+}
+
+.login-card :deep(.cn-section) {
+  border-radius: 24px;
+}
+
+.login-card__mark {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: var(--cn-space-3);
+  border-radius: 16px;
+  color: var(--cn-color-brand);
+  background: var(--cn-color-brand-soft);
+  font-size: 22px;
 }
 
 .login-card :deep(.cn-section__body) {
@@ -191,38 +276,70 @@ const handleLogin = async () => {
 
 .login-form {
   display: grid;
+  gap: var(--cn-space-1);
+}
+
+.login-form :deep(.el-form-item__label) {
+  color: var(--cn-color-text-primary);
+  font-weight: 720;
+}
+
+.login-form :deep(.el-input__wrapper) {
+  min-height: 46px;
+  border-radius: 14px;
+  box-shadow: 0 0 0 1px var(--cn-color-border-subtle) inset;
+}
+
+.login-form :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px var(--cn-color-brand) inset, 0 0 0 4px var(--cn-color-brand-soft);
 }
 
 .login-button {
   width: 100%;
-  min-height: 44px;
+  min-height: 48px;
   margin-top: var(--cn-space-2);
+  border-radius: 14px;
+  font-weight: 760;
 }
 
-.login-hints {
-  display: grid;
-  gap: var(--cn-space-3);
-  padding-top: var(--cn-space-4);
-  border-top: 1px solid var(--cn-color-border-subtle);
-}
-
-.hint-item {
+.login-security-note {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--cn-space-3);
-  min-width: 0;
+  gap: var(--cn-space-2);
+  padding: var(--cn-space-3);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--cn-color-bg-muted) 72%, transparent);
   color: var(--cn-color-text-secondary);
-  font-size: 13px;
-}
-
-.hint-item strong {
-  color: var(--cn-color-text-primary);
-  font-weight: 750;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 @media (max-width: 900px) {
+  .admin-login-page {
+    align-items: start;
+  }
+
   .login-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .login-hero {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 560px) {
+  .login-shell {
+    gap: var(--cn-space-4);
+  }
+
+  .login-hero {
+    padding: var(--cn-space-5);
+    border-radius: 22px;
+  }
+
+  .login-hero__metrics {
     grid-template-columns: 1fr;
   }
 }

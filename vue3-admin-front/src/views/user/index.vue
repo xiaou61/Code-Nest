@@ -567,9 +567,9 @@ const handleResetPassword = async (row: UserRecord) => {
     const { value: newPassword } = await ElMessageBox.prompt('请输入新密码', '重置密码', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
-      inputValue: '123456',
-      inputPattern: /^.{6,20}$/,
-      inputErrorMessage: '密码长度在 6 到 20 个字符'
+      inputPlaceholder: '请输入 8-20 位新密码',
+      inputPattern: /^.{8,20}$/,
+      inputErrorMessage: '密码长度在 8 到 20 个字符'
     })
 
     await userApi.resetPassword(row.id, newPassword)

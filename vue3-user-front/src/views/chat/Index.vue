@@ -452,7 +452,20 @@ let reconnectTimer = null
 let heartbeatTimer = null
 let pongTimer = null
 const connectionStatus = ref('disconnected')
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:9999/api'
+
+const getWebSocketBaseUrl = () => {
+  const configuredUrl = import.meta.env.VITE_WS_URL
+  if (configuredUrl) {
+    return configuredUrl.replace(/\/$/, '')
+  }
+
+  if (typeof window === 'undefined') {
+    return 'ws://localhost:9999/api'
+  }
+
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${protocol}//${window.location.host}/api`
+}
 
 // 重连配置 - 指数退避
 const reconnectConfig = {
@@ -837,7 +850,7 @@ const connectWebSocket = async () => {
       throw new Error('获取WebSocket票据失败')
     }
 
-    ws = new WebSocket(`${WS_URL}/ws/chat?ticket=${encodeURIComponent(ticket)}`)
+    ws = new WebSocket(`${getWebSocketBaseUrl()}/ws/chat?ticket=${encodeURIComponent(ticket)}`)
     ws.onopen = () => {
       console.log('WebSocket连接成功')
       connectionStatus.value = 'connected'

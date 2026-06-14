@@ -43,7 +43,12 @@
         </template>
 
         <template #status="{ row }">
-          <el-switch v-model="row.status" :active-value="1" :inactive-value="0" @change="handleStatusChange(row)" />
+          <el-switch
+            :model-value="toStatusValue(row.status)"
+            :active-value="1"
+            :inactive-value="0"
+            @change="(value) => handleStatusChange(row, Number(value))"
+          />
         </template>
 
         <template #actions="{ row }">
@@ -99,7 +104,9 @@ import {
 import type { CnBreadcrumbItem, CnFilterField, CnTableColumn } from '@/design-system'
 
 interface InterviewCategory {
-  id: number
+  id: number | string
+  categoryId?: number | string
+  category_id?: number | string
   name: string
   description?: string
   sortOrder?: number
@@ -170,11 +177,34 @@ const enabledCount = computed(() => categoryList.value.filter((item) => item.sta
 const disabledCount = computed(() => categoryList.value.filter((item) => item.status === 0).length)
 const questionSetCount = computed(() => categoryList.value.reduce((sum, item) => sum + (Number(item.questionSetCount) || 0), 0))
 
+const toStatusValue = (status: unknown) => (Number(status) === 1 ? 1 : 0)
+
+const resolveCategoryId = (row: Partial<InterviewCategory> | null | undefined) => {
+  const rawId = row?.id ?? row?.categoryId ?? row?.category_id
+  if (rawId === null || rawId === undefined || rawId === '') {
+    return null
+  }
+
+  const id = Number(rawId)
+  return Number.isFinite(id) ? id : null
+}
+
+const normalizeCategory = (item: InterviewCategory): InterviewCategory => {
+  const id = resolveCategoryId(item)
+  return {
+    ...item,
+    id: id ?? item.id,
+    sortOrder: Number(item.sortOrder) || 0,
+    questionSetCount: Number(item.questionSetCount) || 0,
+    status: toStatusValue(item.status)
+  }
+}
+
 const fetchCategories = async () => {
   loading.value = true
   try {
     const data = await interviewApi.getAllCategories()
-    let filteredData: InterviewCategory[] = data || []
+    let filteredData: InterviewCategory[] = (data || []).map(normalizeCategory)
     if (searchForm.name) {
       filteredData = filteredData.filter((item) => item.name.includes(searchForm.name))
     }
@@ -209,11 +239,17 @@ const handleAdd = () => {
 }
 
 const handleEdit = (row: InterviewCategory) => {
-  form.id = row.id
+  const categoryId = resolveCategoryId(row)
+  if (!categoryId) {
+    ElMessage.error('分类ID异常，请刷新后重试')
+    return
+  }
+
+  form.id = categoryId
   form.name = row.name
   form.description = row.description || ''
   form.sortOrder = row.sortOrder || 0
-  form.status = row.status
+  form.status = toStatusValue(row.status)
   dialogVisible.value = true
 }
 
@@ -229,7 +265,14 @@ const handleDelete = async (row: InterviewCategory) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    await interviewApi.deleteCategory(row.id)
+    const categoryId = resolveCategoryId(row)
+    if (!categoryId) {
+      ElMessage.error('分类ID异常，请刷新后重试')
+      await fetchCategories()
+      return
+    }
+
+    await interviewApi.deleteCategory(categoryId)
     ElMessage.success('删除成功')
     await fetchCategories()
   } catch (error) {
@@ -240,19 +283,28 @@ const handleDelete = async (row: InterviewCategory) => {
   }
 }
 
-const handleStatusChange = async (row: InterviewCategory) => {
+const handleStatusChange = async (row: InterviewCategory, nextStatus: number) => {
+  const categoryId = resolveCategoryId(row)
+  if (!categoryId) {
+    ElMessage.error('分类ID异常，请刷新后重试')
+    await fetchCategories()
+    return
+  }
+
+  const previousStatus = toStatusValue(row.status)
   try {
-    await interviewApi.updateCategory(row.id, {
+    await interviewApi.updateCategory(categoryId, {
       name: row.name,
       description: row.description,
       sortOrder: row.sortOrder,
-      status: row.status
+      status: nextStatus
     })
+    row.status = nextStatus
     ElMessage.success('状态更新成功')
   } catch (error) {
     console.error('更新状态失败:', error)
     ElMessage.error('状态更新失败')
-    row.status = row.status === 1 ? 0 : 1
+    row.status = previousStatus
   }
 }
 

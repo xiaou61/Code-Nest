@@ -918,8 +918,8 @@ POST /admin/oj/problems
 | difficulty | String | 是 | 难度：easy/medium/hard |
 | timeLimit | Integer | 否 | 时间限制（毫秒，默认 1000） |
 | memoryLimit | Integer | 否 | 内存限制（MB，默认 256） |
-| tags | List<Long> | 否 | 标签 ID 列表 |
-| hints | List<String> | 否 | 提示列表 |
+| tags | List&lt;Long&gt; | 否 | 标签 ID 列表 |
+| hints | List&lt;String&gt; | 否 | 提示列表 |
 
 **请求示例**：
 
@@ -1064,7 +1064,7 @@ POST /admin/oj/contests
 | startTime | String | 是 | 开始时间（yyyy-MM-dd HH:mm:ss） |
 | endTime | String | 是 | 结束时间（yyyy-MM-dd HH:mm:ss） |
 | type | String | 否 | 类型：ACM/OI（默认 ACM） |
-| problemIds | List<Long> | 否 | 题目 ID 列表 |
+| problemIds | List&lt;Long&gt; | 否 | 题目 ID 列表 |
 | rules | Object | 否 | 赛事规则 |
 
 **请求示例**：

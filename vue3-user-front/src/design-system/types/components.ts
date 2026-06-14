@@ -264,6 +264,7 @@ export interface CnTopNavProps {
   brand?: string
   subtitle?: string
   workspaceLabel?: string
+  showWorkspace?: boolean
   fallbackLabel?: string
   userCaption?: string
   searchLabel?: string

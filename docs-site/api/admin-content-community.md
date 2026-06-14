@@ -866,7 +866,7 @@ POST /admin/blog/tag/merge
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| sourceTagIds | List<Long> | 是 | 源标签 ID 列表 |
+| sourceTagIds | List&lt;Long&gt; | 是 | 源标签 ID 列表 |
 | targetTagId | Long | 是 | 目标标签 ID |
 
 **请求示例**：
@@ -1003,7 +1003,7 @@ GET /admin/code-pen/{id}
     "id": 1,
     "title": "CSS 动画示例",
     "description": "一个简单的 CSS 动画",
-    "htmlCode": "<div class='box'></div>",
+    "htmlCode": "&lt;div class='box'&gt;&lt;/div&gt;",
     "cssCode": ".box { width: 100px; height: 100px; background: red; }",
     "jsCode": "",
     "coverImage": "/files/images/cover.png",
@@ -1274,7 +1274,7 @@ POST /admin/moments/batch-delete
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| momentIds | List<Long> | 是 | 动态 ID 列表 |
+| momentIds | List&lt;Long&gt; | 是 | 动态 ID 列表 |
 
 **请求示例**：
 

@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: Code Nest
-  text: v2.2.2 项目文档
+  text: v2.3.0 项目文档
   tagline: 面向开发者成长社区的全量开发与运维手册 — 后端 15 个模块、前端双端、文档站独立部署。
   image:
     src: /code-nest-mark.svg

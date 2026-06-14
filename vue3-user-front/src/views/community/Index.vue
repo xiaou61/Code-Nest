@@ -1,5 +1,5 @@
 <template>
-  <CnPage class="community-container" surface="transparent" max-width="1480px" dense>
+  <CnPage class="community-container" surface="transparent" max-width="100%" dense>
     <!-- 主体内容区域 - 三栏布局 -->
     <div class="community-main">
       <!-- 左侧边栏 -->
@@ -611,12 +611,13 @@ onMounted(async () => {
 }
 
 .community-main {
-  max-width: 1440px;
+  width: 100%;
+  max-width: none;
   margin: 0 auto;
-  padding: 10px 14px 24px;
+  padding: 10px clamp(10px, 1.2vw, 24px) 24px;
   display: grid;
-  grid-template-columns: 248px 1fr 286px;
-  gap: 16px;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr) minmax(280px, 340px);
+  gap: 18px;
 }
 
 .sidebar {
@@ -1237,7 +1238,8 @@ onMounted(async () => {
 
 @media (max-width: 1240px) {
   .community-main {
-    grid-template-columns: 220px 1fr 250px;
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr) minmax(240px, 280px);
+    gap: 14px;
   }
 }
 

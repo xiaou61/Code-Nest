@@ -413,7 +413,7 @@ POST /admin/ai/config/rag-service/documents/import
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| documents | List<Object> | 是 | 文档列表 |
+| documents | List&lt;Object&gt; | 是 | 文档列表 |
 
 **请求示例**：
 
@@ -539,7 +539,7 @@ POST /admin/ai/config/regression/run
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | scenario | String | 否 | 场景筛选（空表示全部） |
-| caseIds | List<String> | 否 | 用例 ID 列表（空表示全部） |
+| caseIds | List&lt;String&gt; | 否 | 用例 ID 列表（空表示全部） |
 
 **请求示例**：
 

@@ -1,5 +1,5 @@
 <template>
-  <CnPage class="moments-container" surface="transparent" max-width="1200px">
+  <CnPage class="moments-container" surface="transparent" max-width="100%">
     <CnPageHeader
       title="朋友圈"
       description="分享学习与生活的精彩瞬间，浏览动态、评论互动并收藏值得回看的内容。"
@@ -723,15 +723,16 @@ onUnmounted(() => {
 
 /* ========== 主内容区 ========== */
 .moments-main {
-  max-width: 1200px;
+  width: 100%;
+  max-width: none;
   margin: 0 auto;
-  padding: 20px 14px 24px;
+  padding: 20px clamp(10px, 1.4vw, 28px) 24px;
 }
 
 .moments-layout {
   display: grid;
-  grid-template-columns: 240px 1fr 240px;
-  gap: 16px;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr) minmax(240px, 320px);
+  gap: 18px;
 }
 
 /* ========== 侧边栏通用 ========== */

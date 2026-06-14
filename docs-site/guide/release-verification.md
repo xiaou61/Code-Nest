@@ -347,7 +347,7 @@ mvn -pl xiaou-ai -am "-Dtest=AiSceneRegressionEvalTest" "-Dsurefire.failIfNoSpec
 ```text
 验证范围：用户端聊天 ws-ticket 和消息发送
 日期：2025-xx-xx
-版本：v2.2.2
+版本：v2.3.0
 已执行：用户端 build、后端 package、登录后进入 /chat、发送文本消息
 通过项：ws-ticket 获取成功，WebSocket CONNECT 成功，消息 ACK 成功
 未验证：多实例广播、禁言到期恢复

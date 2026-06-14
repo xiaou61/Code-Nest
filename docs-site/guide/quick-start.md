@@ -35,7 +35,7 @@ cd Code-Nest
 
 ```powershell
 git branch
-# 应该看到 * v2.2.2 或对应版本分支
+# 应该看到 * v2.3.0 或对应版本分支
 ```
 
 ## 第 2 步：初始化数据库

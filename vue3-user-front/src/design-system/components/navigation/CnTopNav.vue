@@ -7,7 +7,7 @@
           <span>{{ subtitle }}</span>
         </button>
 
-        <div class="cn-top-nav__workspace">
+        <div v-if="showWorkspace" class="cn-top-nav__workspace">
           <span>{{ workspaceLabel }}</span>
           <strong>{{ currentRouteLabel }}</strong>
         </div>
@@ -94,10 +94,14 @@
       <div class="cn-top-nav__actions">
         <CnThemeSwitch v-if="showThemeSwitch" class="cn-top-nav__theme is-desktop" />
 
-        <button class="cn-top-nav__search is-desktop" type="button" @click="emit('search')">
+        <button
+          class="cn-top-nav__search is-desktop"
+          type="button"
+          :aria-label="`${searchLabel}（${searchShortcut}）`"
+          :title="`${searchLabel} · ${searchShortcut}`"
+          @click="emit('search')"
+        >
           <el-icon><Search /></el-icon>
-          <span>{{ searchLabel }}</span>
-          <kbd>{{ searchShortcut }}</kbd>
         </button>
 
         <button class="cn-top-nav__icon-button is-mobile" type="button" :aria-label="mobileSearchLabel" @click="openMobileSearch">
@@ -230,6 +234,7 @@ const props = withDefaults(defineProps<CnTopNavProps>(), {
   brand: 'Code Nest',
   subtitle: 'Developer Growth OS',
   workspaceLabel: '当前',
+  showWorkspace: false,
   fallbackLabel: '工作台',
   activePath: '',
   activeFullPath: '',
@@ -357,10 +362,10 @@ function selectMobileItem(item: CnTopNavItem) {
 }
 
 .cn-top-nav__content {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 14px;
   height: 74px;
   max-width: 1440px;
   margin: 0 auto;
@@ -370,8 +375,10 @@ function selectMobileItem(item: CnTopNavItem) {
 .cn-top-nav__left {
   display: flex;
   align-items: center;
+  justify-self: start;
   gap: 16px;
   min-width: 0;
+  max-width: 100%;
 }
 
 .cn-top-nav__brand,
@@ -460,6 +467,7 @@ function selectMobileItem(item: CnTopNavItem) {
   position: relative;
   display: flex;
   align-items: center;
+  justify-self: center;
   gap: 6px;
   min-width: 0;
   padding: 5px;
@@ -469,18 +477,26 @@ function selectMobileItem(item: CnTopNavItem) {
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--cn-color-bg-surface) 86%, transparent);
 }
 
+.cn-top-nav__main :deep(.el-tooltip__trigger) {
+  display: inline-flex;
+  align-items: center;
+}
+
 .cn-top-nav__item {
   position: relative;
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   overflow: hidden;
-  padding: 8px 14px;
+  min-height: 40px;
+  padding: 0 14px;
   border-radius: 10px;
   color: var(--cn-text-secondary);
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
+  line-height: 1;
   text-decoration: none;
   transition: var(--cn-transition);
   white-space: nowrap;
@@ -489,7 +505,7 @@ function selectMobileItem(item: CnTopNavItem) {
 .cn-top-nav__item::after {
   position: absolute;
   right: 10px;
-  bottom: 4px;
+  bottom: 6px;
   left: 10px;
   height: 2px;
   border-radius: 999px;
@@ -518,7 +534,11 @@ function selectMobileItem(item: CnTopNavItem) {
 }
 
 .cn-top-nav__item .el-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 16px;
+  line-height: 1;
 }
 
 .cn-top-nav__dropdown-arrow {
@@ -534,7 +554,10 @@ function selectMobileItem(item: CnTopNavItem) {
 .cn-top-nav__actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  justify-self: end;
   gap: 12px;
+  min-width: 0;
 }
 
 .cn-top-nav__theme {
@@ -544,14 +567,17 @@ function selectMobileItem(item: CnTopNavItem) {
 .cn-top-nav__search {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 40px;
   height: 40px;
-  padding: 0 12px;
+  padding: 0;
   border: 1px solid color-mix(in srgb, var(--cn-color-brand-primary) 18%, var(--cn-color-border-subtle));
   border-radius: 12px;
   background: color-mix(in srgb, var(--cn-color-bg-surface-muted) 92%, transparent);
   color: var(--cn-color-text-secondary);
   cursor: pointer;
+  line-height: 1;
   transition: var(--cn-transition);
 }
 
@@ -561,17 +587,12 @@ function selectMobileItem(item: CnTopNavItem) {
   color: var(--cn-color-brand-primary);
 }
 
-.cn-top-nav__search kbd {
-  padding: 2px 6px;
-  border: 1px solid var(--cn-color-border-subtle);
-  border-radius: 6px;
-  background: var(--cn-color-bg-surface);
-  color: var(--cn-color-text-tertiary);
-  font-size: 11px;
+.cn-top-nav__search .el-icon {
+  font-size: 18px;
 }
 
 .cn-top-nav__icon-button {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 38px;
@@ -597,9 +618,11 @@ function selectMobileItem(item: CnTopNavItem) {
 }
 
 .cn-top-nav__user {
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  min-height: 40px;
   padding: 5px 10px 5px 6px;
   border: 1px solid transparent;
   border-radius: 12px;
@@ -644,7 +667,7 @@ function selectMobileItem(item: CnTopNavItem) {
   color: var(--cn-text-secondary);
 }
 
-.cn-top-nav-popper .el-dropdown-menu__item .el-icon {
+.cn-top-nav-popper .el-dropdown-menu__item > .el-icon {
   margin-right: 8px;
   color: var(--cn-color-text-tertiary);
   font-size: 14px;
@@ -657,7 +680,7 @@ function selectMobileItem(item: CnTopNavItem) {
 
 .cn-top-nav-learning-popper .el-dropdown-menu,
 .cn-top-nav-rich-popper .el-dropdown-menu {
-  min-width: 308px;
+  min-width: 320px;
   padding: 8px;
   border-color: color-mix(in srgb, var(--cn-color-brand-primary) 18%, var(--cn-color-border-subtle));
   border-radius: 14px;
@@ -680,9 +703,11 @@ function selectMobileItem(item: CnTopNavItem) {
 
 .cn-top-nav-learning-popper .el-dropdown-menu__item,
 .cn-top-nav-rich-popper .el-dropdown-menu__item {
+  display: flex;
+  align-items: center;
   min-height: auto;
   margin: 2px 0;
-  padding: 0;
+  padding: 4px;
   border-radius: 12px;
   line-height: 1;
   transition:
@@ -693,10 +718,11 @@ function selectMobileItem(item: CnTopNavItem) {
 
 .cn-top-nav-menu__item {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
   width: 100%;
-  padding: 10px 12px;
+  box-sizing: border-box;
+  padding: 10px 14px;
 }
 
 .cn-top-nav-menu__icon,
@@ -705,8 +731,8 @@ function selectMobileItem(item: CnTopNavItem) {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 10px;
   background: var(--cn-color-brand-soft);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cn-color-brand-primary) 18%, var(--cn-color-border-subtle));
@@ -715,9 +741,15 @@ function selectMobileItem(item: CnTopNavItem) {
 
 .cn-top-nav-menu__icon .el-icon,
 .cn-top-nav-mobile__icon .el-icon {
+  width: 1em;
+  height: 1em;
   margin-right: 0;
   color: inherit;
   font-size: 15px;
+}
+
+.cn-top-nav-popper .cn-top-nav-menu__icon .el-icon {
+  margin-right: 0;
 }
 
 .cn-top-nav-menu__copy,
@@ -725,6 +757,7 @@ function selectMobileItem(item: CnTopNavItem) {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  justify-content: center;
   min-width: 0;
 }
 

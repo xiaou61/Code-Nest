@@ -474,7 +474,7 @@ POST /resume
 | summary | String | 否 | 个人简介 |
 | status | Integer | 否 | 状态：0-草稿 1-发布（默认 1） |
 | visibility | Integer | 否 | 可见性：0-私有 1-公开（默认 0） |
-| sections | List<Object> | 否 | 简历板块列表 |
+| sections | List&lt;Object&gt; | 否 | 简历板块列表 |
 
 **请求示例**：
 

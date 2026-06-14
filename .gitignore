@@ -58,6 +58,8 @@ __pycache__/
 *.pyc
 
 # Local generated artifacts and scratch files
+output/
+dump.rdb
 /_write_*.cjs
 /nul
 /docs-site/build_output.txt

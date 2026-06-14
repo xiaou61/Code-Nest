@@ -151,7 +151,7 @@ POST /community/posts
 | title | String | 是 | 帖子标题（最多 100 字） |
 | content | String | 是 | 帖子内容 |
 | categoryId | Long | 否 | 分类 ID |
-| tagIds | List<Long> | 否 | 标签 ID 列表（最多 5 个） |
+| tagIds | List&lt;Long&gt; | 否 | 标签 ID 列表（最多 5 个） |
 
 **请求示例**：
 
@@ -542,7 +542,7 @@ POST /user/moments/publish
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | content | String | 是 | 动态内容 |
-| images | List<String> | 否 | 图片 URL 列表 |
+| images | List&lt;String&gt; | 否 | 图片 URL 列表 |
 
 **请求示例**：
 
@@ -867,7 +867,7 @@ POST /user/blog/articles
 | title | String | 是 | 文章标题 |
 | content | String | 是 | 文章内容（Markdown） |
 | categoryId | Long | 否 | 分类 ID |
-| tags | List<String> | 否 | 标签列表（最多 5 个） |
+| tags | List&lt;String&gt; | 否 | 标签列表（最多 5 个） |
 | coverImage | String | 否 | 封面图片 URL |
 | articleType | Integer | 否 | 文章类型：1-原创 2-转载 3-翻译（默认 1） |
 | status | Integer | 否 | 状态：0-草稿 1-发布（默认 1） |
@@ -1017,7 +1017,7 @@ POST /user/code-pen
 | cssCode | String | 否 | CSS 代码 |
 | jsCode | String | 否 | JavaScript 代码 |
 | coverImage | String | 否 | 封面图片 URL |
-| tags | List<String> | 否 | 标签列表 |
+| tags | List&lt;String&gt; | 否 | 标签列表 |
 | forkPrice | Integer | 否 | Fork 价格（积分，默认 0） |
 | status | Integer | 否 | 状态：0-草稿 1-发布 |
 
