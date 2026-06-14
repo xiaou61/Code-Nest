@@ -33,7 +33,7 @@ jobs:
     environment: production
 
     env:
-      CODE_NEST_SOURCE_DIR: /opt/code-nest/source
+      CODE_NEST_SOURCE_DIR: /opt/code-nest/actions-runner/source
       CODE_NEST_NODE_HOME: /opt/code-nest/node-v24.15.0
       CODE_NEST_REPO_URL: https://github.com/${{ github.repository }}.git
       CODE_NEST_GIT_TOKEN: ${{ github.token }}
@@ -64,7 +64,8 @@ jobs:
           mkdir -p "$(dirname "$source_dir")"
 
           if [[ ! -d "$source_dir/.git" ]]; then
-            rm -rf "$source_dir"
+            mkdir -p "$source_dir"
+            find "$source_dir" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
             git -c "http.https://github.com/.extraheader=AUTHORIZATION: bearer ${CODE_NEST_GIT_TOKEN}" \
               clone "$repo_url" "$source_dir"
           fi
