@@ -101,6 +101,32 @@ sync_dir() {
   cp -a "$source_dir"/. "$target_dir"/
 }
 
+install_deployment_helper() {
+  local source_script="$1"
+  local target_script="$APP_ROOT/bin/deploy-release.sh"
+  local pending_script="$APP_ROOT/bin/deploy-release.sh.pending"
+
+  mkdir -p "$APP_ROOT/bin"
+  cp -a "$source_script" "$pending_script"
+  chmod 755 "$pending_script"
+  chown root:root "$pending_script"
+
+  if [[ "$(readlink -f "$0")" == "$(readlink -f "$target_script" 2>/dev/null || true)" ]]; then
+    log "schedule deployment helper refresh"
+    (
+      sleep 1
+      mv -f "$pending_script" "$target_script"
+      chmod 755 "$target_script"
+      chown root:root "$target_script"
+    ) >/dev/null 2>&1 &
+    return 0
+  fi
+
+  mv -f "$pending_script" "$target_script"
+  chmod 755 "$target_script"
+  chown root:root "$target_script"
+}
+
 backup_current() {
   local backup_dir="$1"
 
@@ -251,9 +277,7 @@ deploy_bundle() {
     log "install admin frontend" &&
     sync_dir "$stage/admin" "$ADMIN_WEB_DIR" &&
     log "install deployment helper" &&
-    mkdir -p "$APP_ROOT/bin" &&
-    cp -a "$stage/scripts/deploy-release.sh" "$APP_ROOT/bin/deploy-release.sh" &&
-    chmod 755 "$APP_ROOT/bin/deploy-release.sh" &&
+    install_deployment_helper "$stage/scripts/deploy-release.sh" &&
     log "set permissions" &&
     chown -R root:root "$APP_DIR" "$USER_WEB_DIR" "$ADMIN_WEB_DIR" "$APP_ROOT/bin" &&
     find "$USER_WEB_DIR" "$ADMIN_WEB_DIR" -type d -exec chmod 755 {} + &&
