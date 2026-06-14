@@ -9,6 +9,11 @@ release_root="${CODE_NEST_RELEASE_ROOT:-/opt/code-nest/actions-runner/releases}"
 stage_dir=""
 
 export PATH="$node_home/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+export http_proxy="${CODE_NEST_HTTP_PROXY:-http://127.0.0.1:38457}"
+export https_proxy="${CODE_NEST_HTTPS_PROXY:-http://127.0.0.1:38457}"
+export npm_config_fetch_timeout="${CODE_NEST_NPM_FETCH_TIMEOUT:-300000}"
+export npm_config_fetch_retries="${CODE_NEST_NPM_FETCH_RETRIES:-3}"
+export npm_config_fetch_retry_maxtimeout="${CODE_NEST_NPM_FETCH_RETRY_MAXTIMEOUT:-120000}"
 
 log() {
   printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"

@@ -74,6 +74,8 @@ jobs:
           trap 'rm -f "$askpass"' EXIT
           export GIT_ASKPASS="$askpass"
           export GIT_TERMINAL_PROMPT=0
+          export http_proxy="${CODE_NEST_HTTP_PROXY:-http://127.0.0.1:38457}"
+          export https_proxy="${CODE_NEST_HTTPS_PROXY:-http://127.0.0.1:38457}"
           mkdir -p "$(dirname "$source_dir")"
 
           if [[ ! -d "$source_dir/.git" ]]; then
