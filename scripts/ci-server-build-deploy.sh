@@ -6,6 +6,7 @@ release_version="${CODE_NEST_RELEASE_VERSION:-${GITHUB_REF_NAME:-manual}}"
 reload_nginx="${CODE_NEST_RELOAD_NGINX:-true}"
 node_home="${CODE_NEST_NODE_HOME:-/opt/code-nest/node-v24.15.0}"
 release_root="${CODE_NEST_RELEASE_ROOT:-/opt/code-nest/actions-runner/releases}"
+stage_dir=""
 
 export PATH="$node_home/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
@@ -51,37 +52,40 @@ main() {
   safe_version="$(safe_name "$release_version")"
   local bundle
   bundle="$release_root/code-nest-${safe_version}-${short_sha}.tar.gz"
-  local stage
-  stage="$(mktemp -d "$release_root/stage.XXXXXX")"
+  stage_dir="$(mktemp -d "$release_root/stage.XXXXXX")"
 
-  trap 'rm -rf "$stage"' EXIT
+  trap 'rm -rf "$stage_dir"' EXIT
 
   log "build backend"
   mvn -B -pl xiaou-application -am clean package -DskipTests
 
   log "build admin frontend"
-  npm ci --prefer-offline --no-audit --fund=false --prefix vue3-admin-front
+  if [[ ! -d vue3-admin-front/node_modules ]]; then
+    npm ci --prefer-offline --no-audit --fund=false --timeout=300000 --prefix vue3-admin-front
+  fi
   npm run build --prefix vue3-admin-front
 
   log "build user frontend"
-  npm ci --prefer-offline --no-audit --fund=false --prefix vue3-user-front
+  if [[ ! -d vue3-user-front/node_modules ]]; then
+    npm ci --prefer-offline --no-audit --fund=false --timeout=300000 --prefix vue3-user-front
+  fi
   npm run build --prefix vue3-user-front
 
   log "assemble release bundle"
-  mkdir -p "$stage/backend" "$stage/admin" "$stage/user" "$stage/scripts"
-  cp xiaou-application/target/xiaou-application-*.jar "$stage/backend/app.jar"
-  copy_tree vue3-admin-front/dist "$stage/admin"
-  copy_tree vue3-user-front/dist "$stage/user"
-  cp scripts/deploy-release.sh "$stage/scripts/deploy-release.sh"
-  chmod 755 "$stage/scripts/deploy-release.sh"
-  cat >"$stage/RELEASE" <<EOF
+  mkdir -p "$stage_dir/backend" "$stage_dir/admin" "$stage_dir/user" "$stage_dir/scripts"
+  cp xiaou-application/target/xiaou-application-*.jar "$stage_dir/backend/app.jar"
+  copy_tree vue3-admin-front/dist "$stage_dir/admin"
+  copy_tree vue3-user-front/dist "$stage_dir/user"
+  cp scripts/deploy-release.sh "$stage_dir/scripts/deploy-release.sh"
+  chmod 755 "$stage_dir/scripts/deploy-release.sh"
+  cat >"$stage_dir/RELEASE" <<EOF
 version=$safe_version
 sha=$full_sha
 built_at=$(date -Iseconds)
 EOF
 
   rm -f "$bundle"
-  tar -czf "$bundle" -C "$stage" .
+  tar -czf "$bundle" -C "$stage_dir" .
   log "release bundle ready: $bundle"
 
   sudo /opt/code-nest/actions-runner/deploy-from-workspace.sh \
