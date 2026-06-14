@@ -144,6 +144,18 @@ jobs:
           chmod 600 ~/.ssh/code_nest_deploy
           ssh-keyscan -p "${{ secrets.CODE_NEST_DEPLOY_PORT || '22' }}" "${{ secrets.CODE_NEST_DEPLOY_HOST }}" >> ~/.ssh/known_hosts
 
+      - name: Verify SSH access
+        run: |
+          set -euo pipefail
+          ssh-keygen -y -f ~/.ssh/code_nest_deploy > ~/.ssh/code_nest_deploy.pub
+          ssh-keygen -lf ~/.ssh/code_nest_deploy.pub
+          ssh -i ~/.ssh/code_nest_deploy \
+            -p "${{ secrets.CODE_NEST_DEPLOY_PORT || '22' }}" \
+            -o BatchMode=yes \
+            -o ConnectTimeout=10 \
+            "${{ secrets.CODE_NEST_DEPLOY_USER }}@${{ secrets.CODE_NEST_DEPLOY_HOST }}" \
+            "echo ssh-auth-ok"
+
       - name: Upload release bundle
         run: |
           set -euo pipefail
