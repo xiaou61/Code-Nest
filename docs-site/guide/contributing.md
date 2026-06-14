@@ -2,7 +2,7 @@
 
 感谢你愿意参与 Code Nest 的建设。本项目是一个多模块、前后端分离的开发者成长平台，贡献时请优先保证变更边界清晰、验证充分、文档同步，避免一次提交混入无关改动。
 
-完整贡献指南请查看 GitHub 仓库：[CONTRIBUTING.md](https://github.com/xiaou61/Code-Nest/blob/main/CONTRIBUTING.md)
+完整贡献指南请查看 GitHub 仓库：[CONTRIBUTING.md](https://github.com/xiaou61/Code-Nest/blob/master/CONTRIBUTING.md)
 
 ---
 

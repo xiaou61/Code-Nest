@@ -36,7 +36,7 @@ APP_CONFIG = {
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Deploy Code-Nest frontends to the server.")
-    parser.add_argument("--host", default=os.getenv("CODE_NEST_DEPLOY_HOST", "36.140.150.167"))
+    parser.add_argument("--host", default=os.getenv("CODE_NEST_DEPLOY_HOST"))
     parser.add_argument("--port", type=int, default=int(os.getenv("CODE_NEST_DEPLOY_PORT", "22")))
     parser.add_argument("--user", default=os.getenv("CODE_NEST_DEPLOY_USER", "root"))
     parser.add_argument(
@@ -148,6 +148,9 @@ def deploy_archives(args: argparse.Namespace, archives: dict[str, Path], passwor
 
 def main() -> None:
     args = parse_args()
+    if not args.host:
+        raise SystemExit("Missing deploy host. Pass --host or set CODE_NEST_DEPLOY_HOST.")
+
     stamp = time.strftime("%Y%m%d%H%M%S")
 
     if not args.skip_build:
