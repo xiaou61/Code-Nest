@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+strip_cr() {
+  printf '%s' "$1" | tr -d '\r'
+}
+
 APP_ROOT="${CODE_NEST_APP_ROOT:-/opt/code-nest}"
 APP_DIR="${CODE_NEST_APP_DIR:-$APP_ROOT/app}"
 BACKUP_DIR="${CODE_NEST_BACKUP_DIR:-$APP_ROOT/backups/releases}"
@@ -11,6 +15,17 @@ HEALTH_URL="${CODE_NEST_HEALTH_URL:-http://127.0.0.1:9999/api/actuator/health}"
 RELOAD_NGINX="${CODE_NEST_RELOAD_NGINX:-true}"
 KEEP_RELEASES="${CODE_NEST_KEEP_RELEASES:-8}"
 RELEASE_VERSION="${CODE_NEST_RELEASE_VERSION:-unknown}"
+
+APP_ROOT="$(strip_cr "$APP_ROOT")"
+APP_DIR="$(strip_cr "$APP_DIR")"
+BACKUP_DIR="$(strip_cr "$BACKUP_DIR")"
+USER_WEB_DIR="$(strip_cr "$USER_WEB_DIR")"
+ADMIN_WEB_DIR="$(strip_cr "$ADMIN_WEB_DIR")"
+SERVICE_NAME="$(strip_cr "$SERVICE_NAME")"
+HEALTH_URL="$(strip_cr "$HEALTH_URL")"
+RELOAD_NGINX="$(strip_cr "$RELOAD_NGINX")"
+KEEP_RELEASES="$(strip_cr "$KEEP_RELEASES")"
+RELEASE_VERSION="$(strip_cr "$RELEASE_VERSION")"
 
 usage() {
   cat <<'USAGE'
@@ -152,7 +167,9 @@ restart_service() {
 }
 
 rollback_from_backup() {
-  local backup_dir="$1"
+  local backup_dir
+
+  backup_dir="$(strip_cr "$1")"
 
   test -d "$backup_dir"
   assert_safe_target_dir "$APP_DIR"
@@ -190,11 +207,12 @@ cleanup_old_backups() {
 }
 
 deploy_bundle() {
-  local bundle="$1"
+  local bundle
   local stamp
   local stage
   local backup_dir
 
+  bundle="$(strip_cr "$1")"
   require_cmd tar
   require_cmd curl
   require_cmd systemctl
@@ -203,7 +221,11 @@ deploy_bundle() {
   assert_safe_target_dir "$ADMIN_WEB_DIR"
   assert_safe_backup_dir "$BACKUP_DIR"
 
-  test -f "$bundle"
+  if [[ ! -f "$bundle" ]]; then
+    log "deployment bundle not found: $bundle"
+    exit 66
+  fi
+
   mkdir -p "$APP_ROOT" "$BACKUP_DIR"
   stamp="$(date '+%Y%m%d%H%M%S')"
   stage="$(mktemp -d "$APP_ROOT/release-stage.XXXXXX")"

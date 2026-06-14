@@ -93,7 +93,13 @@ EOF
   tar -czf "$bundle" -C "$stage_dir" .
   log "release bundle ready: $bundle"
 
-  sudo /opt/code-nest/actions-runner/deploy-from-workspace.sh \
+  if [[ ! -f "$bundle" ]]; then
+    log "release bundle missing after build: $bundle"
+    exit 66
+  fi
+
+  log "deploy release bundle"
+  sudo -n /opt/code-nest/actions-runner/deploy-from-workspace.sh \
     "$safe_version" \
     "$reload_nginx" \
     "$bundle"
