@@ -112,8 +112,8 @@ jobs:
       - name: Upload release bundle
         uses: actions/upload-artifact@v4
         with:
-          name: code-nest-release-bundle
-          path: ${{ steps.package.outputs.bundle_name }}
+          name: code-nest-release-directory
+          path: release-bundle
           if-no-files-found: error
           retention-days: 14
 
@@ -133,7 +133,7 @@ jobs:
       - name: Download release bundle
         uses: actions/download-artifact@v4
         with:
-          name: code-nest-release-bundle
+          name: code-nest-release-directory
           path: release
 
       - name: Configure SSH
@@ -156,15 +156,19 @@ jobs:
             "${{ secrets.CODE_NEST_DEPLOY_USER }}@${{ secrets.CODE_NEST_DEPLOY_HOST }}" \
             "echo ssh-auth-ok"
 
-      - name: Upload release bundle
+      - name: Sync release bundle
         run: |
           set -euo pipefail
-          bundle="release/${{ needs.build-release.outputs.bundle_name }}"
-          remote_bundle="/tmp/${{ needs.build-release.outputs.bundle_name }}"
-          scp -i ~/.ssh/code_nest_deploy \
-            -P "${{ secrets.CODE_NEST_DEPLOY_PORT || '22' }}" \
-            "$bundle" \
-            "${{ secrets.CODE_NEST_DEPLOY_USER }}@${{ secrets.CODE_NEST_DEPLOY_HOST }}:$remote_bundle"
+          remote_stage="/opt/code-nest/release-sync/${{ needs.build-release.outputs.release_version }}-${GITHUB_SHA::7}"
+          ssh -i ~/.ssh/code_nest_deploy \
+            -p "${{ secrets.CODE_NEST_DEPLOY_PORT || '22' }}" \
+            "${{ secrets.CODE_NEST_DEPLOY_USER }}@${{ secrets.CODE_NEST_DEPLOY_HOST }}" \
+            "rm -rf '$remote_stage' && mkdir -p '$remote_stage'"
+          rsync -az --delete --partial --info=progress2 \
+            -e "ssh -i ~/.ssh/code_nest_deploy -p ${{ secrets.CODE_NEST_DEPLOY_PORT || '22' }}" \
+            release/ \
+            "${{ secrets.CODE_NEST_DEPLOY_USER }}@${{ secrets.CODE_NEST_DEPLOY_HOST }}:$remote_stage/"
+          echo "REMOTE_STAGE=$remote_stage" >> "$GITHUB_ENV"
 
       - name: Deploy on server
         run: |
@@ -174,8 +178,7 @@ jobs:
           ssh -i ~/.ssh/code_nest_deploy \
             -p "${{ secrets.CODE_NEST_DEPLOY_PORT || '22' }}" \
             "${{ secrets.CODE_NEST_DEPLOY_USER }}@${{ secrets.CODE_NEST_DEPLOY_HOST }}" \
-            "CODE_NEST_RELEASE_VERSION='${{ needs.build-release.outputs.release_version }}' CODE_NEST_RELOAD_NGINX='$reload_nginx' bash -s deploy '$remote_bundle'" \
-            < scripts/deploy-release.sh
+            "set -euo pipefail && tar -czf '$remote_bundle' -C '$REMOTE_STAGE' . && CODE_NEST_RELEASE_VERSION='${{ needs.build-release.outputs.release_version }}' CODE_NEST_RELOAD_NGINX='$reload_nginx' '$REMOTE_STAGE/scripts/deploy-release.sh' deploy '$remote_bundle'"
 
       - name: Deployment summary
         run: |
