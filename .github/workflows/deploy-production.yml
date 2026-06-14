@@ -61,24 +61,29 @@ jobs:
           source_dir="${CODE_NEST_SOURCE_DIR}"
           repo_url="${CODE_NEST_REPO_URL}"
           target_ref="${CODE_NEST_TARGET_REF:-${GITHUB_REF}}"
+          git_auth_header="$(printf 'x-access-token:%s' "${CODE_NEST_GIT_TOKEN}" | base64 | tr -d '\n')"
+          git_auth=(-c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${git_auth_header}")
           mkdir -p "$(dirname "$source_dir")"
 
           if [[ ! -d "$source_dir/.git" ]]; then
             mkdir -p "$source_dir"
             find "$source_dir" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-            git -c "http.https://github.com/.extraheader=AUTHORIZATION: bearer ${CODE_NEST_GIT_TOKEN}" \
-              clone "$repo_url" "$source_dir"
+            git init "$source_dir"
           fi
 
           cd "$source_dir"
-          git remote set-url origin "$repo_url"
-          git -c "http.https://github.com/.extraheader=AUTHORIZATION: bearer ${CODE_NEST_GIT_TOKEN}" \
-            fetch --prune origin "$target_ref" --tags
+          if git remote get-url origin >/dev/null 2>&1; then
+            git remote set-url origin "$repo_url"
+          else
+            git remote add origin "$repo_url"
+          fi
+
+          git "${git_auth[@]}" fetch --prune --depth=1 origin "$target_ref"
 
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && -n "${CODE_NEST_REQUESTED_REF}" ]]; then
             checkout_ref="FETCH_HEAD"
           else
-            checkout_ref="${GITHUB_SHA}"
+            checkout_ref="FETCH_HEAD"
           fi
 
           git checkout --force "$checkout_ref"
