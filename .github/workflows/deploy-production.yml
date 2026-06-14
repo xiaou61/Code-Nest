@@ -159,12 +159,12 @@ jobs:
       - name: Sync release bundle
         run: |
           set -euo pipefail
-          remote_stage="/opt/code-nest/release-sync/${{ needs.build-release.outputs.release_version }}-${GITHUB_SHA::7}"
+          remote_stage="/opt/code-nest/release-sync/current"
           ssh -i ~/.ssh/code_nest_deploy \
             -p "${{ secrets.CODE_NEST_DEPLOY_PORT || '22' }}" \
             "${{ secrets.CODE_NEST_DEPLOY_USER }}@${{ secrets.CODE_NEST_DEPLOY_HOST }}" \
-            "rm -rf '$remote_stage' && mkdir -p '$remote_stage'"
-          rsync -az --delete --partial --info=progress2 \
+            "mkdir -p '$remote_stage'"
+          rsync -azc --delete --partial --inplace --info=progress2 \
             -e "ssh -i ~/.ssh/code_nest_deploy -p ${{ secrets.CODE_NEST_DEPLOY_PORT || '22' }}" \
             release/ \
             "${{ secrets.CODE_NEST_DEPLOY_USER }}@${{ secrets.CODE_NEST_DEPLOY_HOST }}:$remote_stage/"
