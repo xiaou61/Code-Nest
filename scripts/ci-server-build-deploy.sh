@@ -66,13 +66,13 @@ main() {
 
   log "build admin frontend"
   if [[ ! -d vue3-admin-front/node_modules ]]; then
-    npm ci --prefer-offline --no-audit --fund=false --timeout=300000 --prefix vue3-admin-front
+    npm ci --prefer-offline --no-audit --fund=false --ignore-scripts --timeout=300000 --prefix vue3-admin-front
   fi
   npm run build --prefix vue3-admin-front
 
   log "build user frontend"
   if [[ ! -d vue3-user-front/node_modules ]]; then
-    npm ci --prefer-offline --no-audit --fund=false --timeout=300000 --prefix vue3-user-front
+    npm ci --prefer-offline --no-audit --fund=false --ignore-scripts --timeout=300000 --prefix vue3-user-front
   fi
   npm run build --prefix vue3-user-front
 
