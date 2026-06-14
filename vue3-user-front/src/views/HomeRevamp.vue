@@ -1,6 +1,6 @@
 <template>
   <CnPage class="home-revamp" surface="transparent" max-width="1440px" full-height>
-    <section class="home-hero cn-learn-reveal" aria-label="首页首屏">
+    <section class="home-hero" aria-label="首页首屏">
       <div class="home-hero__copy">
         <CnPageHeader
           title="Code Nest"
@@ -562,7 +562,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .home-revamp {
-  min-height: calc(100vh - 68px);
+  min-height: auto;
   --home-on-accent: white;
 }
 
