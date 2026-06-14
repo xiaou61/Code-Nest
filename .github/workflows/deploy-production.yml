@@ -112,73 +112,32 @@ jobs:
       - name: Upload release bundle
         uses: actions/upload-artifact@v4
         with:
-          name: code-nest-release-directory
-          path: release-bundle
+          name: code-nest-release-bundle
+          path: ${{ steps.package.outputs.bundle_name }}
           if-no-files-found: error
           retention-days: 14
 
   deploy:
     name: Deploy To Production
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, code-nest-prod, linux, x64]
     needs: build-release
-    timeout-minutes: 15
+    timeout-minutes: 30
     environment: production
 
     steps:
-      - name: Checkout selected ref
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
-
       - name: Download release bundle
         uses: actions/download-artifact@v4
         with:
-          name: code-nest-release-directory
+          name: code-nest-release-bundle
           path: release
-
-      - name: Configure SSH
-        run: |
-          set -euo pipefail
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "${{ secrets.CODE_NEST_DEPLOY_SSH_KEY }}" > ~/.ssh/code_nest_deploy
-          chmod 600 ~/.ssh/code_nest_deploy
-          ssh-keyscan -p "${{ secrets.CODE_NEST_DEPLOY_PORT || '22' }}" "${{ secrets.CODE_NEST_DEPLOY_HOST }}" >> ~/.ssh/known_hosts
-
-      - name: Verify SSH access
-        run: |
-          set -euo pipefail
-          ssh-keygen -y -f ~/.ssh/code_nest_deploy > ~/.ssh/code_nest_deploy.pub
-          ssh-keygen -lf ~/.ssh/code_nest_deploy.pub
-          ssh -i ~/.ssh/code_nest_deploy \
-            -p "${{ secrets.CODE_NEST_DEPLOY_PORT || '22' }}" \
-            -o BatchMode=yes \
-            -o ConnectTimeout=10 \
-            "${{ secrets.CODE_NEST_DEPLOY_USER }}@${{ secrets.CODE_NEST_DEPLOY_HOST }}" \
-            "echo ssh-auth-ok"
-
-      - name: Sync release bundle
-        run: |
-          set -euo pipefail
-          remote_stage="/opt/code-nest/release-sync/current"
-          ssh -i ~/.ssh/code_nest_deploy \
-            -p "${{ secrets.CODE_NEST_DEPLOY_PORT || '22' }}" \
-            "${{ secrets.CODE_NEST_DEPLOY_USER }}@${{ secrets.CODE_NEST_DEPLOY_HOST }}" \
-            "mkdir -p '$remote_stage'"
-          rsync -azc --delete --partial --inplace --info=progress2 \
-            -e "ssh -i ~/.ssh/code_nest_deploy -p ${{ secrets.CODE_NEST_DEPLOY_PORT || '22' }}" \
-            release/ \
-            "${{ secrets.CODE_NEST_DEPLOY_USER }}@${{ secrets.CODE_NEST_DEPLOY_HOST }}:$remote_stage/"
-          echo "REMOTE_STAGE=$remote_stage" >> "$GITHUB_ENV"
 
       - name: Deploy on server
         run: |
           set -euo pipefail
-          remote_bundle="/tmp/${{ needs.build-release.outputs.bundle_name }}"
-          reload_nginx="${{ github.event_name == 'workflow_dispatch' && format('{0}', inputs.reload_nginx) || 'true' }}"
-          ssh -i ~/.ssh/code_nest_deploy \
-            -p "${{ secrets.CODE_NEST_DEPLOY_PORT || '22' }}" \
-            "${{ secrets.CODE_NEST_DEPLOY_USER }}@${{ secrets.CODE_NEST_DEPLOY_HOST }}" \
-            "set -euo pipefail && tar -czf '$remote_bundle' -C '$REMOTE_STAGE' . && CODE_NEST_RELEASE_VERSION='${{ needs.build-release.outputs.release_version }}' CODE_NEST_RELOAD_NGINX='$reload_nginx' '$REMOTE_STAGE/scripts/deploy-release.sh' deploy '$remote_bundle'"
+          sudo /opt/code-nest/actions-runner/deploy-from-workspace.sh \
+            '${{ needs.build-release.outputs.release_version }}' \
+            '${{ github.event_name == 'workflow_dispatch' && format('{0}', inputs.reload_nginx) || 'true' }}' \
+            "release/${{ needs.build-release.outputs.bundle_name }}"
 
       - name: Deployment summary
         run: |
