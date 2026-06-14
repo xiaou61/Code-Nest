@@ -26,119 +26,68 @@ permissions:
   contents: read
 
 jobs:
-  build-release:
-    name: Build Release Bundle
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
+  deploy:
+    name: Build And Deploy On Production
+    runs-on: [self-hosted, code-nest-prod, linux, x64]
+    timeout-minutes: 60
+    environment: production
 
-    outputs:
-      release_version: ${{ steps.meta.outputs.release_version }}
-      bundle_name: ${{ steps.package.outputs.bundle_name }}
+    env:
+      CODE_NEST_SOURCE_DIR: /opt/code-nest/source
+      CODE_NEST_NODE_HOME: /opt/code-nest/node-v24.15.0
+      CODE_NEST_REPO_URL: https://github.com/${{ github.repository }}.git
+      CODE_NEST_GIT_TOKEN: ${{ github.token }}
+      CODE_NEST_TARGET_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
+      CODE_NEST_REQUESTED_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || '' }}
+      CODE_NEST_RELOAD_NGINX: ${{ github.event_name == 'workflow_dispatch' && format('{0}', inputs.reload_nginx) || 'true' }}
 
     steps:
-      - name: Checkout selected ref
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
-
       - name: Resolve release metadata
-        id: meta
-        env:
-          REQUESTED_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || '' }}
         run: |
-          release_version="${REQUESTED_REF:-$GITHUB_REF_NAME}"
+          set -euo pipefail
+          target_ref="${CODE_NEST_TARGET_REF:-${GITHUB_REF}}"
+          release_version="${target_ref#refs/heads/}"
+          release_version="${release_version#refs/tags/}"
           release_version="${release_version//\//-}"
           release_version="$(printf '%s' "$release_version" | sed 's/[^A-Za-z0-9._-]/-/g')"
           if [[ -z "$release_version" ]]; then
             release_version="manual"
           fi
-          echo "release_version=$release_version" >> "$GITHUB_OUTPUT"
+          echo "CODE_NEST_RELEASE_VERSION=$release_version" >> "$GITHUB_ENV"
 
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-          cache: maven
-
-      - name: Setup Node 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: |
-            vue3-admin-front/package-lock.json
-            vue3-user-front/package-lock.json
-
-      - name: Package backend
-        run: mvn -B -pl xiaou-application -am clean package -DskipTests
-
-      - name: Install admin dependencies
-        run: npm ci
-        working-directory: vue3-admin-front
-
-      - name: Build admin frontend
-        run: npm run build
-        working-directory: vue3-admin-front
-
-      - name: Install user dependencies
-        run: npm ci
-        working-directory: vue3-user-front
-
-      - name: Build user frontend
-        run: npm run build
-        working-directory: vue3-user-front
-
-      - name: Assemble release bundle
-        id: package
+      - name: Prepare source checkout
         run: |
           set -euo pipefail
-          bundle_name="code-nest-${{ steps.meta.outputs.release_version }}-${GITHUB_SHA::7}.tar.gz"
-          rm -rf release-bundle
-          mkdir -p release-bundle/backend release-bundle/admin release-bundle/user release-bundle/scripts
-          cp xiaou-application/target/xiaou-application-*.jar release-bundle/backend/app.jar
-          cp -a vue3-admin-front/dist/. release-bundle/admin/
-          cp -a vue3-user-front/dist/. release-bundle/user/
-          cp scripts/deploy-release.sh release-bundle/scripts/deploy-release.sh
-          chmod 755 release-bundle/scripts/deploy-release.sh
-          cat > release-bundle/RELEASE <<EOF
-          version=${{ steps.meta.outputs.release_version }}
-          sha=$GITHUB_SHA
-          built_at=$(date -Iseconds)
-          EOF
-          tar -czf "$bundle_name" -C release-bundle .
-          echo "bundle_name=$bundle_name" >> "$GITHUB_OUTPUT"
+          source_dir="${CODE_NEST_SOURCE_DIR}"
+          repo_url="${CODE_NEST_REPO_URL}"
+          target_ref="${CODE_NEST_TARGET_REF:-${GITHUB_REF}}"
+          mkdir -p "$(dirname "$source_dir")"
 
-      - name: Upload release bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: code-nest-release-bundle
-          path: ${{ steps.package.outputs.bundle_name }}
-          if-no-files-found: error
-          retention-days: 14
+          if [[ ! -d "$source_dir/.git" ]]; then
+            rm -rf "$source_dir"
+            git -c "http.https://github.com/.extraheader=AUTHORIZATION: bearer ${CODE_NEST_GIT_TOKEN}" \
+              clone "$repo_url" "$source_dir"
+          fi
 
-  deploy:
-    name: Deploy To Production
-    runs-on: [self-hosted, code-nest-prod, linux, x64]
-    needs: build-release
-    timeout-minutes: 30
-    environment: production
+          cd "$source_dir"
+          git remote set-url origin "$repo_url"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: bearer ${CODE_NEST_GIT_TOKEN}" \
+            fetch --prune origin "$target_ref" --tags
 
-    steps:
-      - name: Download release bundle
-        uses: actions/download-artifact@v4
-        with:
-          name: code-nest-release-bundle
-          path: release
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && -n "${CODE_NEST_REQUESTED_REF}" ]]; then
+            checkout_ref="FETCH_HEAD"
+          else
+            checkout_ref="${GITHUB_SHA}"
+          fi
 
-      - name: Deploy on server
+          git checkout --force "$checkout_ref"
+          git reset --hard "$checkout_ref"
+          git clean -fd \
+            -e "vue3-admin-front/node_modules" \
+            -e "vue3-user-front/node_modules"
+
+      - name: Build and deploy
         run: |
           set -euo pipefail
-          sudo /opt/code-nest/actions-runner/deploy-from-workspace.sh \
-            '${{ needs.build-release.outputs.release_version }}' \
-            '${{ github.event_name == 'workflow_dispatch' && format('{0}', inputs.reload_nginx) || 'true' }}' \
-            "release/${{ needs.build-release.outputs.bundle_name }}"
-
-      - name: Deployment summary
-        run: |
-          echo "Deployed ${{ needs.build-release.outputs.release_version }} to production"
+          cd "${CODE_NEST_SOURCE_DIR}"
+          bash scripts/ci-server-build-deploy.sh
