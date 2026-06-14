@@ -83,6 +83,31 @@ git push origin v2.3.1
 
 手动触发适合补发某个 commit、重跑失败部署或验证一个版本分支。
 
+### 本机快速部署
+
+如果 GitHub Actions Secrets 还没有配置好，或者需要临时从本机直接发布，可以使用本地部署入口。它会构建后端、用户端和管理端，组装与 Actions 相同格式的 release bundle，上传服务器，并复用服务器端 `deploy-release.sh` 完成备份、替换、健康检查和失败回滚。
+
+```bash
+python scripts/deploy-production.py \
+  --host 36.140.150.167 \
+  --user root \
+  --identity ~/.ssh/code_nest_github_actions_ed25519 \
+  --version v2.3.1
+```
+
+如果已经提前构建过后端 Jar 和两个前端 `dist`，可以跳过构建：
+
+```bash
+python scripts/deploy-production.py \
+  --host 36.140.150.167 \
+  --user root \
+  --identity ~/.ssh/code_nest_github_actions_ed25519 \
+  --version v2.3.1 \
+  --skip-build
+```
+
+本机脚本不会保存服务器密码。推荐使用专用 SSH key，并把同一份私钥配置到 GitHub Actions 的 `CODE_NEST_DEPLOY_SSH_KEY`。
+
 ## 发布包内容
 
 `Deploy Production` 会构建一个 tar.gz release bundle，内容包括：
