@@ -2,7 +2,7 @@
 
 Code Nest 希望保持一个专业、友好、可信赖的协作环境。参与 Issue、Pull Request、讨论、评审和文档贡献时，请遵守以下准则。
 
-完整行为准则请查看 GitHub 仓库：[CODE_OF_CONDUCT.md](https://github.com/xiaou61/Code-Nest/blob/main/CODE_OF_CONDUCT.md)
+完整行为准则请查看 GitHub 仓库：[CODE_OF_CONDUCT.md](https://github.com/xiaou61/Code-Nest/blob/master/CODE_OF_CONDUCT.md)
 
 ---
 

@@ -4,7 +4,7 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/) 的结构，并结合本项目实际使用 `vX.Y.Z` 版本号。
 
-完整变更日志请查看 GitHub 仓库：[CHANGELOG.md](https://github.com/xiaou61/Code-Nest/blob/main/CHANGELOG.md)
+完整变更日志请查看 GitHub 仓库：[CHANGELOG.md](https://github.com/xiaou61/Code-Nest/blob/master/CHANGELOG.md)
 
 ---
 
@@ -12,6 +12,7 @@
 
 | 版本 | 日期 | 主要变更 |
 |------|------|---------|
+| v2.3.1 | 2026-06-14 | 统一 CI、生产自动部署、服务器备份与回滚 |
 | v2.3.0 | 2026-06-14 | 双端 UI 壳层优化、聊天室连接修复、面试分类管理修复 |
 | v2.2.2 | 2026-05-27 | GitHub 协作治理文档、文档站完善 |
 | v2.2.1 | 2026-05-24 | 学习小组前后端字段对齐 |
@@ -19,6 +20,26 @@
 | v2.1.1 | - | WebSocket 票据机制、CORS 配置化 |
 | v2.1.0 | - | AI 学习成长驾驶舱、AI Runtime 治理中心 |
 | v2.0.0 | - | AI 基础设施切换到 LangChain4j/LangGraph4j/LlamaIndex |
+
+---
+
+## v2.3.1 (2026-06-14)
+
+### Added
+
+- 新增统一 CI 工作流，覆盖后端 Maven 打包、用户端构建、管理端构建、文档站构建和脚本语法检查
+- 新增生产部署 GitHub Actions，支持版本分支/tag 推送或手动触发后构建 release bundle 并同步到服务器
+- 新增服务器端发布脚本，内置当前版本备份、后端 Jar 替换、双前端静态资源替换、Nginx reload、健康检查和失败回滚
+- 新增生产 CI/CD 文档，记录 GitHub Secrets、触发方式、服务器目录、回滚命令和排障入口
+
+### Changed
+
+- 统一后端 Maven、管理端前端、用户端前端、文档站和 README 示例版本到 `v2.3.1`
+- 文档站 GitHub 编辑链接改为 `master` 分支
+
+### Security
+
+- 部署凭据只通过 GitHub Secrets 注入，仓库仅保留变量名和使用说明，不保存 SSH 私钥、服务器密码或令牌
 
 ---
 

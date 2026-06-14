@@ -1,0 +1,106 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag, or commit to deploy"
+        required: false
+        default: ""
+      reload_nginx:
+        description: "Reload nginx after static asset replacement"
+        required: true
+        type: boolean
+        default: true
+  push:
+    branches:
+      - "v*"
+    tags:
+      - "v*"
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build And Deploy On Production
+    runs-on: [self-hosted, code-nest-prod, linux, x64]
+    timeout-minutes: 60
+    environment: production
+
+    env:
+      CODE_NEST_SOURCE_DIR: /opt/code-nest/actions-runner/source
+      CODE_NEST_NODE_HOME: /opt/code-nest/node-v24.15.0
+      CODE_NEST_REPO_URL: https://github.com/${{ github.repository }}.git
+      CODE_NEST_GIT_TOKEN: ${{ github.token }}
+      CODE_NEST_TARGET_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
+      CODE_NEST_REQUESTED_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || '' }}
+      CODE_NEST_RELOAD_NGINX: ${{ github.event_name == 'workflow_dispatch' && format('{0}', inputs.reload_nginx) || 'true' }}
+
+    steps:
+      - name: Resolve release metadata
+        run: |
+          set -euo pipefail
+          target_ref="${CODE_NEST_TARGET_REF:-${GITHUB_REF}}"
+          release_version="${target_ref#refs/heads/}"
+          release_version="${release_version#refs/tags/}"
+          release_version="${release_version//\//-}"
+          release_version="$(printf '%s' "$release_version" | sed 's/[^A-Za-z0-9._-]/-/g')"
+          if [[ -z "$release_version" ]]; then
+            release_version="manual"
+          fi
+          echo "CODE_NEST_RELEASE_VERSION=$release_version" >> "$GITHUB_ENV"
+
+      - name: Prepare source checkout
+        run: |
+          set -euo pipefail
+          source_dir="${CODE_NEST_SOURCE_DIR}"
+          repo_url="${CODE_NEST_REPO_URL}"
+          target_ref="${CODE_NEST_TARGET_REF:-${GITHUB_REF}}"
+          askpass="$(mktemp)"
+          cat > "$askpass" <<'EOF'
+          #!/usr/bin/env bash
+          case "$1" in
+            *Username*) printf '%s\n' 'x-access-token' ;;
+            *Password*) printf '%s\n' "${CODE_NEST_GIT_TOKEN}" ;;
+            *) printf '\n' ;;
+          esac
+          EOF
+          chmod 700 "$askpass"
+          trap 'rm -f "$askpass"' EXIT
+          export GIT_ASKPASS="$askpass"
+          export GIT_TERMINAL_PROMPT=0
+          export http_proxy="${CODE_NEST_HTTP_PROXY:-http://127.0.0.1:38457}"
+          export https_proxy="${CODE_NEST_HTTPS_PROXY:-http://127.0.0.1:38457}"
+          mkdir -p "$(dirname "$source_dir")"
+
+          if [[ ! -d "$source_dir/.git" ]]; then
+            mkdir -p "$source_dir"
+            find "$source_dir" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+            git init "$source_dir"
+          fi
+
+          cd "$source_dir"
+          if git remote get-url origin >/dev/null 2>&1; then
+            git remote set-url origin "$repo_url"
+          else
+            git remote add origin "$repo_url"
+          fi
+
+          git fetch --prune --depth=1 origin "$target_ref"
+
+          git checkout --force FETCH_HEAD
+          git reset --hard FETCH_HEAD
+          git clean -fd \
+            -e "vue3-admin-front/node_modules" \
+            -e "vue3-user-front/node_modules"
+
+      - name: Build and deploy
+        run: |
+          set -euo pipefail
+          cd "${CODE_NEST_SOURCE_DIR}"
+          bash scripts/ci-server-build-deploy.sh

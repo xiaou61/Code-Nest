@@ -2,7 +2,7 @@
 
 本文档定义 Code Nest 的版本发布流程，适用于正式版本、补丁版本和紧急修复版本。
 
-完整发布流程请查看 GitHub 仓库：[RELEASE.md](https://github.com/xiaou61/Code-Nest/blob/main/RELEASE.md)
+完整发布流程请查看 GitHub 仓库：[RELEASE.md](https://github.com/xiaou61/Code-Nest/blob/master/RELEASE.md)
 
 ---
 
@@ -88,7 +88,8 @@ npm run build
 5. 提交 Pull Request，并使用 PR 模板填写验证结果
 6. 合并后创建 Git tag
 7. 推送 tag 和发布分支
-8. 如使用 GitHub Release，复制 CHANGELOG.md 中对应版本内容作为 Release Notes
+8. 通过 `Deploy Production` workflow 或 `v*` 分支/tag 推送触发生产部署
+9. 如使用 GitHub Release，复制 CHANGELOG.md 中对应版本内容作为 Release Notes
 ```
 
 ## Git 命令示例
@@ -115,6 +116,8 @@ git push origin v2.2.1
 - 是否需要保留旧配置
 - 是否需要关闭某个功能开关
 - 回滚后前端资源、缓存、定时任务和消息队列如何处理
+
+`v2.3.1` 起，生产部署脚本会在每次发布前备份后端 Jar、用户端静态资源和管理端静态资源。详见 [生产 CI/CD 自动发布](/guide/ci-cd-production)。
 
 ## 发布说明模板
 

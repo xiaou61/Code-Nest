@@ -2,7 +2,7 @@
 
 Code Nest 涉及用户账户、内容发布、文件上传、WebSocket、AI Runtime、积分与运营后台等模块。请以私密、可复现、最小披露的方式报告安全问题。
 
-完整安全策略请查看 GitHub 仓库：[SECURITY.md](https://github.com/xiaou61/Code-Nest/blob/main/SECURITY.md)
+完整安全策略请查看 GitHub 仓库：[SECURITY.md](https://github.com/xiaou61/Code-Nest/blob/master/SECURITY.md)
 
 ---
 

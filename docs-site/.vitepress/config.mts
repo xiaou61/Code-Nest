@@ -41,6 +41,7 @@ const guideDevelopment: SidebarItem[] = [
 
 const guideRelease: SidebarItem[] = [
   { text: 'Git Log 版更新记录', link: '/guide/git-log-release-notes' },
+  { text: '生产 CI/CD 自动发布', link: '/guide/ci-cd-production' },
   { text: '版本公告与交接模板', link: '/guide/version-release-handoff-template' },
   { text: '版本交付实战样例', link: '/guide/version-release-worked-examples' },
   { text: '发布前验证', link: '/guide/release-verification' }
@@ -173,7 +174,7 @@ const manuals = [
 export default defineConfig({
   lang: 'zh-CN',
   title: 'Code Nest 文档',
-  description: 'Code Nest v2.2.2 文档工作线',
+  description: 'Code Nest v2.3.1 文档工作线',
   base: process.env.VITEPRESS_BASE || '/',
   cleanUrls: true,
   lastUpdated: true,
@@ -288,7 +289,7 @@ export default defineConfig({
       provider: 'local'
     },
     editLink: {
-      pattern: 'https://github.com/xiaou61/Code-Nest/edit/main/docs-site/:path',
+      pattern: 'https://github.com/xiaou61/Code-Nest/edit/master/docs-site/:path',
       text: '在 GitHub 上编辑此页'
     },
     outline: {
@@ -307,7 +308,7 @@ export default defineConfig({
       }
     },
     footer: {
-      message: 'Code Nest v2.2.2 documentation workline.',
+      message: 'Code Nest v2.3.1 documentation workline.',
       copyright: 'MIT Licensed.'
     }
   }
