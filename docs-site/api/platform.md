@@ -658,7 +658,7 @@ POST /notification/mark-read
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| notificationIds | List<Long> | 否 | 通知 ID 列表 |
+| notificationIds | List&lt;Long&gt; | 否 | 通知 ID 列表 |
 | markAll | Boolean | 否 | 是否标记全部已读（默认 false） |
 
 **请求示例**：
@@ -713,7 +713,7 @@ POST /notification/delete
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| notificationIds | List<Long> | 是 | 通知 ID 列表 |
+| notificationIds | List&lt;Long&gt; | 是 | 通知 ID 列表 |
 
 **请求示例**：
 
@@ -990,7 +990,7 @@ POST /sensitive/check/batch
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| texts | List<String> | 是 | 待检测文本列表 |
+| texts | List&lt;String&gt; | 是 | 待检测文本列表 |
 | module | String | 否 | 模块名称 |
 
 **请求示例**：

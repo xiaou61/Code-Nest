@@ -1,173 +1,331 @@
 <template>
-  <div class="moments-list">
-    <el-card>
-      <!-- 搜索筛选栏 -->
-      <div class="filter-section">
-        <el-row :gutter="20">
-          <el-col :span="6">
-            <el-input
-              v-model="filterForm.userNickname"
-              placeholder="请输入用户昵称"
-              clearable
-              @keyup.enter="handleSearch"
-            >
-              <template #prefix>
-                <el-icon><User /></el-icon>
-              </template>
-            </el-input>
-          </el-col>
-          <el-col :span="4">
-            <el-select v-model="filterForm.status" placeholder="选择状态" clearable>
-              <el-option label="全部" value="" />
-              <el-option label="正常" :value="1" />
-              <el-option label="删除" :value="0" />
-              <el-option label="审核中" :value="2" />
-            </el-select>
-          </el-col>
-          <el-col :span="5">
-            <el-date-picker
-              v-model="filterForm.createTime"
-              type="daterange"
-              range-separator="至"
-              start-placeholder="开始日期"
-              end-placeholder="结束日期"
-              format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD"
-            />
-          </el-col>
-          <el-col :span="4">
-            <el-button type="primary" @click="handleSearch" :loading="loading">
-              <el-icon><Search /></el-icon>
-              搜索
-            </el-button>
-          </el-col>
-        </el-row>
-      </div>
+  <CnPage class="moments-list-page" surface="transparent" max-width="1320px">
+    <CnPageHeader
+      title="动态管理"
+      description="管理朋友圈动态内容、图片预览和批量删除操作，保障用户动态内容秩序。"
+      eyebrow="Moments"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand">朋友圈管理</CnStatusTag>
+        <CnStatusTag type="neutral">共 {{ pagination.total }} 条动态</CnStatusTag>
+        <CnStatusTag type="success">正常 {{ normalCountInPage }} 条</CnStatusTag>
+        <CnStatusTag v-if="selectedRows.length" type="warning">已选择 {{ selectedRows.length }} 条</CnStatusTag>
+      </template>
 
-      <!-- 操作栏 -->
-      <div class="operation-section">
-        <el-button
-          type="danger"
-          :disabled="!selectedIds.length"
-          @click="handleBatchDelete"
-        >
-          <el-icon><Delete /></el-icon>
-          批量删除 ({{ selectedIds.length }})
-        </el-button>
-        <el-button @click="handleRefresh">
-          <el-icon><Refresh /></el-icon>
-          刷新
-        </el-button>
-      </div>
+      <template #actions>
+        <el-button :icon="Refresh" :loading="loading" @click="handleRefresh">刷新</el-button>
+      </template>
+    </CnPageHeader>
 
-      <!-- 动态列表 -->
-      <el-table
+    <div class="moment-stat-grid">
+      <CnStatCard title="动态总量" :value="pagination.total" description="当前筛选条件下的朋友圈动态数量" tone="brand" />
+      <CnStatCard title="正常动态" :value="normalCountInPage" description="当前页正常展示的动态" tone="success" />
+      <CnStatCard title="审核中" :value="pendingCountInPage" description="当前页处于审核状态的动态" tone="warning" />
+      <CnStatCard title="互动总量" :value="engagementCountInPage" description="当前页点赞和评论累计数量" tone="info" />
+    </div>
+
+    <CnSection title="筛选条件" description="按用户昵称、状态和发布时间筛选朋友圈动态。" divided>
+      <CnFilterForm
+        :model-value="filterForm"
+        :fields="filterFields"
+        :columns="4"
+        :loading="loading"
+        @update:model-value="handleFilterUpdate"
+        @search="handleSearch"
+        @reset="handleRefresh"
+      />
+    </CnSection>
+
+    <CnSection title="动态列表" :description="`共 ${pagination.total} 条动态`" divided>
+      <CnDataTable
+        :columns="tableColumns"
         :data="tableData"
-        v-loading="loading"
-        @selection-change="handleSelectionChange"
+        :loading="loading"
+        :pagination="tablePagination"
         row-key="id"
+        @selection-change="handleSelectionChange"
+        @page-change="handlePageChange"
+        @page-size-change="handlePageSizeChange"
       >
-        <el-table-column type="selection" width="50" />
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="userNickname" label="用户" width="120" />
-        <el-table-column label="动态内容" min-width="200">
-          <template #default="{ row }">
-            <div class="moment-content">
-              <p class="content-text">{{ row.content }}</p>
-              <div v-if="row.images && row.images.length" class="images-preview">
-                <el-image
-                  v-for="(image, index) in row.images.slice(0, 3)"
-                  :key="index"
-                  :src="image"
-                  :preview-src-list="row.images"
-                  :initial-index="index"
-                  class="preview-image"
-                  fit="cover"
-                />
-                <span v-if="row.images.length > 3" class="more-images">
-                  +{{ row.images.length - 3 }}
-                </span>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="likeCount" label="点赞数" width="80" align="center" />
-        <el-table-column prop="commentCount" label="评论数" width="80" align="center" />
-        <el-table-column prop="status" label="状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">
-              {{ getStatusText(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="发布时间" width="180" />
-        <el-table-column label="操作" width="100" fixed="right">
-          <template #default="{ row }">
-            <el-button
-              type="danger"
-              size="small"
-              text
-              @click="handleDelete(row)"
-            >
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+        <template #toolbar>
+          <CnToolbar title="动态数据" description="批量删除会影响用户端朋友圈展示，请谨慎操作。" align="center">
+            <template #meta>
+              <CnStatusTag type="neutral" size="sm">每页 {{ pagination.pageSize }} 条</CnStatusTag>
+              <CnStatusTag v-if="selectedRows.length" type="warning" size="sm">已选择 {{ selectedRows.length }} 条</CnStatusTag>
+            </template>
 
-      <!-- 分页 -->
-      <div class="pagination">
-        <el-pagination
-          v-model:current-page="pagination.currentPage"
-          v-model:page-size="pagination.pageSize"
-          :total="pagination.total"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="loadList"
-          @current-change="loadList"
-        />
-      </div>
-    </el-card>
-  </div>
+            <el-button type="danger" :icon="Delete" :disabled="selectedRows.length === 0" @click="handleBatchDelete">
+              批量删除
+            </el-button>
+            <el-button :icon="Refresh" @click="handleRefresh">刷新</el-button>
+          </CnToolbar>
+        </template>
+
+        <template #userNickname="{ row }">
+          <div class="user-cell">
+            <strong>{{ row.userNickname || '-' }}</strong>
+            <span>ID {{ row.id }}</span>
+          </div>
+        </template>
+
+        <template #content="{ row }">
+          <div class="moment-content">
+            <p class="content-text">{{ row.content || '-' }}</p>
+            <div v-if="row.images?.length" class="images-preview">
+              <el-image
+                v-for="(image, index) in row.images.slice(0, 3)"
+                :key="`${row.id}-${index}`"
+                :src="image"
+                :preview-src-list="row.images"
+                :initial-index="index"
+                class="preview-image"
+                fit="cover"
+              />
+              <span v-if="row.images.length > 3" class="more-images">+{{ row.images.length - 3 }}</span>
+            </div>
+          </div>
+        </template>
+
+        <template #likeCount="{ row }">
+          <CnStatusTag :type="Number(row.likeCount) > 0 ? 'success' : 'neutral'" size="sm">
+            {{ row.likeCount || 0 }}
+          </CnStatusTag>
+        </template>
+
+        <template #commentCount="{ row }">
+          <CnStatusTag :type="Number(row.commentCount) > 0 ? 'info' : 'neutral'" size="sm">
+            {{ row.commentCount || 0 }}
+          </CnStatusTag>
+        </template>
+
+        <template #status="{ row }">
+          <CnStatusTag :type="getStatusTone(row.status)" size="sm">
+            {{ getStatusText(row.status) }}
+          </CnStatusTag>
+        </template>
+
+        <template #actions="{ row }">
+          <div class="table-actions">
+            <el-button type="danger" link size="small" :icon="Delete" @click="handleDelete(row)">删除</el-button>
+          </div>
+        </template>
+
+        <template #empty>
+          <CnEmptyState
+            title="暂无动态"
+            description="当前筛选条件下没有朋友圈动态，可以重置筛选后再查看。"
+            icon="MO"
+            surface="transparent"
+          >
+            <template #actions>
+              <el-button @click="handleRefresh">重置筛选</el-button>
+            </template>
+          </CnEmptyState>
+        </template>
+      </CnDataTable>
+    </CnSection>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, onMounted, reactive } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { User, Search, Delete, Refresh } from '@element-plus/icons-vue'
-import { getAdminMomentList, batchDeleteMoments } from '@/api/moment'
+import { Delete, Refresh } from '@element-plus/icons-vue'
+import { batchDeleteMoments, getAdminMomentList } from '@/api/moment'
+import {
+  CnDataTable,
+  CnEmptyState,
+  CnFilterForm,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag,
+  CnToolbar
+} from '@/design-system'
+import type { CnBreadcrumbItem, CnFilterField, CnPagination, CnTableColumn, CnTone } from '@/design-system'
 
-// 数据状态
+interface MomentRecord {
+  id: number
+  userNickname: string
+  content?: string
+  images?: string[]
+  likeCount?: number
+  commentCount?: number
+  status: number
+  createTime?: string
+  [key: string]: unknown
+}
+
+interface FilterForm {
+  userNickname: string
+  status: number | null
+  createTime: string[] | null
+}
+
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '朋友圈管理' }, { label: '动态管理' }]
+
 const loading = ref(false)
-const tableData = ref([])
-const selectedIds = ref([])
+const tableData = ref<MomentRecord[]>([])
+const selectedRows = ref<MomentRecord[]>([])
 
-// 筛选表单
-const filterForm = reactive({
+const filterForm = reactive<FilterForm>({
   userNickname: '',
-  status: '',
+  status: null,
   createTime: null
 })
 
-// 分页配置
 const pagination = reactive({
   currentPage: 1,
   pageSize: 20,
   total: 0
 })
 
-// 状态映射
-const getStatusType = (status) => {
-  const map = {
-    0: 'info',
-    1: 'success',
-    2: 'warning'
+const filterFields: CnFilterField[] = [
+  { prop: 'userNickname', label: '用户昵称', type: 'input', placeholder: '请输入用户昵称' },
+  {
+    prop: 'status',
+    label: '状态',
+    type: 'select',
+    placeholder: '选择状态',
+    options: [
+      { label: '正常', value: 1 },
+      { label: '已删除', value: 0 },
+      { label: '审核中', value: 2 }
+    ]
+  },
+  { prop: 'createTime', label: '发布时间', type: 'daterange', placeholder: '开始日期' }
+]
+
+const tableColumns: CnTableColumn<MomentRecord>[] = [
+  { type: 'selection', width: 52 },
+  { prop: 'id', label: 'ID', width: 80 },
+  { prop: 'userNickname', label: '用户', width: 140, slot: 'userNickname', showOverflowTooltip: true },
+  { prop: 'content', label: '动态内容', minWidth: 260, slot: 'content', showOverflowTooltip: true },
+  { prop: 'likeCount', label: '点赞数', width: 90, align: 'center', slot: 'likeCount' },
+  { prop: 'commentCount', label: '评论数', width: 90, align: 'center', slot: 'commentCount' },
+  { prop: 'status', label: '状态', width: 90, slot: 'status' },
+  { prop: 'createTime', label: '发布时间', width: 180, showOverflowTooltip: true },
+  { label: '操作', width: 100, fixed: 'right', slot: 'actions' }
+]
+
+const tablePagination = computed<CnPagination>(() => ({
+  page: pagination.currentPage,
+  pageSize: pagination.pageSize,
+  total: pagination.total,
+  pageSizes: [10, 20, 50, 100]
+}))
+
+const normalCountInPage = computed(() => tableData.value.filter((item) => item.status === 1).length)
+const pendingCountInPage = computed(() => tableData.value.filter((item) => item.status === 2).length)
+const engagementCountInPage = computed(() =>
+  tableData.value.reduce((sum, item) => sum + (Number(item.likeCount) || 0) + (Number(item.commentCount) || 0), 0)
+)
+
+onMounted(() => {
+  loadList()
+})
+
+const loadList = async () => {
+  loading.value = true
+  try {
+    const result = await getAdminMomentList({
+      pageNum: pagination.currentPage,
+      pageSize: pagination.pageSize,
+      userNickname: filterForm.userNickname || undefined,
+      status: filterForm.status !== null ? filterForm.status : undefined,
+      startDate: filterForm.createTime?.[0] || undefined,
+      endDate: filterForm.createTime?.[1] || undefined
+    })
+    tableData.value = result?.records || []
+    pagination.total = result?.total || 0
+  } catch (error) {
+    console.error('加载动态列表失败:', error)
+    ElMessage.error('加载列表失败')
+  } finally {
+    loading.value = false
   }
-  return map[status] || 'info'
 }
 
-const getStatusText = (status) => {
-  const map = {
+const handleSearch = () => {
+  pagination.currentPage = 1
+  loadList()
+}
+
+const handleRefresh = () => {
+  Object.assign(filterForm, {
+    userNickname: '',
+    status: null,
+    createTime: null
+  })
+  pagination.currentPage = 1
+  selectedRows.value = []
+  loadList()
+}
+
+const handleFilterUpdate = (value: Record<string, unknown>) => {
+  Object.assign(filterForm, value)
+}
+
+const handleSelectionChange = (selection: MomentRecord[]) => {
+  selectedRows.value = selection
+}
+
+const handleDelete = async (row: MomentRecord) => {
+  try {
+    await ElMessageBox.confirm(`确定要删除用户 "${row.userNickname}" 的这条动态吗？`, '删除确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
+    await batchDeleteMoments([row.id])
+    ElMessage.success('删除成功')
+    loadList()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除动态失败:', error)
+      ElMessage.error('删除失败')
+    }
+  }
+}
+
+const handleBatchDelete = async () => {
+  if (!selectedRows.value.length) return
+
+  try {
+    await ElMessageBox.confirm(`确定要批量删除选中的 ${selectedRows.value.length} 条动态吗？`, '批量删除确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
+    await batchDeleteMoments(selectedRows.value.map((item) => item.id))
+    ElMessage.success('批量删除成功')
+    selectedRows.value = []
+    loadList()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('批量删除动态失败:', error)
+      ElMessage.error('批量删除失败')
+    }
+  }
+}
+
+const handlePageChange = (page: number) => {
+  pagination.currentPage = page
+  loadList()
+}
+
+const handlePageSizeChange = (size: number) => {
+  pagination.pageSize = size
+  pagination.currentPage = 1
+  loadList()
+}
+
+const getStatusText = (status: number) => {
+  const map: Record<number, string> = {
     0: '已删除',
     1: '正常',
     2: '审核中'
@@ -175,156 +333,98 @@ const getStatusText = (status) => {
   return map[status] || '未知'
 }
 
-// 加载列表数据
-const loadList = async () => {
-  loading.value = true
-  try {
-    const params = {
-      pageNum: pagination.currentPage,
-      pageSize: pagination.pageSize,
-      userNickname: filterForm.userNickname || undefined,
-      status: filterForm.status !== '' ? filterForm.status : undefined,
-      startDate: filterForm.createTime?.[0] || undefined,
-      endDate: filterForm.createTime?.[1] || undefined
-    }
-
-    const result = await getAdminMomentList(params)
-    tableData.value = result.records || []
-    pagination.total = result.total
-  } catch (error) {
-    ElMessage.error('加载列表失败：' + error.message)
-  } finally {
-    loading.value = false
+const getStatusTone = (status: number): CnTone => {
+  const map: Record<number, CnTone> = {
+    0: 'neutral',
+    1: 'success',
+    2: 'warning'
   }
+  return map[status] || 'neutral'
 }
-
-// 搜索
-const handleSearch = () => {
-  pagination.currentPage = 1
-  loadList()
-}
-
-// 刷新
-const handleRefresh = () => {
-  Object.assign(filterForm, {
-    userNickname: '',
-    status: '',
-    createTime: null
-  })
-  pagination.currentPage = 1
-  loadList()
-}
-
-// 选择变化
-const handleSelectionChange = (selection) => {
-  selectedIds.value = selection.map(item => item.id)
-}
-
-// 删除单个动态
-const handleDelete = async (row) => {
-  try {
-    await ElMessageBox.confirm(
-      `确定要删除用户"${row.userNickname}"的这条动态吗？`,
-      '删除确认',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    )
-    
-    await batchDeleteMoments([row.id])
-    ElMessage.success('删除成功')
-    loadList()
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('删除失败：' + error.message)
-    }
-  }
-}
-
-// 批量删除
-const handleBatchDelete = async () => {
-  try {
-    await ElMessageBox.confirm(
-      `确定要批量删除选中的 ${selectedIds.value.length} 条动态吗？`,
-      '批量删除确认',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    )
-    
-    await batchDeleteMoments(selectedIds.value)
-    ElMessage.success('批量删除成功')
-    selectedIds.value = []
-    loadList()
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('批量删除失败：' + error.message)
-    }
-  }
-}
-
-onMounted(() => {
-  loadList()
-})
 </script>
 
 <style scoped>
-.moments-list {
-  padding: 20px;
+.moments-list-page {
+  min-height: 100%;
 }
 
-.filter-section {
-  margin-bottom: 20px;
-  padding: 20px;
-  background-color: #f5f7fa;
-  border-radius: 6px;
+.moment-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.operation-section {
-  margin-bottom: 20px;
-  display: flex;
-  gap: 10px;
+.user-cell {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.user-cell strong {
+  overflow: hidden;
+  color: var(--cn-color-text-primary);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-cell span {
+  color: var(--cn-color-text-secondary);
+  font-size: 12px;
 }
 
 .moment-content {
-  max-width: 100%;
+  display: grid;
+  gap: var(--cn-space-2);
+  min-width: 0;
 }
 
 .content-text {
-  margin: 0 0 10px 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--cn-color-text-primary);
   line-height: 1.5;
-  word-wrap: break-word;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .images-preview {
   display: flex;
-  gap: 5px;
   align-items: center;
+  gap: 5px;
 }
 
 .preview-image {
   width: 40px;
   height: 40px;
-  border-radius: 4px;
+  border-radius: var(--cn-radius-control);
   cursor: pointer;
 }
 
 .more-images {
-  color: #999;
+  color: var(--cn-color-text-secondary);
   font-size: 12px;
-  margin-left: 5px;
 }
 
-.pagination {
-  margin-top: 20px;
-  text-align: right;
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
 }
 
-:deep(.el-table .el-table__cell) {
-  padding: 12px 0;
+.table-actions .el-button {
+  margin-left: 0;
 }
-</style> 
+
+@media (max-width: 1180px) {
+  .moment-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .moment-stat-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

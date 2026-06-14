@@ -1,27 +1,55 @@
 <template>
-  <div class="app-container">
-    <el-card>
-      <el-button type="primary" @click="handleAdd">新增分类</el-button>
-      
-      <el-table :data="categoryList" border stripe class="mt-3">
+  <CnPage class="blog-categories-page" surface="transparent" max-width="1180px">
+    <CnPageHeader
+      title="博客分类"
+      description="维护博客文章分类、排序和启用状态。"
+      eyebrow="Blog Categories"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand">分类 {{ total }} 个</CnStatusTag>
+        <CnStatusTag type="success">启用 {{ enabledCount }} 个</CnStatusTag>
+      </template>
+      <template #actions>
+        <el-button :icon="Refresh" @click="getList">刷新</el-button>
+        <el-button type="primary" :icon="Plus" @click="handleAdd">新增分类</el-button>
+      </template>
+    </CnPageHeader>
+
+    <CnSection title="分类列表" :description="`共 ${total} 条分类记录`" divided>
+      <el-table :data="categoryList" border stripe>
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="categoryName" label="分类名称" />
-        <el-table-column prop="categoryDescription" label="描述" />
+        <el-table-column prop="categoryName" label="分类名称" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="categoryDescription" label="描述" min-width="220" show-overflow-tooltip />
         <el-table-column prop="sortOrder" label="排序" width="100" />
         <el-table-column prop="articleCount" label="文章数" width="100" />
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'danger'">
+            <CnStatusTag :type="row.status === 1 ? 'success' : 'danger'" size="sm">
               {{ row.status === 1 ? '启用' : '禁用' }}
-            </el-tag>
+            </CnStatusTag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+            <div class="table-actions">
+              <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
+              <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+            </div>
           </template>
         </el-table-column>
+        <template #empty>
+          <CnEmptyState
+            title="暂无分类"
+            description="新增分类后，用户博客文章可以归入对应主题。"
+            icon="BC"
+            surface="transparent"
+          >
+            <template #actions>
+              <el-button type="primary" @click="handleAdd">新增分类</el-button>
+            </template>
+          </CnEmptyState>
+        </template>
       </el-table>
 
       <div class="pagination-container">
@@ -34,9 +62,8 @@
           @current-change="getList"
         />
       </div>
-    </el-card>
+    </CnSection>
 
-    <!-- 新增/编辑对话框 -->
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px">
       <el-form :model="form" label-width="100px">
         <el-form-item label="分类名称">
@@ -59,19 +86,36 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">确定</el-button>
+        <div class="dialog-footer">
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="handleSubmit">确定</el-button>
+        </div>
       </template>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getCategoryList, createCategory, updateCategory, deleteCategory } from '@/api/blog'
+import { Plus, Refresh } from '@element-plus/icons-vue'
+import { createCategory, deleteCategory, getCategoryList, updateCategory } from '@/api/blog'
+import { CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatusTag } from '@/design-system'
+import type { CnBreadcrumbItem } from '@/design-system'
 
-const categoryList = ref([])
+interface CategoryRecord {
+  id: number | null
+  categoryName: string
+  categoryIcon: string
+  categoryDescription: string
+  sortOrder: number
+  articleCount?: number
+  status: number
+}
+
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '博客管理' }, { label: '分类管理' }]
+
+const categoryList = ref<CategoryRecord[]>([])
 const total = ref(0)
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增分类')
@@ -81,7 +125,7 @@ const queryParams = reactive({
   pageSize: 20
 })
 
-const form = reactive({
+const form = reactive<CategoryRecord>({
   id: null,
   categoryName: '',
   categoryIcon: '',
@@ -90,13 +134,19 @@ const form = reactive({
   status: 1
 })
 
+const enabledCount = computed(() => categoryList.value.filter((item) => item.status === 1).length)
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  return error instanceof Error ? error.message || fallback : fallback
+}
+
 const getList = async () => {
   try {
     const res = await getCategoryList(queryParams)
-    categoryList.value = res.records
-    total.value = res.total
+    categoryList.value = Array.isArray(res?.records) ? res.records : []
+    total.value = Number(res?.total) || 0
   } catch (error) {
-    ElMessage.error(error.message || '获取分类列表失败')
+    ElMessage.error(getErrorMessage(error, '获取分类列表失败'))
   }
 }
 
@@ -106,7 +156,7 @@ const handleAdd = () => {
   dialogVisible.value = true
 }
 
-const handleEdit = (row) => {
+const handleEdit = (row: CategoryRecord) => {
   dialogTitle.value = '编辑分类'
   Object.assign(form, row)
   dialogVisible.value = true
@@ -124,21 +174,20 @@ const handleSubmit = async () => {
     dialogVisible.value = false
     getList()
   } catch (error) {
-    ElMessage.error(error.message || '操作失败')
+    ElMessage.error(getErrorMessage(error, '操作失败'))
   }
 }
 
-const handleDelete = async (row) => {
+const handleDelete = async (row: CategoryRecord) => {
+  if (!row.id) return
   try {
-    await ElMessageBox.confirm('确定要删除该分类吗？', '提示', {
-      type: 'warning'
-    })
+    await ElMessageBox.confirm('确定要删除该分类吗？', '提示', { type: 'warning' })
     await deleteCategory(row.id)
     ElMessage.success('删除成功')
     getList()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '删除失败')
+      ElMessage.error(getErrorMessage(error, '删除失败'))
     }
   }
 }
@@ -160,18 +209,31 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.app-container {
-  padding: 20px;
+.blog-categories-page {
+  min-height: 100%;
 }
 
-.mt-3 {
-  margin-top: 20px;
+.table-actions,
+.dialog-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
 }
 
 .pagination-container {
-  margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+  margin-top: var(--cn-space-4);
+}
+
+.dialog-footer {
+  justify-content: flex-end;
+}
+
+@media (max-width: 680px) {
+  .pagination-container,
+  .dialog-footer {
+    justify-content: flex-start;
+  }
 }
 </style>
-

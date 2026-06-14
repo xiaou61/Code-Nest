@@ -56,12 +56,29 @@
     <select id="selectByUserId" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List" />
         FROM notification
-        WHERE (receiver_id = #{userId} OR receiver_id IS NULL)
+        WHERE status != 'DELETED'
+        <choose>
+            <when test="userId != null">
+                AND (receiver_id = #{userId} OR receiver_id IS NULL)
+            </when>
+            <otherwise>
+                AND 1 = 1
+            </otherwise>
+        </choose>
         <if test="status != null and status != ''">
             AND status = #{status}
         </if>
         <if test="type != null and type != ''">
             AND type = #{type}
+        </if>
+        <if test="title != null and title != ''">
+            AND title LIKE CONCAT('%', #{title}, '%')
+        </if>
+        <if test="startTime != null and startTime != ''">
+            AND created_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null and endTime != ''">
+            AND created_time &lt;= #{endTime}
         </if>
         ORDER BY created_time DESC
     </select>
@@ -100,6 +117,14 @@
         SET status = 'DELETED', updated_time = NOW()
         WHERE id = #{id} 
           AND receiver_id = #{userId}
+    </update>
+
+    <!-- 管理员删除消息（软删除） -->
+    <update id="deleteMessageById">
+        UPDATE notification
+        SET status = 'DELETED', updated_time = NOW()
+        WHERE id = #{id}
+          AND status != 'DELETED'
     </update>
 
     <!-- 统计用户消息总数 -->
@@ -203,6 +228,15 @@
         </if>
         <if test="type != null and type != ''">
             AND n.type = #{type}
+        </if>
+        <if test="title != null and title != ''">
+            AND n.title LIKE CONCAT('%', #{title}, '%')
+        </if>
+        <if test="startTime != null and startTime != ''">
+            AND n.created_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null and endTime != ''">
+            AND n.created_time &lt;= #{endTime}
         </if>
         ORDER BY n.created_time DESC
     </select>

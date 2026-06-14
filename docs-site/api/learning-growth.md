@@ -520,7 +520,7 @@ POST /user/mock-interview/create
 | style | Integer | 否 | AI 风格（默认 2） |
 | questionCount | Integer | 否 | 题目数量（默认 5） |
 | questionMode | Integer | 否 | 出题模式：1-本地题库 2-AI出题（默认 2） |
-| questionSetIds | List<Long> | 否 | 题单 ID 列表（本地题库模式） |
+| questionSetIds | List&lt;Long&gt; | 否 | 题单 ID 列表（本地题库模式） |
 
 **请求示例**：
 

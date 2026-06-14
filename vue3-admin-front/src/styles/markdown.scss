@@ -2,12 +2,12 @@
 .markdown-content {
   font-size: 15px;
   line-height: 1.8;
-  color: #2c3e50;
-  background: #ffffff;
+  color: var(--cn-color-text-primary);
+  background: var(--cn-color-bg-surface);
   border-radius: 12px;
   padding: 24px;
-  border: 1px solid #e8f4fd;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--cn-color-border-subtle);
+  box-shadow: var(--cn-shadow-xs);
   
   // 标题样式
   .markdown-heading {
@@ -17,26 +17,26 @@
     
     &.markdown-h1 {
       font-size: 28px;
-      color: #2c3e50;
-      border-bottom: 3px solid #409eff;
+      color: var(--cn-color-text-primary);
+      border-bottom: 3px solid var(--cn-color-brand-primary);
       padding-bottom: 8px;
     }
     
     &.markdown-h2 {
       font-size: 24px;
-      color: #34495e;
-      border-bottom: 2px solid #67c23a;
+      color: var(--cn-color-text-primary);
+      border-bottom: 2px solid var(--cn-color-success);
       padding-bottom: 6px;
     }
     
     &.markdown-h3 {
       font-size: 20px;
-      color: #5d6d7e;
+      color: var(--cn-color-text-secondary);
     }
     
     &.markdown-h4 {
       font-size: 18px;
-      color: #7b8794;
+      color: var(--cn-color-text-tertiary);
     }
   }
   
@@ -49,19 +49,19 @@
   
   // 引用块样式
   .markdown-blockquote {
-    background: linear-gradient(to right, #f8f9fa, #ffffff);
-    border-left: 4px solid #409eff;
+    background: var(--cn-color-bg-surface-muted);
+    border-left: 4px solid var(--cn-color-brand-primary);
     margin: 20px 0;
     padding: 16px 20px;
     border-radius: 0 6px 6px 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--cn-shadow-xs);
     font-style: italic;
     position: relative;
     
     &::before {
       content: '"';
       font-size: 48px;
-      color: #409eff;
+      color: var(--cn-color-brand-primary);
       position: absolute;
       top: -5px;
       left: 10px;
@@ -70,7 +70,7 @@
     
     p {
       margin: 0;
-      color: #5a6c7d;
+      color: var(--cn-color-text-secondary);
     }
   }
   
@@ -94,7 +94,7 @@
           position: absolute;
           left: 0;
           top: 0;
-          color: #409eff;
+          color: var(--cn-color-brand-primary);
           font-weight: 600;
           width: 24px;
         }
@@ -113,7 +113,7 @@
           position: absolute;
           left: 12px;
           top: 0;
-          color: #409eff;
+          color: var(--cn-color-brand-primary);
           font-size: 12px;
         }
       }
@@ -125,9 +125,9 @@
     margin: 24px 0;
     border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-    border: 1px solid #e1e8ed;
-    background: #ffffff;
+    box-shadow: var(--cn-shadow-sm);
+    border: 1px solid var(--cn-color-border-subtle);
+    background: var(--cn-color-bg-surface);
     
     .markdown-table {
       width: 100%;
@@ -136,8 +136,8 @@
       font-size: 14px;
       
              th {
-        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-        color: #ffffff !important;
+        background: color-mix(in srgb, black 82%, var(--cn-color-brand-primary));
+        color: white !important;
         font-weight: 600;
         text-align: left;
         padding: 16px 20px;
@@ -157,19 +157,19 @@
       td {
         padding: 14px 20px;
         border: none;
-        border-bottom: 1px solid #f0f3f6;
-        color: #2c3e50;
+        border-bottom: 1px solid var(--cn-color-border-subtle);
+        color: var(--cn-color-text-primary);
         vertical-align: top;
         transition: background-color 0.3s ease;
       }
       
       tr {
         &:nth-child(even) {
-          background-color: #f8f9fc;
+          background-color: var(--cn-color-bg-surface-muted);
         }
         
         &:hover {
-          background-color: #e3f2fd !important;
+          background-color: var(--cn-color-brand-soft) !important;
           transform: scale(1.002);
           transition: all 0.2s ease;
         }
@@ -183,26 +183,26 @@
   
   // 行内代码样式 - 改进背景色
   code:not(.hljs code) {
-    background: linear-gradient(135deg, #f4f6f8 0%, #e8ecf0 100%);
-    border: 1px solid #d1d9e0;
-    color: #e74c3c;
+    background: var(--cn-color-bg-surface-muted);
+    border: 1px solid var(--cn-color-border);
+    color: var(--cn-color-danger);
     padding: 3px 8px;
     border-radius: 4px;
     font-family: 'Consolas', 'Monaco', 'SF Mono', 'Courier New', monospace;
     font-size: 0.9em;
     font-weight: 500;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--cn-shadow-xs);
   }
   
   // 代码块样式 - 重点美化
   pre.hljs {
-    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%) !important;
+    background: color-mix(in srgb, black 84%, var(--cn-color-brand-primary)) !important;
     border: none;
     border-radius: 8px;
     padding: 20px;
     margin: 20px 0;
     overflow-x: auto;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--cn-shadow-md);
     position: relative;
     
     // 添加装饰性元素
@@ -213,7 +213,7 @@
       left: 0;
       right: 0;
       height: 4px;
-      background: linear-gradient(90deg, #e74c3c, #f39c12, #f1c40f, #27ae60, #3498db, #9b59b6);
+      background: var(--cn-color-brand-primary);
     }
     
     // 模拟代码窗口的三个点
@@ -225,10 +225,10 @@
       width: 12px;
       height: 12px;
       border-radius: 50%;
-      background: #e74c3c;
+      background: var(--cn-color-danger);
       box-shadow: 
-        20px 0 0 #f39c12,
-        40px 0 0 #27ae60;
+        20px 0 0 var(--cn-color-warning),
+        40px 0 0 var(--cn-color-success);
     }
     
     code {
@@ -238,7 +238,7 @@
       font-family: 'Consolas', 'Monaco', 'SF Mono', 'Courier New', monospace;
       font-size: 14px;
       line-height: 1.6;
-      color: #ecf0f1 !important;
+      color: color-mix(in srgb, white 88%, var(--cn-color-brand-soft)) !important;
       display: block;
       padding-top: 16px; // 给三个点留空间
     }
@@ -249,41 +249,41 @@
     }
     
     &::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.1);
+      background: color-mix(in srgb, black 10%, transparent);
       border-radius: 4px;
     }
     
     &::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.3);
+      background: color-mix(in srgb, white 30%, transparent);
       border-radius: 4px;
       
       &:hover {
-        background: rgba(255, 255, 255, 0.5);
+        background: color-mix(in srgb, white 50%, transparent);
       }
     }
   }
   
   // 链接样式
   a {
-    color: #409eff;
+    color: var(--cn-color-brand-primary);
     text-decoration: none;
     border-bottom: 1px solid transparent;
     transition: all 0.3s ease;
     
     &:hover {
-      color: #66b1ff;
-      border-bottom-color: #66b1ff;
+      color: var(--cn-color-brand-hover);
+      border-bottom-color: var(--cn-color-brand-hover);
     }
   }
   
   // 强调文本样式
   strong {
-    color: #409eff;
+    color: var(--cn-color-brand-primary);
     font-weight: 600;
   }
   
   em {
-    color: #67c23a;
+    color: var(--cn-color-success);
     font-style: italic;
   }
   
@@ -291,7 +291,7 @@
   hr {
     border: none;
     height: 2px;
-    background: linear-gradient(90deg, transparent, #409eff, transparent);
+    background: var(--cn-color-border-subtle);
     margin: 32px 0;
   }
   
@@ -300,7 +300,7 @@
     max-width: 100%;
     height: auto;
     border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--cn-shadow-sm);
     margin: 16px 0;
   }
 }

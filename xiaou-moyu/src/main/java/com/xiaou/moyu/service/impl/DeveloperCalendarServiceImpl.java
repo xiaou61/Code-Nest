@@ -239,11 +239,7 @@ public class DeveloperCalendarServiceImpl implements DeveloperCalendarService {
     @Transactional(rollbackFor = Exception.class)
     public boolean updateEventStatus(Long id, Integer status) {
         try {
-            DeveloperCalendarEvent event = new DeveloperCalendarEvent();
-            event.setId(id);
-            event.setStatus(status);
-            event.setUpdateTime(LocalDateTime.now());
-            return developerCalendarEventMapper.updateById(event) > 0;
+            return developerCalendarEventMapper.updateStatusById(id, status) > 0;
         } catch (Exception e) {
             log.error("更新事件状态失败", e);
             return false;

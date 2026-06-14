@@ -2,52 +2,42 @@
   <el-dialog
     :model-value="modelValue"
     @update:model-value="emit('update:modelValue', $event)"
-    :title="`${planName} - 打卡记录`"
+    :title="`${planName || '计划'} - 打卡记录`"
     width="650px"
     :close-on-click-modal="true"
   >
     <div class="record-content">
-      <!-- 统计摘要 -->
       <div class="stats-summary">
-        <div class="stat-card">
-          <div class="stat-value">{{ totalRecords }}</div>
-          <div class="stat-label">累计打卡</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">{{ completionRate }}%</div>
-          <div class="stat-label">达标率</div>
-        </div>
+        <CnStatCard title="累计打卡" :value="totalRecords" description="当前计划记录数" tone="brand" />
+        <CnStatCard title="达标率" :value="completionRate" unit="%" description="完成度达到 100% 的比例" tone="success" />
       </div>
 
-      <!-- 记录列表 -->
-      <div class="record-list" v-loading="loading">
-        <div v-if="records.length === 0 && !loading" class="empty-state">
-          <el-empty description="暂无打卡记录" />
-        </div>
-        
-        <div 
-          v-for="record in records" 
-          :key="record.id"
-          class="record-item"
-        >
+      <div v-loading="loading" class="record-list">
+        <CnEmptyState
+          v-if="records.length === 0 && !loading"
+          title="暂无打卡记录"
+          description="完成一次打卡后，执行记录会显示在这里。"
+          icon="CK"
+          size="sm"
+          surface="transparent"
+        />
+
+        <article v-for="record in records" :key="record.id" class="record-item">
           <div class="record-date">
             <div class="date-day">{{ formatDay(record.checkinDate) }}</div>
             <div class="date-weekday">{{ formatWeekday(record.checkinDate) }}</div>
           </div>
-          
+
           <div class="record-main">
             <div class="record-value">
               <span class="value">{{ record.actualValue }}</span>
-              <span class="target">/ {{ record.targetValue }} {{ targetUnit }}</span>
-              <el-tag 
-                size="small" 
-                :type="record.completionRate >= 100 ? 'success' : 'warning'"
-              >
+              <span class="target">/ {{ record.targetValue }} {{ record.targetUnit || targetUnit }}</span>
+              <CnStatusTag :type="record.completionRate >= 100 ? 'success' : 'warning'" size="sm">
                 {{ record.completionRate }}%
-              </el-tag>
+              </CnStatusTag>
             </div>
-            <div class="record-remark" v-if="record.remark">
-              "{{ record.remark }}"
+            <div v-if="record.remark" class="record-remark">
+              {{ record.remark }}
             </div>
             <div class="record-time">
               {{ formatTime(record.checkinTime) }}
@@ -58,62 +48,75 @@
             <el-icon v-if="record.completionRate >= 100" class="success"><SuccessFilled /></el-icon>
             <el-icon v-else class="partial"><WarningFilled /></el-icon>
           </div>
-        </div>
+        </article>
       </div>
 
-      <!-- 加载更多 -->
-      <div class="load-more" v-if="hasMore">
-        <el-button @click="loadMore" :loading="loading" text>
-          加载更多
-        </el-button>
+      <div v-if="hasMore" class="load-more">
+        <el-button @click="loadMore" :loading="loading" text>加载更多</el-button>
       </div>
     </div>
   </el-dialog>
 </template>
 
-<script setup>
-import { ref, watch, computed } from 'vue'
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
 import { SuccessFilled, WarningFilled } from '@element-plus/icons-vue'
+import { CnEmptyState, CnStatCard, CnStatusTag } from '@/design-system'
 import planApi from '@/api/plan'
 
-const props = defineProps({
-  modelValue: Boolean,
-  planId: Number,
-  planName: String
-})
+interface CheckinRecord {
+  id: number | string
+  checkinDate?: string
+  checkinTime?: string
+  actualValue: number | string
+  targetValue: number | string
+  targetUnit?: string
+  completionRate: number
+  remark?: string
+}
 
-const emit = defineEmits(['update:modelValue'])
+const props = defineProps<{
+  modelValue: boolean
+  planId: number | null
+  planName: string
+}>()
+
+const emit = defineEmits<{
+  'update:modelValue': [value: boolean]
+}>()
 
 const loading = ref(false)
-const records = ref([])
+const records = ref<CheckinRecord[]>([])
 const targetUnit = ref('')
 
-// 计算属性
 const totalRecords = computed(() => records.value.length)
-const hasMore = computed(() => false) // 后端返回全部记录，不需要分页
+const hasMore = computed(() => false)
 const completionRate = computed(() => {
   if (records.value.length === 0) return 0
-  const completed = records.value.filter(r => r.completionRate >= 100).length
+  const completed = records.value.filter((record) => Number(record.completionRate || 0) >= 100).length
   return Math.round((completed / records.value.length) * 100)
 })
 
-// 监听弹窗打开
-watch(() => props.modelValue, (val) => {
-  if (val && props.planId) {
-    records.value = []
-    loadRecords()
+watch(
+  () => props.modelValue,
+  (val) => {
+    if (val && props.planId) {
+      records.value = []
+      targetUnit.value = ''
+      loadRecords()
+    }
   }
-})
+)
 
-// 加载打卡记录
 const loadRecords = async () => {
+  if (!props.planId) return
+
   loading.value = true
   try {
-    const response = await planApi.getCheckinRecords(props.planId)
+    const response = (await planApi.getCheckinRecords(props.planId)) as CheckinRecord[]
     records.value = response || []
-    
-    // 获取目标单位
-    if (records.value.length > 0 && !targetUnit.value) {
+
+    if (records.value.length > 0) {
       targetUnit.value = records.value[0].targetUnit || ''
     }
   } catch (error) {
@@ -123,20 +126,17 @@ const loadRecords = async () => {
   }
 }
 
-// 加载更多（保留以防模板报错）
 const loadMore = () => {
-  // 后端返回全部记录，不需要分页
+  // 后端当前返回全部记录，这里保留入口以兼容后续分页。
 }
 
-// 格式化日期 - 日
-const formatDay = (dateStr) => {
+const formatDay = (dateStr?: string) => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
   return date.getDate()
 }
 
-// 格式化日期 - 星期
-const formatWeekday = (dateStr) => {
+const formatWeekday = (dateStr?: string) => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
   const weekdays = ['日', '一', '二', '三', '四', '五', '六']
@@ -144,145 +144,135 @@ const formatWeekday = (dateStr) => {
   return `${month}月 周${weekdays[date.getDay()]}`
 }
 
-// 格式化时间
-const formatTime = (timeStr) => {
+const formatTime = (timeStr?: string) => {
   if (!timeStr) return ''
   const date = new Date(timeStr)
-  return date.toLocaleTimeString('zh-CN', { 
-    hour: '2-digit', 
-    minute: '2-digit' 
+  return date.toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit'
   })
 }
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .record-content {
+  display: grid;
+  gap: var(--cn-space-5);
   min-height: 300px;
 }
 
 .stats-summary {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.stat-card {
-  flex: 1;
-  background: #409eff;
-  border-radius: 12px;
-  padding: 20px;
-  text-align: center;
-  color: white;
-  
-  .stat-value {
-    font-size: 28px;
-    font-weight: bold;
-  }
-  
-  .stat-label {
-    font-size: 13px;
-    opacity: 0.9;
-    margin-top: 4px;
-  }
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
 .record-list {
+  display: grid;
+  gap: var(--cn-space-3);
   max-height: 400px;
   overflow-y: auto;
-}
-
-.empty-state {
-  padding: 40px 0;
+  padding-right: var(--cn-space-1);
 }
 
 .record-item {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 16px;
-  background: #f8f9fc;
-  border-radius: 12px;
-  margin-bottom: 12px;
-  transition: all 0.3s;
-  
-  &:hover {
-    background: #f0f2f8;
-  }
-  
-  &:last-child {
-    margin-bottom: 0;
-  }
+  gap: var(--cn-space-4);
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
+  transition:
+    background-color var(--cn-motion-base) var(--cn-ease-out),
+    border-color var(--cn-motion-base) var(--cn-ease-out);
+}
+
+.record-item:hover {
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 24%, var(--cn-color-border));
+  background: var(--cn-color-bg-surface);
 }
 
 .record-date {
-  width: 60px;
-  text-align: center;
-  
-  .date-day {
-    font-size: 24px;
-    font-weight: bold;
-    color: #409eff;
-    line-height: 1;
-  }
-  
-  .date-weekday {
-    font-size: 12px;
-    color: #999;
-    margin-top: 4px;
-  }
+  display: grid;
+  justify-items: center;
+  width: 64px;
+  flex-shrink: 0;
+}
+
+.date-day {
+  color: var(--cn-color-brand-primary);
+  font-family: var(--cn-font-heading);
+  font-size: 25px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.date-weekday {
+  margin-top: var(--cn-space-1);
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .record-main {
+  display: grid;
+  gap: var(--cn-space-1);
   flex: 1;
-  
-  .record-value {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-    
-    .value {
-      font-size: 18px;
-      font-weight: 600;
-      color: #333;
-    }
-    
-    .target {
-      font-size: 14px;
-      color: #999;
-    }
-  }
-  
-  .record-remark {
-    font-size: 13px;
-    color: #666;
-    font-style: italic;
-    margin-bottom: 4px;
-    line-height: 1.4;
-  }
-  
-  .record-time {
-    font-size: 12px;
-    color: #999;
-  }
+  min-width: 0;
 }
 
-.record-status {
-  .el-icon {
-    font-size: 24px;
-    
-    &.success {
-      color: #67c23a;
-    }
-    
-    &.partial {
-      color: #e6a23c;
-    }
-  }
+.record-value {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
+}
+
+.value {
+  color: var(--cn-color-text-primary);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.target,
+.record-time {
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+}
+
+.record-remark {
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.record-status .el-icon {
+  font-size: 24px;
+}
+
+.record-status .success {
+  color: var(--cn-color-success);
+}
+
+.record-status .partial {
+  color: var(--cn-color-warning);
 }
 
 .load-more {
-  text-align: center;
-  padding: 16px 0 8px;
+  display: flex;
+  justify-content: center;
+  padding: var(--cn-space-2) 0 0;
+}
+
+@media (max-width: 640px) {
+  .stats-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .record-item {
+    align-items: flex-start;
+  }
 }
 </style>

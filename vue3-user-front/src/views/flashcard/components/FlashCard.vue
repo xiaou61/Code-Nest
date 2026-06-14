@@ -6,7 +6,7 @@
   >
     <div class="flashcard">
       <div class="card-face card-front">
-        <div class="card-label">正面</div>
+        <CnStatusTag class="card-label" type="brand" size="sm" :dot="false">正面</CnStatusTag>
         <div class="card-content" v-html="renderedFront"></div>
         <div class="flip-hint">
           <el-icon><RefreshRight /></el-icon>
@@ -14,43 +14,43 @@
         </div>
       </div>
       <div class="card-face card-back">
-        <div class="card-label">背面</div>
+        <CnStatusTag class="card-label" type="success" size="sm" :dot="false">背面</CnStatusTag>
         <div class="card-content" v-html="renderedBack"></div>
       </div>
     </div>
   </div>
 </template>
 
-<script setup>
-import { ref, computed } from 'vue'
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue'
 import { RefreshRight } from '@element-plus/icons-vue'
+import { CnStatusTag } from '@/design-system'
 import { renderMarkdown, sanitizeHtml } from '@/utils/markdown'
 
-const props = defineProps({
-  frontContent: {
-    type: String,
-    default: ''
-  },
-  backContent: {
-    type: String,
-    default: ''
-  },
-  contentType: {
-    type: Number,
-    default: 1 // 1-文本 2-Markdown 3-代码
-  },
-  flipped: {
-    type: Boolean,
-    default: false
-  }
+const props = withDefaults(defineProps<{
+  frontContent?: string
+  backContent?: string
+  contentType?: number
+  flipped?: boolean
+}>(), {
+  frontContent: '',
+  backContent: '',
+  contentType: 1,
+  flipped: false
 })
 
-const emit = defineEmits(['flip'])
+const emit = defineEmits<{
+  (e: 'flip', flipped: boolean): void
+}>()
 
 const isFlipped = ref(props.flipped)
 
+watch(() => props.flipped, (value) => {
+  isFlipped.value = value
+})
+
 // 渲染内容
-const renderContent = (content) => {
+const renderContent = (content: string) => {
   if (!content) return ''
   if (props.contentType === 2) { // Markdown
     return renderMarkdown(content)
@@ -61,7 +61,7 @@ const renderContent = (content) => {
   return sanitizeHtml(escapeHtml(content).replace(/\n/g, '<br>'))
 }
 
-const escapeHtml = (text) => {
+const escapeHtml = (text: string) => {
   return String(text)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -103,7 +103,7 @@ defineExpose({ reset, flip: handleFlip })
   position: relative;
   width: 100%;
   height: 100%;
-  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform var(--cn-motion-hero) var(--cn-ease-in-out);
   transform-style: preserve-3d;
 }
 
@@ -112,21 +112,17 @@ defineExpose({ reset, flip: handleFlip })
   width: 100%;
   height: 100%;
   backface-visibility: hidden;
-  border-radius: 16px;
-  padding: 32px;
+  border-radius: var(--cn-radius-panel);
+  padding: var(--cn-space-8);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--cn-shadow-md);
   overflow: hidden;
 }
 
 .card-front {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
-  
-  .card-label {
-    background: rgba(255, 255, 255, 0.2);
-  }
+  background: color-mix(in srgb, var(--cn-color-brand-primary) 82%, var(--cn-color-bg-surface));
+  color: var(--cn-button-primary-color);
   
   .flip-hint {
     position: absolute;
@@ -135,7 +131,7 @@ defineExpose({ reset, flip: handleFlip })
     transform: translateX(-50%);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--cn-space-2);
     font-size: 14px;
     opacity: 0.8;
     
@@ -146,22 +142,14 @@ defineExpose({ reset, flip: handleFlip })
 }
 
 .card-back {
-  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-  color: #fff;
+  background: color-mix(in srgb, var(--cn-color-success) 82%, var(--cn-color-bg-surface));
+  color: var(--cn-button-primary-color);
   transform: rotateY(180deg);
-  
-  .card-label {
-    background: rgba(255, 255, 255, 0.2);
-  }
 }
 
 .card-label {
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
   width: fit-content;
-  margin-bottom: 20px;
+  margin-bottom: var(--cn-space-5);
 }
 
 .card-content {
@@ -175,14 +163,14 @@ defineExpose({ reset, flip: handleFlip })
   }
   
   &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
+    background: color-mix(in srgb, var(--cn-button-primary-color) 30%, transparent);
+    border-radius: var(--cn-radius-pill);
   }
   
   :deep(pre) {
-    background: rgba(0, 0, 0, 0.2);
-    padding: 16px;
-    border-radius: 8px;
+    background: color-mix(in srgb, var(--cn-color-text-primary) 24%, transparent);
+    padding: var(--cn-space-4);
+    border-radius: var(--cn-radius-card);
     overflow-x: auto;
     font-size: 14px;
     
@@ -205,9 +193,9 @@ defineExpose({ reset, flip: handleFlip })
   }
   
   :deep(code) {
-    background: rgba(0, 0, 0, 0.2);
+    background: color-mix(in srgb, var(--cn-color-text-primary) 24%, transparent);
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: var(--cn-radius-control);
     font-size: 14px;
   }
 }
@@ -227,11 +215,19 @@ defineExpose({ reset, flip: handleFlip })
   }
   
   .card-face {
-    padding: 20px;
+    padding: var(--cn-space-5);
   }
   
   .card-content {
     font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flashcard,
+  .card-front .flip-hint .el-icon {
+    animation: none;
+    transition: none;
   }
 }
 </style>

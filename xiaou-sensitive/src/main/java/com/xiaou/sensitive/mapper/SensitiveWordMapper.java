@@ -63,6 +63,12 @@ public interface SensitiveWordMapper {
     List<String> selectEnabledWords();
 
     /**
+     * 查询所有启用的敏感词详情
+     * @return 敏感词详情列表
+     */
+    List<SensitiveWord> selectEnabledWordDetails();
+
+    /**
      * 根据词汇查询是否存在
      * @param word 敏感词
      * @return 敏感词信息

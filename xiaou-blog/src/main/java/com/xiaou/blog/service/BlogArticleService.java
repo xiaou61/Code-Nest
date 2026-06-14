@@ -32,6 +32,11 @@ public interface BlogArticleService {
      * 删除文章
      */
     void deleteArticle(Long id);
+
+    /**
+     * 管理端删除文章
+     */
+    void deleteArticleByAdmin(Long id);
     
     /**
      * 获取文章详情
@@ -76,7 +81,7 @@ public interface BlogArticleService {
     /**
      * 按分类获取文章
      */
-    List<ArticleSimpleResponse> getArticlesByCategory(Long categoryId, Integer limit);
+    PageResult<ArticleSimpleResponse> getArticlesByCategory(Long categoryId, Integer pageNum, Integer pageSize);
     
     /**
      * 获取相关文章

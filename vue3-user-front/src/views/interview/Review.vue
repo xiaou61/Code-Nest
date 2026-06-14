@@ -1,155 +1,175 @@
 <template>
-  <div class="review-page">
-    <!-- 顶部导航 -->
-    <div class="page-header">
-      <el-button @click="goBack" :icon="Back" text>返回题库</el-button>
-      <h1 class="page-title">📖 智能复习</h1>
-      <div class="header-right">
-        <el-select v-model="filterType" size="small" style="width: 120px;">
+  <CnPage class="review-page" max-width="1280px" full-height>
+    <CnPageHeader
+      title="智能复习"
+      description="按逾期、今日和本周维度查看待复习题目，继续巩固已经学习过的面试题。"
+      eyebrow="INTERVIEW REVIEW"
+      :breadcrumbs="[{ label: '面试题库', to: '/interview' }, { label: '智能复习' }]"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">{{ currentFilterLabel }}</CnStatusTag>
+        <CnStatusTag type="info" size="sm" subtle>{{ reviewList.length }} 道待复习</CnStatusTag>
+      </template>
+
+      <template #actions>
+        <el-button :icon="Back" @click="goBack">返回题库</el-button>
+        <el-select v-model="filterType" class="filter-select" placeholder="筛选范围">
           <el-option label="全部" value="all" />
           <el-option label="已逾期" value="overdue" />
           <el-option label="今日" value="today" />
           <el-option label="本周" value="week" />
         </el-select>
-      </div>
-    </div>
+      </template>
+    </CnPageHeader>
 
-    <!-- 统计卡片 -->
-    <div class="stats-cards">
-      <div class="stat-card overdue">
-        <span class="stat-icon">🔴</span>
-        <div class="stat-info">
-          <span class="stat-value">{{ reviewStats.overdueCount || 0 }}</span>
-          <span class="stat-label">已逾期</span>
-        </div>
-      </div>
-      <div class="stat-card today">
-        <span class="stat-icon">🟡</span>
-        <div class="stat-info">
-          <span class="stat-value">{{ reviewStats.todayCount || 0 }}</span>
-          <span class="stat-label">今日待复习</span>
-        </div>
-      </div>
-      <div class="stat-card week">
-        <span class="stat-icon">🟢</span>
-        <div class="stat-info">
-          <span class="stat-value">{{ reviewStats.weekCount || 0 }}</span>
-          <span class="stat-label">本周待复习</span>
-        </div>
-      </div>
-      <div class="stat-card total">
-        <span class="stat-icon">📚</span>
-        <div class="stat-info">
-          <span class="stat-value">{{ reviewStats.totalLearned || 0 }}</span>
-          <span class="stat-label">已学习</span>
-        </div>
-      </div>
-    </div>
+    <section class="stats-grid" aria-label="复习统计">
+      <CnStatCard
+        title="已逾期"
+        :value="reviewStats.overdueCount || 0"
+        unit="题"
+        description="需要优先回顾的题目"
+        tone="danger"
+        trend="flat"
+        trend-text="优先"
+      />
+      <CnStatCard
+        title="今日待复习"
+        :value="reviewStats.todayCount || 0"
+        unit="题"
+        description="今天计划复习的题目"
+        tone="warning"
+        trend="flat"
+        trend-text="今日"
+      />
+      <CnStatCard
+        title="本周待复习"
+        :value="reviewStats.weekCount || 0"
+        unit="题"
+        description="本周复习窗口内的题目"
+        tone="success"
+        trend="flat"
+        trend-text="本周"
+      />
+      <CnStatCard
+        title="已学习"
+        :value="reviewStats.totalLearned || 0"
+        unit="题"
+        description="已纳入复习体系的题目"
+        tone="brand"
+        trend="flat"
+        trend-text="累计"
+      />
+    </section>
 
-    <!-- 复习列表 -->
-    <div class="review-list" v-loading="loading">
-      <el-empty v-if="!loading && reviewList.length === 0" description="暂无待复习题目，继续学习新题目吧！" />
-      
-      <div v-else class="question-list">
-        <div 
-          v-for="item in reviewList" 
-          :key="item.questionId" 
-          class="question-item"
-          @click="goToQuestion(item)"
-        >
-          <div class="question-main">
-            <h3 class="question-title">{{ item.questionTitle }}</h3>
-            <div class="question-meta">
-              <el-tag size="small" type="info">{{ item.questionSetTitle }}</el-tag>
-              <el-tag 
-                size="small" 
-                :type="getMasteryTagType(item.masteryLevel)"
-              >
-                {{ getMasteryText(item.masteryLevel) }}
-              </el-tag>
-              <span class="review-count">已复习 {{ item.reviewCount }} 次</span>
+    <div class="review-layout">
+      <CnSection class="review-list-section" title="复习题目" :description="reviewListDescription" divided>
+        <template #actions>
+          <CnStatusTag type="neutral" size="sm" subtle>{{ currentFilterLabel }}</CnStatusTag>
+        </template>
+
+        <div v-loading="loading" class="review-list">
+          <button
+            v-for="item in reviewList"
+            :key="item.questionId"
+            class="review-item"
+            type="button"
+            @click="goToQuestion(item)"
+          >
+            <span class="review-item-main">
+              <span class="question-title">{{ item.questionTitle }}</span>
+              <span class="question-meta">
+                <CnStatusTag type="info" size="sm" subtle>{{ item.questionSetTitle || '未知题单' }}</CnStatusTag>
+                <CnStatusTag :type="getMasteryTone(item.masteryLevel)" size="sm">
+                  {{ getMasteryText(item.masteryLevel) }}
+                </CnStatusTag>
+                <span class="review-count">已复习 {{ item.reviewCount || 0 }} 次</span>
+              </span>
+            </span>
+
+            <span class="review-item-extra">
+              <CnStatusTag v-if="item.overdueDays > 0" type="danger" size="sm">
+                逾期 {{ item.overdueDays }} 天
+              </CnStatusTag>
+              <el-icon class="arrow-icon"><ArrowRight /></el-icon>
+            </span>
+          </button>
+
+          <CnEmptyState
+            v-if="!loading && reviewList.length === 0"
+            title="暂无待复习题目"
+            description="继续学习新题目后，这里会根据掌握度生成复习列表。"
+            icon="RV"
+            surface="transparent"
+          >
+            <template #actions>
+              <el-button type="primary" @click="goBack">返回题库</el-button>
+            </template>
+          </CnEmptyState>
+        </div>
+      </CnSection>
+
+      <CnSection class="mastery-section" title="掌握度分布" description="按不会、模糊、熟悉和已掌握拆分当前学习题目。" divided>
+        <div class="distribution-bars">
+          <div
+            v-for="item in masteryDistribution"
+            :key="item.level"
+            class="bar-item"
+          >
+            <div class="bar-label">
+              <span>{{ item.label }}</span>
+              <strong>{{ item.count }} 题</strong>
             </div>
-          </div>
-          <div class="question-extra">
-            <div v-if="item.overdueDays > 0" class="overdue-badge">
-              逾期 {{ item.overdueDays }} 天
-            </div>
-            <el-icon class="arrow-icon"><ArrowRight /></el-icon>
+            <el-progress
+              :percentage="getPercentage(item.count)"
+              :stroke-width="12"
+              :color="item.color"
+              :show-text="false"
+            />
           </div>
         </div>
-      </div>
+      </CnSection>
     </div>
-
-    <!-- 掌握度分布 -->
-    <div class="mastery-distribution">
-      <h3 class="section-title">掌握度分布</h3>
-      <div class="distribution-bars">
-        <div class="bar-item">
-          <div class="bar-label">
-            <span>❌ 不会</span>
-            <span>{{ reviewStats.level1Count || 0 }} 题</span>
-          </div>
-          <el-progress 
-            :percentage="getPercentage(reviewStats.level1Count)" 
-            :stroke-width="12"
-            color="#F56C6C"
-            :show-text="false"
-          />
-        </div>
-        <div class="bar-item">
-          <div class="bar-label">
-            <span>🤔 模糊</span>
-            <span>{{ reviewStats.level2Count || 0 }} 题</span>
-          </div>
-          <el-progress 
-            :percentage="getPercentage(reviewStats.level2Count)" 
-            :stroke-width="12"
-            color="#E6A23C"
-            :show-text="false"
-          />
-        </div>
-        <div class="bar-item">
-          <div class="bar-label">
-            <span>😊 熟悉</span>
-            <span>{{ reviewStats.level3Count || 0 }} 题</span>
-          </div>
-          <el-progress 
-            :percentage="getPercentage(reviewStats.level3Count)" 
-            :stroke-width="12"
-            color="#409EFF"
-            :show-text="false"
-          />
-        </div>
-        <div class="bar-item">
-          <div class="bar-label">
-            <span>✅ 已掌握</span>
-            <span>{{ reviewStats.level4Count || 0 }} 题</span>
-          </div>
-          <el-progress 
-            :percentage="getPercentage(reviewStats.level4Count)" 
-            :stroke-width="12"
-            color="#67C23A"
-            :show-text="false"
-          />
-        </div>
-      </div>
-    </div>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, watch, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Back, ArrowRight } from '@element-plus/icons-vue'
+import { ArrowRight, Back } from '@element-plus/icons-vue'
+import { CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
+import type { CnTone } from '@/design-system'
 import { interviewApi } from '@/api/interview'
+
+type ReviewFilter = 'all' | 'overdue' | 'today' | 'week'
+
+interface ReviewStats {
+  overdueCount: number
+  todayCount: number
+  weekCount: number
+  totalLearned: number
+  level1Count: number
+  level2Count: number
+  level3Count: number
+  level4Count: number
+}
+
+interface ReviewItem {
+  questionId: number
+  questionSetId: number
+  questionTitle: string
+  questionSetTitle?: string
+  masteryLevel?: number
+  reviewCount?: number
+  overdueDays?: number
+}
 
 const route = useRoute()
 const router = useRouter()
 
 const loading = ref(false)
-const filterType = ref('all')
-const reviewList = ref([])
-const reviewStats = ref({
+const filterType = ref<ReviewFilter>('all')
+const reviewList = ref<ReviewItem[]>([])
+const reviewStats = ref<ReviewStats>({
   overdueCount: 0,
   todayCount: 0,
   weekCount: 0,
@@ -160,19 +180,54 @@ const reviewStats = ref({
   level4Count: 0
 })
 
-// 从URL参数获取初始筛选类型
-onMounted(() => {
-  const typeParam = route.query.type
-  if (typeParam && ['all', 'overdue', 'today', 'week'].includes(typeParam)) {
-    filterType.value = typeParam
-  }
-  fetchData()
+const filterLabels: Record<ReviewFilter, string> = {
+  all: '全部',
+  overdue: '已逾期',
+  today: '今日',
+  week: '本周'
+}
+
+const currentFilterLabel = computed(() => filterLabels[filterType.value])
+
+const reviewListDescription = computed(() => {
+  if (reviewList.value.length === 0) return '当前筛选范围下没有待复习题目。'
+  return `当前筛选范围下共有 ${reviewList.value.length} 道题目。`
 })
 
-// 监听筛选类型变化
+const masteryDistribution = computed(() => [
+  {
+    level: 1,
+    label: '不会',
+    count: reviewStats.value.level1Count || 0,
+    color: 'var(--cn-color-danger)'
+  },
+  {
+    level: 2,
+    label: '模糊',
+    count: reviewStats.value.level2Count || 0,
+    color: 'var(--cn-color-warning)'
+  },
+  {
+    level: 3,
+    label: '熟悉',
+    count: reviewStats.value.level3Count || 0,
+    color: 'var(--cn-color-info)'
+  },
+  {
+    level: 4,
+    label: '已掌握',
+    count: reviewStats.value.level4Count || 0,
+    color: 'var(--cn-color-success)'
+  }
+])
+
 watch(filterType, () => {
   fetchReviewList()
 })
+
+const isReviewFilter = (value: unknown): value is ReviewFilter => {
+  return typeof value === 'string' && ['all', 'overdue', 'today', 'week'].includes(value)
+}
 
 const fetchData = async () => {
   await Promise.all([
@@ -184,7 +239,6 @@ const fetchData = async () => {
 const fetchReviewStats = async () => {
   try {
     const res = await interviewApi.getReviewStats()
-    // request拦截器已经提取了data
     if (res) {
       reviewStats.value = res
     }
@@ -197,7 +251,6 @@ const fetchReviewList = async () => {
   loading.value = true
   try {
     const res = await interviewApi.getReviewList(filterType.value)
-    // request拦截器已经提取了data
     reviewList.value = res || []
   } catch (error) {
     console.error('获取复习列表失败', error)
@@ -210,232 +263,195 @@ const goBack = () => {
   router.push('/interview')
 }
 
-const goToQuestion = (item) => {
+const goToQuestion = (item: ReviewItem) => {
   router.push(`/interview/questions/${item.questionSetId}/${item.questionId}`)
 }
 
-const getMasteryText = (level) => {
-  const texts = ['', '不会', '模糊', '熟悉', '已掌握']
-  return texts[level] || '未知'
+const getMasteryText = (level?: number) => {
+  const texts: Record<number, string> = {
+    1: '不会',
+    2: '模糊',
+    3: '熟悉',
+    4: '已掌握'
+  }
+  return level ? texts[level] || '未知' : '未知'
 }
 
-const getMasteryTagType = (level) => {
-  const types = ['', 'danger', 'warning', 'primary', 'success']
-  return types[level] || ''
+const getMasteryTone = (level?: number): CnTone => {
+  const tones: Record<number, CnTone> = {
+    1: 'danger',
+    2: 'warning',
+    3: 'info',
+    4: 'success'
+  }
+  return level ? tones[level] || 'neutral' : 'neutral'
 }
 
-const getPercentage = (count) => {
+const getPercentage = (count: number) => {
   const total = reviewStats.value.totalLearned || 1
   return Math.round((count || 0) / total * 100)
 }
+
+onMounted(() => {
+  const typeParam = route.query.type
+  filterType.value = isReviewFilter(typeParam) ? typeParam : 'all'
+  fetchData()
+})
 </script>
 
 <style scoped>
 .review-page {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f8f7ff 0%, #f0eeff 50%, #f5f0ff 100%);
-  padding: 20px;
+  min-width: 0;
 }
 
-.page-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 24px;
+.filter-select {
+  width: 132px;
 }
 
-.page-title {
-  flex: 1;
-  font-size: 20px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0;
-}
-
-.stats-cards {
+.stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.stat-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-  background: #fff;
-  border-radius: 14px;
-  box-shadow: 0 2px 12px rgba(108, 99, 255, 0.06);
-  border: 1px solid rgba(108, 99, 255, 0.06);
-  position: relative;
-  overflow: hidden;
+.review-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: var(--cn-space-5);
+  align-items: start;
 }
 
-.stat-card::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-}
-
-.stat-card.overdue::before {
-  background: linear-gradient(180deg, #ef4444, #f97316);
-}
-
-.stat-card.today::before {
-  background: linear-gradient(180deg, #f59e0b, #eab308);
-}
-
-.stat-card.week::before {
-  background: linear-gradient(180deg, #10b981, #34d399);
-}
-
-.stat-card.total::before {
-  background: linear-gradient(180deg, #6c63ff, #ec4899);
-}
-
-.stat-icon {
-  font-size: 28px;
-}
-
-.stat-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.stat-value {
-  font-size: 24px;
-  font-weight: 700;
-  color: #303133;
-}
-
-.stat-label {
-  font-size: 13px;
-  color: #909399;
+.review-list-section,
+.mastery-section {
+  min-width: 0;
 }
 
 .review-list {
-  background: #fff;
-  border-radius: 14px;
-  padding: 20px;
-  margin-bottom: 24px;
+  display: grid;
+  gap: var(--cn-space-3);
   min-height: 300px;
-  box-shadow: 0 2px 12px rgba(108, 99, 255, 0.06);
-  border: 1px solid rgba(108, 99, 255, 0.06);
 }
 
-.question-list {
+.review-item {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.question-item {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  background: #f9fafc;
-  border-radius: 8px;
+  justify-content: space-between;
+  gap: var(--cn-space-4);
+  width: 100%;
+  min-width: 0;
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-card-border);
+  border-radius: var(--cn-card-radius);
+  background: var(--cn-card-bg);
+  color: inherit;
   cursor: pointer;
-  transition: all 0.2s;
+  text-align: left;
+  transition:
+    transform var(--cn-motion-base) var(--cn-ease-out),
+    border-color var(--cn-motion-base) var(--cn-ease-out),
+    box-shadow var(--cn-motion-base) var(--cn-ease-out);
 }
 
-.question-item:hover {
-  background: #f8f7ff;
+.review-item:hover {
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 36%, var(--cn-color-border-subtle));
+  box-shadow: var(--cn-shadow-sm);
   transform: translateX(4px);
 }
 
-.question-main {
+.review-item-main {
+  display: grid;
   flex: 1;
+  gap: var(--cn-space-2);
+  min-width: 0;
 }
 
 .question-title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--cn-color-text-primary);
   font-size: 15px;
-  font-weight: 500;
-  color: #303133;
-  margin: 0 0 8px 0;
+  font-weight: 650;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.question-meta {
+.question-meta,
+.review-item-extra {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--cn-space-2);
+  min-width: 0;
 }
 
 .review-count {
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
-  color: #909399;
-}
-
-.question-extra {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.overdue-badge {
-  padding: 4px 8px;
-  background: #fef0f0;
-  color: #F56C6C;
-  font-size: 12px;
-  border-radius: 4px;
 }
 
 .arrow-icon {
-  color: #c0c4cc;
+  color: var(--cn-color-text-tertiary);
+  transition:
+    color var(--cn-motion-fast) var(--cn-ease-out),
+    transform var(--cn-motion-fast) var(--cn-ease-out);
 }
 
-.mastery-distribution {
-  background: #fff;
-  border-radius: 14px;
-  padding: 20px;
-  box-shadow: 0 2px 12px rgba(108, 99, 255, 0.06);
-  border: 1px solid rgba(108, 99, 255, 0.06);
-}
-
-.section-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0 0 16px 0;
+.review-item:hover .arrow-icon {
+  color: var(--cn-color-brand-primary);
+  transform: translateX(2px);
 }
 
 .distribution-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  display: grid;
+  gap: var(--cn-space-4);
 }
 
 .bar-item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  gap: var(--cn-space-2);
 }
 
 .bar-label {
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: var(--cn-space-3);
+  color: var(--cn-color-text-secondary);
   font-size: 13px;
-  color: #606266;
+}
+
+.bar-label strong {
+  color: var(--cn-color-text-primary);
+  font-weight: 650;
+}
+
+@media (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .review-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 768px) {
-  .stats-cards {
-    grid-template-columns: repeat(2, 1fr);
+  .stats-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .page-header {
-    flex-wrap: wrap;
-  }
-
-  .page-title {
-    order: -1;
+  .filter-select {
     width: 100%;
-    margin-bottom: 12px;
+  }
+
+  .review-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .question-title {
+    white-space: normal;
   }
 }
 </style>

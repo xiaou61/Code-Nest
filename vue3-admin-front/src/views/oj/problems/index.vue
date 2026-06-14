@@ -1,151 +1,190 @@
 <template>
-  <div class="problem-management">
-    <!-- 页面头部 -->
-    <el-card class="header-card" shadow="never">
-      <div class="header-content">
-        <div class="title-section">
-          <h2>题目管理</h2>
-          <p>管理 OJ 判题系统的题目，支持增删改查和状态控制</p>
-        </div>
-        <div class="action-section">
-          <el-button type="primary" @click="$router.push('/oj/problems/create')">
-            <el-icon><Plus /></el-icon>
-            新增题目
-          </el-button>
-        </div>
-      </div>
-    </el-card>
+  <CnPage class="oj-problems-page" surface="transparent" max-width="1320px">
+    <CnPageHeader
+      title="题目管理"
+      description="管理 OJ 判题系统题目，支持难度、状态筛选和题目编辑删除。"
+      eyebrow="OJ Problems"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand">OJ 判题</CnStatusTag>
+        <CnStatusTag type="neutral">共 {{ total }} 道题</CnStatusTag>
+        <CnStatusTag type="success">公开 {{ publicCountInPage }} 道</CnStatusTag>
+        <CnStatusTag type="warning">隐藏 {{ hiddenCountInPage }} 道</CnStatusTag>
+      </template>
 
-    <!-- 搜索区 -->
-    <el-card class="search-card" shadow="never">
-      <el-row :gutter="16" class="search-row">
-        <el-col :span="6">
-          <el-input
-            v-model="searchForm.keyword"
-            placeholder="请输入题目标题"
-            clearable
-            @clear="handleSearch"
-            @keyup.enter="handleSearch"
-          >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
+      <template #actions>
+        <el-button type="primary" :icon="Plus" @click="router.push('/oj/problems/create')">新增题目</el-button>
+      </template>
+    </CnPageHeader>
+
+    <div class="oj-stat-grid">
+      <CnStatCard title="题目总量" :value="total" description="当前筛选条件下的题目数量" tone="brand" />
+      <CnStatCard title="公开题目" :value="publicCountInPage" description="当前页公开展示的题目" tone="success" />
+      <CnStatCard title="提交总数" :value="submitCountInPage" description="当前页题目累计提交数" tone="info" />
+      <CnStatCard title="通过总数" :value="acceptedCountInPage" description="当前页题目累计通过数" tone="warning" />
+    </div>
+
+    <CnSection title="筛选条件" description="按题目标题、难度和发布状态筛选 OJ 题目。" divided>
+      <CnFilterForm
+        :model-value="searchForm"
+        :fields="filterFields"
+        :columns="4"
+        :loading="loading"
+        @update:model-value="handleFilterUpdate"
+        @search="handleSearch"
+        @reset="handleReset"
+      />
+    </CnSection>
+
+    <CnSection title="题目列表" :description="`共 ${total} 道题目`" divided>
+      <CnDataTable
+        :columns="tableColumns"
+        :data="problemList"
+        :loading="loading"
+        :pagination="tablePagination"
+        row-key="id"
+        @page-change="handleCurrentChange"
+        @page-size-change="handleSizeChange"
+      >
+        <template #toolbar>
+          <CnToolbar title="题目数据" description="状态切换会直接影响用户端题目可见性。" align="center">
+            <template #meta>
+              <CnStatusTag type="neutral" size="sm">每页 {{ searchForm.pageSize }} 条</CnStatusTag>
+              <CnStatusTag type="info" size="sm">提交 {{ submitCountInPage }} 次</CnStatusTag>
             </template>
-          </el-input>
-        </el-col>
-        <el-col :span="4">
-          <el-select v-model="searchForm.difficulty" placeholder="难度" clearable @change="handleSearch">
-            <el-option label="简单" value="easy" />
-            <el-option label="中等" value="medium" />
-            <el-option label="困难" value="hard" />
-          </el-select>
-        </el-col>
-        <el-col :span="4">
-          <el-select v-model="searchForm.status" placeholder="状态" clearable @change="handleSearch">
-            <el-option label="公开" :value="1" />
-            <el-option label="隐藏" :value="0" />
-          </el-select>
-        </el-col>
-        <el-col :span="10" class="search-actions">
-          <el-button type="primary" @click="handleSearch">
-            <el-icon><Search /></el-icon>
-            搜索
-          </el-button>
-          <el-button @click="handleReset">
-            <el-icon><Refresh /></el-icon>
-            重置
-          </el-button>
-        </el-col>
-      </el-row>
-    </el-card>
+            <el-button type="primary" :icon="Plus" @click="router.push('/oj/problems/create')">新增题目</el-button>
+          </CnToolbar>
+        </template>
 
-    <!-- 表格 -->
-    <el-card class="table-card" shadow="never">
-      <el-table v-loading="loading" :data="problemList" style="width: 100%">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
-        <el-table-column label="难度" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getDifficultyTag(row.difficulty)" size="small" effect="dark">
-              {{ getDifficultyLabel(row.difficulty) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-switch
-              v-model="row.status"
-              :active-value="1"
-              :inactive-value="0"
-              @change="handleStatusChange(row)"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column prop="submitCount" label="提交数" width="100" align="center">
-          <template #default="{ row }">
-            <span>{{ row.submitCount || 0 }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="acceptedCount" label="通过数" width="100" align="center">
-          <template #default="{ row }">
-            <span>{{ row.acceptedCount || 0 }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column label="操作" width="200" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" size="small" @click="$router.push(`/oj/problems/${row.id}/edit`)">
-              <el-icon><Edit /></el-icon>
-              编辑
-            </el-button>
-            <el-button type="danger" size="small" @click="handleDelete(row)">
-              <el-icon><Delete /></el-icon>
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+        <template #difficulty="{ row }">
+          <CnStatusTag :type="getDifficultyTone(row.difficulty)" size="sm">
+            {{ getDifficultyLabel(row.difficulty) }}
+          </CnStatusTag>
+        </template>
 
-      <!-- 分页 -->
-      <div class="pagination-wrapper" v-if="total > 0">
-        <el-pagination
-          v-model:current-page="searchForm.pageNum"
-          v-model:page-size="searchForm.pageSize"
-          :page-sizes="[10, 20, 50]"
-          :total="total"
-          layout="total, sizes, prev, pager, next"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
-      </div>
-    </el-card>
-  </div>
+        <template #status="{ row }">
+          <el-switch v-model="row.status" :active-value="1" :inactive-value="0" @change="handleStatusChange(row)" />
+        </template>
+
+        <template #submitCount="{ row }">
+          <CnStatusTag type="info" size="sm">{{ row.submitCount || 0 }}</CnStatusTag>
+        </template>
+
+        <template #acceptedCount="{ row }">
+          <CnStatusTag type="success" size="sm">{{ row.acceptedCount || 0 }}</CnStatusTag>
+        </template>
+
+        <template #actions="{ row }">
+          <div class="table-actions">
+            <el-button type="primary" link size="small" :icon="Edit" @click="router.push(`/oj/problems/${row.id}/edit`)">编辑</el-button>
+            <el-button type="danger" link size="small" :icon="Delete" @click="handleDelete(row)">删除</el-button>
+          </div>
+        </template>
+      </CnDataTable>
+    </CnSection>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Refresh, Edit, Delete } from '@element-plus/icons-vue'
+import { Delete, Edit, Plus } from '@element-plus/icons-vue'
 import { ojApi } from '@/api/oj'
+import {
+  CnDataTable,
+  CnFilterForm,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag,
+  CnToolbar
+} from '@/design-system'
+import type { CnBreadcrumbItem, CnFilterField, CnPagination, CnTableColumn, CnTone } from '@/design-system'
+
+interface OjProblem {
+  id: number
+  title: string
+  difficulty?: string
+  status: number
+  submitCount?: number
+  acceptedCount?: number
+  createTime?: string
+  [key: string]: unknown
+}
+
+const router = useRouter()
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: 'OJ 判题管理' }, { label: '题目管理' }]
 
 const loading = ref(false)
-const problemList = ref([])
+const problemList = ref<OjProblem[]>([])
 const total = ref(0)
 
 const searchForm = reactive({
   pageNum: 1,
   pageSize: 10,
   keyword: '',
-  difficulty: null,
-  status: null
+  difficulty: null as string | null,
+  status: null as number | null
 })
 
-const getDifficultyTag = (d) => ({ easy: 'success', medium: 'warning', hard: 'danger' }[d] || 'info')
-const getDifficultyLabel = (d) => ({ easy: '简单', medium: '中等', hard: '困难' }[d] || d)
+const filterFields: CnFilterField[] = [
+  { prop: 'keyword', label: '题目标题', type: 'input', placeholder: '请输入题目标题' },
+  {
+    prop: 'difficulty',
+    label: '难度',
+    type: 'select',
+    placeholder: '请选择难度',
+    options: [
+      { label: '简单', value: 'easy' },
+      { label: '中等', value: 'medium' },
+      { label: '困难', value: 'hard' }
+    ]
+  },
+  {
+    prop: 'status',
+    label: '状态',
+    type: 'select',
+    placeholder: '请选择状态',
+    options: [
+      { label: '公开', value: 1 },
+      { label: '隐藏', value: 0 }
+    ]
+  }
+]
+
+const tableColumns: CnTableColumn<OjProblem>[] = [
+  { prop: 'id', label: 'ID', width: 80 },
+  { prop: 'title', label: '标题', minWidth: 220, showOverflowTooltip: true },
+  { prop: 'difficulty', label: '难度', width: 100, align: 'center', slot: 'difficulty' },
+  { prop: 'status', label: '状态', width: 100, align: 'center', slot: 'status' },
+  { prop: 'submitCount', label: '提交数', width: 100, align: 'center', slot: 'submitCount' },
+  { prop: 'acceptedCount', label: '通过数', width: 100, align: 'center', slot: 'acceptedCount' },
+  { prop: 'createTime', label: '创建时间', width: 180, showOverflowTooltip: true },
+  { label: '操作', width: 150, fixed: 'right', slot: 'actions' }
+]
+
+const tablePagination = computed<CnPagination>(() => ({
+  page: searchForm.pageNum,
+  pageSize: searchForm.pageSize,
+  total: total.value,
+  pageSizes: [10, 20, 50]
+}))
+
+const publicCountInPage = computed(() => problemList.value.filter((item) => item.status === 1).length)
+const hiddenCountInPage = computed(() => problemList.value.filter((item) => item.status === 0).length)
+const submitCountInPage = computed(() => problemList.value.reduce((sum, item) => sum + (Number(item.submitCount) || 0), 0))
+const acceptedCountInPage = computed(() => problemList.value.reduce((sum, item) => sum + (Number(item.acceptedCount) || 0), 0))
+
+const getDifficultyLabel = (difficulty?: string) => ({ easy: '简单', medium: '中等', hard: '困难' })[difficulty || ''] || difficulty || '-'
+const getDifficultyTone = (difficulty?: string): CnTone => ({ easy: 'success', medium: 'warning', hard: 'danger' })[difficulty || ''] as CnTone || 'neutral'
 
 const loadData = async () => {
   loading.value = true
   try {
-    const params = { ...searchForm }
+    const params: Record<string, unknown> = { ...searchForm }
     if (!params.keyword) delete params.keyword
     if (params.difficulty === null) delete params.difficulty
     if (params.status === null) delete params.status
@@ -154,23 +193,43 @@ const loadData = async () => {
     total.value = data?.total || 0
   } catch (error) {
     console.error('加载题目列表失败:', error)
+    ElMessage.error('加载题目列表失败')
   } finally {
     loading.value = false
   }
 }
 
-const handleSearch = () => { searchForm.pageNum = 1; loadData() }
-const handleReset = () => {
-  searchForm.keyword = ''
-  searchForm.difficulty = null
-  searchForm.status = null
+const handleFilterUpdate = (value: Record<string, unknown>) => {
+  Object.assign(searchForm, value)
+}
+
+const handleSearch = () => {
   searchForm.pageNum = 1
   loadData()
 }
-const handleSizeChange = () => { searchForm.pageNum = 1; loadData() }
-const handleCurrentChange = () => { loadData() }
 
-const handleStatusChange = async (row) => {
+const handleReset = () => {
+  Object.assign(searchForm, {
+    keyword: '',
+    difficulty: null,
+    status: null,
+    pageNum: 1
+  })
+  loadData()
+}
+
+const handleSizeChange = (size: number) => {
+  searchForm.pageSize = size
+  searchForm.pageNum = 1
+  loadData()
+}
+
+const handleCurrentChange = (page: number) => {
+  searchForm.pageNum = page
+  loadData()
+}
+
+const handleStatusChange = async (row: OjProblem) => {
   try {
     await ojApi.updateProblem(row.id, { status: row.status })
     ElMessage.success('状态更新成功')
@@ -179,102 +238,53 @@ const handleStatusChange = async (row) => {
   }
 }
 
-const handleDelete = (row) => {
+const handleDelete = (row: OjProblem) => {
   ElMessageBox.confirm(`确定删除题目「${row.title}」吗？`, '确认删除', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(async () => {
-    await ojApi.deleteProblem(row.id)
-    ElMessage.success('删除成功')
-    loadData()
-  }).catch(() => {})
+  })
+    .then(async () => {
+      await ojApi.deleteProblem(row.id)
+      ElMessage.success('删除成功')
+      loadData()
+    })
+    .catch(() => {})
 }
 
 onMounted(() => loadData())
 </script>
 
 <style scoped>
-.problem-management {
+.oj-problems-page {
+  min-height: 100%;
+}
+
+.oj-stat-grid {
   display: grid;
-  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.header-card,
-.search-card,
-.table-card {
-  margin-bottom: 0;
-  border-radius: 14px;
-}
-
-.header-content {
+.table-actions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
 }
 
-.title-section h2 {
-  margin: 0 0 6px;
-  font-size: 23px;
-  font-weight: 600;
-  color: var(--cn-text-primary);
+.table-actions .el-button {
+  margin-left: 0;
 }
 
-.title-section p {
-  margin: 0;
-  color: var(--cn-text-secondary);
-  font-size: 14px;
-}
-
-.action-section :deep(.el-button) {
-  min-width: 120px;
-}
-
-.search-row :deep(.el-select),
-.search-row :deep(.el-input) {
-  width: 100%;
-}
-
-.search-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-.table-card :deep(.el-card__body) {
-  padding-top: 8px;
-}
-
-.table-card :deep(.el-switch) {
-  --el-switch-on-color: #1f6feb;
-}
-
-.table-card :deep(.el-button--small) {
-  min-width: 64px;
-}
-
-.pagination-wrapper {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 14px;
-}
-
-@media (max-width: 1100px) {
-  .search-actions {
-    justify-content: flex-start;
+@media (max-width: 1180px) {
+  .oj-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 768px) {
-  .header-content {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .title-section h2 {
-    font-size: 20px;
+@media (max-width: 680px) {
+  .oj-stat-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

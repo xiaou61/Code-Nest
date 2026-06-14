@@ -5,6 +5,7 @@ import cn.hutool.json.JSONUtil;
 import com.xiaou.common.utils.RedisUtil;
 import com.xiaou.common.utils.ThreadPoolUtils;
 import com.xiaou.moyu.domain.HotTopicData;
+import com.xiaou.moyu.domain.HotTopicCategory;
 import com.xiaou.moyu.domain.HotTopicResponse;
 import com.xiaou.moyu.enums.HotTopicEnum;
 import com.xiaou.moyu.service.HotTopicService;
@@ -15,7 +16,9 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -47,6 +50,9 @@ public class HotTopicServiceImpl implements HotTopicService {
 
     @Value("${hot-topic.api.stale-cache-expire-minutes:1440}")
     private long staleCacheExpireMinutes;
+
+    @Value("${hot-topic.api.aggregate-timeout-seconds:4}")
+    private long aggregateTimeoutSeconds;
     
     /**
      * Redis缓存键前缀
@@ -56,27 +62,20 @@ public class HotTopicServiceImpl implements HotTopicService {
     
     @Override
     public HotTopicResponse getHotTopicCategories() {
+        String cacheKey = CACHE_KEY_PREFIX + "categories";
         try {
-            // 先从缓存获取
-            String cacheKey = CACHE_KEY_PREFIX + "categories";
             String cachedData = getCachedData(cacheKey);
-            
             if (StrUtil.isNotBlank(cachedData)) {
                 return JSONUtil.toBean(cachedData, HotTopicResponse.class);
             }
-            
-            // 缓存不存在，调用API
-            HotTopicResponse response = restTemplate.getForObject(baseUrl, HotTopicResponse.class);
-            
-            if (response != null) {
-                // 存入缓存
-                cacheHotTopicData(cacheKey, JSONUtil.toJsonStr(response));
-            }
-            
+
+            HotTopicResponse response = buildLocalCategories();
+            cacheHotTopicData(cacheKey, JSONUtil.toJsonStr(response));
             return response;
         } catch (Exception e) {
-            log.error("获取热榜分类信息失败", e);
-            return getStaleData(CACHE_KEY_PREFIX + "categories", HotTopicResponse.class);
+            log.warn("获取热榜分类缓存失败，使用本地分类配置: {}", e.getMessage());
+            HotTopicResponse staleResponse = getStaleData(cacheKey, HotTopicResponse.class);
+            return staleResponse != null ? staleResponse : buildLocalCategories();
         }
     }
     
@@ -112,7 +111,7 @@ public class HotTopicServiceImpl implements HotTopicService {
         // 使用ThreadPoolUtils并行获取所有平台数据
         List<HotTopicEnum> platforms = Arrays.asList(HotTopicEnum.values());
         
-        List<Map.Entry<String, HotTopicData>> results = ThreadPoolUtils.parallelMapIO(
+        List<Map.Entry<String, HotTopicData>> results = ThreadPoolUtils.parallelMapWithTimeout(
                 platforms,
                 platform -> {
                     try {
@@ -122,7 +121,9 @@ public class HotTopicServiceImpl implements HotTopicService {
                         log.error("获取平台热榜数据失败: {}", platform.getCode(), e);
                         return null;
                     }
-                }
+                },
+                Math.max(1L, aggregateTimeoutSeconds),
+                TimeUnit.SECONDS
         );
         
         return results.stream()
@@ -271,5 +272,33 @@ public class HotTopicServiceImpl implements HotTopicService {
 
     private long staleCacheExpireSeconds() {
         return Math.max(cacheExpireMinutes, staleCacheExpireMinutes) * 60;
+    }
+
+    private HotTopicResponse buildLocalCategories() {
+        Map<String, String> allTypes = new LinkedHashMap<>();
+        Map<String, Map<String, String>> groupedApis = new LinkedHashMap<>();
+
+        for (HotTopicEnum platform : HotTopicEnum.values()) {
+            allTypes.put(platform.getCode(), platform.getName());
+            groupedApis.computeIfAbsent(platform.getCategory(), key -> new LinkedHashMap<>())
+                    .put(platform.getCode(), platform.getName());
+        }
+
+        List<HotTopicCategory> categories = new ArrayList<>();
+        groupedApis.forEach((categoryName, apis) -> {
+            HotTopicCategory category = new HotTopicCategory();
+            category.setName(categoryName);
+            category.setDescription(categoryName + "热榜");
+            category.setApis(apis);
+            categories.add(category);
+        });
+
+        HotTopicResponse response = new HotTopicResponse();
+        response.setAllTypes(allTypes);
+        response.setCategories(categories);
+        response.setMessage("使用本地热榜分类配置");
+        response.setTotal(allTypes.size());
+        response.setUsage("GET /moyu/hot-topic/data/{platform}");
+        return response;
     }
 }

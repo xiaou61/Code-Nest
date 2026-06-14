@@ -1,231 +1,251 @@
 <template>
-  <div class="comment-management">
-    <!-- 页面头部 -->
-    <el-card class="header-card" shadow="never">
-      <div class="header-content">
-        <div class="title-section">
-          <h2>评论管理</h2>
-          <p>管理社区评论，支持查看、删除等操作</p>
-        </div>
-      </div>
-    </el-card>
+  <CnPage class="community-comments-page" surface="transparent" max-width="1320px">
+    <CnPageHeader
+      title="评论管理"
+      description="管理社区帖子评论，支持按帖子、评论者、状态和时间筛选，快速查看评论详情。"
+      eyebrow="Community Comments"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand">社区管理</CnStatusTag>
+        <CnStatusTag type="neutral">共 {{ pagination.total }} 条评论</CnStatusTag>
+        <CnStatusTag type="success">正常 {{ normalCountInPage }} 条</CnStatusTag>
+        <CnStatusTag type="danger">删除 {{ deletedCountInPage }} 条</CnStatusTag>
+      </template>
 
-    <!-- 搜索和操作区 -->
-    <el-card class="search-card" shadow="never">
-      <el-row :gutter="20">
-        <el-col :span="6">
-          <el-input 
-            v-model="searchForm.postId" 
-            placeholder="请输入帖子ID" 
-            clearable
-            @clear="handleSearch"
-            @keyup.enter="handleSearch"
-          >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
-            </template>
-          </el-input>
-        </el-col>
-        <el-col :span="6">
-          <el-input 
-            v-model="searchForm.authorName" 
-            placeholder="评论者用户名" 
-            clearable
-            @clear="handleSearch"
-            @keyup.enter="handleSearch"
-          />
-        </el-col>
-        <el-col :span="4">
-          <el-select v-model="searchForm.status" placeholder="请选择状态" clearable @change="handleSearch">
-            <el-option label="正常" :value="1" />
-            <el-option label="删除" :value="2" />
-          </el-select>
-        </el-col>
-        <el-col :span="8">
-          <el-button type="primary" @click="handleSearch">
-            <el-icon><Search /></el-icon>
-            搜索
-          </el-button>
-          <el-button @click="handleReset">
-            <el-icon><Refresh /></el-icon>
-            重置
-          </el-button>
-        </el-col>
-      </el-row>
-      
-      <el-row :gutter="20" style="margin-top: 15px;">
-        <el-col :span="8">
-          <el-date-picker
-            v-model="searchForm.timeRange"
-            type="datetimerange"
-            range-separator="至"
-            start-placeholder="开始时间"
-            end-placeholder="结束时间"
-            format="YYYY-MM-DD HH:mm:ss"
-            value-format="YYYY-MM-DD HH:mm:ss"
-            @change="handleSearch"
-          />
-        </el-col>
-      </el-row>
-    </el-card>
+      <template #actions>
+        <el-button :icon="Refresh" :loading="loading" @click="fetchComments">刷新</el-button>
+      </template>
+    </CnPageHeader>
 
-    <!-- 评论表格 -->
-    <el-card class="table-card" shadow="never">
-      <el-table 
-        v-loading="loading" 
-        :data="commentList" 
-        style="width: 100%"
-        :row-key="row => row.id"
+    <div class="community-stat-grid">
+      <CnStatCard title="评论总量" :value="pagination.total" description="当前筛选条件下的评论数量" tone="brand" />
+      <CnStatCard title="正常评论" :value="normalCountInPage" description="当前页仍展示的评论" tone="success" />
+      <CnStatCard title="已删评论" :value="deletedCountInPage" description="当前页已删除的评论" tone="danger" />
+      <CnStatCard title="点赞总量" :value="likeCountInPage" description="当前页评论累计点赞数" tone="info" />
+    </div>
+
+    <CnSection title="筛选条件" description="按帖子 ID、评论者、状态和评论时间筛选评论。" divided>
+      <CnFilterForm
+        :model-value="searchForm"
+        :fields="filterFields"
+        :columns="4"
+        :loading="loading"
+        @update:model-value="handleSearchFormUpdate"
+        @search="handleSearch"
+        @reset="handleReset"
+      />
+    </CnSection>
+
+    <CnSection title="评论列表" :description="`共 ${pagination.total} 条评论`" divided>
+      <CnDataTable
+        :columns="tableColumns"
+        :data="commentList"
+        :loading="loading"
+        :pagination="tablePagination"
+        row-key="id"
+        @page-change="handlePageChange"
+        @page-size-change="handlePageSizeChange"
       >
-        <el-table-column prop="id" label="评论ID" width="100" />
-        <el-table-column prop="postId" label="帖子ID" width="100" />
-        <el-table-column prop="content" label="评论内容" min-width="300" show-overflow-tooltip>
-          <template #default="{ row }">
-            <div class="comment-content">
-              <div v-if="row.parentId > 0" style="color: #909399; font-size: 12px; margin-bottom: 4px;">
-                <el-icon><Back /></el-icon>
-                回复评论
-              </div>
-              <div>{{ row.content }}</div>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="authorName" label="评论者" width="120" />
-        <el-table-column prop="likeCount" label="点赞数" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag type="success" size="small">{{ row.likeCount || 0 }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag 
-              :type="row.status === 1 ? 'success' : 'danger'"
-              size="small"
-            >
-              {{ row.status === 1 ? '正常' : '删除' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="评论时间" width="180" />
-        <el-table-column label="操作" width="200" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" size="small" @click="handleView(row)">
-              <el-icon><View /></el-icon>
-              查看详情
-            </el-button>
-            <el-button 
-              type="danger" 
-              size="small" 
-              @click="handleDelete(row)"
-              :disabled="row.status === 2"
-            >
-              <el-icon><Delete /></el-icon>
+        <template #toolbar>
+          <CnToolbar title="评论数据" description="删除评论会影响帖子互动内容展示，请确认详情后操作。" align="center">
+            <template #meta>
+              <CnStatusTag type="neutral" size="sm">每页 {{ pagination.pageSize }} 条</CnStatusTag>
+              <CnStatusTag type="info" size="sm">点赞 {{ likeCountInPage }} 次</CnStatusTag>
+            </template>
+          </CnToolbar>
+        </template>
+
+        <template #content="{ row }">
+          <div class="comment-cell">
+            <span v-if="row.parentId > 0" class="reply-hint">回复评论</span>
+            <strong>{{ row.content || '-' }}</strong>
+          </div>
+        </template>
+
+        <template #likeCount="{ row }">
+          <CnStatusTag :type="Number(row.likeCount) > 0 ? 'success' : 'neutral'" size="sm">
+            {{ row.likeCount || 0 }} 次
+          </CnStatusTag>
+        </template>
+
+        <template #status="{ row }">
+          <CnStatusTag :type="row.status === 1 ? 'success' : 'danger'" size="sm">
+            {{ row.status === 1 ? '正常' : '删除' }}
+          </CnStatusTag>
+        </template>
+
+        <template #actions="{ row }">
+          <div class="table-actions">
+            <el-button type="primary" link size="small" :icon="View" @click="handleView(row)">查看详情</el-button>
+            <el-button type="danger" link size="small" :icon="Delete" :disabled="row.status === 2" @click="handleDelete(row)">
               删除
             </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+          </div>
+        </template>
 
-      <!-- 分页 -->
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="pagination.pageNum"
-          v-model:page-size="pagination.pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="pagination.total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handlePageSizeChange"
-          @current-change="handlePageChange"
-        />
-      </div>
-    </el-card>
+        <template #empty>
+          <CnEmptyState
+            title="暂无评论"
+            description="当前筛选条件下没有社区评论，可以重置筛选后再查看。"
+            icon="CM"
+            surface="transparent"
+          >
+            <template #actions>
+              <el-button @click="handleReset">重置筛选</el-button>
+            </template>
+          </CnEmptyState>
+        </template>
+      </CnDataTable>
+    </CnSection>
 
-    <!-- 评论详情对话框 -->
-    <el-dialog 
-      title="评论详情" 
-      v-model="detailVisible" 
-      width="800px"
-      :before-close="() => detailVisible = false"
-    >
+    <el-dialog title="评论详情" v-model="detailVisible" width="800px">
       <div v-if="currentComment" class="comment-detail">
         <div class="detail-header">
           <h4>评论信息</h4>
           <div class="meta-info">
-            <span>评论者：{{ currentComment.authorName }}</span>
-            <span>帖子ID：{{ currentComment.postId }}</span>
-            <span v-if="currentComment.parentId > 0">父评论ID：{{ currentComment.parentId }}</span>
-            <span>评论时间：{{ currentComment.createTime }}</span>
+            <span>评论者：{{ currentComment.authorName || '-' }}</span>
+            <span>帖子ID：{{ currentComment.postId || '-' }}</span>
+            <span v-if="Number(currentComment.parentId) > 0">父评论ID：{{ currentComment.parentId }}</span>
+            <span>评论时间：{{ currentComment.createTime || '-' }}</span>
           </div>
         </div>
         <div class="detail-content">
-          <h5>评论内容：</h5>
-          <div class="content-box">
-            <pre style="white-space: pre-wrap; font-family: inherit;">{{ currentComment.content }}</pre>
-          </div>
+          <h5>评论内容</h5>
+          <div class="content-box">{{ currentComment.content || '-' }}</div>
           <div class="stats">
-            <el-tag type="success">点赞数：{{ currentComment.likeCount || 0 }}</el-tag>
-            <el-tag :type="currentComment.status === 1 ? 'success' : 'danger'" style="margin-left: 8px;">
+            <CnStatusTag type="success">点赞数：{{ currentComment.likeCount || 0 }}</CnStatusTag>
+            <CnStatusTag :type="currentComment.status === 1 ? 'success' : 'danger'">
               状态：{{ currentComment.status === 1 ? '正常' : '删除' }}
-            </el-tag>
+            </CnStatusTag>
           </div>
         </div>
       </div>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, View, Delete, Back } from '@element-plus/icons-vue'
+import { Delete, Refresh, View } from '@element-plus/icons-vue'
 import { communityApi } from '@/api/community'
+import {
+  CnDataTable,
+  CnEmptyState,
+  CnFilterForm,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag,
+  CnToolbar
+} from '@/design-system'
+import type { CnBreadcrumbItem, CnFilterField, CnPagination, CnTableColumn } from '@/design-system'
 
-// 响应式数据
+interface CommentRecord {
+  id: number
+  postId?: number
+  parentId?: number
+  content: string
+  authorName?: string
+  likeCount?: number
+  status: number
+  createTime?: string
+  [key: string]: unknown
+}
+
+interface SearchForm {
+  postId: string
+  authorName: string
+  status: number | null
+  timeRange: string[] | null
+}
+
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '社区管理' }, { label: '评论管理' }]
+
 const loading = ref(false)
 const detailVisible = ref(false)
-const commentList = ref([])
-const currentComment = ref(null)
+const commentList = ref<CommentRecord[]>([])
+const currentComment = ref<CommentRecord | null>(null)
 
-// 搜索表单
-const searchForm = reactive({
+const searchForm = reactive<SearchForm>({
   postId: '',
   authorName: '',
   status: null,
   timeRange: null
 })
 
-// 分页数据
 const pagination = reactive({
   pageNum: 1,
   pageSize: 10,
   total: 0
 })
 
-// 获取评论列表
+const filterFields: CnFilterField[] = [
+  { prop: 'postId', label: '帖子ID', type: 'input', placeholder: '请输入帖子ID' },
+  { prop: 'authorName', label: '评论者', type: 'input', placeholder: '评论者用户名' },
+  {
+    prop: 'status',
+    label: '状态',
+    type: 'select',
+    placeholder: '请选择状态',
+    options: [
+      { label: '正常', value: 1 },
+      { label: '删除', value: 2 }
+    ]
+  },
+  { prop: 'timeRange', label: '评论时间', type: 'daterange', placeholder: '开始日期' }
+]
+
+const tableColumns: CnTableColumn<CommentRecord>[] = [
+  { prop: 'id', label: '评论ID', width: 100 },
+  { prop: 'postId', label: '帖子ID', width: 100 },
+  { prop: 'content', label: '评论内容', minWidth: 280, slot: 'content', showOverflowTooltip: true },
+  { prop: 'authorName', label: '评论者', width: 120, showOverflowTooltip: true },
+  { prop: 'likeCount', label: '点赞数', width: 100, slot: 'likeCount', align: 'center' },
+  { prop: 'status', label: '状态', width: 90, slot: 'status' },
+  { prop: 'createTime', label: '评论时间', width: 180, showOverflowTooltip: true },
+  { label: '操作', width: 150, fixed: 'right', slot: 'actions' }
+]
+
+const tablePagination = computed<CnPagination>(() => ({
+  page: pagination.pageNum,
+  pageSize: pagination.pageSize,
+  total: pagination.total,
+  pageSizes: [10, 20, 50, 100]
+}))
+
+const normalCountInPage = computed(() => commentList.value.filter((item) => item.status === 1).length)
+const deletedCountInPage = computed(() => commentList.value.filter((item) => item.status === 2).length)
+const likeCountInPage = computed(() => commentList.value.reduce((sum, item) => sum + (Number(item.likeCount) || 0), 0))
+
+onMounted(() => {
+  fetchComments()
+})
+
 const fetchComments = async () => {
   loading.value = true
   try {
-    const params = {
+    const params: Record<string, unknown> = {
       pageNum: pagination.pageNum,
       pageSize: pagination.pageSize,
       ...searchForm
     }
-    
-    // 处理时间范围
+
     if (searchForm.timeRange && searchForm.timeRange.length === 2) {
       params.startTime = searchForm.timeRange[0]
       params.endTime = searchForm.timeRange[1]
     }
     delete params.timeRange
 
-    // 处理帖子ID为数字
     if (params.postId) {
-      params.postId = parseInt(params.postId) || null
+      params.postId = Number.parseInt(String(params.postId), 10) || null
     }
 
     const data = await communityApi.getCommentList(params)
-    commentList.value = data.records || []
-    pagination.total = data.total || 0
+    commentList.value = data?.records || []
+    pagination.total = data?.total || 0
   } catch (error) {
     console.error('获取评论列表失败:', error)
     ElMessage.error('获取评论列表失败')
@@ -234,27 +254,29 @@ const fetchComments = async () => {
   }
 }
 
-// 搜索
 const handleSearch = () => {
   pagination.pageNum = 1
   fetchComments()
 }
 
-// 重置搜索
 const handleReset = () => {
-  searchForm.postId = ''
-  searchForm.authorName = ''
-  searchForm.status = null
-  searchForm.timeRange = null
+  Object.assign(searchForm, {
+    postId: '',
+    authorName: '',
+    status: null,
+    timeRange: null
+  })
   pagination.pageNum = 1
   fetchComments()
 }
 
-// 查看详情
-const handleView = async (row) => {
+const handleSearchFormUpdate = (value: Record<string, unknown>) => {
+  Object.assign(searchForm, value)
+}
+
+const handleView = async (row: CommentRecord) => {
   try {
-    const data = await communityApi.getCommentById(row.id)
-    currentComment.value = data
+    currentComment.value = await communityApi.getCommentById(row.id)
     detailVisible.value = true
   } catch (error) {
     console.error('获取评论详情失败:', error)
@@ -262,19 +284,14 @@ const handleView = async (row) => {
   }
 }
 
-// 删除评论
-const handleDelete = async (row) => {
+const handleDelete = async (row: CommentRecord) => {
   try {
-    await ElMessageBox.confirm(
-      `确定要删除这条评论吗？删除后无法恢复！`,
-      '删除确认',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    
+    await ElMessageBox.confirm('确定要删除这条评论吗？删除后无法恢复。', '删除确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
     await communityApi.deleteComment(row.id)
     ElMessage.success('删除成功')
     await fetchComments()
@@ -286,69 +303,57 @@ const handleDelete = async (row) => {
   }
 }
 
-// 分页变化
-const handlePageChange = (page) => {
+const handlePageChange = (page: number) => {
   pagination.pageNum = page
   fetchComments()
 }
 
-const handlePageSizeChange = (size) => {
+const handlePageSizeChange = (size: number) => {
   pagination.pageSize = size
   pagination.pageNum = 1
   fetchComments()
 }
-
-// 页面挂载
-onMounted(() => {
-  fetchComments()
-})
 </script>
 
 <style scoped>
-.comment-management {
-  padding: 20px;
-  background-color: #f5f7fa;
-  min-height: 100vh;
+.community-comments-page {
+  min-height: 100%;
 }
 
-.header-card {
-  margin-bottom: 20px;
+.community-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.header-content {
+.comment-cell {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.comment-cell strong {
+  overflow: hidden;
+  color: var(--cn-color-text-primary);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reply-hint {
+  color: var(--cn-color-text-secondary);
+  font-size: 12px;
+}
+
+.table-actions,
+.dialog-footer {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
 }
 
-.title-section h2 {
-  margin: 0 0 8px 0;
-  color: #303133;
-  font-size: 24px;
-}
-
-.title-section p {
-  margin: 0;
-  color: #909399;
-  font-size: 14px;
-}
-
-.search-card {
-  margin-bottom: 20px;
-}
-
-.table-card {
-  margin-bottom: 20px;
-}
-
-.pagination-container {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
-}
-
-.comment-content {
-  max-width: 300px;
+.table-actions .el-button {
+  margin-left: 0;
 }
 
 .comment-detail {
@@ -357,52 +362,51 @@ onMounted(() => {
 }
 
 .detail-header {
-  border-bottom: 1px solid #e4e7ed;
-  padding-bottom: 15px;
-  margin-bottom: 20px;
+  margin-bottom: var(--cn-space-5);
+  padding-bottom: var(--cn-space-4);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
 }
 
-.detail-header h4 {
-  margin: 0 0 10px 0;
-  color: #303133;
+.detail-header h4,
+.detail-content h5 {
+  margin: 0 0 var(--cn-space-2);
+  color: var(--cn-color-text-primary);
 }
 
 .meta-info {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
-  color: #909399;
-  font-size: 14px;
-}
-
-.detail-content h5 {
-  margin: 0 0 10px 0;
-  color: #303133;
+  gap: var(--cn-space-4);
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
 }
 
 .content-box {
-  background-color: #f8f9fa;
-  padding: 15px;
-  border-radius: 4px;
-  margin-bottom: 15px;
-  line-height: 1.6;
-  color: #606266;
+  margin-bottom: var(--cn-space-4);
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-control);
+  background: var(--cn-color-bg-surface-muted);
+  color: var(--cn-color-text-primary);
+  line-height: 1.7;
+  white-space: pre-wrap;
 }
 
 .stats {
-  margin-top: 15px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
 }
 
-@media (max-width: 768px) {
-  .header-content {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
-  }
-  
-  .meta-info {
-    flex-direction: column;
-    gap: 8px;
+@media (max-width: 1180px) {
+  .community-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-</style> 
+
+@media (max-width: 680px) {
+  .community-stat-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

@@ -1,30 +1,28 @@
 <template>
-  <div class="learning-cockpit-page cn-learn-shell">
-    <div class="cn-learn-shell__inner">
-      <section class="hero cn-learn-hero cn-wave-reveal">
-        <div class="cn-learn-hero__content">
-          <span class="cn-learn-hero__eyebrow">
-            <el-icon><DataAnalysis /></el-icon>
-            Learning Cockpit 2.1
-          </span>
-          <h1 class="cn-learn-hero__title">AI 学习成长驾驶舱 2.1</h1>
-          <p class="cn-learn-hero__desc">
-            把 OJ、题库、闪卡、计划打卡、积分统一到一张看板：成长分、能力雷达、短板诊断、今日任务和推荐下一步。
-          </p>
-        </div>
-        <div class="cn-learn-hero__meta">
-          <span class="cn-learn-chip">
+  <CnPage class="learning-cockpit-page" surface="transparent" max-width="1440px" full-height>
+      <CnPageHeader
+        class="cockpit-page-header cn-wave-reveal"
+        title="AI 学习成长驾驶舱 2.1"
+        description="把 OJ、题库、闪卡、计划打卡、积分统一到一张看板：成长分、能力雷达、短板诊断、今日任务和推荐下一步。"
+        eyebrow="Learning Cockpit 2.1"
+        :breadcrumbs="breadcrumbs"
+      >
+        <template #meta>
+          <CnStatusTag type="brand" size="sm">
             <el-icon><Calendar /></el-icon>
             {{ overview.weekRange || '--' }}
-          </span>
-          <span class="cn-learn-chip">
+          </CnStatusTag>
+          <CnStatusTag type="success" size="sm">
             <el-icon><Compass /></el-icon>
             {{ targetProfile.targetRole || '通用' }} · {{ targetProfile.weeklyHours || 0 }}h/周
-          </span>
-          <span class="cn-learn-chip">
+          </CnStatusTag>
+          <CnStatusTag type="info" size="sm">
             <el-icon><Clock /></el-icon>
             更新于 {{ overview.generatedAt || '--' }}
-          </span>
+          </CnStatusTag>
+        </template>
+
+        <template #actions>
           <el-button plain @click="settingVisible = true">
             <el-icon><Setting /></el-icon>
             目标设置
@@ -33,10 +31,10 @@
             <el-icon><Refresh /></el-icon>
             刷新看板
           </el-button>
-        </div>
-      </section>
+        </template>
+      </CnPageHeader>
 
-      <section class="cockpit-tabs cn-learn-panel">
+      <CnSection class="cockpit-tabs" surface="panel">
         <el-tabs v-model="activeTab" class="cockpit-tabs-inner" @tab-change="handleTabChange">
           <el-tab-pane label="驾驶舱总览" name="overview">
             <section class="intelligence-grid">
@@ -51,16 +49,16 @@
                   <div class="summary-label">本周成长分</div>
                   <h3>{{ growthScore.levelText || '等待数据' }}</h3>
                   <p>{{ growthScore.trendText || '暂无成长趋势数据' }}</p>
-                  <el-tag :type="growthScore.qualified ? 'success' : 'warning'" effect="light">
+                  <CnStatusTag :type="growthScore.qualified ? 'success' : 'warning'" size="sm">
                     {{ growthScore.qualified ? '节奏健康' : '需要校准' }}
-                  </el-tag>
+                  </CnStatusTag>
                 </div>
               </article>
 
               <article class="ai-review-card cn-learn-panel cn-learn-float">
                 <header class="mini-panel-head">
                   <span>AI 学习复盘</span>
-                  <el-tag size="small" type="primary" effect="plain">Growth Intelligence</el-tag>
+                  <CnStatusTag size="sm" type="brand" subtle>Growth Intelligence</CnStatusTag>
                 </header>
                 <h3>{{ aiReview.headline || summary.headline || '暂无复盘' }}</h3>
                 <div class="review-lines">
@@ -88,12 +86,12 @@
                       <strong>{{ task.title }}</strong>
                       <em>{{ task.estimatedMinutes || 10 }} 分钟 · {{ task.description }}</em>
                     </span>
-                    <el-tag size="small" :type="task.done ? 'success' : 'info'" effect="light">
+                    <CnStatusTag size="sm" :type="task.done ? 'success' : 'info'">
                       {{ task.done ? '已达标' : '待执行' }}
-                    </el-tag>
+                    </CnStatusTag>
                   </button>
                 </div>
-                <el-empty v-else description="暂无今日任务" :image-size="56" />
+                <CnEmptyState v-else title="暂无今日任务" description="当前没有待执行学习动作。" icon="TODO" size="sm" surface="transparent" />
               </article>
             </section>
 
@@ -120,7 +118,7 @@
                     <small>{{ item.description }}</small>
                   </div>
                 </div>
-                <el-empty v-else description="暂无能力雷达数据" :image-size="72" />
+                <CnEmptyState v-else title="暂无能力雷达数据" description="完成更多学习动作后会生成模块能力结构。" icon="RAD" size="sm" surface="transparent" />
               </article>
 
               <article class="cn-learn-panel panel-block">
@@ -131,9 +129,9 @@
                 <div v-if="weaknesses.length" class="weakness-list">
                   <div v-for="item in weaknesses" :key="`${item.moduleKey}-${item.title}`" class="weakness-item">
                     <div class="weakness-top">
-                      <el-tag size="small" :type="severityTagType(item.severity)" effect="light">
+                      <CnStatusTag size="sm" :type="severityTagType(item.severity)">
                         {{ severityText(item.severity) }}
-                      </el-tag>
+                      </CnStatusTag>
                       <strong>{{ item.title }}</strong>
                       <span>{{ item.impactScore || 0 }}</span>
                     </div>
@@ -141,29 +139,40 @@
                     <el-button link type="primary" @click="goRoute(item.routePath)">{{ item.actionText }}</el-button>
                   </div>
                 </div>
-                <el-empty v-else description="暂无短板诊断" :image-size="72" />
+                <CnEmptyState v-else title="暂无短板诊断" description="当前没有明显风险，继续保持稳定执行。" icon="OK" size="sm" surface="transparent" />
               </article>
             </section>
 
             <section class="summary-grid">
-              <article class="summary-card cn-learn-panel cn-learn-float">
-                <div class="summary-label">本周总完成率</div>
-                <div class="summary-value">{{ summary.completionRate }}%</div>
-                <el-progress :show-text="false" :percentage="summary.completionRate" :stroke-width="9" />
-              </article>
-              <article class="summary-card cn-learn-panel cn-learn-float">
-                <div class="summary-label">周目标进度</div>
-                <div class="summary-value">{{ summary.totalCompleted }} / {{ summary.totalTarget }}</div>
-                <p class="summary-desc">有效活跃天数 {{ summary.activeDays }} 天</p>
-              </article>
-              <article class="summary-card cn-learn-panel cn-learn-float">
-                <div class="summary-label">OJ 周榜排名</div>
-                <div class="summary-value">{{ rankingDisplay.weeklyRankText }}</div>
-                <p class="summary-desc">
-                  {{ rankingDisplay.rankTrendText }}
-                  <span v-if="rankingDisplay.rankDeltaText" class="muted"> · {{ rankingDisplay.rankDeltaText }}</span>
-                </p>
-              </article>
+              <CnStatCard
+                class="summary-card"
+                title="本周总完成率"
+                :value="summary.completionRate || 0"
+                unit="%"
+                description="跨模块周目标完成情况"
+                tone="brand"
+                :trend="summary.completionRate >= 80 ? 'up' : summary.completionRate >= 50 ? 'flat' : 'down'"
+                :trend-text="summary.completionRate >= 80 ? '健康' : summary.completionRate >= 50 ? '推进中' : '需加速'"
+              >
+              </CnStatCard>
+              <CnStatCard
+                class="summary-card"
+                title="周目标进度"
+                :value="`${summary.totalCompleted || 0} / ${summary.totalTarget || 0}`"
+                :description="`有效活跃天数 ${summary.activeDays || 0} 天`"
+                tone="success"
+                trend="flat"
+                trend-text="执行"
+              />
+              <CnStatCard
+                class="summary-card"
+                title="OJ 周榜排名"
+                :value="rankingDisplay.weeklyRankText"
+                :description="rankingDisplay.rankDeltaText ? `${rankingDisplay.rankTrendText} · ${rankingDisplay.rankDeltaText}` : rankingDisplay.rankTrendText"
+                tone="warning"
+                trend="flat"
+                trend-text="排名"
+              />
               <article class="summary-card cn-learn-panel cn-learn-float">
                 <div class="summary-label">推荐下一步</div>
                 <div class="summary-action">
@@ -210,9 +219,9 @@
                     </el-table-column>
                     <el-table-column label="状态" width="100" align="center">
                       <template #default="{ row }">
-                        <el-tag size="small" :type="statusTagType(row.status)" effect="light">
+                        <CnStatusTag size="sm" :type="statusTagType(row.status)">
                           {{ statusText(row.status) }}
-                        </el-tag>
+                        </CnStatusTag>
                       </template>
                     </el-table-column>
                     <el-table-column prop="hint" label="洞察" min-width="240" show-overflow-tooltip />
@@ -243,7 +252,7 @@
                       </div>
                     </div>
                   </div>
-                  <el-empty v-else description="暂无趋势数据" :image-size="72" />
+                  <CnEmptyState v-else title="暂无趋势数据" description="本周学习轨迹将在数据同步后展示。" icon="TL" size="sm" surface="transparent" />
                 </article>
               </div>
 
@@ -292,7 +301,7 @@
                       </div>
                     </div>
                   </div>
-                  <el-empty v-else description="暂无建议" :image-size="72" />
+                  <CnEmptyState v-else title="暂无建议" description="当前没有新的行动建议。" icon="ACT" size="sm" surface="transparent" />
                 </article>
 
                 <article class="cn-learn-panel panel-block headline-block">
@@ -309,7 +318,7 @@
             </div>
           </el-tab-pane>
         </el-tabs>
-      </section>
+      </CnSection>
 
       <el-dialog v-model="settingVisible" title="周目标设置" width="520px">
         <el-form label-width="92px" class="target-form">
@@ -327,7 +336,7 @@
               allow-create
               default-first-option
               placeholder="选择或输入岗位"
-              style="width: 100%"
+              class="role-select"
             >
               <el-option v-for="item in roleOptions" :key="item" :label="item" :value="item" />
             </el-select>
@@ -354,23 +363,24 @@
           <el-button type="primary" :loading="savingProfile" @click="applyTargetSettings">保存并刷新</el-button>
         </template>
       </el-dialog>
-    </div>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Calendar, Clock, Compass, DataAnalysis, Refresh, Setting } from '@element-plus/icons-vue'
+import { Calendar, Clock, Compass, Refresh, Setting } from '@element-plus/icons-vue'
 import { learningCockpitApi } from '@/api/learningCockpit'
 import GrowthAutopilotPanel from '@/views/growth-autopilot/GrowthAutopilotPanel.vue'
+import { CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
 
 const router = useRouter()
 const route = useRoute()
 const loading = ref(false)
 const savingProfile = ref(false)
 const settingVisible = ref(false)
+const breadcrumbs = [{ label: '学习成长' }, { label: '驾驶舱' }]
 const allowedTabs = ['overview', 'autopilot']
 const normalizeTab = (tabName) => (allowedTabs.includes(tabName) ? tabName : 'overview')
 const activeTab = ref(normalizeTab(route.query.tab))
@@ -443,7 +453,7 @@ const statusText = (status) => {
 const statusTagType = (status) => {
   const map = {
     done: 'success',
-    on_track: 'primary',
+    on_track: 'brand',
     warning: 'warning',
     behind: 'danger'
   }
@@ -470,7 +480,7 @@ const severityTagType = (severity) => {
 
 const radarStyle = (item = {}) => ({
   '--radar-score': `${Math.max(0, Math.min(100, Number(item.score) || 0))}%`,
-  '--radar-color': item.color || '#2563eb'
+  '--radar-color': item.color || 'var(--cn-color-brand-primary)'
 })
 
 const formatDate = (text) => {
@@ -610,10 +620,15 @@ watch(
 <style scoped>
 .learning-cockpit-page {
   min-height: calc(100vh - 68px);
-}
-
-.hero {
-  margin-bottom: 16px;
+  --cockpit-panel-border: var(--cn-color-border-subtle);
+  --cockpit-panel-bg: var(--cn-color-bg-surface-muted);
+  --cockpit-panel-bg-strong: color-mix(in srgb, var(--cn-color-brand-soft) 26%, var(--cn-color-bg-surface));
+  --cockpit-text-strong: var(--cn-color-text-primary);
+  --cockpit-text-body: var(--cn-color-text-secondary);
+  --cockpit-text-muted: var(--cn-color-text-tertiary);
+  --cockpit-accent: var(--cn-color-brand-primary);
+  --cockpit-accent-soft: var(--cn-color-brand-soft);
+  --cockpit-on-accent: white;
 }
 
 .cockpit-tabs {
@@ -625,18 +640,18 @@ watch(
 }
 
 :deep(.cockpit-tabs-inner > .el-tabs__header .el-tabs__nav-wrap::after) {
-  background-color: #dce8fa;
+  background-color: var(--cockpit-panel-border);
 }
 
 :deep(.cockpit-tabs-inner .el-tabs__item) {
   height: 40px;
   font-size: 14px;
   font-weight: 600;
-  color: #627ca1;
+  color: var(--cockpit-text-body);
 }
 
 :deep(.cockpit-tabs-inner .el-tabs__item.is-active) {
-  color: #1f63c5;
+  color: var(--cockpit-accent);
 }
 
 .autopilot-tab-wrap {
@@ -666,20 +681,22 @@ watch(
   display: flex;
   align-items: center;
   justify-content: center;
-  background: conic-gradient(#1f6feb calc(var(--score) * 1%), #e6effc 0);
-  box-shadow: inset 0 0 0 1px #d7e6fb, 0 14px 28px rgba(31, 99, 197, 0.16);
+  background: conic-gradient(var(--cockpit-accent) calc(var(--score) * 1%), var(--cockpit-accent-soft) 0);
+  box-shadow:
+    inset 0 0 0 1px var(--cockpit-panel-border),
+    0 14px 28px color-mix(in srgb, var(--cockpit-accent) 16%, transparent);
 }
 
 .score-ring-inner {
   width: 86px;
   height: 86px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--cn-color-bg-surface);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  color: #1e4f97;
+  color: var(--cockpit-accent);
 }
 
 .score-ring-inner strong {
@@ -696,13 +713,13 @@ watch(
 .score-content h3,
 .ai-review-card h3 {
   margin: 0 0 8px;
-  color: #203a5f;
+  color: var(--cockpit-text-strong);
   font-size: 18px;
 }
 
 .score-content p {
   margin: 0 0 10px;
-  color: #60789d;
+  color: var(--cockpit-text-body);
   line-height: 1.7;
   font-size: 13px;
 }
@@ -718,13 +735,13 @@ watch(
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 10px;
-  color: #6f82a2;
+  color: var(--cockpit-text-muted);
   font-size: 13px;
   font-weight: 700;
 }
 
 .mini-panel-head small {
-  color: #8fa1bd;
+  color: var(--cockpit-text-muted);
   font-size: 12px;
 }
 
@@ -736,7 +753,7 @@ watch(
 
 .review-lines p {
   margin: 0;
-  color: #516b92;
+  color: var(--cockpit-text-body);
   font-size: 13px;
   line-height: 1.65;
 }
@@ -745,7 +762,7 @@ watch(
   display: inline-flex;
   min-width: 42px;
   margin-right: 8px;
-  color: #1f5fb5;
+  color: var(--cockpit-accent);
 }
 
 .today-task-list {
@@ -756,9 +773,9 @@ watch(
 
 .today-task-item {
   width: 100%;
-  border: 1px solid #dce9fb;
+  border: 1px solid var(--cockpit-panel-border);
   border-radius: 8px;
-  background: #f8fbff;
+  background: var(--cockpit-panel-bg);
   padding: 9px;
   display: grid;
   grid-template-columns: 30px minmax(0, 1fr) auto;
@@ -770,8 +787,8 @@ watch(
 }
 
 .today-task-item:hover {
-  border-color: #9ec5fe;
-  box-shadow: 0 10px 24px rgba(31, 99, 197, 0.12);
+  border-color: var(--cockpit-accent);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--cockpit-accent) 12%, transparent);
   transform: translateY(-1px);
 }
 
@@ -782,9 +799,9 @@ watch(
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--cockpit-on-accent);
   font-weight: 700;
-  background: linear-gradient(135deg, #1f6feb, #2db0f2);
+  background: var(--cockpit-accent);
 }
 
 .task-main {
@@ -795,12 +812,12 @@ watch(
 }
 
 .task-main strong {
-  color: #203a5f;
+  color: var(--cockpit-text-strong);
   font-size: 13px;
 }
 
 .task-main em {
-  color: #6b82a6;
+  color: var(--cockpit-text-body);
   font-size: 12px;
   font-style: normal;
   line-height: 1.45;
@@ -820,9 +837,9 @@ watch(
 }
 
 .radar-item {
-  border: 1px solid #dce9fb;
+  border: 1px solid var(--cockpit-panel-border);
   border-radius: 10px;
-  background: #f8fbff;
+  background: var(--cockpit-panel-bg);
   padding: 10px;
   min-width: 0;
 }
@@ -836,12 +853,12 @@ watch(
 }
 
 .radar-meta strong {
-  color: #203a5f;
+  color: var(--cockpit-text-strong);
   font-size: 13px;
 }
 
 .radar-meta span {
-  color: #6f82a2;
+  color: var(--cockpit-text-muted);
   font-size: 12px;
 }
 
@@ -849,7 +866,7 @@ watch(
   height: 8px;
   overflow: hidden;
   border-radius: 999px;
-  background: #e7effb;
+  background: var(--cockpit-accent-soft);
 }
 
 .radar-track span {
@@ -863,7 +880,7 @@ watch(
 .radar-item small {
   display: block;
   margin-top: 8px;
-  color: #687fa5;
+  color: var(--cockpit-text-body);
   font-size: 12px;
   line-height: 1.55;
 }
@@ -875,9 +892,9 @@ watch(
 }
 
 .weakness-item {
-  border: 1px solid #dce9fb;
+  border: 1px solid var(--cockpit-panel-border);
   border-radius: 10px;
-  background: #f9fcff;
+  background: var(--cockpit-panel-bg);
   padding: 10px;
 }
 
@@ -890,19 +907,19 @@ watch(
 .weakness-top strong {
   min-width: 0;
   flex: 1;
-  color: #203a5f;
+  color: var(--cockpit-text-strong);
   font-size: 13px;
 }
 
 .weakness-top span {
-  color: #1f5fb5;
+  color: var(--cockpit-accent);
   font-weight: 700;
   font-size: 13px;
 }
 
 .weakness-item p {
   margin: 8px 0 4px;
-  color: #60789d;
+  color: var(--cockpit-text-body);
   font-size: 13px;
   line-height: 1.65;
 }
@@ -920,39 +937,21 @@ watch(
 
 .summary-label {
   font-size: 12px;
-  color: #6f82a2;
+  color: var(--cockpit-text-muted);
   margin-bottom: 8px;
-}
-
-.summary-value {
-  font-size: 28px;
-  line-height: 1.2;
-  font-weight: 700;
-  color: #195ec7;
-  margin-bottom: 10px;
-}
-
-.summary-desc {
-  margin: 0;
-  color: #60789d;
-  font-size: 13px;
 }
 
 .summary-action h4 {
   margin: 0 0 6px;
   font-size: 15px;
-  color: #203a5f;
+  color: var(--cockpit-text-strong);
 }
 
 .summary-action p {
   margin: 0 0 8px;
-  color: #60789d;
+  color: var(--cockpit-text-body);
   font-size: 13px;
   line-height: 1.6;
-}
-
-.muted {
-  color: #8fa1bd;
 }
 
 .main-grid {
@@ -982,12 +981,12 @@ watch(
 
 .panel-head h3 {
   margin: 0;
-  color: #203a5f;
+  color: var(--cockpit-text-strong);
   font-size: 17px;
 }
 
 .panel-subtitle {
-  color: #7f90aa;
+  color: var(--cockpit-text-muted);
   font-size: 12px;
 }
 
@@ -1005,7 +1004,7 @@ watch(
   width: 48px;
   text-align: right;
   font-size: 12px;
-  color: #44638d;
+  color: var(--cockpit-text-body);
 }
 
 .timeline-wrap {
@@ -1021,7 +1020,7 @@ watch(
   right: 6%;
   top: 42px;
   height: 2px;
-  background: linear-gradient(90deg, #9dc2f7, #2a78f2);
+  background: var(--cockpit-accent);
 }
 
 .timeline-item {
@@ -1032,38 +1031,38 @@ watch(
 
 .timeline-date {
   font-size: 12px;
-  color: #617ca3;
+  color: var(--cockpit-text-muted);
   margin-bottom: 10px;
 }
 
 .timeline-node {
-  --node-color: hsl(calc(var(--score) * 1.2), 72%, 45%);
+  --node-color: color-mix(in srgb, var(--cn-color-success) calc(var(--score) * 1%), var(--cn-color-warning));
   margin: 0 auto 10px;
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #fff 0%, var(--node-color) 85%);
+  background: var(--node-color);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--cockpit-on-accent);
   font-size: 12px;
   font-weight: 700;
-  box-shadow: 0 10px 22px rgba(34, 93, 183, 0.24);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--cockpit-accent) 24%, transparent);
 }
 
 .timeline-meta {
   padding: 8px 6px;
   border-radius: 8px;
-  border: 1px solid #dbe8fb;
-  background: #f8fbff;
+  border: 1px solid var(--cockpit-panel-border);
+  background: var(--cockpit-panel-bg);
 }
 
 .timeline-meta p {
   margin: 0;
   line-height: 1.5;
   font-size: 12px;
-  color: #5c789f;
+  color: var(--cockpit-text-body);
 }
 
 .rank-grid {
@@ -1074,40 +1073,40 @@ watch(
 
 .rank-card {
   border-radius: 10px;
-  border: 1px solid #d8e6fb;
+  border: 1px solid var(--cockpit-panel-border);
   padding: 12px;
-  background: linear-gradient(165deg, #ffffff 0%, #f4f9ff 100%);
+  background: var(--cockpit-panel-bg-strong);
 }
 
 .rank-card label {
   display: block;
-  color: #7a8ea9;
+  color: var(--cockpit-text-muted);
   font-size: 12px;
   margin-bottom: 8px;
 }
 
 .rank-card strong {
   font-size: 24px;
-  color: #1f5fb5;
+  color: var(--cockpit-accent);
 }
 
 .rank-card small {
   display: block;
   margin-top: 6px;
-  color: #7f91aa;
+  color: var(--cockpit-text-muted);
   font-size: 12px;
 }
 
 .rank-comment {
   margin: 10px 0 0;
-  color: #4f678b;
+  color: var(--cockpit-text-body);
   line-height: 1.7;
   font-size: 13px;
 }
 
 .rank-trend {
   margin: 10px 0 0;
-  color: #1f5fb5;
+  color: var(--cockpit-accent);
   font-size: 13px;
   font-weight: 600;
 }
@@ -1120,9 +1119,9 @@ watch(
 }
 
 .rank-history-item {
-  border: 1px solid #dce9fb;
+  border: 1px solid var(--cockpit-panel-border);
   border-radius: 8px;
-  background: #f8fbff;
+  background: var(--cockpit-panel-bg);
   padding: 6px 8px;
   display: flex;
   justify-content: space-between;
@@ -1132,12 +1131,12 @@ watch(
 
 .rank-history-item span {
   font-size: 12px;
-  color: #6b86ab;
+  color: var(--cockpit-text-muted);
 }
 
 .rank-history-item strong {
   font-size: 13px;
-  color: #214b7d;
+  color: var(--cockpit-text-strong);
 }
 
 .action-list {
@@ -1150,8 +1149,8 @@ watch(
   display: flex;
   gap: 10px;
   border-radius: 10px;
-  border: 1px solid #d9e7fc;
-  background: #f9fcff;
+  border: 1px solid var(--cockpit-panel-border);
+  background: var(--cockpit-panel-bg);
   padding: 10px;
 }
 
@@ -1163,50 +1162,54 @@ watch(
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--cockpit-on-accent);
   font-weight: 700;
-  background: linear-gradient(135deg, #1f6feb, #2db0f2);
+  background: var(--cockpit-accent);
 }
 
 .action-content h4 {
   margin: 0 0 4px;
   font-size: 14px;
-  color: #1f395f;
+  color: var(--cockpit-text-strong);
 }
 
 .action-content p {
   margin: 0;
   font-size: 13px;
-  color: #60789d;
+  color: var(--cockpit-text-body);
   line-height: 1.65;
 }
 
 .action-reason {
   margin-top: 6px !important;
-  color: #2f5f98 !important;
+  color: var(--cockpit-accent) !important;
   font-size: 12px !important;
 }
 
 .action-gain {
   margin-top: 2px !important;
-  color: #1f6a45 !important;
+  color: var(--cn-color-success) !important;
   font-size: 12px !important;
   font-weight: 600;
 }
 
 .headline-block h4 {
   margin: 0 0 8px;
-  color: #214069;
+  color: var(--cockpit-text-strong);
 }
 
 .headline-block p {
   margin: 0;
-  color: #516b92;
+  color: var(--cockpit-text-body);
   line-height: 1.8;
 }
 
 .target-form {
   padding: 4px 6px 0;
+}
+
+.role-select {
+  width: 100%;
 }
 
 .hours-wrap {
@@ -1216,7 +1219,7 @@ watch(
 .hours-text {
   display: inline-block;
   margin-top: 4px;
-  color: #4f688d;
+  color: var(--cockpit-text-body);
   font-size: 13px;
   font-weight: 600;
 }
@@ -1250,7 +1253,7 @@ watch(
     grid-template-columns: 30px minmax(0, 1fr);
   }
 
-  .today-task-item .el-tag {
+  .today-task-item .cn-status-tag {
     grid-column: 2;
     justify-self: flex-start;
   }

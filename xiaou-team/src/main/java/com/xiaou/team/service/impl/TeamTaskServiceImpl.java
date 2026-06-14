@@ -68,6 +68,7 @@ public class TeamTaskServiceImpl implements TeamTaskService {
         task.setRequireImage(request.getRequireImage() != null ? request.getRequireImage() : 0);
         task.setStartDate(request.getStartDate());
         task.setEndDate(request.getEndDate());
+        task.setCreatorId(userId);
         task.setStatus(1);
         task.setCreateBy(userId);
         task.setCreateTime(LocalDateTime.now());

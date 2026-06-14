@@ -1,5 +1,5 @@
 <template>
-  <div class="community-container">
+  <CnPage class="community-container" surface="transparent" max-width="100%" dense>
     <!-- 主体内容区域 - 三栏布局 -->
     <div class="community-main">
       <!-- 左侧边栏 -->
@@ -57,15 +57,19 @@
             <span>热门标签</span>
           </div>
           <div class="tags-cloud">
-            <span 
-              v-for="tag in tagList.slice(0, 15)" 
-              :key="tag.id"
-              class="cloud-tag"
-              :class="{ active: selectedTagId === tag.id }"
-              @click="selectTag(tag.id)"
-            >
-              # {{ tag.name }}
-            </span>
+              <CnStatusTag
+                v-for="tag in tagList.slice(0, 15)" 
+                :key="tag.id"
+                class="cloud-tag"
+                :class="{ active: selectedTagId === tag.id }"
+                type="neutral"
+                size="sm"
+                :dot="false"
+                subtle
+                @click="selectTag(tag.id)"
+              >
+                # {{ tag.name }}
+              </CnStatusTag>
           </div>
         </div>
       </aside>
@@ -92,14 +96,18 @@
             <div v-if="showHotKeywords && hotKeywords.length > 0" class="hot-keywords-dropdown">
               <span class="hot-label">热门搜索</span>
               <div class="hot-tags">
-                <span 
+                <CnStatusTag
                   v-for="(keyword, index) in hotKeywords" 
                   :key="index"
                   class="hot-tag"
+                  type="warning"
+                  size="sm"
+                  :dot="false"
+                  subtle
                   @click="selectHotKeyword(keyword)"
                 >
                   {{ keyword }}
-                </span>
+                </CnStatusTag>
               </div>
             </div>
           </div>
@@ -149,9 +157,9 @@
                 </span>
                 <span class="post-time">{{ formatRelativeTime(post.createTime) }}</span>
               </div>
-              <span v-if="post.categoryName" class="post-category">
+              <CnStatusTag v-if="post.categoryName" type="info" size="sm" :dot="false" subtle>
                 {{ post.categoryName }}
-              </span>
+              </CnStatusTag>
             </div>
 
             <!-- 帖子主体 -->
@@ -160,7 +168,7 @@
               
               <!-- AI摘要 -->
               <div v-if="post.aiSummary" class="ai-summary">
-                <span class="ai-badge">AI 摘要</span>
+                <CnStatusTag type="brand" size="sm" :dot="false">AI 摘要</CnStatusTag>
                 <p>{{ post.aiSummary }}</p>
               </div>
               
@@ -168,14 +176,18 @@
               
               <!-- 帖子标签 -->
               <div v-if="post.tags && post.tags.length > 0" class="post-tags-inline">
-                <span 
+                <CnStatusTag
                   v-for="tag in post.tags" 
                   :key="tag.id"
                   class="inline-tag"
+                  type="neutral"
+                  size="sm"
+                  :dot="false"
+                  subtle
                   @click.stop="selectTag(tag.id)"
                 >
                   # {{ tag.name }}
-                </span>
+                </CnStatusTag>
               </div>
             </div>
 
@@ -203,11 +215,16 @@
           </article>
 
           <!-- 空状态 -->
-          <div v-if="!loading && postList.length === 0" class="empty-state">
-            <div class="empty-icon">暂无内容</div>
-            <p class="empty-text">暂无帖子</p>
-            <button class="empty-btn" @click="showCreateDialog">发表第一篇帖子</button>
-          </div>
+          <CnEmptyState
+            v-if="!loading && postList.length === 0"
+            title="暂无帖子"
+            description="换个分类或关键词试试，也可以发布第一篇社区帖子。"
+            icon="CM"
+          >
+            <template #actions>
+              <el-button type="primary" @click="showCreateDialog">发表第一篇帖子</el-button>
+            </template>
+          </CnEmptyState>
         </div>
 
         <!-- 分页 -->
@@ -284,10 +301,10 @@
         </div>
       </aside>
     </div>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -295,6 +312,7 @@ import {
   Search, Star, Edit, View, ChatDotRound, Document, TrendCharts,
   Menu, PriceTag, Clock, Bell, DataLine, Pointer
 } from '@element-plus/icons-vue'
+import { CnEmptyState, CnPage, CnStatusTag } from '@/design-system'
 import { communityApi } from '@/api/community'
 
 const router = useRouter()
@@ -566,19 +584,40 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* ========== 容器与布局 ========== */
 .community-container {
+  --community-surface: var(--cn-color-bg-surface);
+  --community-surface-muted: var(--cn-color-bg-surface-muted);
+  --community-surface-hover: color-mix(in srgb, var(--cn-color-brand-soft) 58%, var(--cn-color-bg-surface));
+  --community-border: var(--cn-color-border-subtle);
+  --community-border-strong: var(--cn-color-border);
+  --community-accent: var(--cn-color-brand-primary);
+  --community-accent-hover: var(--cn-color-brand-hover);
+  --community-accent-soft: var(--cn-color-brand-soft);
+  --community-text: var(--cn-color-text-primary);
+  --community-text-muted: var(--cn-color-text-secondary);
+  --community-text-subtle: var(--cn-color-text-tertiary);
+  --community-danger: var(--cn-color-danger);
+  --community-danger-soft: var(--cn-color-danger-soft);
+  --community-warning: var(--cn-color-warning);
+  --community-warning-soft: var(--cn-color-warning-soft);
+  --community-shadow: var(--cn-shadow-sm);
+  --community-shadow-hover: var(--cn-shadow-md);
+  --community-radius: var(--cn-radius-card);
+  --community-radius-sm: var(--cn-radius-control);
+  --community-ring: var(--cn-color-focus-ring);
+
   min-height: calc(100vh - 68px);
   background: transparent;
 }
 
 .community-main {
-  max-width: 1440px;
+  width: 100%;
+  max-width: none;
   margin: 0 auto;
-  padding: 10px 14px 24px;
+  padding: 10px clamp(10px, 1.2vw, 24px) 24px;
   display: grid;
-  grid-template-columns: 248px 1fr 286px;
-  gap: 16px;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr) minmax(280px, 340px);
+  gap: 18px;
 }
 
 .sidebar {
@@ -587,12 +626,18 @@ onMounted(async () => {
   gap: 14px;
 }
 
+.sidebar-card,
+.content-header-card,
+.post-item,
+.pagination-container {
+  background: var(--community-surface);
+  border: 1px solid var(--community-border);
+  border-radius: var(--community-radius);
+  box-shadow: var(--community-shadow);
+}
+
 .sidebar-card {
-  background: #fff;
-  border: 1px solid #dbe7f8;
-  border-radius: 14px;
   padding: 14px;
-  box-shadow: 0 10px 24px rgba(18, 38, 63, 0.05);
 }
 
 .card-header {
@@ -601,13 +646,12 @@ onMounted(async () => {
   gap: 8px;
   margin-bottom: 12px;
   padding-bottom: 10px;
-  border-bottom: 1px solid #e8eef8;
-  color: var(--cn-text-primary);
+  border-bottom: 1px solid var(--community-border);
+  color: var(--community-text);
   font-size: 15px;
   font-weight: 600;
 }
 
-/* ========== 左侧侧边栏 ========== */
 .quick-actions {
   display: flex;
   flex-direction: column;
@@ -621,32 +665,33 @@ onMounted(async () => {
   gap: 8px;
   height: 40px;
   padding: 0 12px;
-  border: 1px solid #d5e2f6;
-  border-radius: 10px;
-  background: #f9fbff;
-  color: var(--cn-text-secondary);
+  border: 1px solid var(--community-border-strong);
+  border-radius: var(--community-radius-sm);
+  background: var(--community-surface-muted);
+  color: var(--community-text-muted);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.22s ease;
+  transition: all var(--cn-motion-base) var(--cn-ease-out);
 }
 
 .action-btn:hover {
-  border-color: #c2d4f2;
-  background: #f1f7ff;
-  color: var(--cn-primary);
+  border-color: color-mix(in srgb, var(--community-accent) 36%, var(--community-border));
+  background: var(--community-surface-hover);
+  color: var(--community-accent);
   transform: translateY(-1px);
 }
 
 .action-btn.primary {
-  border-color: #1f6feb;
-  background: linear-gradient(135deg, #2f7dff 0%, #1f6feb 100%);
-  color: #fff;
-  box-shadow: 0 8px 18px rgba(31, 111, 235, 0.22);
+  border-color: var(--community-accent);
+  background: var(--community-accent);
+  color: white;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--community-accent) 24%, transparent);
 }
 
 .action-btn.primary:hover {
-  box-shadow: 0 10px 20px rgba(31, 111, 235, 0.3);
+  background: var(--community-accent-hover);
+  box-shadow: 0 10px 20px color-mix(in srgb, var(--community-accent) 32%, transparent);
 }
 
 .nav-list {
@@ -661,19 +706,19 @@ onMounted(async () => {
   gap: 10px;
   padding: 10px 11px;
   margin-bottom: 4px;
-  border-radius: 10px;
+  border-radius: var(--community-radius-sm);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .nav-item:hover {
-  background: #eff5ff;
+  background: var(--community-surface-hover);
 }
 
 .nav-item.active {
-  background: linear-gradient(90deg, #e6f0ff 0%, #f2f7ff 100%);
-  box-shadow: inset 3px 0 0 #1f6feb;
-  color: #1f6feb;
+  background: var(--community-accent-soft);
+  box-shadow: inset 3px 0 0 var(--community-accent);
+  color: var(--community-accent);
 }
 
 .nav-icon {
@@ -683,8 +728,8 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #ecf3ff;
-  color: #55709b;
+  background: var(--community-accent-soft);
+  color: var(--community-text-muted);
   font-size: 11px;
   font-weight: 600;
   opacity: 0.92;
@@ -693,98 +738,95 @@ onMounted(async () => {
 .nav-text {
   flex: 1;
   font-size: 13px;
-  color: var(--cn-text-secondary);
+  color: var(--community-text-muted);
 }
 
 .nav-item.active .nav-text {
-  color: #1f6feb;
+  color: var(--community-accent);
   font-weight: 500;
 }
 
-.nav-item.active .nav-icon {
-  background: #1f6feb;
-  color: #fff;
+.nav-item.active .nav-icon,
+.nav-item.active .nav-count {
+  background: var(--community-accent);
+  color: white;
 }
 
 .nav-count {
   min-width: 28px;
   padding: 2px 8px;
-  border-radius: 999px;
-  background: #edf3ff;
-  color: #5a75a6;
+  border-radius: var(--cn-radius-pill);
+  background: var(--community-accent-soft);
+  color: var(--community-text-muted);
   font-size: 12px;
   text-align: center;
 }
 
-.nav-item.active .nav-count {
-  background: #1f6feb;
-  color: #fff;
-}
-
-.tags-cloud {
+.tags-cloud,
+.hot-tags,
+.post-tags-inline {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.cloud-tag {
+.cloud-tag,
+.hot-tag,
+.inline-tag {
   padding: 5px 10px;
-  border-radius: 999px;
-  border: 1px solid #d7e4f7;
-  background: #f7faff;
-  color: #4b678f;
+  border-radius: var(--cn-radius-pill);
+  border: 1px solid var(--community-border);
+  background: var(--community-surface-muted);
+  color: var(--community-text-muted);
   font-size: 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .cloud-tag:hover,
-.cloud-tag.active {
-  border-color: #bfd4ff;
-  background: #e8f1ff;
-  color: #1f6feb;
+.cloud-tag.active,
+.hot-tag:hover,
+.inline-tag:hover {
+  border-color: color-mix(in srgb, var(--community-accent) 32%, var(--community-border));
+  background: var(--community-accent-soft);
+  color: var(--community-accent);
 }
 
-/* ========== 主内容区 ========== */
 .main-content {
   min-width: 0;
 }
 
 .content-header-card {
-  background: #fff;
-  border: 1px solid #dbe7f8;
-  border-radius: 14px;
   padding: 16px 18px;
   margin-bottom: 14px;
-  box-shadow: 0 10px 24px rgba(18, 38, 63, 0.05);
 }
 
 .search-bar {
   position: relative;
   margin-bottom: 14px;
   padding-bottom: 14px;
-  border-bottom: 1px solid #e8eef8;
+  border-bottom: 1px solid var(--community-border);
 }
 
 .search-wrapper {
   display: flex;
   align-items: center;
   padding: 7px 7px 7px 14px;
-  border-radius: 10px;
-  border: 1px solid #d7e4f8;
-  background: #f8fbff;
-  transition: all 0.2s ease;
+  border-radius: var(--community-radius-sm);
+  border: 1px solid var(--community-border-strong);
+  background: var(--community-surface-muted);
+  transition: all var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .search-wrapper:focus-within {
-  border-color: #1f6feb;
-  background: #fff;
-  box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.12);
+  border-color: var(--community-accent);
+  background: var(--community-surface);
+  box-shadow: 0 0 0 3px var(--community-ring);
 }
 
 .search-icon {
   margin-right: 8px;
-  color: #6a82ae;
+  color: var(--community-text-subtle);
   font-size: 17px;
 }
 
@@ -793,29 +835,32 @@ onMounted(async () => {
   border: none;
   outline: none;
   background: transparent;
-  color: var(--cn-text-primary);
+  color: var(--community-text);
   font-size: 14px;
 }
 
 .search-input::placeholder {
-  color: #8ea0bd;
+  color: var(--community-text-subtle);
 }
 
-.search-btn {
+.search-btn,
+.empty-btn {
   height: 34px;
   padding: 0 18px;
-  border: 1px solid #1f6feb;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #2f7dff 0%, #1f6feb 100%);
-  color: #fff;
+  border: 1px solid var(--community-accent);
+  border-radius: var(--community-radius-sm);
+  background: var(--community-accent);
+  color: white;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--cn-motion-fast) var(--cn-ease-out);
 }
 
-.search-btn:hover {
-  box-shadow: 0 8px 16px rgba(31, 111, 235, 0.28);
+.search-btn:hover,
+.empty-btn:hover {
+  background: var(--community-accent-hover);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--community-accent) 28%, transparent);
 }
 
 .hot-keywords-dropdown {
@@ -824,41 +869,21 @@ onMounted(async () => {
   left: 0;
   right: 0;
   z-index: 20;
-  border: 1px solid #d8e4f7;
-  border-radius: 10px;
-  background: #fff;
+  border: 1px solid var(--community-border-strong);
+  border-radius: var(--community-radius-sm);
+  background: var(--community-surface);
   padding: 12px;
-  box-shadow: 0 16px 30px rgba(18, 38, 63, 0.14);
+  box-shadow: var(--cn-shadow-popover);
 }
 
 .hot-label {
   font-size: 12px;
   font-weight: 600;
-  color: #cd5f3f;
+  color: var(--community-warning);
 }
 
 .hot-tags {
   margin-top: 10px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.hot-tag {
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid #d7e4f7;
-  background: #f7faff;
-  color: #54719a;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.hot-tag:hover {
-  border-color: #bfd4ff;
-  background: #e8f1ff;
-  color: #1f6feb;
 }
 
 .content-tabs {
@@ -879,29 +904,29 @@ onMounted(async () => {
   gap: 6px;
   min-width: 84px;
   height: 36px;
-  border: 1px solid #d4e2f7;
+  border: 1px solid var(--community-border-strong);
   border-radius: 9px;
-  background: #f7fbff;
-  color: var(--cn-text-secondary);
+  background: var(--community-surface-muted);
+  color: var(--community-text-muted);
   font-size: 13px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .tab-btn:hover {
-  border-color: #c4d7f7;
-  color: var(--cn-primary);
+  border-color: color-mix(in srgb, var(--community-accent) 32%, var(--community-border));
+  color: var(--community-accent);
 }
 
 .tab-btn.active {
-  border-color: #c0d5ff;
-  background: linear-gradient(180deg, #eef4ff 0%, #e3edff 100%);
-  color: #1f6feb;
+  border-color: color-mix(in srgb, var(--community-accent) 36%, var(--community-border));
+  background: var(--community-accent-soft);
+  color: var(--community-accent);
   font-weight: 600;
 }
 
 .posts-count {
-  color: var(--cn-text-tertiary);
+  color: var(--community-text-subtle);
   font-size: 12px;
 }
 
@@ -912,18 +937,14 @@ onMounted(async () => {
 }
 
 .post-item {
-  background: #fff;
-  border: 1px solid #dbe7f8;
-  border-radius: 14px;
   padding: 16px 18px;
   cursor: pointer;
-  box-shadow: 0 8px 24px rgba(18, 38, 63, 0.05);
-  transition: all 0.22s ease;
+  transition: all var(--cn-motion-base) var(--cn-ease-out);
 }
 
 .post-item:hover {
   transform: translateY(-2px);
-  box-shadow: 0 14px 30px rgba(18, 38, 63, 0.1);
+  box-shadow: var(--community-shadow-hover);
 }
 
 .post-author-info {
@@ -940,12 +961,12 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #3a84ff 0%, #1f6feb 100%);
-  color: #fff;
+  background: var(--community-accent);
+  color: white;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: transform var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .author-avatar:hover {
@@ -960,23 +981,25 @@ onMounted(async () => {
   display: block;
   font-size: 14px;
   font-weight: 600;
-  color: var(--cn-text-primary);
+  color: var(--community-text);
 }
 
-.author-name:hover {
-  color: var(--cn-primary);
+.author-name:hover,
+.post-item:hover .post-title,
+.ranking-item:hover .rank-title {
+  color: var(--community-accent);
 }
 
 .post-time {
   font-size: 12px;
-  color: var(--cn-text-tertiary);
+  color: var(--community-text-subtle);
 }
 
 .post-category {
   padding: 3px 10px;
-  border-radius: 999px;
-  background: #edf3ff;
-  color: #5373a8;
+  border-radius: var(--cn-radius-pill);
+  background: var(--community-accent-soft);
+  color: var(--community-text-muted);
   font-size: 12px;
 }
 
@@ -986,28 +1009,24 @@ onMounted(async () => {
 
 .post-title {
   margin: 0 0 9px;
-  color: var(--cn-text-primary);
+  color: var(--community-text);
   font-size: 18px;
   font-weight: 600;
   line-height: 1.45;
 }
 
-.post-item:hover .post-title {
-  color: var(--cn-primary);
-}
-
 .ai-summary {
   margin-bottom: 10px;
   padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #d8e6ff;
-  background: linear-gradient(180deg, #f5f9ff 0%, #ecf3ff 100%);
+  border-radius: var(--community-radius-sm);
+  border: 1px solid color-mix(in srgb, var(--community-accent) 20%, var(--community-border));
+  background: color-mix(in srgb, var(--community-accent-soft) 72%, var(--community-surface));
 }
 
 .ai-badge {
   display: inline-block;
   margin-bottom: 6px;
-  color: #1f6feb;
+  color: var(--community-accent);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -1015,14 +1034,14 @@ onMounted(async () => {
 
 .ai-summary p {
   margin: 0;
-  color: var(--cn-text-secondary);
+  color: var(--community-text-muted);
   font-size: 13px;
   line-height: 1.6;
 }
 
 .post-excerpt {
   margin: 0;
-  color: var(--cn-text-secondary);
+  color: var(--community-text-muted);
   font-size: 14px;
   line-height: 1.7;
   display: -webkit-box;
@@ -1033,31 +1052,16 @@ onMounted(async () => {
 
 .post-tags-inline {
   margin-top: 11px;
-  display: flex;
-  flex-wrap: wrap;
   gap: 7px;
 }
 
 .inline-tag {
   padding: 3px 9px;
-  border-radius: 999px;
-  border: 1px solid #d4e3f8;
-  background: #f4f8ff;
-  color: #5676a8;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.inline-tag:hover {
-  border-color: #c0d5ff;
-  background: #e8f1ff;
-  color: #1f6feb;
 }
 
 .post-footer {
   padding-top: 12px;
-  border-top: 1px solid #e8eef8;
+  border-top: 1px solid var(--community-border);
 }
 
 .post-stats-row {
@@ -1069,26 +1073,26 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: #7d8ca7;
+  color: var(--community-text-subtle);
   font-size: 13px;
   cursor: pointer;
-  transition: color 0.2s ease;
+  transition: color var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .stat:hover {
-  color: #1f6feb;
+  color: var(--community-accent);
 }
 
 .stat.active,
 .like-stat.active {
-  color: #d35353;
+  color: var(--community-danger);
 }
 
 .empty-state {
   text-align: center;
-  background: #fff;
-  border: 1px dashed #cfddf3;
-  border-radius: 14px;
+  background: var(--community-surface);
+  border: 1px dashed var(--community-border-strong);
+  border-radius: var(--community-radius);
   padding: 50px 20px;
 }
 
@@ -1100,34 +1104,18 @@ onMounted(async () => {
   height: 34px;
   margin-bottom: 12px;
   padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid #d8e4f7;
-  background: #f6faff;
-  color: #5e79a6;
+  border-radius: var(--cn-radius-pill);
+  border: 1px solid var(--community-border);
+  background: var(--community-surface-muted);
+  color: var(--community-text-muted);
   font-size: 12px;
   font-weight: 500;
 }
 
 .empty-text {
   margin: 0 0 16px;
-  color: var(--cn-text-secondary);
+  color: var(--community-text-muted);
   font-size: 15px;
-}
-
-.empty-btn {
-  height: 38px;
-  padding: 0 22px;
-  border: 1px solid #1f6feb;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #2f7dff 0%, #1f6feb 100%);
-  color: #fff;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.empty-btn:hover {
-  box-shadow: 0 8px 18px rgba(31, 111, 235, 0.28);
 }
 
 .pagination-container {
@@ -1135,12 +1123,8 @@ onMounted(async () => {
   display: flex;
   justify-content: center;
   padding: 14px;
-  background: #fff;
-  border: 1px solid #dbe7f8;
-  border-radius: 14px;
 }
 
-/* ========== 右侧区域 ========== */
 .ranking-list {
   list-style: none;
   margin: 0;
@@ -1152,9 +1136,9 @@ onMounted(async () => {
   align-items: flex-start;
   gap: 10px;
   padding: 10px 0;
-  border-bottom: 1px solid #eef3fb;
+  border-bottom: 1px solid var(--community-border);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .ranking-item:last-child {
@@ -1172,26 +1156,26 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #eef3fc;
-  color: #6e84ac;
+  background: var(--community-surface-muted);
+  color: var(--community-text-muted);
   font-size: 12px;
   font-weight: 600;
   flex-shrink: 0;
 }
 
 .rank-number.rank-1 {
-  background: linear-gradient(135deg, #ff7d64 0%, #f05e4d 100%);
-  color: #fff;
+  background: var(--community-danger);
+  color: white;
 }
 
 .rank-number.rank-2 {
-  background: linear-gradient(135deg, #f7b74d 0%, #ea9a32 100%);
-  color: #fff;
+  background: var(--community-warning);
+  color: white;
 }
 
 .rank-number.rank-3 {
-  background: linear-gradient(135deg, #f5cf63 0%, #e8b84d 100%);
-  color: #fff;
+  background: color-mix(in srgb, var(--community-warning) 76%, var(--community-accent));
+  color: white;
 }
 
 .rank-content {
@@ -1201,7 +1185,7 @@ onMounted(async () => {
 
 .rank-title {
   margin: 0 0 4px;
-  color: var(--cn-text-primary);
+  color: var(--community-text);
   font-size: 13px;
   line-height: 1.4;
   display: -webkit-box;
@@ -1210,17 +1194,13 @@ onMounted(async () => {
   overflow: hidden;
 }
 
-.ranking-item:hover .rank-title {
-  color: var(--cn-primary);
-}
-
 .rank-heat {
-  color: #d35353;
+  color: var(--community-danger);
   font-size: 11px;
 }
 
 .notice-content {
-  color: var(--cn-text-secondary);
+  color: var(--community-text-muted);
   font-size: 13px;
   line-height: 1.9;
 }
@@ -1236,9 +1216,9 @@ onMounted(async () => {
 }
 
 .stat-box {
-  border-radius: 10px;
-  border: 1px solid #dbe7f8;
-  background: #f8fbff;
+  border-radius: var(--community-radius-sm);
+  border: 1px solid var(--community-border);
+  background: var(--community-surface-muted);
   padding: 10px 6px;
   text-align: center;
 }
@@ -1246,20 +1226,20 @@ onMounted(async () => {
 .stat-number {
   display: block;
   margin-bottom: 4px;
-  color: #1f6feb;
+  color: var(--community-accent);
   font-size: 20px;
   font-weight: 700;
 }
 
 .stat-label {
-  color: #7c8ea8;
+  color: var(--community-text-subtle);
   font-size: 11px;
 }
 
-/* ========== 响应式 ========== */
 @media (max-width: 1240px) {
   .community-main {
-    grid-template-columns: 220px 1fr 250px;
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr) minmax(240px, 280px);
+    gap: 14px;
   }
 }
 

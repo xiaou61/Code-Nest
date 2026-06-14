@@ -1,19 +1,60 @@
 <template>
-  <div class="codepen-square">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h1 class="page-title">代码广场</h1>
-      <el-button 
-        type="primary" 
-        icon="Plus" 
-        @click="createNewPen"
-      >
-        创建作品
-      </el-button>
-    </div>
+  <CnPage class="codepen-square" max-width="1320px" full-height>
+    <CnPageHeader
+      title="代码广场"
+      description="浏览、搜索和复用社区里的前端代码作品，把可运行示例沉淀成自己的技术资产。"
+      eyebrow="CODEPEN"
+      :breadcrumbs="[{ label: '首页', to: '/' }, { label: '代码广场' }]"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">{{ total }} 个作品</CnStatusTag>
+        <CnStatusTag v-if="selectedTag" type="info" size="sm" subtle>{{ selectedTag }}</CnStatusTag>
+      </template>
 
-    <!-- 搜索和筛选 -->
-    <div class="filter-section">
+      <template #actions>
+        <el-button type="primary" icon="Plus" @click="createNewPen">创建作品</el-button>
+      </template>
+    </CnPageHeader>
+
+    <section class="codepen-stats" aria-label="代码广场概览">
+      <CnStatCard
+        title="当前结果"
+        :value="total"
+        unit="个"
+        description="匹配当前搜索和筛选条件"
+        tone="brand"
+        trend="flat"
+        trend-text="广场"
+      />
+      <CnStatCard
+        title="编辑推荐"
+        :value="recommendPens.length"
+        unit="个"
+        description="首页推荐作品数量"
+        tone="success"
+        trend="flat"
+        trend-text="推荐"
+      />
+      <CnStatCard
+        title="热门标签"
+        :value="hotTags.length"
+        unit="个"
+        description="可快速切换的标签"
+        tone="info"
+        trend="flat"
+        trend-text="标签"
+      />
+      <CnStatCard
+        title="筛选类型"
+        :value="filterTypeLabel"
+        description="当前作品费用筛选"
+        tone="neutral"
+        trend="flat"
+        trend-text="筛选"
+      />
+    </section>
+
+    <CnSection title="搜索与筛选" description="按标题、描述、分类、费用类型或热门标签过滤作品。" divided>
       <div class="search-bar">
         <el-input
           v-model="searchKeyword"
@@ -54,7 +95,7 @@
 
         <div class="filter-item">
           <span class="filter-label">排序：</span>
-          <el-select v-model="sortBy" @change="handleFilter" style="width: 150px">
+          <el-select v-model="sortBy" class="sort-select" @change="handleFilter">
             <el-option label="最新发布" value="latest" />
             <el-option label="最热门" value="hot" />
             <el-option label="最多点赞" value="most_liked" />
@@ -65,24 +106,30 @@
 
       <div class="hot-tags" v-if="hotTags.length > 0">
         <span class="tags-label">热门标签：</span>
-        <el-tag
+        <CnStatusTag
           v-for="tag in hotTags"
           :key="tag.tagName"
-          :type="selectedTag === tag.tagName ? 'primary' : 'info'"
-          style="cursor: pointer; margin-right: 10px"
+          class="tag-option"
+          :type="selectedTag === tag.tagName ? 'brand' : 'info'"
+          size="sm"
+          :subtle="selectedTag !== tag.tagName"
           @click="selectTag(tag.tagName)"
         >
           {{ tag.tagName }} ({{ tag.useCount }})
-        </el-tag>
+        </CnStatusTag>
       </div>
-    </div>
+    </CnSection>
 
-    <!-- 推荐作品 -->
-    <div class="recommend-section" v-if="recommendPens.length > 0 && !searchKeyword">
-      <h2 class="section-title">
-        <el-icon><Star /></el-icon>
-        编辑推荐
-      </h2>
+    <CnSection
+      v-if="recommendPens.length > 0 && !searchKeyword"
+      class="recommend-section"
+      title="编辑推荐"
+      description="近期更适合作为灵感入口的作品。"
+      divided
+    >
+      <template #actions>
+        <CnStatusTag type="success" size="sm">{{ recommendPens.length }} 个推荐</CnStatusTag>
+      </template>
       <div class="pen-grid">
         <PenCard
           v-for="pen in recommendPens"
@@ -91,17 +138,14 @@
           @click="viewPen(pen.id)"
         />
       </div>
-    </div>
+    </CnSection>
 
-    <!-- 作品列表 -->
-    <div class="pen-list-section">
-      <h2 class="section-title" v-if="!searchKeyword">
-        {{ filterCategory ? `${filterCategory}作品` : '全部作品' }}
-      </h2>
-      <h2 class="section-title" v-else>
-        搜索结果（{{ total }}）
-      </h2>
-
+    <CnSection
+      class="pen-list-section"
+      :title="listTitle"
+      :description="selectedTag ? `当前标签：${selectedTag}` : '按当前条件展示公开作品。'"
+      divided
+    >
       <div class="pen-grid" v-loading="loading">
         <PenCard
           v-for="pen in penList"
@@ -111,13 +155,15 @@
         />
       </div>
 
-      <!-- 空状态 -->
-      <el-empty
+      <CnEmptyState
         v-if="!loading && penList.length === 0"
-        description="暂无作品"
+        title="暂无作品"
+        description="换一个关键词或筛选条件再试。"
+        icon="CP"
+        size="sm"
+        surface="plain"
       />
 
-      <!-- 分页 -->
       <div class="pagination" v-if="total > 0">
         <el-pagination
           v-model:current-page="pageNum"
@@ -129,15 +175,16 @@
           @size-change="loadPenList"
         />
       </div>
-    </div>
-  </div>
+    </CnSection>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Star } from '@element-plus/icons-vue'
+import { Search } from '@element-plus/icons-vue'
 import { codepenApi } from '@/api/codepen'
+import { CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
 import PenCard from './components/PenCard.vue'
 
 const router = useRouter()
@@ -157,6 +204,26 @@ const recommendPens = ref([])
 const pageNum = ref(1)
 const pageSize = ref(12)
 const total = ref(0)
+
+const filterTypeLabel = computed(() => {
+  if (filterType.value === 1) {
+    return '免费'
+  }
+  if (filterType.value === 0) {
+    return '付费'
+  }
+  return '全部'
+})
+
+const listTitle = computed(() => {
+  if (searchKeyword.value) {
+    return `搜索结果（${total.value}）`
+  }
+  if (filterCategory.value) {
+    return `${filterCategory.value}作品`
+  }
+  return '全部作品'
+})
 
 // 创建新作品
 const createNewPen = () => {
@@ -262,99 +329,101 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .codepen-square {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 20px;
+  min-height: calc(100vh - 68px);
+}
 
-  .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 30px;
+.codepen-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
+  margin-bottom: var(--cn-space-4);
+}
 
-    .page-title {
-      font-size: 32px;
-      font-weight: 600;
-      color: #333;
-      margin: 0;
-    }
+.search-bar {
+  max-width: 680px;
+  margin-bottom: var(--cn-space-4);
+}
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-4);
+  margin-bottom: var(--cn-space-4);
+}
+
+.filter-item {
+  display: flex;
+  align-items: center;
+  gap: var(--cn-space-2);
+  min-width: 0;
+}
+
+.filter-label,
+.tags-label {
+  color: var(--cn-color-text-secondary);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.sort-select {
+  width: 150px;
+}
+
+.hot-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
+  padding-top: var(--cn-space-4);
+  border-top: 1px solid var(--cn-color-border-subtle);
+}
+
+.tag-option {
+  cursor: pointer;
+}
+
+.recommend-section,
+.pen-list-section {
+  margin-top: var(--cn-space-4);
+}
+
+.pen-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--cn-space-4);
+  min-height: 180px;
+}
+
+.pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--cn-space-5);
+  overflow-x: auto;
+}
+
+@media (max-width: 992px) {
+  .codepen-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .codepen-stats,
+  .pen-grid {
+    grid-template-columns: 1fr;
   }
 
-  .filter-section {
-    background: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    margin-bottom: 30px;
-
-    .search-bar {
-      margin-bottom: 20px;
-
-      .el-input {
-        max-width: 600px;
-      }
-    }
-
-    .filter-bar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      margin-bottom: 15px;
-
-      .filter-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-
-        .filter-label {
-          font-size: 14px;
-          color: #666;
-          white-space: nowrap;
-        }
-      }
-    }
-
-    .hot-tags {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      padding-top: 15px;
-      border-top: 1px solid #eee;
-
-      .tags-label {
-        font-size: 14px;
-        color: #666;
-        margin-right: 15px;
-      }
-    }
+  .filter-item {
+    display: grid;
+    width: 100%;
   }
 
-  .recommend-section,
-  .pen-list-section {
-    margin-bottom: 30px;
-
-    .section-title {
-      font-size: 24px;
-      font-weight: 600;
-      color: #333;
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .pen-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 20px;
-      min-height: 200px;
-    }
+  .sort-select {
+    width: 100%;
   }
 
   .pagination {
-    display: flex;
-    justify-content: center;
-    margin-top: 30px;
+    justify-content: flex-start;
   }
 }
 </style>

@@ -1,24 +1,43 @@
 <template>
-  <div class="playground-shell cn-learn-shell">
-    <div class="cn-learn-shell__inner">
-      <section class="playground-hero cn-learn-hero cn-wave-reveal">
-        <div class="cn-learn-hero__content">
-          <span class="cn-learn-hero__eyebrow">Code Playground</span>
-          <h1 class="cn-learn-hero__title">练习场</h1>
-          <p class="cn-learn-hero__desc">在线运行多语言代码，快速验证思路与输入输出，专注练习反馈闭环。</p>
-        </div>
-        <div class="cn-learn-hero__meta">
-          <span class="cn-learn-chip">语言 {{ selectedLanguage }}</span>
-          <span class="cn-learn-chip">运行状态 {{ running ? '执行中' : '待命' }}</span>
-        </div>
-      </section>
+  <CnPage class="playground-shell" surface="transparent" max-width="1440px" full-height>
+    <CnPageHeader
+      class="cn-learn-reveal"
+      title="练习场"
+      description="在线运行多语言代码，快速验证思路与输入输出，专注练习反馈闭环。"
+      eyebrow="Code Playground"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">
+          语言 {{ selectedLanguageLabel }}
+        </CnStatusTag>
+        <CnStatusTag :type="running ? 'warning' : 'success'" size="sm">
+          {{ running ? '执行中' : '待命' }}
+        </CnStatusTag>
+        <CnStatusTag v-if="result" :type="getResultTone(result.status)" size="sm">
+          {{ getResultStatusLabel(result.status) }}
+        </CnStatusTag>
+      </template>
 
-      <div class="playground cn-learn-panel cn-learn-reveal">
+      <template #actions>
+        <el-button plain @click="handleClear">
+          <el-icon><Delete /></el-icon>
+          清空
+        </el-button>
+        <el-button type="primary" :loading="running" @click="handleRun">
+          <el-icon><CaretRight /></el-icon>
+          运行
+        </el-button>
+      </template>
+    </CnPageHeader>
+
+    <div class="playground-wrap cn-learn-reveal">
+      <div class="playground">
         <!-- 顶部工具栏 -->
         <div class="toolbar">
           <div class="toolbar-left">
             <h3 class="page-title">练习场</h3>
-            <el-select v-model="selectedLanguage" style="width: 140px" size="small">
+            <el-select v-model="selectedLanguage" class="language-select" size="small">
               <el-option v-for="lang in languages" :key="lang.value" :label="lang.label" :value="lang.value" />
             </el-select>
           </div>
@@ -97,25 +116,33 @@
         </div>
       </div>
     </div>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+<script setup lang="ts">
+import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { CaretRight, Delete, Loading } from '@element-plus/icons-vue'
+import { CnPage, CnPageHeader, CnStatusTag } from '@/design-system'
+import type { CnTone } from '@/design-system'
 import { ojApi } from '@/api/oj'
 import loader from '@monaco-editor/loader'
 import { useRevealMotion } from '@/utils/reveal-motion'
 
 const editorContainer = ref(null)
-let editorInstance = null
+let editorInstance: any = null
 useRevealMotion('.playground-shell .cn-learn-reveal')
 
 const selectedLanguage = ref('java')
 const stdin = ref('')
 const running = ref(false)
-const result = ref(null)
+const result = ref<any>(null)
+
+const breadcrumbs = [
+  { label: '首页', to: '/' },
+  { label: '在线判题', to: '/oj' },
+  { label: '练习场' }
+]
 
 const languages = [
   { value: 'java', label: 'Java', monacoLang: 'java' },
@@ -143,6 +170,28 @@ const getMonacoLang = (lang) => {
 const formatMemory = (kb) => {
   if (!kb) return '0KB'
   return kb > 1024 ? `${(kb / 1024).toFixed(1)}MB` : `${kb}KB`
+}
+
+const selectedLanguageLabel = computed(() => {
+  return languages.find((lang) => lang.value === selectedLanguage.value)?.label || selectedLanguage.value
+})
+
+const getResultStatusLabel = (status) => {
+  const map = {
+    compile_error: '编译错误',
+    runtime_error: '运行错误',
+    time_limit_exceeded: '超时',
+    memory_limit_exceeded: '超内存',
+    error: '错误',
+    success: '运行成功'
+  }
+  return map[status] || '运行完成'
+}
+
+const getResultTone = (status): CnTone => {
+  if (['compile_error', 'runtime_error', 'error'].includes(status)) return 'danger'
+  if (['time_limit_exceeded', 'memory_limit_exceeded'].includes(status)) return 'warning'
+  return 'success'
 }
 
 // ============ Monaco 编辑器 ============
@@ -224,30 +273,45 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .playground-shell {
+  --playground-bg: var(--cn-color-text-primary);
+  --playground-panel: color-mix(in srgb, var(--cn-color-text-primary) 92%, var(--cn-color-bg-page));
+  --playground-panel-elevated: color-mix(in srgb, var(--cn-color-text-primary) 86%, var(--cn-color-bg-page));
+  --playground-border: color-mix(in srgb, var(--cn-color-bg-surface) 18%, var(--cn-color-text-primary));
+  --playground-text: color-mix(in srgb, var(--cn-color-bg-surface) 84%, var(--cn-color-text-primary));
+  --playground-text-muted: color-mix(in srgb, var(--cn-color-bg-surface) 48%, var(--cn-color-text-primary));
+  --playground-text-subtle: color-mix(in srgb, var(--cn-color-bg-surface) 32%, var(--cn-color-text-primary));
+  --playground-success-bg: color-mix(in srgb, var(--cn-color-success) 15%, transparent);
+  --playground-danger-bg: color-mix(in srgb, var(--cn-color-danger) 15%, transparent);
+  --playground-warning-bg: color-mix(in srgb, var(--cn-color-warning) 15%, transparent);
+  --playground-stdout-bg: color-mix(in srgb, var(--cn-color-success) 13%, var(--playground-bg));
+  --playground-stdout-text: color-mix(in srgb, var(--cn-color-success) 44%, var(--cn-color-bg-surface));
+  --playground-stderr-bg: color-mix(in srgb, var(--cn-color-danger) 13%, var(--playground-bg));
+  --playground-stderr-text: color-mix(in srgb, var(--cn-color-danger) 44%, var(--cn-color-bg-surface));
+
   min-height: calc(100vh - 68px);
 }
 
-.playground-hero {
-  margin-bottom: 16px;
-  border-radius: 24px;
-  padding: 22px 26px;
+.playground-wrap {
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--cn-color-brand-primary) 22%, var(--cn-color-border-subtle));
+  border-radius: var(--cn-radius-panel);
+  background: var(--playground-bg);
+  box-shadow: var(--cn-shadow-md);
+  overflow: hidden;
 }
 
 .playground {
-  height: calc(100vh - 250px);
+  height: calc(100vh - 260px);
   display: flex;
   flex-direction: column;
-  background: #1e1e1e;
-  border-radius: 18px;
+  background: var(--playground-bg);
   overflow: hidden;
-  border: 1px solid rgba(154, 195, 252, 0.3);
-  box-shadow: 0 22px 48px rgba(15, 46, 94, 0.24);
 }
 
 .toolbar {
   height: 50px;
-  background: #252526;
-  border-bottom: 1px solid #3c3c3c;
+  background: var(--playground-panel);
+  border-bottom: 1px solid var(--playground-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -261,11 +325,15 @@ onBeforeUnmount(() => {
   gap: 16px;
 }
 
+.language-select {
+  width: 140px;
+}
+
 .page-title {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #cccccc;
+  color: var(--playground-text);
 }
 
 .toolbar-right {
@@ -293,8 +361,8 @@ onBeforeUnmount(() => {
   width: 380px;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid #3c3c3c;
-  background: #1e1e1e;
+  border-left: 1px solid var(--playground-border);
+  background: var(--playground-bg);
   flex-shrink: 0;
 }
 
@@ -305,7 +373,7 @@ onBeforeUnmount(() => {
 
 .input-block {
   height: 40%;
-  border-bottom: 1px solid #3c3c3c;
+  border-bottom: 1px solid var(--playground-border);
 }
 
 .output-block {
@@ -319,22 +387,22 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   padding: 0 12px;
-  background: #252526;
-  color: #cccccc;
+  background: var(--playground-panel);
+  color: var(--playground-text);
   font-size: 13px;
   font-weight: 500;
   flex-shrink: 0;
 }
 
 .run-info {
-  color: #858585;
+  color: var(--playground-text-muted);
   font-size: 12px;
 }
 
 .io-textarea {
   flex: 1;
-  background: #1e1e1e;
-  color: #d4d4d4;
+  background: var(--playground-bg);
+  color: var(--playground-text);
   border: none;
   outline: none;
   padding: 10px 12px;
@@ -345,7 +413,7 @@ onBeforeUnmount(() => {
 }
 
 .io-textarea::placeholder {
-  color: #5a5a5a;
+  color: var(--playground-text-subtle);
 }
 
 .io-status.loading {
@@ -353,7 +421,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   padding: 16px 12px;
-  color: #858585;
+  color: var(--playground-text-muted);
   font-size: 13px;
 }
 
@@ -372,9 +440,20 @@ onBeforeUnmount(() => {
   margin-bottom: 10px;
 }
 
-.status-badge.success { background: rgba(16, 185, 129, 0.15); color: #10b981; }
-.status-badge.error { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
-.status-badge.warn { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+.status-badge.success {
+  background: var(--playground-success-bg);
+  color: var(--cn-color-success);
+}
+
+.status-badge.error {
+  background: var(--playground-danger-bg);
+  color: var(--cn-color-danger);
+}
+
+.status-badge.warn {
+  background: var(--playground-warning-bg);
+  color: var(--cn-color-warning);
+}
 
 .output-pre {
   margin: 0 0 8px;
@@ -388,23 +467,23 @@ onBeforeUnmount(() => {
 }
 
 .output-pre.stdout {
-  background: #1b2b1b;
-  color: #a5d6a7;
+  background: var(--playground-stdout-bg);
+  color: var(--playground-stdout-text);
 }
 
 .output-pre.stderr {
-  background: #2b1b1b;
-  color: #ef9a9a;
+  background: var(--playground-stderr-bg);
+  color: var(--playground-stderr-text);
 }
 
 .empty-output {
-  color: #5a5a5a;
+  color: var(--playground-text-subtle);
   font-size: 13px;
 }
 
 .io-placeholder {
   padding: 16px 12px;
-  color: #5a5a5a;
+  color: var(--playground-text-subtle);
   font-size: 13px;
 }
 
@@ -427,7 +506,7 @@ onBeforeUnmount(() => {
     width: 100%;
     height: 46%;
     border-left: 0;
-    border-top: 1px solid #3c3c3c;
+    border-top: 1px solid var(--playground-border);
   }
 }
 </style>

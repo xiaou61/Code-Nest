@@ -44,7 +44,7 @@ export const userApi = {
   },
   
   // 重置用户密码
-  resetPassword(userId, newPassword = '123456') {
+  resetPassword(userId, newPassword) {
     return request.put(`/admin/user/${userId}/reset-password`, null, {
       params: { newPassword }
     })
@@ -54,4 +54,4 @@ export const userApi = {
   getUserStatistics() {
     return request.get('/admin/user/statistics')
   }
-} 
+}

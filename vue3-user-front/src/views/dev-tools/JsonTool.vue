@@ -1,226 +1,161 @@
 <template>
-  <div class="json-tool">
-    <!-- 头部导航 -->
-    <div class="tool-header">
-      <div class="header-content">
-        <h1 class="tool-title">
-          <el-icon><Document /></el-icon>
-          JSON 格式化工具
-        </h1>
-        <p class="tool-description">JSON格式化、验证、压缩和转换的专业工具</p>
-      </div>
-    </div>
+  <CnPage class="json-tool-page" max-width="1440px" full-height>
+    <CnPageHeader
+      title="JSON 格式化工具"
+      description="格式化、压缩、验证 JSON，并查看结构深度、键数量和本地历史记录。"
+      eyebrow="DEV TOOL"
+      :breadcrumbs="[{ label: '开发工具', to: '/dev-tools' }, { label: 'JSON 格式化' }]"
+    >
+      <template #meta>
+        <CnStatusTag :type="inputError ? 'danger' : outputText ? 'success' : 'info'" size="sm">
+          {{ inputError ? '语法错误' : outputText ? '已生成结果' : '待处理' }}
+        </CnStatusTag>
+        <CnStatusTag type="brand" size="sm" subtle>{{ inputText.length }} 字符输入</CnStatusTag>
+      </template>
+    </CnPageHeader>
 
-    <!-- 工具栏 -->
-    <div class="toolbar">
-      <div class="toolbar-left">
-        <el-button-group>
-          <el-button 
-            type="primary" 
-            @click="formatJson"
-            :disabled="!inputText.trim()"
-          >
-            <el-icon><Edit /></el-icon>
-            格式化
-          </el-button>
-          <el-button 
-            @click="compressJson"
-            :disabled="!inputText.trim()"
-          >
-            <el-icon><Minus /></el-icon>
-            压缩
-          </el-button>
-          <el-button 
-            @click="validateJson"
-            :disabled="!inputText.trim()"
-          >
-            <el-icon><CircleCheck /></el-icon>
-            验证
-          </el-button>
-        </el-button-group>
-      </div>
-      <div class="toolbar-right">
-        <el-button @click="clearAll">
-          <el-icon><Delete /></el-icon>
-          清空
-        </el-button>
-        <el-button @click="copyResult" :disabled="!outputText">
-          <el-icon><CopyDocument /></el-icon>
-          复制结果
-        </el-button>
-        <el-upload
-          ref="uploadRef"
-          :show-file-list="false"
-          :before-upload="handleFileUpload"
-          accept=".json,.txt"
-        >
-          <el-button>
-            <el-icon><Upload /></el-icon>
-            上传文件
-          </el-button>
-        </el-upload>
-      </div>
-    </div>
-
-    <!-- 主要内容区域 -->
-    <div class="content-area">
-      <!-- 输入区域 -->
-      <div class="input-section">
-        <div class="section-header">
-          <h3>输入 JSON</h3>
-          <div class="section-actions">
-            <el-button size="small" text @click="loadExample">
-              <el-icon><Document /></el-icon>
-              加载示例
+    <CnSection title="操作栏" description="选择格式化、压缩或只校验语法。上传内容只在本地浏览器读取。" divided>
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <el-button-group>
+            <el-button type="primary" :icon="Edit" :disabled="!inputText.trim()" @click="formatJson">
+              格式化
             </el-button>
-            <el-button size="small" text @click="pasteFromClipboard">
-              <el-icon><CopyDocument /></el-icon>
-              粘贴
+            <el-button :icon="Minus" :disabled="!inputText.trim()" @click="compressJson">
+              压缩
             </el-button>
-          </div>
+            <el-button :icon="CircleCheck" :disabled="!inputText.trim()" @click="validateJson">
+              验证
+            </el-button>
+          </el-button-group>
         </div>
+
+        <div class="toolbar-right">
+          <el-button :icon="Delete" @click="clearAll">清空</el-button>
+          <el-button :icon="CopyDocument" :disabled="!outputText" @click="copyResult">复制结果</el-button>
+          <el-upload :show-file-list="false" :before-upload="handleFileUpload" accept=".json,.txt">
+            <el-button :icon="Upload">上传文件</el-button>
+          </el-upload>
+        </div>
+      </div>
+    </CnSection>
+
+    <div class="workbench-grid">
+      <CnSection title="输入 JSON" description="粘贴或上传 JSON 文本，编辑后会自动清空旧结果。" divided>
+        <template #actions>
+          <el-button size="small" text :icon="Document" @click="loadExample">加载示例</el-button>
+          <el-button size="small" text :icon="CopyDocument" @click="pasteFromClipboard">粘贴</el-button>
+        </template>
+
         <div class="editor-container">
           <textarea
             v-model="inputText"
             class="json-editor input-editor"
             placeholder="请输入或粘贴 JSON 数据..."
             @input="onInputChange"
-          ></textarea>
+          />
           <div class="editor-info">
-            <span class="char-count">{{ inputText.length }} 字符</span>
+            <span>{{ inputText.length }} 字符</span>
             <span v-if="inputError" class="error-info">
               <el-icon><Warning /></el-icon>
               {{ inputError }}
             </span>
           </div>
         </div>
-      </div>
+      </CnSection>
 
-      <!-- 输出区域 -->
-      <div class="output-section">
-        <div class="section-header">
-          <h3>格式化结果</h3>
-          <div class="section-actions">
-            <el-button size="small" text @click="copyResult" :disabled="!outputText">
-              <el-icon><CopyDocument /></el-icon>
-              复制
-            </el-button>
-            <el-button size="small" text @click="downloadResult" :disabled="!outputText">
-              <el-icon><Download /></el-icon>
-              下载
-            </el-button>
-          </div>
-        </div>
+      <CnSection title="格式化结果" description="结果会进行基础语法高亮，可复制或下载为 JSON 文件。" divided>
+        <template #actions>
+          <el-button size="small" text :icon="CopyDocument" :disabled="!outputText" @click="copyResult">复制</el-button>
+          <el-button size="small" text :icon="Download" :disabled="!outputText" @click="downloadResult">下载</el-button>
+        </template>
+
         <div class="editor-container">
-          <div
-            v-if="outputText"
-            class="json-editor output-editor"
-            v-html="highlightedJson"
-          ></div>
+          <div v-if="outputText" class="json-editor output-editor" v-html="highlightedJson" />
           <div v-else class="json-editor output-editor placeholder">
             格式化后的 JSON 将显示在这里...
           </div>
           <div class="editor-info">
-            <span class="char-count">{{ outputText.length }} 字符</span>
+            <span>{{ outputText.length }} 字符</span>
             <span v-if="jsonStats" class="stats-info">
               <el-icon><DataAnalysis /></el-icon>
               {{ jsonStats }}
             </span>
           </div>
         </div>
+      </CnSection>
+    </div>
+
+    <div v-if="jsonInfo" class="info-grid">
+      <CnStatCard title="类型" :value="jsonInfo.type" description="根节点数据结构" tone="brand" />
+      <CnStatCard title="深度" :value="jsonInfo.depth" unit="层" description="嵌套层级估算" tone="info" />
+      <CnStatCard title="键数量" :value="jsonInfo.keyCount" description="对象键总数" tone="success" />
+      <CnStatCard title="大小" :value="formatBytes(outputText.length)" description="按输出文本估算" tone="warning" />
+    </div>
+
+    <CnSection v-if="history.length > 0" title="历史记录" description="仅保存在当前浏览器 localStorage 中。" divided>
+      <template #actions>
+        <el-button size="small" text type="danger" @click="clearHistory">清空历史</el-button>
+      </template>
+
+      <div class="history-list">
+        <button
+          v-for="(item, index) in history.slice(0, 5)"
+          :key="`${item.timestamp}-${index}`"
+          type="button"
+          class="history-item"
+          @click="loadFromHistory(item)"
+        >
+          <span class="history-content">
+            <span class="history-preview">{{ item.preview }}</span>
+            <span class="history-time">{{ formatTime(item.timestamp) }}</span>
+          </span>
+          <el-button size="small" text :icon="Close" @click.stop="removeFromHistory(index)" />
+        </button>
       </div>
-    </div>
-
-    <!-- JSON 统计信息 -->
-    <div v-if="jsonInfo" class="json-info">
-      <el-card>
-        <template #header>
-          <div class="card-header">
-            <el-icon><DataAnalysis /></el-icon>
-            JSON 分析
-          </div>
-        </template>
-        <div class="info-grid">
-          <div class="info-item">
-            <span class="info-label">类型</span>
-            <span class="info-value">{{ jsonInfo.type }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">深度</span>
-            <span class="info-value">{{ jsonInfo.depth }} 层</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">键数量</span>
-            <span class="info-value">{{ jsonInfo.keyCount }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">大小</span>
-            <span class="info-value">{{ formatBytes(outputText.length) }}</span>
-          </div>
-        </div>
-      </el-card>
-    </div>
-
-    <!-- 历史记录 -->
-    <div v-if="history.length > 0" class="history-section">
-      <el-card>
-        <template #header>
-          <div class="card-header">
-            <el-icon><Clock /></el-icon>
-            历史记录
-            <el-button size="small" text type="danger" @click="clearHistory">
-              清空历史
-            </el-button>
-          </div>
-        </template>
-        <div class="history-list">
-          <div
-            v-for="(item, index) in history.slice(0, 5)"
-            :key="index"
-            class="history-item"
-            @click="loadFromHistory(item)"
-          >
-            <div class="history-content">
-              <span class="history-preview">{{ item.preview }}</span>
-              <span class="history-time">{{ formatTime(item.timestamp) }}</span>
-            </div>
-            <el-button size="small" text @click.stop="removeFromHistory(index)">
-              <el-icon><Close /></el-icon>
-            </el-button>
-          </div>
-        </div>
-      </el-card>
-    </div>
-  </div>
+    </CnSection>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, computed, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { UploadRawFile } from 'element-plus'
 import {
-  Document, 
-  Edit, 
-  Minus, 
-  CircleCheck, 
-  Delete, 
+  CircleCheck,
+  Close,
   CopyDocument,
-  Upload, 
-  Warning, 
-  Download, 
-  DataAnalysis, 
-  Clock, 
-  Close
+  DataAnalysis,
+  Delete,
+  Document,
+  Download,
+  Edit,
+  Minus,
+  Upload,
+  Warning
 } from '@element-plus/icons-vue'
+import { CnPage, CnPageHeader, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
 
-// 响应式数据
+interface JsonInfo {
+  type: string
+  depth: number
+  keyCount: number
+}
+
+interface HistoryItem {
+  input: string
+  output: string
+  type: string
+  preview: string
+  timestamp: number
+}
+
 const inputText = ref('')
 const outputText = ref('')
 const inputError = ref('')
-const jsonInfo = ref(null)
-const history = ref([])
-const uploadRef = ref()
+const jsonInfo = ref<JsonInfo | null>(null)
+const history = ref<HistoryItem[]>([])
 
-// 计算属性
 const highlightedJson = computed(() => {
   if (!outputText.value) return ''
   return highlightJson(outputText.value)
@@ -231,60 +166,51 @@ const jsonStats = computed(() => {
   return `${jsonInfo.value.type} • ${jsonInfo.value.keyCount} 个键 • ${jsonInfo.value.depth} 层深度`
 })
 
-// 生命周期
-onMounted(() => {
-  loadHistory()
-})
-
-// JSON 格式化
 const formatJson = () => {
   try {
-    const parsed = JSON.parse(inputText.value)
+    const parsed = JSON.parse(inputText.value) as unknown
     outputText.value = JSON.stringify(parsed, null, 2)
     inputError.value = ''
     analyzeJson(parsed)
     addToHistory(inputText.value, outputText.value, 'format')
     ElMessage.success('JSON 格式化成功')
   } catch (error) {
-    inputError.value = `JSON 语法错误: ${error.message}`
+    inputError.value = `JSON 语法错误: ${error instanceof Error ? error.message : '解析失败'}`
     outputText.value = ''
     jsonInfo.value = null
     ElMessage.error('JSON 格式化失败')
   }
 }
 
-// JSON 压缩
 const compressJson = () => {
   try {
-    const parsed = JSON.parse(inputText.value)
+    const parsed = JSON.parse(inputText.value) as unknown
     outputText.value = JSON.stringify(parsed)
     inputError.value = ''
     analyzeJson(parsed)
     addToHistory(inputText.value, outputText.value, 'compress')
     ElMessage.success('JSON 压缩成功')
   } catch (error) {
-    inputError.value = `JSON 语法错误: ${error.message}`
+    inputError.value = `JSON 语法错误: ${error instanceof Error ? error.message : '解析失败'}`
     outputText.value = ''
     jsonInfo.value = null
     ElMessage.error('JSON 压缩失败')
   }
 }
 
-// JSON 验证
 const validateJson = () => {
   try {
-    const parsed = JSON.parse(inputText.value)
+    const parsed = JSON.parse(inputText.value) as unknown
     inputError.value = ''
     analyzeJson(parsed)
     ElMessage.success('JSON 格式正确')
   } catch (error) {
-    inputError.value = `JSON 语法错误: ${error.message}`
+    inputError.value = `JSON 语法错误: ${error instanceof Error ? error.message : '解析失败'}`
     jsonInfo.value = null
     ElMessage.error('JSON 格式错误')
   }
 }
 
-// 清空所有内容
 const clearAll = () => {
   inputText.value = ''
   outputText.value = ''
@@ -292,146 +218,128 @@ const clearAll = () => {
   jsonInfo.value = null
 }
 
-// 复制结果
 const copyResult = async () => {
   try {
     await navigator.clipboard.writeText(outputText.value)
     ElMessage.success('已复制到剪贴板')
-  } catch (error) {
+  } catch {
     ElMessage.error('复制失败')
   }
 }
 
-// 从剪贴板粘贴
 const pasteFromClipboard = async () => {
   try {
-    const text = await navigator.clipboard.readText()
-    inputText.value = text
+    inputText.value = await navigator.clipboard.readText()
     ElMessage.success('已从剪贴板粘贴')
-  } catch (error) {
+  } catch {
     ElMessage.error('粘贴失败')
   }
 }
 
-// 下载结果
 const downloadResult = () => {
   const blob = new Blob([outputText.value], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'formatted.json'
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = 'formatted.json'
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
   URL.revokeObjectURL(url)
   ElMessage.success('文件下载成功')
 }
 
-// 文件上传处理
-const handleFileUpload = (file) => {
+const handleFileUpload = (file: UploadRawFile) => {
   const reader = new FileReader()
-  reader.onload = (e) => {
-    inputText.value = e.target.result
+  reader.onload = (event) => {
+    inputText.value = String(event.target?.result || '')
     ElMessage.success('文件上传成功')
   }
   reader.onerror = () => {
     ElMessage.error('文件读取失败')
   }
   reader.readAsText(file)
-  return false // 阻止自动上传
+  return false
 }
 
-// 加载示例数据
 const loadExample = () => {
   const example = {
-    "name": "张三",
-    "age": 30,
-    "city": "北京",
-    "skills": ["JavaScript", "Vue.js", "Node.js"],
-    "experience": {
-      "years": 5,
-      "companies": [
-        {
-          "name": "科技公司A",
-          "position": "前端工程师",
-          "duration": "2年"
-        },
-        {
-          "name": "科技公司B",
-          "position": "高级前端工程师",
-          "duration": "3年"
-        }
+    name: '张三',
+    age: 30,
+    city: '北京',
+    skills: ['JavaScript', 'Vue.js', 'Node.js'],
+    experience: {
+      years: 5,
+      companies: [
+        { name: '科技公司A', position: '前端工程师', duration: '2年' },
+        { name: '科技公司B', position: '高级前端工程师', duration: '3年' }
       ]
     },
-    "contact": {
-      "email": "zhangsan@example.com",
-      "phone": "13800138000"
+    contact: {
+      email: 'zhangsan@example.com',
+      phone: '13800138000'
     },
-    "active": true
+    active: true
   }
   inputText.value = JSON.stringify(example)
   ElMessage.success('示例数据已加载')
 }
 
-// 输入变化处理
 const onInputChange = () => {
   inputError.value = ''
   jsonInfo.value = null
   outputText.value = ''
 }
 
-// 分析 JSON 结构
-const analyzeJson = (obj) => {
-  const getType = (value) => {
-    if (Array.isArray(value)) return 'Array'
-    if (value === null) return 'null'
-    return typeof value === 'object' ? 'Object' : typeof value
+const analyzeJson = (value: unknown) => {
+  const getType = (target: unknown) => {
+    if (Array.isArray(target)) return 'Array'
+    if (target === null) return 'null'
+    return typeof target === 'object' ? 'Object' : typeof target
   }
 
-  const getDepth = (obj, depth = 1) => {
-    if (typeof obj !== 'object' || obj === null) return depth
-    if (Array.isArray(obj)) {
-      return Math.max(depth, ...obj.map(item => getDepth(item, depth + 1)))
+  const getDepth = (target: unknown, depth = 1): number => {
+    if (typeof target !== 'object' || target === null) return depth
+    if (Array.isArray(target)) {
+      return Math.max(depth, ...target.map((item) => getDepth(item, depth + 1)))
     }
-    return Math.max(depth, ...Object.values(obj).map(value => getDepth(value, depth + 1)))
+    return Math.max(depth, ...Object.values(target as Record<string, unknown>).map((item) => getDepth(item, depth + 1)))
   }
 
-  const countKeys = (obj) => {
-    if (typeof obj !== 'object' || obj === null) return 0
-    if (Array.isArray(obj)) {
-      return obj.reduce((count, item) => count + countKeys(item), 0)
+  const countKeys = (target: unknown): number => {
+    if (typeof target !== 'object' || target === null) return 0
+    if (Array.isArray(target)) {
+      return target.reduce((count, item) => count + countKeys(item), 0)
     }
-    return Object.keys(obj).length + Object.values(obj).reduce((count, value) => count + countKeys(value), 0)
+    const record = target as Record<string, unknown>
+    return Object.keys(record).length + Object.values(record).reduce((count, item) => count + countKeys(item), 0)
   }
 
   jsonInfo.value = {
-    type: getType(obj),
-    depth: getDepth(obj),
-    keyCount: countKeys(obj)
+    type: getType(value),
+    depth: getDepth(value),
+    keyCount: countKeys(value)
   }
 }
 
-// JSON 语法高亮
-const highlightJson = (json) => {
-  return json
-    .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g, (match) => {
-      let cls = 'json-number'
+const highlightJson = (json: string) => {
+  return json.replace(
+    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g,
+    (match) => {
+      let className = 'json-number'
       if (/^"/.test(match)) {
-        if (/:$/.test(match)) {
-          cls = 'json-key'
-        } else {
-          cls = 'json-string'
-        }
+        className = /:$/.test(match) ? 'json-key' : 'json-string'
       } else if (/true|false/.test(match)) {
-        cls = 'json-boolean'
+        className = 'json-boolean'
       } else if (/null/.test(match)) {
-        cls = 'json-null'
+        className = 'json-null'
       }
-      return `<span class="${cls}">${escapeHtml(match)}</span>`
-    })
+      return `<span class="${className}">${escapeHtml(match)}</span>`
+    }
+  )
 }
 
-const escapeHtml = (text) => {
+const escapeHtml = (text: string) => {
   return String(text)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -440,9 +348,8 @@ const escapeHtml = (text) => {
     .replace(/'/g, '&#39;')
 }
 
-// 历史记录管理
-const addToHistory = (input, output, type) => {
-  const item = {
+const addToHistory = (input: string, output: string, type: string) => {
+  const item: HistoryItem = {
     input,
     output,
     type,
@@ -456,18 +363,17 @@ const addToHistory = (input, output, type) => {
   saveHistory()
 }
 
-const loadFromHistory = (item) => {
+const loadFromHistory = (item: HistoryItem) => {
   inputText.value = item.input
   outputText.value = item.output
   try {
-    const parsed = JSON.parse(item.input)
-    analyzeJson(parsed)
-  } catch (error) {
-    // 忽略历史记录中的错误
+    analyzeJson(JSON.parse(item.input) as unknown)
+  } catch {
+    jsonInfo.value = null
   }
 }
 
-const removeFromHistory = (index) => {
+const removeFromHistory = (index: number) => {
   history.value.splice(index, 1)
   saveHistory()
 }
@@ -486,369 +392,217 @@ const loadHistory = () => {
   try {
     const saved = localStorage.getItem('json-tool-history')
     if (saved) {
-      history.value = JSON.parse(saved)
+      history.value = JSON.parse(saved) as HistoryItem[]
     }
   } catch (error) {
     console.error('Failed to load history:', error)
   }
 }
 
-// 工具函数
-const formatBytes = (bytes) => {
+const formatBytes = (bytes: number) => {
   if (bytes === 0) return '0 Bytes'
-  const k = 1024
+  const unit = 1024
   const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  const index = Math.floor(Math.log(bytes) / Math.log(unit))
+  return `${parseFloat((bytes / Math.pow(unit, index)).toFixed(2))} ${sizes[index]}`
 }
 
-const formatTime = (timestamp) => {
+const formatTime = (timestamp: number) => {
   return new Date(timestamp).toLocaleString('zh-CN')
 }
+
+onMounted(() => {
+  loadHistory()
+})
 </script>
 
 <style scoped>
-.json-tool {
-  min-height: 100vh;
-  background: #f8fafc;
+.json-tool-page {
+  min-height: calc(100vh - 68px);
 }
 
-/* 头部区域 */
-.tool-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 30px 20px;
-}
-
-.header-content {
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-
-.tool-title {
-  font-size: 2rem;
-  font-weight: 700;
-  margin: 16px 0 8px 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.tool-description {
-  opacity: 0.9;
-  font-size: 1.1rem;
-  margin: 0;
-}
-
-/* 工具栏 */
-.toolbar {
-  background: white;
-  padding: 20px;
-  border-bottom: 1px solid #e5e7eb;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  max-width: 1400px;
-  margin: 0 auto;
-  gap: 20px;
-}
-
+.toolbar,
 .toolbar-left,
 .toolbar-right {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
   align-items: center;
+  gap: var(--cn-space-3);
 }
 
-/* 内容区域 */
-.content-area {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 20px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  min-height: 600px;
-}
-
-.input-section,
-.output-section {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-}
-
-.section-header {
-  padding: 20px;
-  border-bottom: 1px solid #e5e7eb;
-  display: flex;
+.toolbar {
   justify-content: space-between;
-  align-items: center;
 }
 
-.section-header h3 {
-  margin: 0;
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #374151;
-}
-
-.section-actions {
-  display: flex;
-  gap: 8px;
+.workbench-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cn-space-5);
 }
 
 .editor-container {
-  position: relative;
-  height: 500px;
   display: flex;
   flex-direction: column;
+  height: 520px;
+  overflow: hidden;
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .json-editor {
   flex: 1;
-  border: none;
-  outline: none;
-  padding: 20px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 14px;
-  line-height: 1.6;
+  min-height: 0;
+  padding: var(--cn-space-4);
+  border: 0;
+  outline: 0;
   resize: none;
   background: transparent;
-}
-
-.input-editor {
-  color: #374151;
-  background: #f9fafb;
+  color: var(--cn-color-text-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.7;
 }
 
 .output-editor {
-  color: #1f2937;
   overflow: auto;
   white-space: pre;
 }
 
 .output-editor.placeholder {
-  color: #9ca3af;
+  display: grid;
+  place-items: center;
+  color: var(--cn-color-text-tertiary);
   font-style: italic;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  text-align: center;
 }
 
 .editor-info {
-  padding: 12px 20px;
-  background: #f3f4f6;
-  border-top: 1px solid #e5e7eb;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  align-items: center;
-  font-size: 0.875rem;
+  gap: var(--cn-space-2);
+  padding: var(--cn-space-3) var(--cn-space-4);
+  border-top: 1px solid var(--cn-color-border-subtle);
+  background: var(--cn-color-bg-surface);
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
 }
 
-.char-count {
-  color: #6b7280;
+.error-info,
+.stats-info {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cn-space-1);
 }
 
 .error-info {
-  color: #ef4444;
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  color: var(--cn-color-danger);
 }
 
 .stats-info {
-  color: #059669;
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  color: var(--cn-color-success);
 }
 
-/* JSON 语法高亮 */
 :deep(.json-key) {
-  color: #0369a1;
-  font-weight: 600;
+  color: var(--cn-color-info);
+  font-weight: 700;
 }
 
 :deep(.json-string) {
-  color: #059669;
+  color: var(--cn-color-success);
 }
 
 :deep(.json-number) {
-  color: #dc2626;
+  color: var(--cn-color-danger);
 }
 
 :deep(.json-boolean) {
-  color: #7c3aed;
-  font-weight: 600;
+  color: var(--cn-color-warning);
+  font-weight: 700;
 }
 
 :deep(.json-null) {
-  color: #6b7280;
+  color: var(--cn-color-text-tertiary);
   font-style: italic;
-}
-
-/* JSON 信息卡片 */
-.json-info {
-  max-width: 1400px;
-  margin: 20px auto;
-  padding: 0 20px;
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
 }
 
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 20px;
-}
-
-.info-item {
-  text-align: center;
-  padding: 16px;
-  background: #f8fafc;
-  border-radius: 8px;
-}
-
-.info-label {
-  display: block;
-  font-size: 0.875rem;
-  color: #6b7280;
-  margin-bottom: 4px;
-}
-
-.info-value {
-  display: block;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-/* 历史记录 */
-.history-section {
-  max-width: 1400px;
-  margin: 20px auto;
-  padding: 0 20px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
 .history-list {
-  max-height: 300px;
-  overflow-y: auto;
+  display: grid;
+  gap: var(--cn-space-2);
 }
 
 .history-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 12px;
-  border-bottom: 1px solid #f3f4f6;
+  justify-content: space-between;
+  gap: var(--cn-space-3);
+  width: 100%;
+  padding: var(--cn-space-3);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
+  color: inherit;
   cursor: pointer;
-  transition: background-color 0.2s;
+  text-align: left;
+  transition:
+    border-color var(--cn-motion-fast) var(--cn-ease-out),
+    background-color var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .history-item:hover {
-  background: #f9fafb;
-}
-
-.history-item:last-child {
-  border-bottom: none;
+  border-color: var(--cn-color-brand-primary);
+  background: var(--cn-color-brand-soft);
 }
 
 .history-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: grid;
+  gap: var(--cn-space-1);
+  min-width: 0;
 }
 
 .history-preview {
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 0.875rem;
-  color: #374151;
+  overflow: hidden;
+  color: var(--cn-color-text-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .history-time {
-  font-size: 0.75rem;
-  color: #9ca3af;
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
 }
 
-/* 响应式设计 */
-@media (max-width: 1024px) {
-  .content-area {
+@media (max-width: 1080px) {
+  .workbench-grid,
+  .info-grid {
     grid-template-columns: 1fr;
-    gap: 16px;
   }
-  
-  .toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .toolbar-left,
-  .toolbar-right {
-    justify-content: center;
-  }
-}
 
-@media (max-width: 768px) {
-  .tool-header {
-    padding: 20px 15px;
-  }
-  
-  .tool-title {
-    font-size: 1.5rem;
-  }
-  
-  .toolbar {
-    padding: 15px;
-  }
-  
-  .content-area {
-    padding: 15px;
-  }
-  
   .editor-container {
-    height: 400px;
-  }
-  
-  .section-header {
-    padding: 15px;
-    flex-direction: column;
-    gap: 10px;
-    align-items: stretch;
-  }
-  
-  .section-actions {
-    justify-content: center;
-  }
-  
-  .json-editor {
-    padding: 15px;
-    font-size: 13px;
-  }
-  
-  .info-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 15px;
+    height: 420px;
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
+  .toolbar,
   .toolbar-left,
-  .toolbar-right {
-    flex-wrap: wrap;
-    gap: 8px;
+  .toolbar-right,
+  .toolbar :deep(.el-button-group),
+  .toolbar :deep(.el-button) {
+    width: 100%;
   }
-  
-  .info-grid {
-    grid-template-columns: 1fr;
+
+  .toolbar :deep(.el-button-group) {
+    display: grid;
   }
 }
 </style>

@@ -12,6 +12,7 @@
         <result column="md5_hash" property="md5Hash" jdbcType="VARCHAR"/>
         <result column="module_name" property="moduleName" jdbcType="VARCHAR"/>
         <result column="business_type" property="businessType" jdbcType="VARCHAR"/>
+        <result column="storage_config_id" property="storageConfigId" jdbcType="BIGINT"/>
         <result column="upload_time" property="uploadTime" jdbcType="TIMESTAMP"/>
         <result column="access_url" property="accessUrl" jdbcType="VARCHAR"/>
         <result column="status" property="status" jdbcType="TINYINT"/>
@@ -24,7 +25,7 @@
     <!-- 基础列 -->
     <sql id="Base_Column_List">
         id, original_name, stored_name, file_size, content_type, md5_hash,
-        module_name, business_type, upload_time, access_url, status,
+        module_name, business_type, storage_config_id, upload_time, access_url, status,
         is_public, delete_time, create_time, update_time
     </sql>
 
@@ -32,11 +33,11 @@
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO file_info (
             original_name, stored_name, file_size, content_type, md5_hash,
-            module_name, business_type, upload_time, access_url, status,
+            module_name, business_type, storage_config_id, upload_time, access_url, status,
             is_public, delete_time, create_time, update_time
         ) VALUES (
             #{originalName}, #{storedName}, #{fileSize}, #{contentType}, #{md5Hash},
-            #{moduleName}, #{businessType}, #{uploadTime}, #{accessUrl}, #{status},
+            #{moduleName}, #{businessType}, #{storageConfigId}, #{uploadTime}, #{accessUrl}, #{status},
             #{isPublic}, #{deleteTime}, #{createTime}, #{updateTime}
         )
     </insert>
@@ -102,6 +103,7 @@
             <if test="md5Hash != null">md5_hash = #{md5Hash},</if>
             <if test="moduleName != null">module_name = #{moduleName},</if>
             <if test="businessType != null">business_type = #{businessType},</if>
+            <if test="storageConfigId != null">storage_config_id = #{storageConfigId},</if>
             <if test="uploadTime != null">upload_time = #{uploadTime},</if>
             <if test="accessUrl != null">access_url = #{accessUrl},</if>
             <if test="status != null">status = #{status},</if>
@@ -161,16 +163,17 @@
     <!-- 查询需要迁移的文件 -->
     <select id="selectForMigration" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
-        FROM file_info
-        WHERE storage_config_id = #{sourceStorageId}
-        AND status = 1
+        FROM file_info fi
+        INNER JOIN file_storage fs ON fs.file_id = fi.id AND fs.is_primary = 1
+        WHERE fs.storage_config_id = #{sourceStorageId}
+        AND fi.status = 1
         <if test="startTime != null">
-            AND upload_time &gt;= #{startTime}
+            AND fi.upload_time &gt;= #{startTime}
         </if>
         <if test="endTime != null">
-            AND upload_time &lt;= #{endTime}
+            AND fi.upload_time &lt;= #{endTime}
         </if>
-        ORDER BY upload_time ASC
+        ORDER BY fi.upload_time ASC
         <if test="limit != null">
             LIMIT #{limit}
         </if>
@@ -204,17 +207,14 @@
     <!-- 按存储类型统计文件使用情况 -->
     <select id="countByStorageType" resultType="Map">
         SELECT 
-            CASE 
-                WHEN stored_name LIKE '/uploads/%' THEN 'LOCAL'
-                WHEN stored_name LIKE 'oss://%' THEN 'OSS'
-                WHEN stored_name LIKE 'cos://%' THEN 'COS'
-                ELSE 'UNKNOWN'
-            END as storageType,
-            COUNT(*) as fileCount,
-            COALESCE(SUM(file_size), 0) as totalSize
-        FROM file_info
-        WHERE status = 1
-        GROUP BY storageType
+            sc.storage_type as storageType,
+            COUNT(DISTINCT fi.id) as fileCount,
+            COALESCE(SUM(fi.file_size), 0) as totalSize
+        FROM file_info fi
+        INNER JOIN file_storage fs ON fs.file_id = fi.id AND fs.is_primary = 1
+        INNER JOIN storage_config sc ON sc.id = fs.storage_config_id
+        WHERE fi.status = 1
+        GROUP BY sc.storage_type
         ORDER BY totalSize DESC
     </select>
 

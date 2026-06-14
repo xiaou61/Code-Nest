@@ -1,0 +1,34 @@
+:root,
+[data-theme] {
+  --cn-color-success: var(--cn-green-600);
+  --cn-color-success-soft: color-mix(in srgb, var(--cn-color-success) 12%, white);
+  --cn-color-warning: var(--cn-amber-600);
+  --cn-color-warning-soft: color-mix(in srgb, var(--cn-color-warning) 12%, white);
+  --cn-color-danger: var(--cn-red-600);
+  --cn-color-danger-soft: color-mix(in srgb, var(--cn-color-danger) 12%, white);
+  --cn-color-info: var(--cn-blue-600);
+  --cn-color-info-soft: var(--cn-blue-50);
+}
+
+:root,
+[data-theme] {
+  --cn-bg-page: var(--cn-color-bg-page);
+  --cn-bg-canvas: var(--cn-color-bg-canvas);
+  --cn-surface-1: var(--cn-color-bg-surface);
+  --cn-surface-2: var(--cn-color-bg-surface-muted);
+  --cn-text-primary: var(--cn-color-text-primary);
+  --cn-text-secondary: var(--cn-color-text-secondary);
+  --cn-text-tertiary: var(--cn-color-text-tertiary);
+  --cn-border: var(--cn-color-border);
+  --cn-border-soft: var(--cn-color-border-subtle);
+  --cn-primary: var(--cn-color-brand-primary);
+  --cn-primary-hover: var(--cn-color-brand-hover);
+  --cn-primary-soft: var(--cn-color-brand-soft);
+  --cn-success: var(--cn-color-success);
+  --cn-warning: var(--cn-color-warning);
+  --cn-danger: var(--cn-color-danger);
+  --cn-radius-sm: var(--cn-radius-control);
+  --cn-radius-md: var(--cn-radius-card);
+  --cn-radius-lg: var(--cn-radius-panel);
+  --cn-transition: all var(--cn-motion-base) var(--cn-ease-out);
+}

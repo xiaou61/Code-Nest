@@ -1,115 +1,112 @@
 <template>
-  <div class="lottery-management">
-    <el-card class="header-card">
-      <div class="header-content">
-        <h2>
-          <el-icon style="margin-right: 8px"><TrophyBase /></el-icon>
-          抽奖系统管理
-        </h2>
-        <div class="header-actions">
-          <el-button 
-            type="primary" 
-            :icon="Refresh" 
-            @click="refreshCache"
-            :loading="cacheLoading">
-            刷新缓存
-          </el-button>
-          <el-dropdown @command="handleEmergencyAction">
-            <el-button type="danger">
-              应急操作<el-icon class="el-icon--right"><arrow-down /></el-icon>
-            </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="circuit-break">
-                  <el-icon><Warning /></el-icon>
-                  手动熔断
-                </el-dropdown-item>
-                <el-dropdown-item command="resume">
-                  <el-icon><Check /></el-icon>
-                  恢复服务
-                </el-dropdown-item>
-                <el-dropdown-item command="enable-degradation">
-                  <el-icon><Bottom /></el-icon>
-                  启用降级
-                </el-dropdown-item>
-                <el-dropdown-item command="disable-degradation">
-                  <el-icon><Top /></el-icon>
-                  禁用降级
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </div>
-      </div>
-    </el-card>
+  <CnPage class="lottery-management-page" surface="transparent" max-width="1320px">
+    <CnPageHeader
+      title="抽奖系统管理"
+      description="统一维护奖品配置、实时监控、抽奖记录、数据统计、调整历史和风险用户。"
+      eyebrow="Lottery Operations"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand">配置</CnStatusTag>
+        <CnStatusTag type="success">监控</CnStatusTag>
+        <CnStatusTag type="warning">风控</CnStatusTag>
+      </template>
 
-    <el-tabs v-model="activeTab" type="border-card" class="main-tabs">
-      <el-tab-pane label="奖品配置" name="config">
-        <prize-config ref="prizeConfigRef" />
-      </el-tab-pane>
-      
-      <el-tab-pane label="实时监控" name="monitor">
-        <realtime-monitor ref="realtimeMonitorRef" />
-      </el-tab-pane>
-      
-      <el-tab-pane label="抽奖记录" name="records">
-        <draw-records ref="drawRecordsRef" />
-      </el-tab-pane>
-      
-      <el-tab-pane label="数据统计" name="statistics">
-        <data-statistics ref="dataStatisticsRef" />
-      </el-tab-pane>
-      
-      <el-tab-pane label="调整历史" name="history">
-        <adjust-history ref="adjustHistoryRef" />
-      </el-tab-pane>
-      
-      <el-tab-pane label="风险用户" name="risk">
-        <risk-users ref="riskUsersRef" />
-      </el-tab-pane>
-    </el-tabs>
-  </div>
+      <template #actions>
+        <el-button type="primary" :icon="Refresh" :loading="cacheLoading" @click="refreshCache">刷新缓存</el-button>
+        <el-dropdown @command="handleEmergencyAction">
+          <el-button type="danger">
+            应急操作<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="circuit-break">
+                <el-icon><Warning /></el-icon>
+                手动熔断
+              </el-dropdown-item>
+              <el-dropdown-item command="resume">
+                <el-icon><Check /></el-icon>
+                恢复服务
+              </el-dropdown-item>
+              <el-dropdown-item command="enable-degradation">
+                <el-icon><Bottom /></el-icon>
+                启用降级
+              </el-dropdown-item>
+              <el-dropdown-item command="disable-degradation">
+                <el-icon><Top /></el-icon>
+                禁用降级
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </template>
+    </CnPageHeader>
+
+    <CnSection title="运营控制台" description="切换不同管理视图，完成抽奖系统的配置、监控和风控操作。" divided>
+      <el-tabs v-model="activeTab" class="main-tabs">
+        <el-tab-pane label="奖品配置" name="config">
+          <PrizeConfig ref="prizeConfigRef" />
+        </el-tab-pane>
+
+        <el-tab-pane label="实时监控" name="monitor">
+          <RealtimeMonitor ref="realtimeMonitorRef" />
+        </el-tab-pane>
+
+        <el-tab-pane label="抽奖记录" name="records">
+          <DrawRecords ref="drawRecordsRef" />
+        </el-tab-pane>
+
+        <el-tab-pane label="数据统计" name="statistics">
+          <DataStatistics ref="dataStatisticsRef" />
+        </el-tab-pane>
+
+        <el-tab-pane label="调整历史" name="history">
+          <AdjustHistory ref="adjustHistoryRef" />
+        </el-tab-pane>
+
+        <el-tab-pane label="风险用户" name="risk">
+          <RiskUsers ref="riskUsersRef" />
+        </el-tab-pane>
+      </el-tabs>
+    </CnSection>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  Refresh, 
-  ArrowDown,
-  Warning,
-  Check,
-  Bottom,
-  Top,
-  TrophyBase
-} from '@element-plus/icons-vue'
+import { ArrowDown, Bottom, Check, Refresh, Top, Warning } from '@element-plus/icons-vue'
 import { lotteryAdminApi } from '@/api/lotteryAdmin'
+import { CnPage, CnPageHeader, CnSection, CnStatusTag } from '@/design-system'
+import type { CnBreadcrumbItem } from '@/design-system'
 
+import AdjustHistory from './components/AdjustHistory.vue'
+import DataStatistics from './components/DataStatistics.vue'
+import DrawRecords from './components/DrawRecords.vue'
 import PrizeConfig from './components/PrizeConfig.vue'
 import RealtimeMonitor from './components/RealtimeMonitor.vue'
-import DrawRecords from './components/DrawRecords.vue'
-import DataStatistics from './components/DataStatistics.vue'
-import AdjustHistory from './components/AdjustHistory.vue'
 import RiskUsers from './components/RiskUsers.vue'
+
+type EmergencyCommand = 'circuit-break' | 'resume' | 'enable-degradation' | 'disable-degradation'
+
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '抽奖系统' }, { label: '运营控制台' }]
 
 const activeTab = ref('config')
 const cacheLoading = ref(false)
 
-// 刷新缓存
 const refreshCache = async () => {
   cacheLoading.value = true
   try {
     await lotteryAdminApi.refreshCache()
     ElMessage.success('缓存刷新成功')
-  } catch (error) {
-    ElMessage.error(error.message || '刷新缓存失败')
+  } catch (error: unknown) {
+    ElMessage.error(error instanceof Error ? error.message : '刷新缓存失败')
   } finally {
     cacheLoading.value = false
   }
 }
 
-// 应急操作
-const handleEmergencyAction = async (command) => {
+const handleEmergencyAction = async (command: EmergencyCommand) => {
   try {
     if (command === 'circuit-break') {
       const { value } = await ElMessageBox.prompt('请输入熔断原因', '手动熔断', {
@@ -136,46 +133,24 @@ const handleEmergencyAction = async (command) => {
       await lotteryAdminApi.disableDegradation()
       ElMessage.success('降级模式已禁用')
     }
-  } catch (error) {
+  } catch (error: unknown) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '操作失败')
+      ElMessage.error(error instanceof Error ? error.message : '操作失败')
     }
   }
 }
 </script>
 
-<style scoped lang="scss">
-.lottery-management {
-  padding: 20px;
-  
-  .header-card {
-    margin-bottom: 20px;
-    
-    .header-content {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      
-      h2 {
-        margin: 0;
-        display: flex;
-        align-items: center;
-        font-size: 24px;
-        color: #303133;
-      }
-      
-      .header-actions {
-        display: flex;
-        gap: 10px;
-      }
-    }
-  }
-  
-  .main-tabs {
-    :deep(.el-tabs__content) {
-      padding: 20px;
-    }
-  }
+<style scoped>
+.lottery-management-page {
+  min-height: 100%;
+}
+
+.main-tabs :deep(.el-tabs__header) {
+  margin-bottom: var(--cn-space-4);
+}
+
+.main-tabs :deep(.el-tabs__content) {
+  overflow: visible;
 }
 </style>
-

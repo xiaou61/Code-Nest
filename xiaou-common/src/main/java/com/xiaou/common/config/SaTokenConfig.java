@@ -34,15 +34,22 @@ public class SaTokenConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         // 注册 Sa-Token 拦截器
         registry.addInterceptor(new SaInterceptor(handler -> {
-            // 管理端路由认证（路径是 /auth/**）
-            SaRouter.match("/auth/**")
+            // 管理端路由认证
+            SaRouter.match("/auth/**", "/admin/**")
                 .notMatch("/auth/login", "/auth/register", "/auth/refresh")
                 .check(r -> StpAdminUtil.checkLogin());
             
             // 用户端路由认证（路径是 /user/**）
             SaRouter.match("/user/**")
                 .notMatch("/user/auth/login", "/user/auth/register", "/user/auth/refresh")
-                .notMatch("/user/auth/check-username", "/user/auth/check-email")
+                .notMatch("/user/auth/check-username", "/user/auth/check-email", "/user/auth/check-phone")
+                // 学习小组部分查询接口支持匿名访问，Controller 内会在登录时补充当前用户上下文。
+                .notMatch("/user/team/list", "/user/team/recommend", "/user/team/by-code/*")
+                .notMatch("/user/team/*", "/user/team/*/members")
+                .notMatch("/user/team/task/*", "/user/team/*/tasks", "/user/team/*/tasks/today")
+                .notMatch("/user/team/checkin/*", "/user/team/*/checkins")
+                .notMatch("/user/team/*/rank/**", "/user/team/discussion/*", "/user/team/*/discussions")
+                .notMatch("/user/team/*/stats", "/user/team/*/stats/weekly", "/user/team/*/stats/monthly")
                 .check(r -> StpUserUtil.checkLogin());
             
             // 验证码接口无需认证

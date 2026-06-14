@@ -1,132 +1,198 @@
 <template>
-  <div class="learning-assets-statistics-page">
-    <el-card shadow="never" class="hero-card">
-      <div class="hero-header">
-        <div>
-          <h2>学习资产统计</h2>
-          <p>追踪转化成功率、资产发布率、编辑率、驳回率和高质量来源表现。</p>
-        </div>
-        <el-button type="primary" :loading="loading" @click="loadStatistics">刷新数据</el-button>
-      </div>
-    </el-card>
+  <CnPage class="learning-assets-statistics-page" surface="transparent" max-width="1320px">
+    <CnPageHeader
+      title="学习资产统计"
+      description="追踪转化成功率、资产发布率、编辑率、驳回率和高质量来源表现。"
+      eyebrow="Learning Assets Analytics"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand">转化 {{ statistics.overview.totalTransforms || 0 }} 次</CnStatusTag>
+        <CnStatusTag type="success">成功率 {{ formatPercent(statistics.overview.transformSuccessRate) }}</CnStatusTag>
+        <CnStatusTag type="danger">驳回率 {{ formatPercent(statistics.overview.rejectRate) }}</CnStatusTag>
+      </template>
 
-    <el-row :gutter="16" class="overview-grid">
-      <el-col :span="6">
-        <el-card shadow="hover" class="metric-card">
-          <div class="metric-label">总转化次数</div>
-          <div class="metric-value">{{ statistics.overview.totalTransforms || 0 }}</div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="metric-card">
-          <div class="metric-label">转化成功率</div>
-          <div class="metric-value success">{{ formatPercent(statistics.overview.transformSuccessRate) }}</div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="metric-card">
-          <div class="metric-label">用户编辑率</div>
-          <div class="metric-value warning">{{ formatPercent(statistics.overview.editRate) }}</div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="metric-card">
-          <div class="metric-label">审核驳回率</div>
-          <div class="metric-value danger">{{ formatPercent(statistics.overview.rejectRate) }}</div>
-        </el-card>
-      </el-col>
-    </el-row>
+      <template #actions>
+        <el-button type="primary" :icon="Refresh" :loading="loading" @click="loadStatistics">刷新数据</el-button>
+      </template>
+    </CnPageHeader>
 
-    <el-row :gutter="16">
-      <el-col :span="12">
-        <el-card shadow="never" class="table-card">
-          <template #header>
-            <span>来源类型转化成功率</span>
-          </template>
-          <el-table :data="statistics.sourceStats" v-loading="loading" border>
-            <el-table-column prop="sourceTypeText" label="来源类型" min-width="140" />
-            <el-table-column prop="totalCount" label="总转化" min-width="100" />
-            <el-table-column prop="successCount" label="成功数" min-width="100" />
-            <el-table-column label="成功率" min-width="120">
-              <template #default="{ row }">
-                <el-tag type="success">{{ formatPercent(row.successRate) }}</el-tag>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-card>
-      </el-col>
-      <el-col :span="12">
-        <el-card shadow="never" class="table-card">
-          <template #header>
-            <span>资产类型发布率</span>
-          </template>
-          <el-table :data="statistics.assetStats" v-loading="loading" border>
-            <el-table-column prop="assetTypeText" label="资产类型" min-width="140" />
-            <el-table-column prop="totalCount" label="总候选" min-width="90" />
-            <el-table-column prop="publishedCount" label="已发布" min-width="90" />
-            <el-table-column prop="reviewingCount" label="审核中" min-width="90" />
-            <el-table-column prop="rejectedCount" label="已驳回" min-width="90" />
-            <el-table-column label="发布率" min-width="120">
-              <template #default="{ row }">
-                <el-tag type="primary">{{ formatPercent(row.publishRate) }}</el-tag>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-card>
-      </el-col>
-    </el-row>
+    <div class="overview-grid">
+      <CnStatCard
+        title="总转化次数"
+        :value="statistics.overview.totalTransforms || 0"
+        description="用户触发内容转学习资产的次数"
+        tone="brand"
+        :loading="loading"
+      />
+      <CnStatCard
+        title="转化成功率"
+        :value="formatPercent(statistics.overview.transformSuccessRate)"
+        description="成功生成候选资产的比例"
+        tone="success"
+        :loading="loading"
+      />
+      <CnStatCard
+        title="用户编辑率"
+        :value="formatPercent(statistics.overview.editRate)"
+        description="候选进入审核前被编辑的比例"
+        tone="warning"
+        :loading="loading"
+      />
+      <CnStatCard
+        title="审核驳回率"
+        :value="formatPercent(statistics.overview.rejectRate)"
+        description="审核阶段被驳回的候选比例"
+        tone="danger"
+        :loading="loading"
+      />
+    </div>
 
-    <el-row :gutter="16">
-      <el-col :span="12">
-        <el-card shadow="never" class="table-card">
-          <template #header>
-            <span>常见失败原因</span>
+    <div class="statistics-grid">
+      <CnSection title="来源类型转化成功率" description="按来源模块查看转化成功表现。" divided>
+        <CnDataTable
+          :columns="sourceColumns"
+          :data="statistics.sourceStats"
+          :loading="loading"
+          :pagination="null"
+          row-key="sourceTypeText"
+          empty-title="暂无来源统计"
+          empty-description="当前还没有可展示的来源转化数据。"
+          empty-icon="LS"
+        >
+          <template #successRate="{ row }">
+            <CnStatusTag type="success" size="sm">{{ formatPercent(row.successRate) }}</CnStatusTag>
           </template>
-          <el-table :data="statistics.failReasonStats" v-loading="loading" border>
-            <el-table-column prop="failReason" label="失败原因" min-width="260" show-overflow-tooltip />
-            <el-table-column prop="count" label="次数" min-width="100" />
-          </el-table>
-          <el-empty
-            v-if="!loading && !statistics.failReasonStats.length"
-            description="当前没有失败原因数据"
-          />
-        </el-card>
-      </el-col>
-      <el-col :span="12">
-        <el-card shadow="never" class="table-card">
-          <template #header>
-            <span>高质量来源排行</span>
+        </CnDataTable>
+      </CnSection>
+
+      <CnSection title="资产类型发布率" description="按资产类型查看候选、发布、审核中和驳回情况。" divided>
+        <CnDataTable
+          :columns="assetColumns"
+          :data="statistics.assetStats"
+          :loading="loading"
+          :pagination="null"
+          row-key="assetTypeText"
+          empty-title="暂无资产统计"
+          empty-description="当前还没有可展示的资产发布数据。"
+          empty-icon="LA"
+        >
+          <template #publishRate="{ row }">
+            <CnStatusTag type="brand" size="sm">{{ formatPercent(row.publishRate) }}</CnStatusTag>
           </template>
-          <el-table :data="statistics.topSourceStats" v-loading="loading" border>
-            <el-table-column prop="sourceTypeText" label="来源类型" min-width="120" />
-            <el-table-column prop="sourceTitle" label="来源标题" min-width="240" show-overflow-tooltip />
-            <el-table-column prop="publishedCount" label="已发布资产数" min-width="120" />
-          </el-table>
-          <el-empty
-            v-if="!loading && !statistics.topSourceStats.length"
-            description="当前没有高质量来源排行"
-          />
-        </el-card>
-      </el-col>
-    </el-row>
-  </div>
+        </CnDataTable>
+      </CnSection>
+
+      <CnSection title="常见失败原因" description="转化或审核失败的原因聚合。" divided>
+        <CnDataTable
+          :columns="failReasonColumns"
+          :data="statistics.failReasonStats"
+          :loading="loading"
+          :pagination="null"
+          row-key="failReason"
+          empty-title="暂无失败原因"
+          empty-description="当前没有失败原因数据。"
+          empty-icon="FR"
+        />
+      </CnSection>
+
+      <CnSection title="高质量来源排行" description="发布资产数量较高的来源内容。" divided>
+        <CnDataTable
+          :columns="topSourceColumns"
+          :data="statistics.topSourceStats"
+          :loading="loading"
+          :pagination="null"
+          row-key="sourceTitle"
+          empty-title="暂无高质量来源"
+          empty-description="当前没有高质量来源排行数据。"
+          empty-icon="TS"
+        />
+      </CnSection>
+    </div>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Refresh } from '@element-plus/icons-vue'
 import learningAssetAdminApi from '@/api/learningAssets'
+import { CnDataTable, CnPage, CnPageHeader, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
+import type { CnBreadcrumbItem, CnTableColumn } from '@/design-system'
+
+interface OverviewStats extends Record<string, unknown> {
+  totalTransforms?: number
+  transformSuccessRate?: number
+  editRate?: number
+  rejectRate?: number
+}
+
+interface SourceStats extends Record<string, unknown> {
+  sourceTypeText?: string
+  totalCount?: number
+  successCount?: number
+  successRate?: number
+}
+
+interface AssetStats extends Record<string, unknown> {
+  assetTypeText?: string
+  totalCount?: number
+  publishedCount?: number
+  reviewingCount?: number
+  rejectedCount?: number
+  publishRate?: number
+}
+
+interface FailReasonStats extends Record<string, unknown> {
+  failReason?: string
+  count?: number
+}
+
+interface TopSourceStats extends Record<string, unknown> {
+  sourceTypeText?: string
+  sourceTitle?: string
+  publishedCount?: number
+}
+
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '学习资产' }, { label: '统计分析' }]
 
 const loading = ref(false)
 const statistics = reactive({
-  overview: {},
-  sourceStats: [],
-  assetStats: [],
-  failReasonStats: [],
-  topSourceStats: []
+  overview: {} as OverviewStats,
+  sourceStats: [] as SourceStats[],
+  assetStats: [] as AssetStats[],
+  failReasonStats: [] as FailReasonStats[],
+  topSourceStats: [] as TopSourceStats[]
 })
 
-const formatPercent = (value) => {
+const sourceColumns: CnTableColumn<SourceStats>[] = [
+  { prop: 'sourceTypeText', label: '来源类型', minWidth: 140, showOverflowTooltip: true },
+  { prop: 'totalCount', label: '总转化', width: 100 },
+  { prop: 'successCount', label: '成功数', width: 100 },
+  { prop: 'successRate', label: '成功率', width: 120, slot: 'successRate' }
+]
+
+const assetColumns: CnTableColumn<AssetStats>[] = [
+  { prop: 'assetTypeText', label: '资产类型', minWidth: 140, showOverflowTooltip: true },
+  { prop: 'totalCount', label: '总候选', width: 90 },
+  { prop: 'publishedCount', label: '已发布', width: 90 },
+  { prop: 'reviewingCount', label: '审核中', width: 90 },
+  { prop: 'rejectedCount', label: '已驳回', width: 90 },
+  { prop: 'publishRate', label: '发布率', width: 120, slot: 'publishRate' }
+]
+
+const failReasonColumns: CnTableColumn<FailReasonStats>[] = [
+  { prop: 'failReason', label: '失败原因', minWidth: 260, showOverflowTooltip: true },
+  { prop: 'count', label: '次数', width: 100 }
+]
+
+const topSourceColumns: CnTableColumn<TopSourceStats>[] = [
+  { prop: 'sourceTypeText', label: '来源类型', width: 120, showOverflowTooltip: true },
+  { prop: 'sourceTitle', label: '来源标题', minWidth: 240, showOverflowTooltip: true },
+  { prop: 'publishedCount', label: '已发布资产数', width: 130 }
+]
+
+const formatPercent = (value?: number) => {
   const numberValue = Number(value || 0)
   if (Number.isNaN(numberValue)) {
     return '0%'
@@ -138,11 +204,11 @@ const loadStatistics = async () => {
   loading.value = true
   try {
     const res = await learningAssetAdminApi.getStatistics()
-    statistics.overview = res.overview || {}
-    statistics.sourceStats = res.sourceStats || []
-    statistics.assetStats = res.assetStats || []
-    statistics.failReasonStats = res.failReasonStats || []
-    statistics.topSourceStats = res.topSourceStats || []
+    statistics.overview = res?.overview || {}
+    statistics.sourceStats = Array.isArray(res?.sourceStats) ? res.sourceStats : []
+    statistics.assetStats = Array.isArray(res?.assetStats) ? res.assetStats : []
+    statistics.failReasonStats = Array.isArray(res?.failReasonStats) ? res.failReasonStats : []
+    statistics.topSourceStats = Array.isArray(res?.topSourceStats) ? res.topSourceStats : []
   } catch (error) {
     console.error('加载学习资产统计失败', error)
     ElMessage.error('加载学习资产统计失败')
@@ -158,69 +224,34 @@ onMounted(() => {
 
 <style scoped>
 .learning-assets-statistics-page {
-  padding: 20px;
+  min-height: 100%;
 }
 
-.hero-card,
-.table-card {
-  margin-bottom: 16px;
-}
-
-.hero-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.hero-header h2 {
-  margin: 0 0 8px;
-}
-
-.hero-header p {
-  margin: 0;
-  color: #909399;
+.overview-grid,
+.statistics-grid {
+  display: grid;
+  gap: var(--cn-space-4);
 }
 
 .overview-grid {
-  margin-bottom: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.metric-card {
-  border-radius: 16px;
+.statistics-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.metric-label {
-  color: #909399;
-  margin-bottom: 10px;
-}
-
-.metric-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: #303133;
-}
-
-.metric-value.success {
-  color: #67c23a;
-}
-
-.metric-value.warning {
-  color: #e6a23c;
-}
-
-.metric-value.danger {
-  color: #f56c6c;
-}
-
-@media (max-width: 768px) {
-  .learning-assets-statistics-page {
-    padding: 12px;
+@media (max-width: 1180px) {
+  .overview-grid,
+  .statistics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
 
-  .hero-header {
-    flex-direction: column;
-    align-items: flex-start;
+@media (max-width: 680px) {
+  .overview-grid,
+  .statistics-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

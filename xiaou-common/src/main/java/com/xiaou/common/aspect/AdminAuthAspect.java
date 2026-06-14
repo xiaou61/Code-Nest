@@ -55,19 +55,16 @@ public class AdminAuthAspect {
                     adminId,
                     method.getDeclaringClass().getSimpleName(), method.getName());
             
-            // 验证通过，继续执行方法
-            return joinPoint.proceed();
-            
         } catch (NotLoginException e) {
             // Sa-Token 未登录异常
             log.warn("访问需要管理员权限的接口但未登录，方法: {}.{}", 
                     method.getDeclaringClass().getSimpleName(), method.getName());
-            throw new BusinessException("请先登录");
+            throw e;
         } catch (NotRoleException e) {
             // Sa-Token 角色权限异常
             log.warn("普通用户尝试访问管理员接口，方法: {}.{}", 
                     method.getDeclaringClass().getSimpleName(), method.getName());
-            throw new BusinessException(requireAdmin.message());
+            throw e;
         } catch (BusinessException e) {
             // 业务异常直接抛出
             throw e;
@@ -76,5 +73,8 @@ public class AdminAuthAspect {
                     method.getDeclaringClass().getSimpleName(), method.getName(), e);
             throw new BusinessException("权限验证失败");
         }
+
+        // 验证通过后再执行业务方法，业务异常交给全局异常处理器按原语义返回。
+        return joinPoint.proceed();
     }
 } 

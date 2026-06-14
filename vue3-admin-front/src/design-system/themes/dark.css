@@ -1,0 +1,24 @@
+[data-theme='dark'] {
+  color-scheme: dark;
+  --cn-color-bg-page: #0f172a;
+  --cn-color-bg-canvas: #111827;
+  --cn-color-bg-surface: #111827;
+  --cn-color-bg-surface-muted: #172033;
+  --cn-color-bg-elevated: #1f2937;
+  --cn-color-text-primary: #e5e7eb;
+  --cn-color-text-secondary: #b6c2d2;
+  --cn-color-text-tertiary: #8b98aa;
+  --cn-color-border: #334155;
+  --cn-color-border-subtle: #263244;
+  --cn-color-brand-primary: #60a5fa;
+  --cn-color-brand-hover: #93c5fd;
+  --cn-color-brand-soft: color-mix(in srgb, var(--cn-color-brand-primary) 16%, transparent);
+  --cn-color-focus-ring: color-mix(in srgb, var(--cn-color-brand-primary) 22%, transparent);
+  --cn-shadow-xs: 0 2px 8px color-mix(in srgb, black 22%, transparent);
+  --cn-shadow-sm: 0 8px 24px color-mix(in srgb, black 28%, transparent);
+  --cn-shadow-md: 0 14px 36px color-mix(in srgb, black 36%, transparent);
+  --cn-shadow-card:
+    0 1px 0 color-mix(in srgb, white 4%, transparent),
+    0 16px 34px color-mix(in srgb, black 28%, transparent);
+  --cn-shadow-popover: 0 18px 42px color-mix(in srgb, black 42%, transparent);
+}

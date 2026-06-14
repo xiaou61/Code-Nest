@@ -1,199 +1,223 @@
 <template>
-  <div class="mock-interview-session">
-    <!-- 顶部状态栏 -->
-    <div class="session-header">
-      <div class="header-left">
-        <el-tag type="primary" size="large">{{ session.direction }}</el-tag>
-        <span class="progress-text">
-          第 {{ currentQuestion.questionOrder || 0 }} / {{ currentQuestion.totalQuestions || session.questionCount || 0 }} 题
-        </span>
-      </div>
-      <div class="header-center">
-        <el-progress 
-          :percentage="progressPercent" 
-          :stroke-width="8"
+  <CnPage class="mock-interview-session" surface="transparent" max-width="1180px" full-height>
+    <CnPageHeader
+      title="AI 面试进行中"
+      description="围绕当前题目作答，提交后查看 AI 评价、追问或进入下一题。"
+      eyebrow="Live Interview"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">{{ session.directionName || session.direction || '模拟面试' }}</CnStatusTag>
+        <CnStatusTag :type="currentQuestion.questionType === 1 ? 'info' : 'warning'" size="sm">
+          {{ currentQuestion.questionType === 1 ? '主题题' : '追问题' }}
+        </CnStatusTag>
+        <CnStatusTag type="success" size="sm">进度 {{ progressPercent }}%</CnStatusTag>
+      </template>
+
+      <template #actions>
+        <el-button plain @click="goBack">
+          <el-icon><ArrowLeft /></el-icon>
+          返回入口
+        </el-button>
+        <el-button type="danger" plain @click="confirmEndInterview">
+          <el-icon><CircleCloseFilled /></el-icon>
+          结束面试
+        </el-button>
+      </template>
+    </CnPageHeader>
+
+    <section class="session-summary-grid" aria-label="面试进度概览">
+      <CnStatCard
+        title="当前题号"
+        :value="currentQuestion.questionOrder || 0"
+        :description="`总题数 ${currentTotalQuestions || 0}`"
+        tone="brand"
+        trend="flat"
+        trend-text="进度"
+        :loading="loading"
+      />
+      <CnStatCard
+        title="完成进度"
+        :value="progressPercent"
+        unit="%"
+        description="按当前题号和总题数计算"
+        tone="success"
+        trend="flat"
+        trend-text="状态"
+        :loading="loading"
+      />
+      <CnStatCard
+        title="题目类型"
+        :value="currentQuestion.questionType === 1 ? '主题' : '追问'"
+        description="AI 可能基于回答继续追问"
+        tone="info"
+        trend="flat"
+        trend-text="类型"
+      />
+      <CnStatCard
+        title="本题反馈"
+        :value="feedback ? `${feedback.score} 分` : '待提交'"
+        description="提交回答后展示即时评分"
+        :tone="feedback ? scoreTone(feedback.score) : 'warning'"
+        trend="flat"
+        trend-text="评分"
+      />
+    </section>
+
+    <CnSection class="progress-section" title="会话状态" description="面试过程中请保持页面打开，完成后进入报告页复盘。" surface="panel" divided>
+      <div class="progress-row">
+        <span>第 {{ currentQuestion.questionOrder || 0 }} / {{ currentTotalQuestions || 0 }} 题</span>
+        <el-progress
+          :percentage="progressPercent"
+          :stroke-width="10"
           :show-text="false"
           class="progress-bar"
         />
       </div>
-      <div class="header-right">
-        <el-button type="danger" plain @click="confirmEndInterview">
-          结束面试
-        </el-button>
-      </div>
-    </div>
+    </CnSection>
 
-    <!-- 主内容区 -->
-    <div class="session-main" v-loading="loading">
-      <!-- 面试完成提示 -->
-      <div v-if="isFinished" class="finished-section">
-        <el-result
-          icon="success"
-          title="面试完成"
-          sub-title="恭喜你完成了本次模拟面试！"
-        >
+    <div v-loading="loading" class="session-body">
+      <CnSection v-if="isFinished" class="finished-section" surface="panel">
+        <el-result icon="success" title="面试完成" sub-title="本次模拟面试已完成，可以进入报告页查看评分、总结和逐题复盘。">
           <template #extra>
             <el-button type="primary" size="large" @click="viewReport">
               查看面试报告
             </el-button>
           </template>
         </el-result>
-      </div>
+      </CnSection>
 
-      <!-- 面试进行中 -->
       <template v-else>
-        <!-- 题目区域 -->
-        <el-card shadow="never" class="question-card">
-          <template #header>
-            <div class="question-header">
-              <div class="question-info">
-                <el-tag 
-                  :type="currentQuestion.questionType === 1 ? 'primary' : 'warning'"
-                  size="small"
-                >
-                  {{ currentQuestion.questionType === 1 ? '主题' : '追问' }}
-                </el-tag>
-                <span class="question-order">问题 {{ currentQuestion.questionOrder }}</span>
-              </div>
-              <div class="question-tags" v-if="currentQuestion.knowledgePoints?.length">
-                <el-tag 
-                  v-for="(point, index) in currentQuestion.knowledgePoints" 
-                  :key="index"
-                  type="info"
-                  size="small"
-                >
-                  {{ point }}
-                </el-tag>
-              </div>
+        <CnSection title="当前题目" description="阅读题目后组织答案，建议按背景、原理、应用和边界展开。" surface="panel" divided>
+          <template #actions>
+            <CnStatusTag :type="currentQuestion.questionType === 1 ? 'info' : 'warning'" size="sm">
+              {{ currentQuestion.questionType === 1 ? '主题' : '追问' }}
+            </CnStatusTag>
+            <CnStatusTag type="neutral" size="sm" :dot="false">
+              问题 {{ currentQuestion.questionOrder || 0 }}
+            </CnStatusTag>
+          </template>
+
+          <article class="question-card">
+            <p class="question-text">{{ currentQuestion.questionContent || '正在加载题目...' }}</p>
+            <div v-if="currentQuestion.knowledgePoints?.length" class="knowledge-tags">
+              <CnStatusTag
+                v-for="point in currentQuestion.knowledgePoints"
+                :key="point"
+                type="info"
+                size="sm"
+                :dot="false"
+                subtle
+              >
+                {{ point }}
+              </CnStatusTag>
             </div>
-          </template>
+          </article>
+        </CnSection>
 
-          <div class="question-content">
-            <p class="question-text">{{ currentQuestion.questionContent }}</p>
-          </div>
-        </el-card>
-
-        <!-- 答题区域 -->
-        <el-card shadow="never" class="answer-card">
-          <template #header>
-            <span class="card-title">你的回答</span>
-          </template>
-
+        <CnSection title="你的回答" description="提交后会锁定当前回答并展示 AI 面试官评价。" surface="panel" divided>
           <el-input
             v-model="userAnswer"
             type="textarea"
             :rows="8"
             placeholder="请在此输入你的回答..."
-            :disabled="submitting || !!feedback"
+            :disabled="submitting || Boolean(feedback)"
             maxlength="2000"
             show-word-limit
           />
 
-          <div class="answer-actions" v-if="!feedback">
-            <el-button @click="skipQuestion" :loading="skipping">
+          <div v-if="!feedback" class="answer-actions">
+            <el-button :loading="skipping" @click="skipQuestion">
               跳过此题
             </el-button>
-            <el-button 
-              type="primary" 
-              @click="submitAnswer"
+            <el-button
+              type="primary"
               :loading="submitting"
               :disabled="!userAnswer.trim()"
+              @click="submitAnswer"
             >
               提交答案
             </el-button>
           </div>
-        </el-card>
+        </CnSection>
 
-        <!-- AI反馈区域 -->
-        <el-card v-if="feedback" shadow="never" class="feedback-card">
-          <template #header>
-            <div class="feedback-header">
-              <span class="card-title">
-                <el-icon><ChatDotRound /></el-icon>
-                AI 面试官评价
-              </span>
-              <div class="score-badge" :class="getScoreClass(feedback.score)">
-                {{ feedback.score }} 分
-              </div>
-            </div>
+        <CnSection v-if="feedback" class="feedback-section-card" title="AI 面试官评价" description="根据当前回答给出评分、优点和改进方向。" surface="panel" divided>
+          <template #actions>
+            <span class="score-badge" :class="getScoreClass(feedback.score)">
+              {{ feedback.score }} 分
+            </span>
           </template>
 
-          <!-- 评价详情 -->
           <div class="feedback-content">
-            <!-- 优点 -->
-            <div class="feedback-section" v-if="feedback.strengths?.length">
-              <h4 class="section-title success">
+            <article v-if="feedback.strengths?.length" class="feedback-block success">
+              <h3>
                 <el-icon><CircleCheckFilled /></el-icon>
                 回答优点
-              </h4>
-              <ul class="feedback-list">
-                <li v-for="(item, index) in feedback.strengths" :key="index">
+              </h3>
+              <ul>
+                <li v-for="(item, index) in feedback.strengths" :key="`strength-${index}`">
                   {{ item }}
                 </li>
               </ul>
-            </div>
+            </article>
 
-            <!-- 改进点 -->
-            <div class="feedback-section" v-if="feedback.improvements?.length">
-              <h4 class="section-title warning">
+            <article v-if="feedback.improvements?.length" class="feedback-block warning">
+              <h3>
                 <el-icon><WarningFilled /></el-icon>
                 需要改进
-              </h4>
-              <ul class="feedback-list">
-                <li v-for="(item, index) in feedback.improvements" :key="index">
+              </h3>
+              <ul>
+                <li v-for="(item, index) in feedback.improvements" :key="`improvement-${index}`">
                   {{ item }}
                 </li>
               </ul>
-            </div>
+            </article>
 
-            <!-- 考察知识点 -->
-            <div class="feedback-section" v-if="feedback.referencePoints?.length">
-              <h4 class="section-title info">
+            <article v-if="feedback.referencePoints?.length" class="feedback-block info">
+              <h3>
                 <el-icon><Reading /></el-icon>
                 考察知识点
-              </h4>
-              <div class="reference-tags">
-                <el-tag 
-                  v-for="(point, index) in feedback.referencePoints" 
-                  :key="index"
+              </h3>
+              <div class="knowledge-tags">
+                <CnStatusTag
+                  v-for="point in feedback.referencePoints"
+                  :key="point"
                   type="info"
+                  size="sm"
+                  :dot="false"
+                  subtle
                 >
                   {{ point }}
-                </el-tag>
+                </CnStatusTag>
               </div>
-            </div>
+            </article>
           </div>
 
-          <!-- 下一步操作 -->
           <div class="feedback-actions">
-            <!-- 有追问时显示追问按钮 -->
-            <el-button 
+            <el-button
               v-if="feedback.nextAction === 'followUp' && feedback.followUpQuestion"
               type="warning"
               @click="handleFollowUp"
             >
               回答追问
             </el-button>
-            <!-- 用户主动请求追问按钮（当没有自动追问时显示） -->
-            <el-button 
+            <el-button
               v-if="feedback.nextAction !== 'followUp' && !requestingFollowUp"
               type="info"
               plain
-              @click="requestFollowUp"
               :loading="requestingFollowUp"
+              @click="requestFollowUp"
             >
               请求追问
             </el-button>
-            <!-- 没有追问时显示下一题按钮 -->
-            <el-button 
+            <el-button
               v-if="feedback.hasNext && feedback.nextAction !== 'followUp'"
               type="primary"
               @click="nextQuestion"
             >
               下一题
             </el-button>
-            <!-- 没有更多题目时显示完成面试 -->
-            <el-button 
+            <el-button
               v-if="!feedback.hasNext && feedback.nextAction !== 'followUp'"
               type="success"
               @click="finishInterview"
@@ -201,33 +225,83 @@
               完成面试
             </el-button>
           </div>
-        </el-card>
+        </CnSection>
       </template>
     </div>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  ChatDotRound, CircleCheckFilled, WarningFilled, Reading 
+import {
+  ArrowLeft,
+  CircleCheckFilled,
+  CircleCloseFilled,
+  Reading,
+  WarningFilled
 } from '@element-plus/icons-vue'
+import {
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag
+} from '@/design-system'
 import { mockInterviewApi } from '@/api/mockInterview'
+import type { CnTone } from '@/design-system'
+
+type SessionId = number | string
+
+interface SessionState {
+  sessionId: SessionId | null
+  id?: SessionId
+  direction: string
+  directionName?: string
+  questionCount: number
+  status: number
+}
+
+interface CurrentQuestion {
+  qaId: SessionId | null
+  questionOrder: number
+  totalQuestions: number
+  questionContent: string
+  questionType: number
+  knowledgePoints: string[]
+  estimatedTime: number
+  finished: boolean
+}
+
+interface FollowUpQuestion {
+  qaId: SessionId
+  questionContent: string
+  questionType?: number
+}
+
+interface AnswerFeedback {
+  score: number
+  strengths: string[]
+  improvements: string[]
+  referencePoints: string[]
+  nextAction?: string
+  hasNext?: boolean
+  followUpQuestion?: FollowUpQuestion | null
+}
 
 const router = useRouter()
 const route = useRoute()
 
-// 状态
 const loading = ref(false)
 const submitting = ref(false)
 const skipping = ref(false)
 const isFinished = ref(false)
 const requestingFollowUp = ref(false)
+const userAnswer = ref('')
+const feedback = ref<AnswerFeedback | null>(null)
 
-// 会话信息 - 后端状态: 0-进行中 1-已完成 2-已中断
-const session = reactive({
+const session = reactive<SessionState>({
   sessionId: null,
   direction: '',
   directionName: '',
@@ -235,8 +309,7 @@ const session = reactive({
   status: 0
 })
 
-// 当前题目 - 匹配 InterviewQuestionResponse
-const currentQuestion = reactive({
+const currentQuestion = reactive<CurrentQuestion>({
   qaId: null,
   questionOrder: 0,
   totalQuestions: 0,
@@ -247,29 +320,64 @@ const currentQuestion = reactive({
   finished: false
 })
 
-// 用户答案
-const userAnswer = ref('')
-
-// AI反馈
-const feedback = ref(null)
-
-// 进度百分比
-const progressPercent = computed(() => {
-  const total = currentQuestion.totalQuestions || session.questionCount
-  if (!total) return 0
-  return Math.round((currentQuestion.questionOrder / total) * 100)
+const routeSessionId = computed(() => {
+  const value = route.query.sessionId
+  return Array.isArray(value) ? value[0] : value
 })
 
-// 获取分数样式
-const getScoreClass = (score) => {
-  if (score >= 8) return 'score-high'
-  if (score >= 6) return 'score-medium'
+const currentTotalQuestions = computed(() => {
+  return currentQuestion.totalQuestions || session.questionCount || 0
+})
+
+const progressPercent = computed(() => {
+  const total = currentTotalQuestions.value
+  if (!total) return 0
+  return Math.min(100, Math.round((currentQuestion.questionOrder / total) * 100))
+})
+
+const breadcrumbs = [
+  { label: '首页', to: '/' },
+  { label: 'AI 模拟面试', to: '/mock-interview' },
+  { label: '面试进行中' }
+]
+
+const scoreTone = (score?: number): CnTone => {
+  if ((score || 0) >= 8) return 'success'
+  if ((score || 0) >= 6) return 'warning'
+  return 'danger'
+}
+
+const getScoreClass = (score?: number) => {
+  if ((score || 0) >= 8) return 'score-high'
+  if ((score || 0) >= 6) return 'score-medium'
   return 'score-low'
 }
 
-// 初始化会话
+const goBack = () => {
+  router.push('/mock-interview')
+}
+
+const updateCurrentQuestion = (data: Partial<CurrentQuestion>) => {
+  if (data.finished) {
+    isFinished.value = true
+    return
+  }
+
+  currentQuestion.qaId = data.qaId || null
+  currentQuestion.questionOrder = data.questionOrder || 0
+  currentQuestion.totalQuestions = data.totalQuestions || currentQuestion.totalQuestions
+  currentQuestion.questionContent = data.questionContent || ''
+  currentQuestion.questionType = data.questionType || 1
+  currentQuestion.knowledgePoints = data.knowledgePoints || []
+  currentQuestion.estimatedTime = data.estimatedTime || 0
+  currentQuestion.finished = false
+
+  userAnswer.value = ''
+  feedback.value = null
+}
+
 const initSession = async () => {
-  const sessionId = route.query.sessionId
+  const sessionId = routeSessionId.value
   if (!sessionId) {
     ElMessage.error('会话不存在')
     router.push('/mock-interview')
@@ -279,15 +387,14 @@ const initSession = async () => {
   session.sessionId = sessionId
   loading.value = true
 
-try {
-    // 获取会话状态
-    const statusData = await mockInterviewApi.getSessionStatus(sessionId)
+  try {
+    const statusData = (await mockInterviewApi.getSessionStatus(sessionId)) as Partial<SessionState>
     if (statusData) {
       Object.assign(session, statusData)
+      session.sessionId = statusData.sessionId || statusData.id || sessionId
     }
 
-    // 开始面试，获取第一题
-    const startData = await mockInterviewApi.startInterview(sessionId)
+    const startData = (await mockInterviewApi.startInterview(sessionId)) as Partial<CurrentQuestion>
     if (startData) {
       updateCurrentQuestion(startData)
     }
@@ -299,26 +406,6 @@ try {
   }
 }
 
-// 更新当前题目
-const updateCurrentQuestion = (data) => {
-  if (data.finished) {
-    isFinished.value = true
-    return
-  }
-  
-  currentQuestion.qaId = data.qaId
-  currentQuestion.questionOrder = data.questionOrder
-  currentQuestion.totalQuestions = data.totalQuestions || currentQuestion.totalQuestions
-  currentQuestion.questionContent = data.questionContent
-  currentQuestion.questionType = data.questionType || 1
-  currentQuestion.knowledgePoints = data.knowledgePoints || []
-  
-  // 重置状态
-  userAnswer.value = ''
-  feedback.value = null
-}
-
-// 提交答案
 const submitAnswer = async () => {
   if (!userAnswer.value.trim()) {
     ElMessage.warning('请输入你的回答')
@@ -328,21 +415,29 @@ const submitAnswer = async () => {
   submitting.value = true
 
   try {
-    const data = await mockInterviewApi.submitAnswer({
+    const data = (await mockInterviewApi.submitAnswer({
       sessionId: session.sessionId,
       qaId: currentQuestion.qaId,
       answer: userAnswer.value
-    })
+    })) as {
+      score: number
+      feedback?: {
+        strengths?: string[]
+        improvements?: string[]
+      }
+      nextAction?: string
+      hasNext?: boolean
+      followUpQuestion?: FollowUpQuestion | null
+    }
 
-    // 显示AI反馈 - 后端返回结构为 AnswerFeedbackResponse
     feedback.value = {
       score: data.score,
       strengths: data.feedback?.strengths || [],
       improvements: data.feedback?.improvements || [],
-      referencePoints: [],  // 后端没有此字段
+      referencePoints: [],
       nextAction: data.nextAction,
       hasNext: data.hasNext,
-      followUpQuestion: data.followUpQuestion
+      followUpQuestion: data.followUpQuestion || null
     }
   } catch (error) {
     console.error('提交答案失败', error)
@@ -352,22 +447,20 @@ const submitAnswer = async () => {
   }
 }
 
-// 跳过题目
 const skipQuestion = async () => {
   try {
     await ElMessageBox.confirm('确定要跳过这道题吗？跳过后将得0分。', '提示', {
       type: 'warning'
     })
 
-skipping.value = true
+    skipping.value = true
+    const data = (await mockInterviewApi.skipQuestion(session.sessionId, currentQuestion.qaId)) as Partial<CurrentQuestion>
 
-    const data = await mockInterviewApi.skipQuestion(session.sessionId, currentQuestion.qaId)
-    
     if (data) {
       updateCurrentQuestion(data)
     }
   } catch (error) {
-    if (error !== 'cancel') {
+    if (error !== 'cancel' && error !== 'close') {
       console.error('跳过题目失败', error)
       ElMessage.error('操作失败')
     }
@@ -376,52 +469,47 @@ skipping.value = true
   }
 }
 
-// 处理追问（自动追问）
 const handleFollowUp = () => {
-  if (feedback.value?.followUpQuestion) {
-    // 更新为追问题目
-    currentQuestion.questionContent = feedback.value.followUpQuestion.questionContent
-    currentQuestion.qaId = feedback.value.followUpQuestion.qaId
-    currentQuestion.questionType = 2 // 追问类型
-    
-    userAnswer.value = ''
-    feedback.value = null
-  }
+  if (!feedback.value?.followUpQuestion) return
+
+  currentQuestion.questionContent = feedback.value.followUpQuestion.questionContent
+  currentQuestion.qaId = feedback.value.followUpQuestion.qaId
+  currentQuestion.questionType = 2
+
+  userAnswer.value = ''
+  feedback.value = null
 }
 
-// 用户主动请求追问
 const requestFollowUp = async () => {
   requestingFollowUp.value = true
-  
+
   try {
-    const data = await mockInterviewApi.requestFollowUp(session.sessionId, currentQuestion.qaId)
-    
+    const data = (await mockInterviewApi.requestFollowUp(session.sessionId, currentQuestion.qaId)) as Partial<CurrentQuestion>
+
     if (data) {
-      // 更新为追问题目
-      currentQuestion.questionContent = data.questionContent
-      currentQuestion.qaId = data.qaId
-      currentQuestion.questionType = 2 // 追问类型
-      
+      currentQuestion.questionContent = data.questionContent || ''
+      currentQuestion.qaId = data.qaId || null
+      currentQuestion.questionType = 2
+
       userAnswer.value = ''
       feedback.value = null
-      
+
       ElMessage.success('已生成追问，请回答')
     }
   } catch (error) {
     console.error('请求追问失败', error)
-    ElMessage.error(error.message || '请求追问失败')
+    ElMessage.error(error instanceof Error ? error.message : '请求追问失败')
   } finally {
     requestingFollowUp.value = false
   }
 }
 
-// 下一题
 const nextQuestion = async () => {
   loading.value = true
 
-try {
-    const data = await mockInterviewApi.getNextQuestion(session.sessionId)
-    
+  try {
+    const data = (await mockInterviewApi.getNextQuestion(session.sessionId)) as Partial<CurrentQuestion>
+
     if (data) {
       updateCurrentQuestion(data)
     }
@@ -433,13 +521,11 @@ try {
   }
 }
 
-// 完成面试
 const finishInterview = async () => {
   loading.value = true
 
-try {
+  try {
     await mockInterviewApi.endInterview(session.sessionId)
-    
     isFinished.value = true
   } catch (error) {
     console.error('完成面试失败', error)
@@ -449,7 +535,6 @@ try {
   }
 }
 
-// 确认结束面试
 const confirmEndInterview = async () => {
   try {
     await ElMessageBox.confirm(
@@ -457,15 +542,15 @@ const confirmEndInterview = async () => {
       '结束面试',
       { type: 'warning' }
     )
-    
+
     await finishInterview()
   } catch (error) {
-    // 取消操作
+    // 用户取消时不需要提示。
   }
 }
 
-// 查看报告
 const viewReport = () => {
+  if (!session.sessionId) return
   router.push({
     path: '/mock-interview/report',
     query: { sessionId: session.sessionId }
@@ -479,202 +564,203 @@ onMounted(() => {
 
 <style scoped>
 .mock-interview-session {
-  min-height: 100vh;
-  background: #f5f7fa;
+  min-height: calc(100vh - 74px);
 }
 
-/* 顶部状态栏 */
-.session-header {
-  display: flex;
+.session-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
+}
+
+.progress-section {
+  min-width: 0;
+}
+
+.progress-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  padding: 16px 24px;
-  background: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  gap: var(--cn-space-4);
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.progress-text {
+.progress-row span {
+  color: var(--cn-color-text-secondary);
   font-size: 14px;
-  color: #606266;
-  font-weight: 500;
-}
-
-.header-center {
-  flex: 1;
-  max-width: 400px;
-  margin: 0 32px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .progress-bar {
-  width: 100%;
+  min-width: 0;
 }
 
-/* 主内容区 */
-.session-main {
-  padding: 24px;
-  max-width: 900px;
-  margin: 0 auto;
+.session-body {
+  display: grid;
+  min-width: 0;
+  min-height: 360px;
+  gap: var(--cn-space-5);
 }
 
-/* 完成提示 */
 .finished-section {
-  padding: 60px 0;
+  min-height: 360px;
 }
 
-/* 题目卡片 */
 .question-card {
-  margin-bottom: 20px;
-  border-radius: 12px;
-}
-
-.question-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.question-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.question-order {
-  font-weight: 600;
-  color: #303133;
-}
-
-.question-tags {
-  display: flex;
-  gap: 8px;
-}
-
-.question-content {
-  padding: 20px 0;
+  display: grid;
+  gap: var(--cn-space-4);
+  padding: var(--cn-space-5);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: color-mix(in srgb, var(--cn-color-bg-surface-muted) 84%, var(--cn-color-brand-soft));
 }
 
 .question-text {
-  font-size: 18px;
-  line-height: 1.8;
-  color: #303133;
   margin: 0;
+  color: var(--cn-color-text-primary);
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.85;
+  white-space: pre-wrap;
 }
 
-/* 答题卡片 */
-.answer-card {
-  margin-bottom: 20px;
-  border-radius: 12px;
-}
-
-.card-title {
-  font-weight: 600;
-  color: #303133;
+.knowledge-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
 }
 
 .answer-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  margin-top: 16px;
+  gap: var(--cn-space-3);
+  margin-top: var(--cn-space-4);
 }
 
-/* 反馈卡片 */
-.feedback-card {
-  border-radius: 12px;
-  border: 2px solid #409eff;
-}
-
-.feedback-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.feedback-header .card-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.feedback-section-card {
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 22%, var(--cn-color-border-subtle));
 }
 
 .score-badge {
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 16px;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 var(--cn-space-3);
+  border-radius: var(--cn-radius-pill);
   color: white;
+  font-size: 14px;
+  font-weight: 800;
 }
 
 .score-high {
-  background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);
+  background: var(--cn-color-success);
 }
 
 .score-medium {
-  background: linear-gradient(135deg, #e6a23c 0%, #f0c78a 100%);
+  background: var(--cn-color-warning);
 }
 
 .score-low {
-  background: linear-gradient(135deg, #f56c6c 0%, #fab6b6 100%);
+  background: var(--cn-color-danger);
 }
 
 .feedback-content {
-  padding: 16px 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.feedback-section {
-  margin-bottom: 20px;
+.feedback-block {
+  display: grid;
+  gap: var(--cn-space-3);
+  min-width: 0;
+  padding: var(--cn-space-4);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
 }
 
-.feedback-section:last-child {
-  margin-bottom: 0;
+.feedback-block.info {
+  grid-column: 1 / -1;
 }
 
-.section-title {
+.feedback-block.success {
+  border: 1px solid color-mix(in srgb, var(--cn-color-success) 28%, var(--cn-color-border-subtle));
+}
+
+.feedback-block.warning {
+  border: 1px solid color-mix(in srgb, var(--cn-color-warning) 32%, var(--cn-color-border-subtle));
+}
+
+.feedback-block.info {
+  border: 1px solid color-mix(in srgb, var(--cn-color-info) 28%, var(--cn-color-border-subtle));
+}
+
+.feedback-block h3 {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  margin: 0 0 12px 0;
-}
-
-.section-title.success {
-  color: #67c23a;
-}
-
-.section-title.warning {
-  color: #e6a23c;
-}
-
-.section-title.info {
-  color: #409eff;
-}
-
-.feedback-list {
+  gap: var(--cn-space-2);
   margin: 0;
-  padding-left: 24px;
-  color: #606266;
-  line-height: 1.8;
+  color: var(--cn-color-text-primary);
+  font-size: 15px;
+  font-weight: 700;
 }
 
-.reference-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.feedback-block.success h3 {
+  color: var(--cn-color-success);
+}
+
+.feedback-block.warning h3 {
+  color: var(--cn-color-warning);
+}
+
+.feedback-block.info h3 {
+  color: var(--cn-color-info);
+}
+
+.feedback-block ul {
+  display: grid;
+  gap: var(--cn-space-2);
+  margin: 0;
+  padding-left: 20px;
+  color: var(--cn-color-text-secondary);
+  line-height: 1.75;
 }
 
 .feedback-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #ebeef5;
+  gap: var(--cn-space-3);
+  margin-top: var(--cn-space-5);
+  padding-top: var(--cn-space-4);
+  border-top: 1px solid var(--cn-color-border-subtle);
+}
+
+@media (max-width: 1180px) {
+  .session-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .session-summary-grid,
+  .feedback-content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .progress-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .answer-actions,
+  .feedback-actions {
+    justify-content: stretch;
+  }
+
+  .answer-actions .el-button,
+  .feedback-actions .el-button {
+    flex: 1;
+    min-width: 0;
+  }
 }
 </style>

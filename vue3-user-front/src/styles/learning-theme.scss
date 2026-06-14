@@ -1,26 +1,23 @@
 :root {
-  --cn-learn-bg-a: #eef5ff;
-  --cn-learn-bg-b: #f8fbff;
-  --cn-learn-bg-c: #e6f1ff;
-  --cn-learn-grid-line: rgba(62, 132, 235, 0.08);
-  --cn-learn-hero-start: #1f6feb;
-  --cn-learn-hero-end: #14a1ef;
-  --cn-learn-hero-accent: #45c8ff;
-  --cn-learn-panel-bg: rgba(255, 255, 255, 0.84);
-  --cn-learn-panel-border: rgba(115, 156, 225, 0.24);
-  --cn-learn-panel-hover-border: rgba(47, 120, 231, 0.4);
-  --cn-learn-panel-shadow: 0 18px 42px rgba(22, 63, 119, 0.12);
-  --cn-learn-panel-shadow-hover: 0 22px 46px rgba(22, 63, 119, 0.2);
+  --cn-learn-bg-a: var(--cn-color-bg-page);
+  --cn-learn-bg-b: var(--cn-color-bg-surface-muted);
+  --cn-learn-bg-c: var(--cn-color-bg-canvas);
+  --cn-learn-grid-line: color-mix(in srgb, var(--cn-color-brand-primary) 8%, transparent);
+  --cn-learn-hero-start: var(--cn-color-brand-primary);
+  --cn-learn-hero-end: var(--cn-color-info);
+  --cn-learn-hero-accent: color-mix(in srgb, var(--cn-color-info) 72%, white);
+  --cn-learn-panel-bg: color-mix(in srgb, var(--cn-color-bg-surface) 84%, transparent);
+  --cn-learn-panel-border: color-mix(in srgb, var(--cn-color-brand-primary) 24%, transparent);
+  --cn-learn-panel-hover-border: color-mix(in srgb, var(--cn-color-brand-primary) 40%, transparent);
+  --cn-learn-panel-shadow: var(--cn-shadow-sm);
+  --cn-learn-panel-shadow-hover: var(--cn-shadow-md);
 }
 
 .cn-learn-shell {
   position: relative;
   min-height: calc(100vh - 68px);
   padding: 26px 24px 28px;
-  background:
-    radial-gradient(circle at 9% -10%, rgba(66, 145, 255, 0.28) 0%, rgba(66, 145, 255, 0) 34%),
-    radial-gradient(circle at 84% -15%, rgba(40, 180, 255, 0.2) 0%, rgba(40, 180, 255, 0) 38%),
-    linear-gradient(180deg, var(--cn-learn-bg-b) 0%, var(--cn-learn-bg-a) 58%, var(--cn-learn-bg-c) 100%);
+  background: color-mix(in srgb, var(--cn-learn-bg-a) 78%, var(--cn-learn-bg-b));
   overflow: hidden;
 }
 
@@ -28,11 +25,9 @@
   content: '';
   position: absolute;
   inset: 0;
-  background-image:
-    linear-gradient(var(--cn-learn-grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--cn-learn-grid-line) 1px, transparent 1px);
-  background-size: 28px 28px;
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.32), transparent 76%);
+  background: color-mix(in srgb, var(--cn-learn-grid-line) 54%, transparent);
+  mask-image: none;
+  opacity: 0.32;
   pointer-events: none;
 }
 
@@ -53,12 +48,10 @@
   gap: 18px;
   padding: 24px 28px;
   border-radius: 24px;
-  border: 1px solid rgba(174, 215, 255, 0.45);
-  color: #fff;
-  background:
-    radial-gradient(circle at 14% 28%, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0) 38%),
-    linear-gradient(130deg, var(--cn-learn-hero-start) 0%, #3384f3 44%, var(--cn-learn-hero-end) 100%);
-  box-shadow: 0 24px 46px rgba(17, 74, 154, 0.24);
+  border: 1px solid color-mix(in srgb, var(--cn-color-bg-surface) 45%, transparent);
+  color: white;
+  background: color-mix(in srgb, var(--cn-learn-hero-start) 76%, var(--cn-learn-hero-end));
+  box-shadow: var(--cn-shadow-md);
 }
 
 .cn-learn-hero::before {
@@ -69,7 +62,7 @@
   width: 240px;
   height: 240px;
   border-radius: 50%;
-  background: radial-gradient(circle at center, rgba(69, 200, 255, 0.46) 0%, rgba(69, 200, 255, 0) 72%);
+  background: color-mix(in srgb, var(--cn-learn-hero-accent) 46%, transparent);
   pointer-events: none;
 }
 
@@ -86,9 +79,9 @@
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.03em;
-  color: rgba(255, 255, 255, 0.9);
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.26);
+  color: color-mix(in srgb, white 90%, transparent);
+  background: color-mix(in srgb, white 16%, transparent);
+  border: 1px solid color-mix(in srgb, white 26%, transparent);
 }
 
 .cn-learn-hero__title {
@@ -103,7 +96,7 @@
   margin: 0;
   font-size: 14px;
   line-height: 1.7;
-  color: rgba(255, 255, 255, 0.86);
+  color: color-mix(in srgb, white 86%, transparent);
 }
 
 .cn-learn-hero__meta {
@@ -120,9 +113,9 @@
   padding: 7px 12px;
   border-radius: 999px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.92);
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.26);
+  color: color-mix(in srgb, white 92%, transparent);
+  background: color-mix(in srgb, white 16%, transparent);
+  border: 1px solid color-mix(in srgb, white 26%, transparent);
 }
 
 .cn-learn-panel {
@@ -134,7 +127,7 @@
 }
 
 .cn-learn-panel--solid {
-  background: #fff;
+  background: var(--cn-color-bg-surface);
 }
 
 .cn-learn-layout {
@@ -226,7 +219,7 @@
   left: -40%;
   width: 32%;
   height: 280%;
-  background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.58) 50%, transparent 100%);
+  background: color-mix(in srgb, var(--cn-color-bg-surface) 58%, transparent);
   transform: rotate(18deg);
   transition: transform 760ms var(--cn-ease-out);
   pointer-events: none;
@@ -244,8 +237,8 @@
   align-items: center;
   justify-content: center;
   font-size: 16px;
-  background: linear-gradient(135deg, #e8f2ff 0%, #d9ebff 100%);
-  color: #1f6feb;
+  background: var(--cn-color-brand-soft);
+  color: var(--cn-color-brand-primary);
 }
 
 .cn-learn-stack {

@@ -24,7 +24,8 @@
 
     <div class="comments-section">
       <div class="comments-header">
-        <span>全部评论 ({{ totalComments }})</span>
+        <span>全部评论</span>
+        <CnStatusTag type="info" size="sm">共 {{ totalComments }} 条</CnStatusTag>
         <el-button type="primary" text @click="showCommentForm = !showCommentForm">
           <el-icon><ChatDotRound /></el-icon>
           写评论
@@ -56,7 +57,7 @@
 
       <!-- 评论列表 -->
       <div v-loading="loading" class="comments-list">
-        <el-empty v-if="!loading && commentList.length === 0" description="暂无评论" />
+        <CnEmptyState v-if="!loading && commentList.length === 0" title="暂无评论" icon="CM" size="sm" surface="transparent" />
         
         <div 
           v-for="comment in commentList" 
@@ -95,33 +96,56 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ChatDotRound } from '@element-plus/icons-vue'
+import { CnEmptyState, CnStatusTag } from '@/design-system'
 import { getMomentComments, publishComment, deleteComment as deleteCommentApi } from '@/api/moment'
 import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
 
-const props = defineProps({
-  modelValue: {
-    type: Boolean,
-    default: false
-  },
-  moment: {
-    type: Object,
-    default: null
-  }
+interface MomentPreview {
+  id: number
+  content?: string
+  createTime?: string
+  userAvatar?: string
+  userNickname?: string
+}
+
+interface MomentComment {
+  id: number
+  content: string
+  createTime?: string
+  userAvatar?: string
+  userNickname?: string
+  canDelete?: boolean
+}
+
+interface CommentPageResult {
+  records?: MomentComment[]
+  total?: number
+}
+
+const props = withDefaults(defineProps<{
+  modelValue?: boolean
+  moment?: MomentPreview | null
+}>(), {
+  modelValue: false,
+  moment: null
 })
 
-const emit = defineEmits(['update:modelValue', 'comment-deleted'])
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: boolean): void
+  (e: 'comment-deleted', commentId: number): void
+}>()
 
 // 响应式数据
 const loading = ref(false)
 const loadingMore = ref(false)
 const commenting = ref(false)
-const commentList = ref([])
+const commentList = ref<MomentComment[]>([])
 const totalComments = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(20)
@@ -161,6 +185,10 @@ const handleClose = () => {
 }
 
 // 加载评论列表
+const getErrorMessage = (error: unknown, fallback: string) => {
+  return error instanceof Error ? error.message : fallback
+}
+
 const loadComments = async (page = 1) => {
   if (!props.moment) return
 
@@ -177,7 +205,7 @@ const loadComments = async (page = 1) => {
       pageSize: pageSize.value
     }
 
-    const result = await getMomentComments(params)
+    const result = await getMomentComments(params) as CommentPageResult
     const newComments = result.records || []
 
     if (page === 1) {
@@ -190,7 +218,7 @@ const loadComments = async (page = 1) => {
     hasMore.value = newComments.length === pageSize.value
 
   } catch (error) {
-    ElMessage.error('加载评论失败：' + error.message)
+    ElMessage.error('加载评论失败：' + getErrorMessage(error, '请稍后重试'))
   } finally {
     loading.value = false
     loadingMore.value = false
@@ -223,7 +251,7 @@ const submitComment = async () => {
       content: newComment.value.trim()
     }
 
-    const commentId = await publishComment(data)
+    const commentId = await publishComment(data) as number
 
     ElMessage.success('评论发表成功')
 
@@ -246,14 +274,14 @@ const submitComment = async () => {
     showCommentForm.value = false
 
   } catch (error) {
-    ElMessage.error('评论发表失败：' + error.message)
+    ElMessage.error('评论发表失败：' + getErrorMessage(error, '请稍后重试'))
   } finally {
     commenting.value = false
   }
 }
 
 // 删除评论
-const handleDeleteComment = async (comment) => {
+const handleDeleteComment = async (comment: MomentComment) => {
   try {
     await ElMessageBox.confirm(
       '确定要删除这条评论吗？',
@@ -280,94 +308,83 @@ const handleDeleteComment = async (comment) => {
 
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('删除失败：' + error.message)
+      ElMessage.error('删除失败：' + getErrorMessage(error, '请稍后重试'))
     }
   }
 }
 </script>
 
 <style scoped>
-/* 对话框装饰 */
 :deep(.el-dialog) {
-  border-radius: 16px;
+  border-radius: var(--cn-radius-panel);
   overflow: hidden;
+  background: var(--cn-color-bg-surface);
 }
 
 :deep(.el-dialog__header) {
-  background: linear-gradient(135deg, #f0f4ff 0%, #f5f0ff 50%, #fff5f7 100%);
-  border-bottom: 1px solid #e3edfa;
-  padding: 16px 20px;
+  background: var(--cn-color-bg-surface-muted);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
+  padding: var(--cn-space-4) var(--cn-space-5);
   margin: 0;
 }
 
 :deep(.el-dialog__title) {
   font-weight: 700;
-  color: var(--cn-text-primary, #1a2233);
+  color: var(--cn-color-text-primary);
 }
 
 :deep(.el-dialog__body) {
-  padding: 16px 20px;
+  padding: var(--cn-space-4) var(--cn-space-5);
   max-height: 70vh;
   overflow: hidden;
 }
 
-/* textarea 美化 */
 :deep(.el-textarea__inner) {
-  border-radius: 10px;
-  border-color: #d7e4f8;
-  transition: all 0.25s;
+  border-radius: var(--cn-radius-control);
+  border-color: var(--cn-color-border);
+  transition:
+    border-color var(--cn-motion-fast) var(--cn-ease-out),
+    box-shadow var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 :deep(.el-textarea__inner:focus) {
-  border-color: #6c63ff;
-  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.1);
-}
-
-/* 按钮 */
-:deep(.el-button--primary) {
-  background: linear-gradient(135deg, #6c63ff 0%, #4f46e5 100%);
-  border: none;
-  border-radius: 10px;
-  font-weight: 600;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
-}
-
-:deep(.el-button--primary:hover) {
-  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35);
+  border-color: var(--cn-color-brand-primary);
+  box-shadow: 0 0 0 3px var(--cn-color-focus-ring);
 }
 
 .moment-preview {
-  background: #faf9ff;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 10px;
-  border-left: 3px solid #d4ccff;
+  background: var(--cn-color-bg-surface-muted);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-left: 3px solid var(--cn-color-brand-primary);
+  border-radius: var(--cn-radius-card);
+  padding: var(--cn-space-4);
+  margin-bottom: var(--cn-space-3);
 }
 
 .user-info {
   display: flex;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: var(--cn-space-3);
 }
 
 .user-detail {
-  margin-left: 10px;
+  margin-left: var(--cn-space-3);
 }
 
 .user-name {
   font-weight: 600;
-  color: var(--cn-text-primary, #1a2233);
+  color: var(--cn-color-text-primary);
   font-size: 14px;
 }
 
 .publish-time {
-  color: #8ea0bd;
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
-  margin-top: 2px;
+  margin-top: var(--cn-space-1);
 }
 
 .moment-content {
-  color: var(--cn-text-primary, #1a2233);
+  color: var(--cn-color-text-primary);
   line-height: 1.6;
   font-size: 14px;
 }
@@ -386,7 +403,7 @@ const handleDeleteComment = async (comment) => {
   right: 0;
   display: block;
   height: 1px;
-  box-shadow: 0 8px 16px 8px rgba(255, 255, 255, 0.9);
+  box-shadow: 0 8px 16px 8px color-mix(in srgb, var(--cn-color-bg-surface) 90%, transparent);
   z-index: 2;
   pointer-events: none;
 }
@@ -395,29 +412,25 @@ const handleDeleteComment = async (comment) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  gap: var(--cn-space-3);
+  margin-bottom: var(--cn-space-4);
   font-weight: 600;
-  color: var(--cn-text-primary, #1a2233);
-}
-
-.comments-header :deep(.el-button) {
-  color: #6c63ff;
-  font-weight: 600;
+  color: var(--cn-color-text-primary);
 }
 
 .comment-form {
-  background: #f6f9ff;
-  padding: 16px;
-  border-radius: 12px;
-  margin-bottom: 15px;
-  border: 1px solid #e3edfa;
+  background: var(--cn-color-bg-surface-muted);
+  padding: var(--cn-space-4);
+  border-radius: var(--cn-radius-card);
+  margin-bottom: var(--cn-space-4);
+  border: 1px solid var(--cn-color-border-subtle);
 }
 
 .comment-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 10px;
+  gap: var(--cn-space-2);
+  margin-top: var(--cn-space-3);
 }
 
 .comments-list {
@@ -426,62 +439,62 @@ const handleDeleteComment = async (comment) => {
 
 .comment-item {
   display: flex;
-  margin-bottom: 4px;
+  margin-bottom: var(--cn-space-1);
   align-items: flex-start;
-  padding: 10px 12px;
-  border-radius: 10px;
-  transition: background 0.2s;
+  padding: var(--cn-space-3);
+  border-radius: var(--cn-radius-card);
+  transition: background-color var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .comment-item:hover {
-  background: #f6f9ff;
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .comment-content {
   flex: 1;
-  margin-left: 12px;
+  margin-left: var(--cn-space-3);
 }
 
 .comment-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 5px;
+  gap: var(--cn-space-3);
+  margin-bottom: var(--cn-space-2);
 }
 
 .comment-user {
   font-weight: 600;
-  color: #6c63ff;
+  color: var(--cn-color-brand-primary);
   font-size: 14px;
 }
 
 .comment-time {
-  color: #8ea0bd;
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
 }
 
 .comment-text {
-  color: var(--cn-text-primary, #1a2233);
+  color: var(--cn-color-text-primary);
   line-height: 1.6;
   font-size: 14px;
 }
 
 .load-more {
   text-align: center;
-  padding: 15px;
+  padding: var(--cn-space-4);
 }
 
 .load-more :deep(.el-button) {
-  color: #6a82ae;
+  color: var(--cn-color-text-secondary);
   font-weight: 500;
 }
 
 .load-more :deep(.el-button:hover) {
-  color: #6c63ff;
+  color: var(--cn-color-brand-primary);
 }
 
 :deep(.el-divider) {
-  margin: 15px 0;
-  border-color: #e8eef8;
+  margin: var(--cn-space-4) 0;
+  border-color: var(--cn-color-border-subtle);
 }
 </style>

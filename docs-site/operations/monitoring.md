@@ -10,7 +10,7 @@ Code Nest 已经具备 Prometheus + Grafana 的基础监控配置，并在 AI Ru
 
 | 路径 | 说明 |
 | --- | --- |
-| `docs/Prometheus监控部署指南.md` | Prometheus 原始部署文档 |
+| `AI-DOCS/Deployment/监控告警/Prometheus监控部署指南.md` | Prometheus 原始部署文档 |
 | `docker/monitoring/docker-compose.yml` | Prometheus + Grafana 编排 |
 | `docker/monitoring/prometheus.yml` | Prometheus scrape 配置 |
 | `docker/monitoring/alert_rules.yml` | 告警规则示例 |

@@ -1,18 +1,24 @@
 <template>
-  <div class="knowledge-editor-container">
-    <!-- 顶部工具栏 -->
-    <div class="editor-header">
-      <div class="header-left">
-        <el-button :icon="ArrowLeft" @click="goBack">返回列表</el-button>
-        <div class="breadcrumb">
-          <span class="map-title">{{ mapInfo.title || '知识图谱' }}</span>
-          <el-tag v-if="mapInfo.status !== undefined" :type="getStatusTagType(mapInfo.status)" size="small">
-            {{ getStatusText(mapInfo.status) }}
-          </el-tag>
-        </div>
-      </div>
+  <CnPage class="knowledge-editor-page" surface="transparent" max-width="100%" dense full-height>
+    <CnPageHeader
+      :title="mapInfo.title || '知识图谱'"
+      description="编辑知识图谱节点结构、节点链接和可视化画布。"
+      eyebrow="Knowledge Map Editor"
+      :breadcrumbs="breadcrumbs"
+      compact
+    >
+      <template #meta>
+        <CnStatusTag v-if="mapInfo.status !== undefined" :type="getStatusTone(mapInfo.status)" size="sm">
+          {{ getStatusText(mapInfo.status) }}
+        </CnStatusTag>
+        <CnStatusTag type="info" size="sm">节点 {{ nodeCount }} 个</CnStatusTag>
+        <CnStatusTag :type="selectedNodeId ? 'brand' : 'neutral'" size="sm">
+          已选择 {{ selectedNodeId ? '1' : '0' }} 个
+        </CnStatusTag>
+      </template>
 
-      <div class="header-right">
+      <template #actions>
+        <el-button :icon="ArrowLeft" @click="goBack">返回列表</el-button>
         <el-button-group>
           <el-button :icon="ZoomOut" @click="handleZoomOut" title="缩小">缩小</el-button>
           <el-button @click="handleResetZoom" title="适应画布">{{ Math.round(zoomLevel * 100) }}%</el-button>
@@ -20,12 +26,12 @@
         </el-button-group>
         <el-button :icon="Search" @click="showSearchDialog = true">搜索节点</el-button>
         <el-button type="primary" :icon="Check" @click="handleSave">保存</el-button>
-      </div>
-    </div>
+      </template>
+    </CnPageHeader>
 
     <div class="editor-content">
       <!-- 左侧节点树面板 -->
-      <div class="sidebar" :class="{ collapsed: sidebarCollapsed }">
+      <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
         <div class="sidebar-header">
           <h3 v-if="!sidebarCollapsed">节点树</h3>
           <el-button
@@ -90,7 +96,7 @@
 
           <!-- 节点详情编辑 -->
           <div v-if="selectedNode" class="node-editor">
-            <div class="editor-header">
+            <div class="node-editor-header">
               <h4>节点编辑</h4>
             </div>
             <el-form
@@ -105,7 +111,7 @@
               </el-form-item>
 
               <el-form-item label="类型" prop="nodeType">
-                <el-select v-model="nodeForm.nodeType" style="width: 100%;">
+                <el-select v-model="nodeForm.nodeType" class="full-width">
                   <el-option label="普通" :value="1" />
                   <el-option label="重点" :value="2" />
                   <el-option label="难点" :value="3" />
@@ -135,14 +141,16 @@
             </el-form>
           </div>
         </div>
-      </div>
+      </aside>
 
       <!-- 主编辑画布 -->
-      <div class="canvas-container">
+      <section class="canvas-container" v-loading="loading">
         <div class="canvas-toolbar">
           <div class="canvas-info">
-            <span>节点总数: {{ nodeCount }}</span>
-            <span style="margin-left: 16px;">已选择: {{ selectedNodeId ? '1' : '0' }} 个节点</span>
+            <CnStatusTag type="info" size="sm">节点总数 {{ nodeCount }}</CnStatusTag>
+            <CnStatusTag :type="selectedNodeId ? 'brand' : 'neutral'" size="sm">
+              已选择 {{ selectedNodeId ? '1' : '0' }} 个节点
+            </CnStatusTag>
           </div>
         </div>
 
@@ -160,11 +168,19 @@
           @node-update="handleUpdateNodeFromMindMap"
         />
 
-        <div v-if="!nodeTree.length" class="empty-canvas">
-          <el-icon size="64" color="#c0c4cc"><Document /></el-icon>
-          <p>暂无节点，点击"添加根节点"开始创建</p>
-        </div>
-      </div>
+        <CnEmptyState
+          v-if="!nodeTree.length"
+          class="empty-canvas"
+          title="暂无节点"
+          description="点击添加根节点开始创建知识图谱结构。"
+          icon="KM"
+          surface="transparent"
+        >
+          <template #actions>
+            <el-button type="primary" :icon="Plus" @click="handleAddRootNode">添加根节点</el-button>
+          </template>
+        </CnEmptyState>
+      </section>
     </div>
 
     <!-- 搜索节点对话框 -->
@@ -180,7 +196,7 @@
         @keyup.enter="handleSearch"
       />
 
-      <div v-if="searchResults.length" class="search-results" style="margin-top: 16px;">
+      <div v-if="searchResults.length" class="search-results">
         <div
           v-for="result in searchResults"
           :key="result.id"
@@ -191,6 +207,15 @@
           <div class="result-content">{{ result.url || '暂无链接' }}</div>
         </div>
       </div>
+      <CnEmptyState
+        v-else-if="searchKeyword"
+        class="search-empty"
+        title="暂无搜索结果"
+        description="换一个关键词再试试。"
+        icon="SE"
+        size="sm"
+        surface="transparent"
+      />
 
       <template #footer>
         <el-button @click="showSearchDialog = false">关闭</el-button>
@@ -218,10 +243,10 @@
         删除节点
       </el-menu-item>
     </el-menu>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, onMounted, computed, nextTick, watch, onUnmounted, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -237,11 +262,14 @@ import {
   deleteKnowledgeNode,
   searchKnowledgeNodes
 } from '@/api/knowledge'
+import { CnEmptyState, CnPage, CnPageHeader, CnStatusTag } from '@/design-system'
+import type { CnBreadcrumbItem, CnTone } from '@/design-system'
 
 const MindMap = defineAsyncComponent(() => import('@/components/MindMap.vue'))
 
 const route = useRoute()
 const router = useRouter()
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '知识图谱', to: '/knowledge/maps' }, { label: '结构编辑' }]
 
 // 基础数据
 const mapId = ref(route.params.id)
@@ -816,8 +844,8 @@ const getNodeIcon = (nodeType) => {
   return iconMap[nodeType] || Document
 }
 
-const getStatusTagType = (status) => {
-  const typeMap = {
+const getStatusTone = (status): CnTone => {
+  const typeMap: Record<number, CnTone> = {
     0: 'info',     // 草稿
     1: 'success',  // 已发布
     2: 'warning'   // 已隐藏
@@ -899,60 +927,33 @@ watch(() => route.params.id, (newId) => {
 </script>
 
 <style scoped>
-.knowledge-editor-container {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background-color: #f5f7fa;
+.knowledge-editor-page {
+  min-height: calc(100vh - var(--cn-space-6));
 }
 
-.editor-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 20px;
-  background: white;
-  border-bottom: 1px solid #e4e7ed;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.map-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.knowledge-editor-page :deep(.cn-page__body) {
+  grid-template-rows: auto minmax(0, 1fr);
+  height: calc(100vh - 2 * var(--cn-space-4));
 }
 
 .editor-content {
   flex: 1;
   display: flex;
+  min-height: 0;
   overflow: hidden;
+  border: 1px solid var(--cn-panel-border);
+  border-radius: var(--cn-radius-panel);
+  background: var(--cn-panel-bg);
+  box-shadow: var(--cn-shadow-card);
 }
 
 .sidebar {
   width: 320px;
-  background: white;
-  border-right: 1px solid #e4e7ed;
+  background: var(--cn-color-bg-surface);
+  border-right: 1px solid var(--cn-color-border-subtle);
   display: flex;
   flex-direction: column;
-  transition: width 0.3s ease;
+  transition: width var(--cn-motion-base) var(--cn-ease-out);
 }
 
 .sidebar.collapsed {
@@ -964,13 +965,13 @@ watch(() => route.params.id, (newId) => {
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  border-bottom: 1px solid #e4e7ed;
+  border-bottom: 1px solid var(--cn-color-border-subtle);
 }
 
 .sidebar-header h3 {
   margin: 0;
   font-size: 14px;
-  color: #303133;
+  color: var(--cn-color-text-primary);
 }
 
 .sidebar-content {
@@ -981,14 +982,14 @@ watch(() => route.params.id, (newId) => {
 }
 
 .node-tree {
-  border-bottom: 1px solid #e4e7ed;
+  border-bottom: 1px solid var(--cn-color-border-subtle);
   max-height: 50%;
   overflow-y: auto;
 }
 
 .tree-toolbar {
   padding: 12px 16px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--cn-color-border-subtle);
 }
 
 .tree-node {
@@ -997,26 +998,28 @@ watch(() => route.params.id, (newId) => {
   gap: 8px;
   flex: 1;
   padding: 4px 0;
-  border-radius: 4px;
-  transition: background-color 0.2s;
+  border-radius: var(--cn-radius-card);
+  transition:
+    background-color var(--cn-motion-fast) var(--cn-ease-out),
+    color var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .tree-node:hover {
-  background-color: #f5f7fa;
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .tree-node.active {
-  background-color: #e6f7ff;
-  color: #1890ff;
+  background: var(--cn-color-brand-soft);
+  color: var(--cn-color-brand-primary);
 }
 
 .node-icon {
   font-size: 16px;
 }
 
-.node-icon.node-type-1 { color: #909399; }
-.node-icon.node-type-2 { color: #f56c6c; }
-.node-icon.node-type-3 { color: #e6a23c; }
+.node-icon.node-type-1 { color: var(--cn-color-text-tertiary); }
+.node-icon.node-type-2 { color: var(--cn-color-danger); }
+.node-icon.node-type-3 { color: var(--cn-color-warning); }
 
 .node-label {
   flex: 1;
@@ -1039,7 +1042,7 @@ watch(() => route.params.id, (newId) => {
   overflow-y: auto;
 }
 
-.node-editor .editor-header {
+.node-editor-header {
   margin-bottom: 16px;
   padding: 0;
   border: none;
@@ -1049,77 +1052,75 @@ watch(() => route.params.id, (newId) => {
 .node-editor h4 {
   margin: 0;
   font-size: 14px;
-  color: #303133;
+  color: var(--cn-color-text-primary);
 }
 
 .canvas-container {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: white;
+  background: var(--cn-color-bg-surface);
   position: relative;
+  min-width: 0;
 }
 
 .canvas-toolbar {
   padding: 12px 20px;
-  border-bottom: 1px solid #e4e7ed;
-  background: #fafafa;
+  border-bottom: 1px solid var(--cn-color-border-subtle);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .canvas-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
   font-size: 12px;
-  color: #909399;
-}
-
-.mind-map-canvas {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
+  color: var(--cn-color-text-secondary);
 }
 
 .empty-canvas {
+  position: absolute;
+  inset: var(--cn-space-6);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  height: 100%;
-  color: #909399;
-}
-
-.empty-canvas p {
-  margin: 16px 0 0 0;
-  font-size: 14px;
+  color: var(--cn-color-text-secondary);
+  pointer-events: auto;
 }
 
 .search-results {
   max-height: 300px;
+  margin-top: var(--cn-space-4);
   overflow-y: auto;
 }
 
 .search-result-item {
   padding: 12px;
-  border: 1px solid #e4e7ed;
-  border-radius: 4px;
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
   margin-bottom: 8px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    background-color var(--cn-motion-fast) var(--cn-ease-out),
+    border-color var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .search-result-item:hover {
-  border-color: #409eff;
-  background-color: #f0f9ff;
+  border-color: var(--cn-color-brand-primary);
+  background: var(--cn-color-brand-soft);
 }
 
 .result-title {
   font-size: 14px;
   font-weight: 600;
-  color: #303133;
+  color: var(--cn-color-text-primary);
   margin-bottom: 4px;
 }
 
 .result-content {
   font-size: 12px;
-  color: #909399;
+  color: var(--cn-color-text-secondary);
   line-height: 1.4;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -1127,12 +1128,16 @@ watch(() => route.params.id, (newId) => {
   overflow: hidden;
 }
 
+.search-empty {
+  margin-top: var(--cn-space-4);
+}
+
 .context-menu {
   position: fixed;
-  background: white;
-  border: 1px solid #e4e7ed;
-  border-radius: 4px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  background: var(--cn-color-bg-surface);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  box-shadow: var(--cn-shadow-popover);
   padding: 4px 0;
   min-width: 120px;
 }
@@ -1160,5 +1165,9 @@ watch(() => route.params.id, (newId) => {
 
 :deep(.el-form-item__label) {
   font-size: 12px;
+}
+
+.full-width {
+  width: 100%;
 }
 </style>

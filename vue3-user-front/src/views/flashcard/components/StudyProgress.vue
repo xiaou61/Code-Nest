@@ -1,7 +1,7 @@
 <template>
   <div class="study-progress">
     <div class="progress-bar">
-      <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
+      <div class="progress-fill" :style="{ '--progress-size': progressPercent + '%' }"></div>
     </div>
     <div class="progress-info">
       <div class="progress-left">
@@ -10,39 +10,27 @@
         <span class="total">{{ total }}</span>
       </div>
       <div class="progress-right">
-        <div class="stat-item new" v-if="newCount > 0">
-          <span class="dot"></span>
-          <span>新卡 {{ newCount }}</span>
-        </div>
-        <div class="stat-item due" v-if="dueCount > 0">
-          <span class="dot"></span>
-          <span>复习 {{ dueCount }}</span>
-        </div>
+        <CnStatusTag v-if="newCount > 0" type="success" size="sm">新卡 {{ newCount }}</CnStatusTag>
+        <CnStatusTag v-if="dueCount > 0" type="warning" size="sm">复习 {{ dueCount }}</CnStatusTag>
       </div>
     </div>
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
+import { CnStatusTag } from '@/design-system'
 
-const props = defineProps({
-  current: {
-    type: Number,
-    default: 0
-  },
-  total: {
-    type: Number,
-    default: 0
-  },
-  newCount: {
-    type: Number,
-    default: 0
-  },
-  dueCount: {
-    type: Number,
-    default: 0
-  }
+const props = withDefaults(defineProps<{
+  current?: number
+  total?: number
+  newCount?: number
+  dueCount?: number
+}>(), {
+  current: 0,
+  total: 0,
+  newCount: 0,
+  dueCount: 0
 })
 
 const progressPercent = computed(() => {
@@ -53,24 +41,26 @@ const progressPercent = computed(() => {
 
 <style lang="scss" scoped>
 .study-progress {
-  background: var(--el-bg-color);
-  border-radius: 12px;
-  padding: 16px 20px;
-  border: 1px solid var(--el-border-color-light);
+  background: var(--cn-color-bg-surface);
+  border-radius: var(--cn-radius-panel);
+  padding: var(--cn-space-4) var(--cn-space-5);
+  border: 1px solid var(--cn-color-border-subtle);
+  box-shadow: var(--cn-shadow-card);
 }
 
 .progress-bar {
   height: 8px;
-  background: var(--el-fill-color-light);
-  border-radius: 4px;
+  background: var(--cn-color-bg-surface-muted);
+  border-radius: var(--cn-radius-pill);
   overflow: hidden;
-  margin-bottom: 12px;
+  margin-bottom: var(--cn-space-3);
   
   .progress-fill {
+    width: var(--progress-size);
     height: 100%;
-    background: linear-gradient(90deg, var(--el-color-primary), var(--el-color-success));
-    border-radius: 4px;
-    transition: width 0.3s ease;
+    background: color-mix(in srgb, var(--cn-color-brand-primary) 64%, var(--cn-color-success));
+    border-radius: var(--cn-radius-pill);
+    transition: width var(--cn-motion-base) var(--cn-ease-out);
   }
 }
 
@@ -82,52 +72,31 @@ const progressPercent = computed(() => {
 
 .progress-left {
   font-size: 16px;
-  color: var(--el-text-color-primary);
+  color: var(--cn-color-text-primary);
   
   .current {
     font-weight: 700;
-    color: var(--el-color-primary);
+    color: var(--cn-color-brand-primary);
   }
   
   .separator {
     margin: 0 4px;
-    color: var(--el-text-color-secondary);
+    color: var(--cn-color-text-secondary);
   }
   
   .total {
-    color: var(--el-text-color-secondary);
+    color: var(--cn-color-text-secondary);
   }
 }
 
 .progress-right {
   display: flex;
-  gap: 16px;
+  gap: var(--cn-space-4);
 }
 
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  
-  .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-  }
-  
-  &.new {
-    color: var(--el-color-success);
-    .dot {
-      background: var(--el-color-success);
-    }
-  }
-  
-  &.due {
-    color: var(--el-color-warning);
-    .dot {
-      background: var(--el-color-warning);
-    }
+@media (prefers-reduced-motion: reduce) {
+  .progress-fill {
+    transition: none;
   }
 }
 </style>

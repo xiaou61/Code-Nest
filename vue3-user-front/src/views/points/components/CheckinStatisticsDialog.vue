@@ -1,137 +1,200 @@
 <template>
-  <div v-if="modelValue" class="dialog-overlay" @click="closeDialog">
-    <div class="dialog-content" @click.stop>
-      <div class="dialog-header">
-        <h3>打卡统计</h3>
-        <button class="close-btn" @click="closeDialog">✕</button>
-      </div>
-      
-      <div class="dialog-body">
-        <div v-if="loading" class="loading-state">
-          <div class="loading-spinner">⏳</div>
-          <p>加载中...</p>
+  <el-dialog
+    class="checkin-statistics-dialog"
+    :model-value="modelValue"
+    title="打卡统计"
+    width="760px"
+    destroy-on-close
+    @update:model-value="handleVisibleChange"
+  >
+    <div v-loading="loading" class="statistics-dialog">
+      <CnEmptyState
+        v-if="!loading && !statisticsData"
+        title="暂无打卡统计"
+        description="完成打卡后，系统会生成连续天数、累计天数和月度走势。"
+        icon="ST"
+      />
+
+      <template v-else-if="statisticsData">
+        <div class="overview-stats">
+          <CnStatCard
+            title="连续打卡"
+            :value="statisticsData.continuousDays || 0"
+            unit="天"
+            description="当前连续打卡天数"
+            tone="brand"
+          />
+          <CnStatCard
+            title="累计打卡"
+            :value="statisticsData.totalCheckinDays || 0"
+            unit="天"
+            description="历史累计打卡天数"
+            tone="success"
+          />
+          <CnStatCard
+            title="打卡积分"
+            :value="statisticsData.totalPointsEarned || 0"
+            unit="分"
+            description="通过打卡获得的积分"
+            tone="warning"
+          />
         </div>
-        
-        <div v-else-if="statisticsData" class="statistics-container">
-          <!-- 总体统计 -->
-          <div class="overview-stats">
-            <div class="stat-card primary">
-              <div class="stat-icon">🔥</div>
-              <div class="stat-content">
-                <div class="stat-number">{{ statisticsData.continuousDays || 0 }}</div>
-                <div class="stat-label">连续打卡天数</div>
-              </div>
-            </div>
-            
-            <div class="stat-card success">
-              <div class="stat-icon">📅</div>
-              <div class="stat-content">
-                <div class="stat-number">{{ statisticsData.totalCheckinDays || 0 }}</div>
-                <div class="stat-label">累计打卡天数</div>
-              </div>
-            </div>
-            
-            <div class="stat-card warning">
-              <div class="stat-icon">💰</div>
-              <div class="stat-content">
-                <div class="stat-number">{{ statisticsData.totalPointsEarned || 0 }}</div>
-                <div class="stat-label">打卡获得积分</div>
-              </div>
-            </div>
+
+        <CnSection title="最近几个月打卡情况" compact surface="plain">
+          <div v-if="(statisticsData.monthlyStats || []).length === 0" class="muted-empty">
+            暂无月度打卡数据
           </div>
-          
-          <!-- 月度统计 -->
-          <div class="monthly-stats">
-            <h4>最近几个月打卡情况</h4>
-            
-            <div class="monthly-list">
-              <div 
-                v-for="month in statisticsData.monthlyStats || []" 
-                :key="month.yearMonth"
-                class="month-item"
-              >
-                <div class="month-header">
-                  <span class="month-name">{{ formatMonth(month.yearMonth) }}</span>
-                  <span class="month-days">{{ month.checkinDays }}/{{ month.totalDays }} 天</span>
-                </div>
-                
-                <div class="month-progress">
-                  <div class="progress-bar">
-                    <div 
-                      class="progress-fill" 
-                      :style="{ width: getProgressPercent(month.checkinDays, month.totalDays) + '%' }"
-                    ></div>
-                  </div>
-                  <span class="progress-percent">
-                    {{ getProgressPercent(month.checkinDays, month.totalDays) }}%
-                  </span>
-                </div>
-                
-                <div class="month-points">
-                  本月打卡获得 <span class="points-earned">{{ month.pointsEarned || 0 }}</span> 积分
-                </div>
+
+          <div v-else class="monthly-list">
+            <article
+              v-for="month in statisticsData.monthlyStats || []"
+              :key="month.yearMonth"
+              class="month-item"
+            >
+              <div class="month-header">
+                <strong>{{ formatMonth(month.yearMonth) }}</strong>
+                <span>{{ month.checkinDays }}/{{ month.totalDays }} 天</span>
               </div>
-            </div>
-          </div>
-          
-          <!-- 成就展示 -->
-          <div class="achievements">
-            <h4>打卡成就</h4>
-            
-            <div class="achievement-list">
-              <div 
-                v-for="achievement in getAchievements()"
-                :key="achievement.id"
-                class="achievement-item"
-                :class="{ 'achieved': achievement.achieved }"
-              >
-                <div class="achievement-icon">{{ achievement.icon }}</div>
-                <div class="achievement-content">
-                  <div class="achievement-name">{{ achievement.name }}</div>
-                  <div class="achievement-desc">{{ achievement.description }}</div>
-                </div>
-                <div class="achievement-status">
-                  {{ achievement.achieved ? '✅' : '🔒' }}
-                </div>
+
+              <div class="month-progress">
+                <el-progress
+                  :percentage="getProgressPercent(month.checkinDays, month.totalDays)"
+                  :stroke-width="10"
+                  :show-text="false"
+                />
+                <span class="progress-percent">
+                  {{ getProgressPercent(month.checkinDays, month.totalDays) }}%
+                </span>
               </div>
-            </div>
+
+              <p class="month-points">
+                本月打卡获得
+                <strong>{{ month.pointsEarned || 0 }}</strong>
+                积分
+              </p>
+            </article>
           </div>
-        </div>
-      </div>
+        </CnSection>
+
+        <CnSection title="打卡成就" compact surface="plain">
+          <div class="achievement-list">
+            <article
+              v-for="achievement in achievements"
+              :key="achievement.id"
+              class="achievement-item"
+              :class="{ 'is-achieved': achievement.achieved }"
+            >
+              <div class="achievement-copy">
+                <strong>{{ achievement.name }}</strong>
+                <span>{{ achievement.description }}</span>
+              </div>
+              <CnStatusTag :type="achievement.achieved ? 'success' : 'neutral'" size="sm">
+                {{ achievement.achieved ? '已达成' : '未达成' }}
+              </CnStatusTag>
+            </article>
+          </div>
+        </CnSection>
+      </template>
     </div>
-  </div>
+  </el-dialog>
 </template>
 
-<script setup>
-import { ref, watch } from 'vue'
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import { CnEmptyState, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
 import pointsApi from '@/api/points'
 
-const props = defineProps({
-  modelValue: {
-    type: Boolean,
-    default: false
-  }
-})
+interface MonthlyStat {
+  yearMonth?: string
+  checkinDays?: number
+  totalDays?: number
+  pointsEarned?: number
+}
 
-const emit = defineEmits(['update:modelValue'])
+interface StatisticsData {
+  continuousDays?: number
+  totalCheckinDays?: number
+  totalPointsEarned?: number
+  monthlyStats?: MonthlyStat[]
+}
 
-// 响应式数据
-const statisticsData = ref(null)
+interface Achievement {
+  id: string
+  name: string
+  description: string
+  achieved: boolean
+}
+
+const props = defineProps<{
+  modelValue: boolean
+}>()
+
+const emit = defineEmits<{
+  'update:modelValue': [value: boolean]
+}>()
+
+const statisticsData = ref<StatisticsData | null>(null)
 const loading = ref(false)
 
-// 监听弹窗打开
-watch(() => props.modelValue, (newValue) => {
-  if (newValue) {
-    loadStatisticsData()
-  }
+const achievements = computed<Achievement[]>(() => {
+  if (!statisticsData.value) return []
+
+  const { continuousDays = 0, totalCheckinDays = 0 } = statisticsData.value
+
+  return [
+    {
+      id: 'first_checkin',
+      name: '初来乍到',
+      description: '完成第一次打卡',
+      achieved: totalCheckinDays >= 1
+    },
+    {
+      id: 'week_warrior',
+      name: '一周打卡王',
+      description: '连续打卡 7 天',
+      achieved: continuousDays >= 7
+    },
+    {
+      id: 'month_master',
+      name: '月度大师',
+      description: '连续打卡 30 天',
+      achieved: continuousDays >= 30
+    },
+    {
+      id: 'century_club',
+      name: '百日俱乐部',
+      description: '累计打卡 100 天',
+      achieved: totalCheckinDays >= 100
+    },
+    {
+      id: 'persistent_pro',
+      name: '坚持达人',
+      description: '连续打卡 100 天',
+      achieved: continuousDays >= 100
+    },
+    {
+      id: 'year_legend',
+      name: '年度传奇',
+      description: '累计打卡 365 天',
+      achieved: totalCheckinDays >= 365
+    }
+  ]
 })
 
-// 加载打卡统计数据
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    if (newValue) {
+      loadStatisticsData()
+    }
+  }
+)
+
 const loadStatisticsData = async () => {
   loading.value = true
-  
+
   try {
-    const response = await pointsApi.getCheckinStatistics(3) // 最近3个月
+    const response = (await pointsApi.getCheckinStatistics(3)) as StatisticsData
     statisticsData.value = response
   } catch (error) {
     console.error('加载打卡统计失败:', error)
@@ -141,352 +204,135 @@ const loadStatisticsData = async () => {
   }
 }
 
-// 关闭弹窗
-const closeDialog = () => {
-  emit('update:modelValue', false)
+const handleVisibleChange = (visible: boolean) => {
+  emit('update:modelValue', visible)
 }
 
-// 格式化月份
-const formatMonth = (yearMonth) => {
+const formatMonth = (yearMonth?: string) => {
   if (!yearMonth) return ''
   const [year, month] = yearMonth.split('-')
-  return `${year}年${parseInt(month)}月`
+  return `${year}年${Number.parseInt(month, 10)}月`
 }
 
-// 计算进度百分比
-const getProgressPercent = (checkinDays, totalDays) => {
+const getProgressPercent = (checkinDays = 0, totalDays = 0) => {
   if (!totalDays || totalDays === 0) return 0
   return Math.round((checkinDays / totalDays) * 100)
-}
-
-// 获取成就列表
-const getAchievements = () => {
-  if (!statisticsData.value) return []
-  
-  const { continuousDays, totalCheckinDays } = statisticsData.value
-  
-  return [
-    {
-      id: 'first_checkin',
-      name: '初来乍到',
-      description: '完成第一次打卡',
-      icon: '🎯',
-      achieved: totalCheckinDays >= 1
-    },
-    {
-      id: 'week_warrior',
-      name: '一周打卡王',
-      description: '连续打卡7天',
-      icon: '⭐',
-      achieved: continuousDays >= 7
-    },
-    {
-      id: 'month_master',
-      name: '月度大师',
-      description: '连续打卡30天',
-      icon: '👑',
-      achieved: continuousDays >= 30
-    },
-    {
-      id: 'century_club',
-      name: '百日俱乐部',
-      description: '累计打卡100天',
-      icon: '💎',
-      achieved: totalCheckinDays >= 100
-    },
-    {
-      id: 'persistent_pro',
-      name: '坚持达人',
-      description: '连续打卡100天',
-      icon: '🚀',
-      achieved: continuousDays >= 100
-    },
-    {
-      id: 'year_legend',
-      name: '年度传奇',
-      description: '累计打卡365天',
-      icon: '🏆',
-      achieved: totalCheckinDays >= 365
-    }
-  ]
 }
 </script>
 
 <style lang="scss" scoped>
-.dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+.statistics-dialog {
+  display: grid;
+  gap: var(--cn-space-4);
+  min-height: 320px;
+}
+
+.overview-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cn-space-4);
+}
+
+.muted-empty {
+  padding: var(--cn-space-6);
+  border: 1px dashed var(--cn-color-border);
+  border-radius: var(--cn-radius-card);
+  color: var(--cn-color-text-secondary);
+  text-align: center;
+}
+
+.monthly-list,
+.achievement-list {
+  display: grid;
+  gap: var(--cn-space-3);
+}
+
+.month-item,
+.achievement-item {
+  min-width: 0;
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface);
+}
+
+.month-header,
+.month-progress,
+.achievement-item {
   display: flex;
   align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.dialog-content {
-  background: white;
-  border-radius: 16px;
-  width: 100%;
-  max-width: 500px;
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-}
-
-.dialog-header {
-  display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid #f0f0f0;
-  
-  h3 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: #333;
-  }
-  
-  .close-btn {
-    background: none;
-    border: none;
-    font-size: 20px;
-    color: #999;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    
-    &:hover {
-      background: #f5f5f5;
-      color: #666;
-    }
+  gap: var(--cn-space-3);
+}
+
+.month-header {
+  color: var(--cn-color-text-primary);
+  font-size: 14px;
+
+  span {
+    color: var(--cn-color-text-secondary);
   }
 }
 
-.dialog-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
+.month-progress {
+  margin-top: var(--cn-space-3);
+
+  :deep(.el-progress) {
+    flex: 1;
+  }
 }
 
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-  color: #999;
-  
-  .loading-spinner {
-    font-size: 32px;
-    margin-bottom: 12px;
-    animation: spin 1s linear infinite;
+.progress-percent {
+  min-width: 42px;
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.month-points {
+  margin: var(--cn-space-3) 0 0;
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+
+  strong {
+    color: var(--cn-color-success);
   }
-  
-  p {
-    margin: 0;
+}
+
+.achievement-item.is-achieved {
+  border-color: color-mix(in srgb, var(--cn-color-success) 28%, var(--cn-color-border-subtle));
+  background: var(--cn-color-success-soft);
+}
+
+.achievement-copy {
+  display: grid;
+  gap: var(--cn-space-1);
+  min-width: 0;
+
+  strong {
+    color: var(--cn-color-text-primary);
     font-size: 14px;
   }
+
+  span {
+    color: var(--cn-color-text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
+  }
 }
 
-.statistics-container {
+:deep(.el-dialog) {
+  max-width: calc(100vw - 32px);
+}
+
+@media (max-width: 760px) {
   .overview-stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 24px;
-    
-    .stat-card {
-      background: white;
-      border-radius: 12px;
-      padding: 16px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      
-      &.primary {
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
-      }
-      
-      &.success {
-        background: linear-gradient(135deg, #67c23a, #85ce61);
-        color: white;
-      }
-      
-      &.warning {
-        background: linear-gradient(135deg, #e6a23c, #f56c6c);
-        color: white;
-      }
-      
-      .stat-icon {
-        font-size: 24px;
-        opacity: 0.9;
-      }
-      
-      .stat-content {
-        flex: 1;
-        
-        .stat-number {
-          font-size: 20px;
-          font-weight: bold;
-          margin-bottom: 4px;
-        }
-        
-        .stat-label {
-          font-size: 12px;
-          opacity: 0.9;
-        }
-      }
-    }
+    grid-template-columns: 1fr;
   }
-  
-  .monthly-stats, .achievements {
-    margin-bottom: 24px;
-    
-    h4 {
-      font-size: 16px;
-      font-weight: 600;
-      color: #333;
-      margin: 0 0 16px 0;
-    }
-  }
-  
-  .monthly-list {
-    .month-item {
-      background: #f8f9fa;
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 12px;
-      
-      &:last-child {
-        margin-bottom: 0;
-      }
-      
-      .month-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 12px;
-        
-        .month-name {
-          font-size: 14px;
-          font-weight: 600;
-          color: #333;
-        }
-        
-        .month-days {
-          font-size: 14px;
-          color: #666;
-        }
-      }
-      
-      .month-progress {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 8px;
-        
-        .progress-bar {
-          flex: 1;
-          height: 8px;
-          background: #e9ecef;
-          border-radius: 4px;
-          overflow: hidden;
-          
-          .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #67c23a, #85ce61);
-            transition: width 0.3s ease;
-          }
-        }
-        
-        .progress-percent {
-          font-size: 12px;
-          color: #666;
-          font-weight: 500;
-          min-width: 40px;
-        }
-      }
-      
-      .month-points {
-        font-size: 12px;
-        color: #666;
-        
-        .points-earned {
-          color: #67c23a;
-          font-weight: 600;
-        }
-      }
-    }
-  }
-  
-  .achievement-list {
-    .achievement-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px;
-      border-radius: 8px;
-      margin-bottom: 8px;
-      background: #f8f9fa;
-      transition: all 0.3s ease;
-      
-      &.achieved {
-        background: rgba(103, 194, 58, 0.1);
-        border: 1px solid rgba(103, 194, 58, 0.2);
-      }
-      
-      &:last-child {
-        margin-bottom: 0;
-      }
-      
-      .achievement-icon {
-        font-size: 24px;
-        opacity: 0.7;
-      }
-      
-      .achievement-content {
-        flex: 1;
-        
-        .achievement-name {
-          font-size: 14px;
-          font-weight: 600;
-          color: #333;
-          margin-bottom: 2px;
-        }
-        
-        .achievement-desc {
-          font-size: 12px;
-          color: #666;
-        }
-      }
-      
-      .achievement-status {
-        font-size: 16px;
-      }
-      
-      &.achieved {
-        .achievement-icon {
-          opacity: 1;
-        }
-        
-        .achievement-name {
-          color: #67c23a;
-        }
-      }
-    }
-  }
-}
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  .achievement-item {
+    align-items: flex-start;
+  }
 }
 </style>

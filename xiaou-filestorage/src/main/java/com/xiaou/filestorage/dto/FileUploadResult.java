@@ -31,6 +31,11 @@ public class FileUploadResult {
     private Long fileSize;
 
     /**
+     * 实际使用的存储配置ID
+     */
+    private Long storageConfigId;
+
+    /**
      * 错误信息
      */
     private String errorMessage;

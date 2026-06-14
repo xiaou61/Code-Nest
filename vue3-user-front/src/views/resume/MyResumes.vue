@@ -1,133 +1,186 @@
 <template>
-  <div class="resume-manage-page">
-    <el-card class="header-card" shadow="never">
-      <div class="header-top">
-        <div>
-          <h2>在线简历工作台</h2>
-          <p class="sub-title">在这里管理、导出、分享你的所有简历</p>
-        </div>
-        <div class="header-actions">
-          <el-button @click="goTemplate">浏览模板</el-button>
-          <el-button type="primary" @click="goEditor">
-            <el-icon><Plus /></el-icon>
-            新建简历
-          </el-button>
-        </div>
-      </div>
-      <div class="stats-row">
-        <div class="stat-item">
-          <p class="label">总简历数</p>
-          <p class="value">{{ pagination.total }}</p>
-        </div>
-        <div class="stat-item">
-          <p class="label">最近导出</p>
-          <p class="value">{{ lastExportTime || '--' }}</p>
-        </div>
-        <div class="stat-item">
-          <p class="label">最近更新</p>
-          <p class="value">{{ lastUpdateTime || '--' }}</p>
-        </div>
-      </div>
-    </el-card>
+  <CnPage class="resume-manage-page" max-width="1180px" full-height>
+    <CnPageHeader
+      title="在线简历工作台"
+      description="集中管理你的简历版本，完成预览、导出、分享和访问统计。"
+      eyebrow="RESUME DESK"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">共 {{ pagination.total }} 份简历</CnStatusTag>
+        <CnStatusTag type="info" size="sm" subtle>最近更新 {{ lastUpdateTime || '--' }}</CnStatusTag>
+        <CnStatusTag type="success" size="sm" subtle>最近导出 {{ lastExportTime || '--' }}</CnStatusTag>
+      </template>
 
-    <el-card shadow="never">
-      <div class="table-tools">
-        <el-input
-          v-model="query.keyword"
-          placeholder="输入关键词搜索简历"
-          clearable
-          :prefix-icon="Search"
-          @clear="handleSearch"
-        />
-        <el-select v-model="query.status" placeholder="状态" clearable @change="handleSearch">
-          <el-option label="草稿" :value="0" />
-          <el-option label="已发布" :value="1" />
-        </el-select>
-        <el-select v-model="query.visibility" placeholder="可见性" clearable @change="handleSearch">
-          <el-option label="私密" :value="0" />
-          <el-option label="公开" :value="1" />
-        </el-select>
-        <el-button type="primary" plain @click="handleSearch">搜索</el-button>
-        <el-button @click="resetQuery">重置</el-button>
-      </div>
+      <template #actions>
+        <el-button :icon="Files" @click="goTemplate">浏览模板</el-button>
+        <el-button type="primary" :icon="Plus" @click="goEditor">新建简历</el-button>
+      </template>
+    </CnPageHeader>
 
-      <el-table
-        :data="resumeList"
-        v-loading="loading"
-        border
-        class="resume-table"
-        empty-text="暂无简历，点击右上角新建"
+    <div class="summary-grid">
+      <CnStatCard
+        title="总简历数"
+        :value="pagination.total"
+        description="当前筛选条件下的总量"
+        tone="brand"
+        :loading="loading"
+      />
+      <CnStatCard
+        title="本页展示"
+        :value="resumeList.length"
+        description="当前分页已加载条目"
+        tone="info"
+        :loading="loading"
+      />
+      <CnStatCard
+        title="已发布"
+        :value="publishedCount"
+        description="本页已发布简历"
+        tone="success"
+        :loading="loading"
+      />
+      <CnStatCard
+        title="公开可见"
+        :value="publicCount"
+        description="本页公开简历"
+        tone="warning"
+        :loading="loading"
+      />
+    </div>
+
+    <CnSection title="筛选简历" description="按简历名称、发布状态和可见性快速定位目标版本。" divided>
+      <CnFilterForm
+        v-model="filters"
+        :fields="filterFields"
+        :columns="3"
+        :loading="loading"
+        @search="handleSearch"
+        @reset="handleReset"
       >
-        <el-table-column prop="resumeName" label="简历名称" min-width="200">
-          <template #default="scope">
-            <div class="name-cell">
-              <span class="name">{{ scope.row.resumeName }}</span>
-              <el-tag size="small" type="info">v{{ scope.row.version }}</el-tag>
+        <template #keyword="{ value }">
+          <el-input
+            :model-value="String(value || '')"
+            placeholder="输入关键词搜索简历"
+            clearable
+            :prefix-icon="Search"
+            @update:model-value="(next) => updateFilter('keyword', next)"
+            @clear="handleSearch"
+            @keyup.enter="handleSearch"
+          />
+        </template>
+
+        <template #status="{ value }">
+          <el-select
+            :model-value="value"
+            placeholder="状态"
+            clearable
+            @update:model-value="(next) => handleSelectFilterChange('status', next)"
+          >
+            <el-option label="草稿" :value="0" />
+            <el-option label="已发布" :value="1" />
+          </el-select>
+        </template>
+
+        <template #visibility="{ value }">
+          <el-select
+            :model-value="value"
+            placeholder="可见性"
+            clearable
+            @update:model-value="(next) => handleSelectFilterChange('visibility', next)"
+          >
+            <el-option label="私密" :value="0" />
+            <el-option label="公开" :value="1" />
+          </el-select>
+        </template>
+      </CnFilterForm>
+    </CnSection>
+
+    <CnSection title="我的简历" description="预览内容、继续编辑，或将简历导出为可投递文件。" divided>
+      <CnDataTable
+        :columns="tableColumns"
+        :data="resumeList"
+        :loading="loading"
+        :pagination="tablePagination"
+        row-key="id"
+        border
+        empty-title="暂无简历"
+        empty-description="点击右上角新建简历，或从模板中心快速开始。"
+        empty-icon="CV"
+        @page-change="handlePageChange"
+      >
+        <template #resumeName="{ row }">
+          <div class="name-cell">
+            <div class="name-line">
+              <span class="name">{{ row.resumeName || '未命名简历' }}</span>
+              <CnStatusTag type="neutral" size="sm" subtle>v{{ row.version || '-' }}</CnStatusTag>
             </div>
-            <p class="summary">{{ scope.row.summary || '暂无简介' }}</p>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="120">
-          <template #default="scope">
-            <el-tag :type="statusTagType(scope.row.status)">
-              {{ formatStatus(scope.row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="可见性" width="120">
-          <template #default="scope">
-            <el-tag :type="scope.row.visibility === 1 ? 'success' : 'warning'">
-              {{ scope.row.visibility === 1 ? '公开' : '私密' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="updateTime" label="更新时间" width="200" />
-        <el-table-column label="操作" fixed="right" width="360">
-          <template #default="scope">
-            <el-button text type="primary" @click="handlePreview(scope.row)">预览</el-button>
-            <el-button text type="primary" @click="handleEdit(scope.row)">编辑</el-button>
-            <el-button text type="primary" @click="openExportDialog(scope.row)">导出</el-button>
-            <el-button text type="primary" @click="handleShare(scope.row)">分享</el-button>
-            <el-button text type="primary" @click="handleAnalytics(scope.row)">统计</el-button>
-            <el-popconfirm title="确认删除该简历？" @confirm="handleDelete(scope.row)">
+            <p class="summary">{{ row.summary || '暂无简介' }}</p>
+          </div>
+        </template>
+
+        <template #status="{ row }">
+          <CnStatusTag :type="statusTagType(row.status)" size="sm">
+            {{ formatStatus(row.status) }}
+          </CnStatusTag>
+        </template>
+
+        <template #visibility="{ row }">
+          <CnStatusTag :type="visibilityTagType(row.visibility)" size="sm">
+            {{ formatVisibility(row.visibility) }}
+          </CnStatusTag>
+        </template>
+
+        <template #actions="{ row }">
+          <div class="table-actions">
+            <el-button link type="primary" :icon="View" @click="handlePreview(row)">预览</el-button>
+            <el-button link type="primary" :icon="EditPen" @click="handleEdit(row)">编辑</el-button>
+            <el-button link type="primary" :icon="Download" @click="openExportDialog(row)">导出</el-button>
+            <el-button link type="primary" :icon="Share" @click="handleShare(row)">分享</el-button>
+            <el-button link type="primary" :icon="DataAnalysis" @click="handleAnalytics(row)">统计</el-button>
+            <el-popconfirm title="确认删除该简历？" @confirm="handleDelete(row)">
               <template #reference>
-                <el-button text type="danger">删除</el-button>
+                <el-button link type="danger" :icon="Delete">删除</el-button>
               </template>
             </el-popconfirm>
-          </template>
-        </el-table-column>
-      </el-table>
+          </div>
+        </template>
 
-      <div class="pagination-wrapper" v-if="pagination.total > pagination.size">
-        <el-pagination
-          background
-          layout="total, prev, pager, next"
-          :current-page="pagination.page"
-          :page-size="pagination.size"
-          :total="pagination.total"
-          @current-change="handlePageChange"
-        />
-      </div>
-    </el-card>
+        <template #empty>
+          <CnEmptyState
+            title="暂无简历"
+            description="你可以从空白简历开始，也可以先挑选模板。"
+            icon="CV"
+            surface="transparent"
+            size="sm"
+          />
+        </template>
+      </CnDataTable>
+    </CnSection>
 
-    <!-- 预览抽屉 -->
-    <el-drawer v-model="previewVisible" size="40%" :title="previewData?.resume?.resumeName || '简历预览'">
-      <div v-if="previewData">
-        <p class="preview-summary">{{ previewData.resume?.summary }}</p>
-        <el-timeline>
+    <el-drawer v-model="previewVisible" size="42%" :title="previewData?.resume?.resumeName || '简历预览'">
+      <div v-if="previewData" class="preview-panel">
+        <p class="preview-summary">{{ previewData.resume?.summary || '暂无简介' }}</p>
+        <el-timeline v-if="previewSections.length">
           <el-timeline-item
-            v-for="section in previewData.sections"
+            v-for="section in previewSections"
             :key="section.id || section.title"
-            :timestamp="section.sectionType"
+            :timestamp="section.sectionType || '简历模块'"
           >
-            <h4>{{ section.title }}</h4>
-            <pre>{{ section.content }}</pre>
+            <h4>{{ section.title || '未命名模块' }}</h4>
+            <pre>{{ section.content || '暂无内容' }}</pre>
           </el-timeline-item>
         </el-timeline>
+        <CnEmptyState
+          v-else
+          title="暂无预览内容"
+          description="这份简历还没有可展示的模块。"
+          icon="PV"
+          surface="transparent"
+          size="sm"
+        />
       </div>
     </el-drawer>
 
-    <!-- 导出对话框 -->
     <el-dialog v-model="exportDialogVisible" title="导出简历" width="420px">
       <el-form :model="exportForm" label-width="80px">
         <el-form-item label="格式">
@@ -150,9 +203,8 @@
       </template>
     </el-dialog>
 
-    <!-- 分享信息 -->
     <el-dialog v-model="shareDialogVisible" title="分享链接" width="420px">
-      <el-descriptions :column="1" border v-if="shareData">
+      <el-descriptions v-if="shareData" :column="1" border>
         <el-descriptions-item label="访问链接">
           <el-input v-model="shareData.shareUrl" readonly />
         </el-descriptions-item>
@@ -160,7 +212,7 @@
           {{ shareData.shareCode || '无需口令' }}
         </el-descriptions-item>
         <el-descriptions-item label="到期时间">
-          {{ shareData.expireTime }}
+          {{ shareData.expireTime || '--' }}
         </el-descriptions-item>
       </el-descriptions>
       <template #footer>
@@ -168,34 +220,25 @@
       </template>
     </el-dialog>
 
-    <!-- 数据统计 -->
     <el-dialog v-model="analyticsDialogVisible" title="访问统计" width="480px">
-      <el-row :gutter="16">
-        <el-col :span="12">
-          <div class="metric-card">
-            <p class="metric-label">浏览次数</p>
-            <p class="metric-value">{{ analyticsData?.viewCount ?? 0 }}</p>
-          </div>
-        </el-col>
-        <el-col :span="12">
-          <div class="metric-card">
-            <p class="metric-label">导出次数</p>
-            <p class="metric-value">{{ analyticsData?.exportCount ?? 0 }}</p>
-          </div>
-        </el-col>
-        <el-col :span="12">
-          <div class="metric-card">
-            <p class="metric-label">分享次数</p>
-            <p class="metric-value">{{ analyticsData?.shareCount ?? 0 }}</p>
-          </div>
-        </el-col>
-        <el-col :span="12">
-          <div class="metric-card">
-            <p class="metric-label">访客数</p>
-            <p class="metric-value">{{ analyticsData?.uniqueVisitors ?? 0 }}</p>
-          </div>
-        </el-col>
-      </el-row>
+      <div class="metric-grid">
+        <div class="metric-card">
+          <p class="metric-label">浏览次数</p>
+          <p class="metric-value">{{ analyticsData?.viewCount ?? 0 }}</p>
+        </div>
+        <div class="metric-card">
+          <p class="metric-label">导出次数</p>
+          <p class="metric-value">{{ analyticsData?.exportCount ?? 0 }}</p>
+        </div>
+        <div class="metric-card">
+          <p class="metric-label">分享次数</p>
+          <p class="metric-value">{{ analyticsData?.shareCount ?? 0 }}</p>
+        </div>
+        <div class="metric-card">
+          <p class="metric-label">访客数</p>
+          <p class="metric-value">{{ analyticsData?.uniqueVisitors ?? 0 }}</p>
+        </div>
+      </div>
       <p class="metric-footer">
         最近访问：{{ analyticsData?.lastAccessTime || '暂无记录' }}
       </p>
@@ -203,19 +246,84 @@
         <el-button type="primary" @click="analyticsDialogVisible = false">关闭</el-button>
       </template>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { onMounted, reactive, ref } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Plus, Search } from '@element-plus/icons-vue'
+import { DataAnalysis, Delete, Download, EditPen, Files, Plus, Search, Share, View } from '@element-plus/icons-vue'
+import {
+  CnDataTable,
+  CnEmptyState,
+  CnFilterForm,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag,
+  type CnFilterField,
+  type CnPagination,
+  type CnTableColumn,
+  type CnTone
+} from '@/design-system'
 import { resumeApi } from '@/api/resume'
+
+interface ResumeItem extends Record<string, unknown> {
+  id: number | string
+  resumeName?: string
+  version?: number | string
+  summary?: string
+  status?: number | string
+  visibility?: number | string
+  updateTime?: string
+}
+
+interface ResumeResponse {
+  records?: ResumeItem[]
+  total?: number
+}
+
+interface PreviewSection {
+  id?: number | string
+  title?: string
+  sectionType?: string
+  content?: string
+}
+
+interface PreviewData {
+  resume?: ResumeItem
+  sections?: PreviewSection[]
+}
+
+interface ExportForm {
+  format: 'PDF' | 'WORD' | 'HTML'
+  theme: string
+  watermark: boolean
+}
+
+interface ExportResponse {
+  downloadUrl?: string
+}
+
+interface ShareData {
+  shareUrl?: string
+  shareCode?: string
+  expireTime?: string
+}
+
+interface AnalyticsData {
+  viewCount?: number
+  exportCount?: number
+  shareCount?: number
+  uniqueVisitors?: number
+  lastAccessTime?: string
+}
 
 const router = useRouter()
 const loading = ref(false)
-const resumeList = ref([])
+const resumeList = ref<ResumeItem[]>([])
 const lastExportTime = ref('')
 const lastUpdateTime = ref('')
 
@@ -225,29 +333,76 @@ const pagination = reactive({
   total: 0
 })
 
-const query = reactive({
+const createFilters = () => ({
   keyword: '',
   status: '',
   visibility: ''
 })
 
+const filters = ref<Record<string, unknown>>(createFilters())
+
+const filterFields: CnFilterField[] = [
+  {
+    prop: 'keyword',
+    label: '关键字',
+    type: 'custom',
+    slot: 'keyword'
+  },
+  {
+    prop: 'status',
+    label: '状态',
+    type: 'custom',
+    slot: 'status'
+  },
+  {
+    prop: 'visibility',
+    label: '可见性',
+    type: 'custom',
+    slot: 'visibility'
+  }
+]
+
+const tableColumns: CnTableColumn<ResumeItem>[] = [
+  { prop: 'resumeName', label: '简历名称', minWidth: 220, slot: 'resumeName' },
+  { prop: 'status', label: '状态', width: 120, align: 'center', slot: 'status' },
+  { prop: 'visibility', label: '可见性', width: 120, align: 'center', slot: 'visibility' },
+  { prop: 'updateTime', label: '更新时间', width: 190, showOverflowTooltip: true },
+  { label: '操作', width: 350, fixed: 'right', slot: 'actions' }
+]
+
+const tablePagination = computed<CnPagination>(() => ({
+  page: pagination.page,
+  pageSize: pagination.size,
+  total: pagination.total,
+  layout: 'total, prev, pager, next',
+  background: true
+}))
+
+const publishedCount = computed(() => resumeList.value.filter((item) => Number(item.status) === 1).length)
+const publicCount = computed(() => resumeList.value.filter((item) => Number(item.visibility) === 1).length)
+
 const previewVisible = ref(false)
-const previewData = ref(null)
+const previewData = ref<PreviewData | null>(null)
+const previewSections = computed(() => previewData.value?.sections || [])
 
 const exportDialogVisible = ref(false)
-const exportResumeId = ref(null)
+const exportResumeId = ref<number | string | null>(null)
 const exportLoading = ref(false)
-const exportForm = reactive({
+const exportForm = reactive<ExportForm>({
   format: 'PDF',
   theme: '',
   watermark: true
 })
 
 const shareDialogVisible = ref(false)
-const shareData = ref(null)
+const shareData = ref<ShareData | null>(null)
 
 const analyticsDialogVisible = ref(false)
-const analyticsData = ref(null)
+const analyticsData = ref<AnalyticsData | null>(null)
+
+const normalizeOptionalFilter = (value: unknown) => {
+  return value === '' || value === null || value === undefined ? undefined : value
+}
 
 const fetchResumes = async () => {
   loading.value = true
@@ -255,11 +410,11 @@ const fetchResumes = async () => {
     const params = {
       page: pagination.page,
       size: pagination.size,
-      keyword: query.keyword || undefined,
-      status: query.status !== '' ? query.status : undefined,
-      visibility: query.visibility !== '' ? query.visibility : undefined
+      keyword: (filters.value.keyword as string) || undefined,
+      status: normalizeOptionalFilter(filters.value.status),
+      visibility: normalizeOptionalFilter(filters.value.visibility)
     }
-    const result = await resumeApi.getMyResumes(params)
+    const result = (await resumeApi.getMyResumes(params)) as ResumeResponse
     resumeList.value = result?.records || []
     pagination.total = result?.total || resumeList.value.length
     lastUpdateTime.value = resumeList.value[0]?.updateTime || ''
@@ -270,20 +425,30 @@ const fetchResumes = async () => {
   }
 }
 
+const updateFilter = (prop: string, value: unknown) => {
+  filters.value = {
+    ...filters.value,
+    [prop]: value ?? ''
+  }
+}
+
+const handleSelectFilterChange = (prop: string, value: unknown) => {
+  updateFilter(prop, value)
+  handleSearch()
+}
+
 const handleSearch = () => {
   pagination.page = 1
   fetchResumes()
 }
 
-const resetQuery = () => {
-  query.keyword = ''
-  query.status = ''
-  query.visibility = ''
+const handleReset = () => {
+  filters.value = createFilters()
   pagination.page = 1
   fetchResumes()
 }
 
-const handlePageChange = (page) => {
+const handlePageChange = (page: number) => {
   pagination.page = page
   fetchResumes()
 }
@@ -296,22 +461,22 @@ const goTemplate = () => {
   router.push('/resume/templates')
 }
 
-const handleEdit = (row) => {
+const handleEdit = (row: ResumeItem) => {
   router.push(`/resume/editor/${row.id}`)
 }
 
-const handlePreview = async (row) => {
+const handlePreview = async (row: ResumeItem) => {
   try {
-    previewData.value = await resumeApi.previewResume(row.id)
+    previewData.value = (await resumeApi.previewResume(row.id)) as PreviewData
     previewVisible.value = true
   } catch (error) {
     ElMessage.error('获取预览失败')
   }
 }
 
-const openExportDialog = (row) => {
+const openExportDialog = (row: ResumeItem) => {
   exportResumeId.value = row.id
-  exportForm.theme = row.resumeName
+  exportForm.theme = row.resumeName || ''
   exportDialogVisible.value = true
 }
 
@@ -319,7 +484,7 @@ const submitExport = async () => {
   if (!exportResumeId.value) return
   exportLoading.value = true
   try {
-    const result = await resumeApi.exportResume(exportResumeId.value, exportForm)
+    const result = (await resumeApi.exportResume(exportResumeId.value, { ...exportForm })) as ExportResponse
     lastExportTime.value = new Date().toLocaleString()
     exportDialogVisible.value = false
     ElMessage.success('导出成功，正在为你打开文件')
@@ -333,25 +498,25 @@ const submitExport = async () => {
   }
 }
 
-const handleShare = async (row) => {
+const handleShare = async (row: ResumeItem) => {
   try {
-    shareData.value = await resumeApi.createShareLink(row.id)
+    shareData.value = (await resumeApi.createShareLink(row.id)) as ShareData
     shareDialogVisible.value = true
   } catch (error) {
     ElMessage.error('创建分享链接失败')
   }
 }
 
-const handleAnalytics = async (row) => {
+const handleAnalytics = async (row: ResumeItem) => {
   try {
-    analyticsData.value = await resumeApi.getAnalytics(row.id)
+    analyticsData.value = (await resumeApi.getAnalytics(row.id)) as AnalyticsData
     analyticsDialogVisible.value = true
   } catch (error) {
     ElMessage.error('获取统计信息失败')
   }
 }
 
-const handleDelete = async (row) => {
+const handleDelete = async (row: ResumeItem) => {
   try {
     await resumeApi.deleteResume(row.id)
     ElMessage.success('删除成功')
@@ -361,12 +526,20 @@ const handleDelete = async (row) => {
   }
 }
 
-const statusTagType = (status) => {
-  return status === 1 ? 'success' : 'info'
+const statusTagType = (status: unknown): CnTone => {
+  return Number(status) === 1 ? 'success' : 'info'
 }
 
-const formatStatus = (status) => {
-  return status === 1 ? '已发布' : '草稿'
+const visibilityTagType = (visibility: unknown): CnTone => {
+  return Number(visibility) === 1 ? 'success' : 'warning'
+}
+
+const formatStatus = (status: unknown) => {
+  return Number(status) === 1 ? '已发布' : '草稿'
+}
+
+const formatVisibility = (visibility: unknown) => {
+  return Number(visibility) === 1 ? '公开' : '私密'
 }
 
 onMounted(() => {
@@ -376,141 +549,138 @@ onMounted(() => {
 
 <style scoped>
 .resume-manage-page {
-  padding: 24px;
-  max-width: 1200px;
-  margin: 0 auto;
+  min-height: calc(100vh - 68px);
 }
 
-.header-card {
-  margin-bottom: 24px;
-}
-
-.header-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.header-top h2 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 600;
-  color: #1f2d3d;
-}
-
-.sub-title {
-  margin: 4px 0 0;
-  color: #909399;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.stats-row {
+.summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.stat-item {
-  padding: 16px;
-  border-radius: 12px;
-  background: #f7f9fc;
+.name-cell {
+  display: grid;
+  gap: var(--cn-space-2);
+  min-width: 0;
 }
 
-.stat-item .label {
-  margin: 0;
-  color: #909399;
-  font-size: 14px;
-}
-
-.stat-item .value {
-  margin: 6px 0 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: #1f2d3d;
-}
-
-.table-tools {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-
-.resume-table .name-cell {
+.name-line {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cn-space-2);
+  min-width: 0;
 }
 
-.resume-table .name {
-  font-weight: 600;
-  color: #1d2129;
+.name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--cn-color-text-primary);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.resume-table .summary {
-  margin: 4px 0 0;
-  color: #909399;
+.summary {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--cn-color-text-secondary);
   font-size: 13px;
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
-.pagination-wrapper {
-  margin-top: 16px;
-  text-align: right;
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-1);
+}
+
+.preview-panel {
+  display: grid;
+  gap: var(--cn-space-4);
 }
 
 .preview-summary {
-  color: #606266;
-  margin-bottom: 16px;
+  margin: 0;
+  color: var(--cn-color-text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.preview-panel h4 {
+  margin: 0 0 var(--cn-space-2);
+  color: var(--cn-color-text-primary);
+  font-size: 15px;
+}
+
+.preview-panel pre {
+  min-width: 0;
+  margin: 0;
+  padding: var(--cn-space-3);
+  overflow: auto;
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
+  color: var(--cn-color-text-secondary);
+  font-family: var(--cn-font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
 .metric-card {
-  padding: 16px;
-  background: #f5f7fa;
-  border-radius: 10px;
+  min-width: 0;
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-card-border);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
   text-align: center;
 }
 
 .metric-label {
   margin: 0;
-  color: #909399;
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
 }
 
 .metric-value {
-  margin: 8px 0 0;
-  font-size: 22px;
-  font-weight: 600;
-  color: #1f2d3d;
+  margin: var(--cn-space-2) 0 0;
+  color: var(--cn-color-text-primary);
+  font-family: var(--cn-font-heading);
+  font-size: 24px;
+  font-weight: 750;
+  line-height: 1.1;
 }
 
 .metric-footer {
-  margin-top: 16px;
-  color: #909399;
+  margin: var(--cn-space-4) 0 0;
+  color: var(--cn-color-text-secondary);
   text-align: center;
 }
 
-@media (max-width: 768px) {
-  .header-top {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+@media (max-width: 980px) {
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  
-  .header-actions {
-    width: 100%;
-    justify-content: flex-start;
+}
+
+@media (max-width: 680px) {
+  .summary-grid,
+  .metric-grid {
+    grid-template-columns: 1fr;
   }
-  
-  .table-tools {
-    flex-direction: column;
-  }
-  
-  .table-tools > * {
-    width: 100%;
+
+  .table-actions :deep(.el-button) {
+    margin-left: 0;
   }
 }
 </style>

@@ -1,23 +1,30 @@
 <template>
-  <div class="ai-config-page">
-    <el-card class="header-card" shadow="never">
-      <div class="header-content">
-        <div>
-          <h2>AI 配置与观测</h2>
-          <p>面向 OpenAI 兼容中转站的运行配置、连通性测试与 AI 运行观测，不会在后台落库存储输入的 Key。</p>
-        </div>
-        <div class="header-actions">
-          <el-button :loading="runtimeLoading" @click="loadRuntimeConfig">
-            <el-icon><Refresh /></el-icon>
-            刷新运行时配置
-          </el-button>
-          <el-button :loading="metricsLoading" @click="loadRuntimeMetrics">
-            <el-icon><Histogram /></el-icon>
-            刷新运行观测
-          </el-button>
-        </div>
-      </div>
-    </el-card>
+  <CnPage class="ai-config-page" surface="transparent" max-width="1400px">
+    <CnPageHeader
+      title="AI 配置与观测"
+      description="面向 OpenAI 兼容中转站的运行配置、连通性测试、Prompt/RAG 调试、回归样例与 AI 运行观测。"
+      eyebrow="AI Config"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag :type="runtimeConfig.configured ? 'success' : 'warning'">
+          {{ runtimeConfig.configured ? '运行配置可用' : '运行配置待完善' }}
+        </CnStatusTag>
+        <CnStatusTag :type="runtimeConfig.ragEnabled ? 'success' : 'neutral'">
+          {{ runtimeConfig.ragEnabled ? 'RAG 已启用' : 'RAG 未启用' }}
+        </CnStatusTag>
+        <CnStatusTag type="brand">调用 {{ formatNumber(runtimeMetrics.overview.totalInvocations) }} 次</CnStatusTag>
+      </template>
+
+      <template #actions>
+        <el-button :icon="Refresh" :loading="runtimeLoading" @click="loadRuntimeConfig">
+          刷新运行时配置
+        </el-button>
+        <el-button :icon="Histogram" :loading="metricsLoading" @click="loadRuntimeMetrics">
+          刷新运行观测
+        </el-button>
+      </template>
+    </CnPageHeader>
 
     <el-row :gutter="20">
       <el-col :xs="24" :lg="10">
@@ -25,9 +32,9 @@
           <template #header>
             <div class="card-title">
               <span>当前后台运行配置</span>
-              <el-tag :type="runtimeConfig.configured ? 'success' : 'warning'">
+              <CnStatusTag :type="runtimeConfig.configured ? 'success' : 'warning'">
                 {{ runtimeConfig.configured ? '已可用' : '待完善' }}
-              </el-tag>
+              </CnStatusTag>
             </div>
           </template>
 
@@ -108,7 +115,7 @@
           <template #header>
             <div class="card-title">
               <span>中转站连通性测试</span>
-              <el-tag type="primary">OpenAI 兼容</el-tag>
+              <CnStatusTag type="brand">OpenAI 兼容</CnStatusTag>
             </div>
           </template>
 
@@ -174,9 +181,9 @@
       <template #header>
         <div class="card-title">
           <span>最近一次测试结果</span>
-          <el-tag :type="testResult.available ? 'success' : 'danger'">
+          <CnStatusTag :type="testResult.available ? 'success' : 'danger'">
             {{ testResult.available ? '可用' : '失败' }}
-          </el-tag>
+          </CnStatusTag>
         </div>
       </template>
 
@@ -229,12 +236,12 @@
         <div class="card-title">
           <div class="title-group">
             <span>Prompt 在线试跑</span>
-            <el-tag v-if="selectedPromptMeta" type="primary">
+            <CnStatusTag v-if="selectedPromptMeta" type="brand">
               {{ selectedPromptMeta.promptId }}
-            </el-tag>
-            <el-tag v-if="selectedStructuredSchema" type="success">
+            </CnStatusTag>
+            <CnStatusTag v-if="selectedStructuredSchema" type="success">
               已绑定 Structured Schema
-            </el-tag>
+            </CnStatusTag>
           </div>
         </div>
       </template>
@@ -248,7 +255,7 @@
                 filterable
                 clearable
                 placeholder="请选择要调试的 Prompt"
-                style="width: 100%"
+                class="full-width"
               >
                 <el-option
                   v-for="item in promptOptions"
@@ -293,7 +300,7 @@
         </el-col>
 
         <el-col :xs="24" :xl="14">
-          <el-empty v-if="!debugResult" description="先选择 Prompt，再渲染或试跑模型" />
+          <CnEmptyState v-if="!debugResult" description="先选择 Prompt，再渲染或试跑模型" />
 
           <div v-else class="expand-panel">
             <div class="debug-summary-grid">
@@ -368,12 +375,12 @@
         <div class="card-title">
           <div class="title-group">
             <span>LlamaIndex 检索调试</span>
-            <el-tag :type="runtimeConfig.ragEnabled ? 'success' : 'warning'">
+            <CnStatusTag :type="runtimeConfig.ragEnabled ? 'success' : 'warning'">
               {{ runtimeConfig.ragEnabled ? 'RAG 已启用' : 'RAG 未启用' }}
-            </el-tag>
-            <el-tag v-if="selectedRetrievalProfile" type="warning">
+            </CnStatusTag>
+            <CnStatusTag v-if="selectedRetrievalProfile" type="warning">
               {{ selectedRetrievalProfile.profileId }}
-            </el-tag>
+            </CnStatusTag>
           </div>
         </div>
       </template>
@@ -387,7 +394,7 @@
                 filterable
                 clearable
                 placeholder="可选，不选时走默认检索配置"
-                style="width: 100%"
+                class="full-width"
               >
                 <el-option
                   v-for="item in retrievalProfileOptions"
@@ -457,7 +464,7 @@
         </el-col>
 
         <el-col :xs="24" :xl="14">
-          <el-empty v-if="!ragDebugResult" description="先输入 query，再执行一次 LlamaIndex 检索调试" />
+          <CnEmptyState v-if="!ragDebugResult" description="先输入 query，再执行一次 LlamaIndex 检索调试" />
 
           <div v-else class="expand-panel">
             <div class="debug-summary-grid">
@@ -516,7 +523,7 @@
 
             <div>
               <div class="expand-label">命中节点</div>
-              <el-empty v-if="!ragDebugResult.nodes?.length" description="本次检索未命中文档节点" />
+              <CnEmptyState v-if="!ragDebugResult.nodes?.length" description="本次检索未命中文档节点" />
               <el-table v-else :data="ragDebugResult.nodes" stripe>
                 <el-table-column type="expand">
                   <template #default="{ row }">
@@ -538,23 +545,22 @@
                       <div>
                         <div class="expand-label">主命中字段</div>
                         <div v-if="row.bestMatchField" class="tag-list">
-                          <el-tag size="small" type="warning">
+                          <CnStatusTag size="sm" type="warning">
                             {{ formatMatchField(row.bestMatchField) }}
-                          </el-tag>
+                          </CnStatusTag>
                         </div>
                         <span v-else class="empty-text">当前节点没有返回主命中字段</span>
                       </div>
                       <div>
                         <div class="expand-label">命中词</div>
                         <div v-if="row.matchedTerms?.length" class="tag-list">
-                          <el-tag
+                          <CnStatusTag
                             v-for="term in row.matchedTerms"
-                            :key="`${row.id}-${term}`"
-                            size="small"
+                            :key="`${row.id}-${term}`" size="sm"
                             type="success"
                           >
                             {{ term }}
-                          </el-tag>
+                          </CnStatusTag>
                         </div>
                         <span v-else class="empty-text">当前节点没有返回命中词解释</span>
                       </div>
@@ -587,9 +593,9 @@
                 </el-table-column>
                 <el-table-column label="主命中字段" min-width="120">
                   <template #default="{ row }">
-                    <el-tag v-if="row.bestMatchField" size="small" type="warning">
+                    <CnStatusTag v-if="row.bestMatchField" size="sm" type="warning">
                       {{ formatMatchField(row.bestMatchField) }}
-                    </el-tag>
+                    </CnStatusTag>
                     <span v-else class="empty-text">-</span>
                   </template>
                 </el-table-column>
@@ -612,14 +618,13 @@
                 <el-table-column label="命中词" min-width="200">
                   <template #default="{ row }">
                     <div v-if="row.matchedTerms?.length" class="tag-list">
-                      <el-tag
+                      <CnStatusTag
                         v-for="term in row.matchedTerms.slice(0, 4)"
-                        :key="`${row.id}-${term}`"
-                        size="small"
+                        :key="`${row.id}-${term}`" size="sm"
                         type="success"
                       >
                         {{ term }}
-                      </el-tag>
+                      </CnStatusTag>
                     </div>
                     <span v-else class="empty-text">-</span>
                   </template>
@@ -636,12 +641,12 @@
         <div class="card-title">
           <div class="title-group">
             <span>RAG 服务管理</span>
-            <el-tag v-if="ragServiceHealth" :type="ragServiceHealth.reachable ? 'success' : 'warning'">
+            <CnStatusTag v-if="ragServiceHealth" :type="ragServiceHealth.reachable ? 'success' : 'warning'">
               {{ ragServiceHealth.reachable ? '服务可达' : '待排查' }}
-            </el-tag>
-            <el-tag v-if="ragServiceHealth?.status" type="info">
+            </CnStatusTag>
+            <CnStatusTag v-if="ragServiceHealth?.status" type="info">
               {{ ragServiceHealth.status }}
-            </el-tag>
+            </CnStatusTag>
           </div>
           <div class="filter-actions">
             <el-button :loading="ragServiceLoading" @click="loadRagServiceHealth">
@@ -658,7 +663,7 @@
 
       <el-row :gutter="20" class="debug-layout">
         <el-col :xs="24" :xl="10">
-          <el-empty v-if="!ragServiceHealth" description="点击刷新后获取 RAG 服务状态" />
+          <CnEmptyState v-if="!ragServiceHealth" description="点击刷新后获取 RAG 服务状态" />
 
           <div v-else class="expand-panel">
             <div class="debug-summary-grid">
@@ -716,7 +721,7 @@
                   v-model="ragServiceFilters.scene"
                   clearable
                   placeholder="全部场景"
-                  style="width: 220px"
+                  class="select-wide"
                 >
                   <el-option label="全部场景" value="" />
                   <el-option
@@ -728,7 +733,7 @@
                 </el-select>
               </el-form-item>
               <el-form-item label="返回条数">
-                <el-select v-model="ragServiceFilters.limit" style="width: 140px">
+                <el-select v-model="ragServiceFilters.limit" class="select-compact">
                   <el-option :value="10" label="10 条" />
                   <el-option :value="20" label="20 条" />
                   <el-option :value="50" label="50 条" />
@@ -740,7 +745,7 @@
                   v-model="ragServiceFilters.keyword"
                   clearable
                   placeholder="支持 ID / Scene / 文本 / Metadata"
-                  style="width: 260px"
+                  class="input-wide"
                 />
               </el-form-item>
               <el-form-item label="导入策略">
@@ -843,7 +848,7 @@
               </div>
             </div>
 
-            <el-empty v-if="!filteredRagServiceDocuments.length" description="当前没有可展示的 RAG 文档" />
+            <CnEmptyState v-if="!filteredRagServiceDocuments.length" description="当前没有可展示的 RAG 文档" />
 
             <el-table
               v-else
@@ -900,14 +905,14 @@
         <div class="card-title">
           <div class="title-group">
             <span>AI 黄金样例回归</span>
-            <el-tag type="primary">{{ formatNumber(regressionCatalog.totalCount) }} 条用例</el-tag>
-            <el-tag type="warning">{{ formatNumber(regressionScenarioOptions.length) }} 个场景</el-tag>
-            <el-tag
+            <CnStatusTag type="brand">{{ formatNumber(regressionCatalog.totalCount) }} 条用例</CnStatusTag>
+            <CnStatusTag type="warning">{{ formatNumber(regressionScenarioOptions.length) }} 个场景</CnStatusTag>
+            <CnStatusTag
               v-if="regressionRunResult"
               :type="regressionRunResult.failedCount ? 'danger' : 'success'"
             >
               {{ regressionRunResult.failedCount ? '最近一次存在失败' : '最近一次全通过' }}
-            </el-tag>
+            </CnStatusTag>
           </div>
           <div class="filter-actions">
             <el-button :loading="regressionCasesLoading" @click="refreshRegressionPanel">
@@ -973,7 +978,7 @@
       <div class="section-header">
         <div class="title-group">
           <span class="section-title">最近执行历史</span>
-          <el-tag type="info">当前展示 {{ formatNumber(regressionHistory.runs.length) }} 条</el-tag>
+          <CnStatusTag type="info">当前展示 {{ formatNumber(regressionHistory.runs.length) }} 条</CnStatusTag>
         </div>
         <span class="empty-text">支持刷新后直接回看某次回归详情</span>
       </div>
@@ -1005,9 +1010,9 @@
         </el-table-column>
         <el-table-column label="结果" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.failedCount ? 'danger' : 'success'" size="small">
+            <CnStatusTag :type="row.failedCount ? 'danger' : 'success'" size="sm">
               {{ row.failedCount ? '有失败' : '通过' }}
-            </el-tag>
+            </CnStatusTag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="120" fixed="right">
@@ -1024,7 +1029,7 @@
         </el-table-column>
       </el-table>
 
-      <el-empty
+      <CnEmptyState
         v-else-if="!regressionHistoryLoading"
         description="当前还没有可回看的回归历史记录"
       />
@@ -1032,7 +1037,7 @@
       <div class="section-header">
         <div class="title-group">
           <span class="section-title">场景健康聚合</span>
-          <el-tag type="warning">聚合最近 {{ formatNumber(regressionScenarioHealth.limit) }} 次回归</el-tag>
+          <CnStatusTag type="warning">聚合最近 {{ formatNumber(regressionScenarioHealth.limit) }} 次回归</CnStatusTag>
         </div>
         <span class="empty-text">优先把最近状态异常的场景排到前面，便于快速定位退化链路</span>
       </div>
@@ -1043,7 +1048,7 @@
             v-model="regressionScenarioFilters.status"
             placeholder="请选择状态"
             clearable
-            style="width: 140px"
+            class="select-compact"
           >
             <el-option label="全部" value="all" />
             <el-option label="仅退化" value="degraded" />
@@ -1055,13 +1060,13 @@
             v-model="regressionScenarioFilters.keyword"
             clearable
             placeholder="支持搜索场景、失败用例、失败原因"
-            style="width: 300px"
+            class="input-large"
           />
         </el-form-item>
         <el-form-item>
-          <el-tag type="info">
+          <CnStatusTag type="info">
             当前命中 {{ formatNumber(filteredRegressionScenarioHealth.length) }} / {{ formatNumber(regressionScenarioHealth.totalCount) }}
-          </el-tag>
+          </CnStatusTag>
         </el-form-item>
       </el-form>
 
@@ -1096,14 +1101,13 @@
               <div>
                 <div class="expand-label">最近一次失败用例</div>
                 <div v-if="row.latestFailedCaseIds?.length" class="tag-list">
-                  <el-tag
+                  <CnStatusTag
                     v-for="item in row.latestFailedCaseIds"
-                    :key="`${row.scenario}-${item}`"
-                    size="small"
+                    :key="`${row.scenario}-${item}`" size="sm"
                     type="danger"
                   >
                     {{ item }}
-                  </el-tag>
+                  </CnStatusTag>
                 </div>
                 <span v-else class="empty-text">最近一次运行没有失败用例</span>
               </div>
@@ -1116,9 +1120,9 @@
                     class="insight-item"
                   >
                     <span class="insight-label">{{ item.label }}</span>
-                    <el-tag size="small" type="danger">
+                    <CnStatusTag size="sm" type="danger">
                       {{ formatNumber(item.count) }} 次
-                    </el-tag>
+                    </CnStatusTag>
                   </div>
                 </div>
                 <span v-else class="empty-text">最近窗口没有失败用例热点</span>
@@ -1132,9 +1136,9 @@
                     class="insight-item insight-item--reason"
                   >
                     <span class="insight-label">{{ item.label }}</span>
-                    <el-tag size="small" type="warning">
+                    <CnStatusTag size="sm" type="warning">
                       {{ formatNumber(item.count) }} 次
-                    </el-tag>
+                    </CnStatusTag>
                   </div>
                 </div>
                 <span v-else class="empty-text">最近窗口没有可聚类的失败原因</span>
@@ -1148,9 +1152,9 @@
                     class="insight-item"
                   >
                     <span class="insight-label">{{ item.label }}</span>
-                    <el-tag size="small" type="primary">
+                    <CnStatusTag size="sm" type="brand">
                       {{ formatNumber(item.count) }} 次
-                    </el-tag>
+                    </CnStatusTag>
                   </div>
                 </div>
                 <span v-else class="empty-text">最近窗口没有模型维度的失败热点</span>
@@ -1164,9 +1168,9 @@
                     class="insight-item"
                   >
                     <span class="insight-label">{{ item.label }}</span>
-                    <el-tag size="small" type="success">
+                    <CnStatusTag size="sm" type="success">
                       {{ formatNumber(item.count) }} 次
-                    </el-tag>
+                    </CnStatusTag>
                   </div>
                 </div>
                 <span v-else class="empty-text">最近窗口没有图编排维度的失败热点</span>
@@ -1180,9 +1184,9 @@
                     class="insight-item insight-item--prompt"
                   >
                     <span class="insight-label">{{ item.label }}</span>
-                    <el-tag size="small" type="info">
+                    <CnStatusTag size="sm" type="info">
                       {{ formatNumber(item.count) }} 次
-                    </el-tag>
+                    </CnStatusTag>
                   </div>
                 </div>
                 <span v-else class="empty-text">最近窗口没有 Prompt 维度的失败热点</span>
@@ -1193,9 +1197,9 @@
         <el-table-column prop="scenario" label="Scene" min-width="180" />
         <el-table-column label="最近状态" width="110">
           <template #default="{ row }">
-            <el-tag :type="row.latestPassed ? 'success' : 'danger'" size="small">
+            <CnStatusTag :type="row.latestPassed ? 'success' : 'danger'" size="sm">
               {{ row.latestPassed ? '稳定' : '退化' }}
-            </el-tag>
+            </CnStatusTag>
           </template>
         </el-table-column>
         <el-table-column label="窗口通过率" width="120">
@@ -1231,12 +1235,12 @@
         </el-table-column>
       </el-table>
 
-      <el-empty
+      <CnEmptyState
         v-else-if="!regressionScenarioHealthLoading && regressionScenarioHealth.scenarios.length"
         description="当前筛选条件下没有命中的场景健康数据"
       />
 
-      <el-empty
+      <CnEmptyState
         v-else-if="!regressionScenarioHealthLoading"
         description="当前还没有可聚合的场景健康数据"
       />
@@ -1247,7 +1251,7 @@
             v-model="regressionFilters.scenario"
             clearable
             placeholder="全部场景"
-            style="width: 220px"
+            class="select-wide"
           >
             <el-option label="全部场景" value="" />
             <el-option
@@ -1263,7 +1267,7 @@
             v-model="regressionFilters.keyword"
             clearable
             placeholder="支持 caseId / scene / 描述 / 输入字段搜索"
-            style="width: 320px"
+            class="input-large"
           />
         </el-form-item>
         <el-form-item>
@@ -1275,7 +1279,7 @@
         </el-form-item>
       </el-form>
 
-      <el-empty
+      <CnEmptyState
         v-if="!filteredRegressionCases.length"
         :description="regressionCatalog.totalCount ? '当前筛选条件下没有回归用例' : '当前还没有可执行的黄金样例回归用例'"
       />
@@ -1287,14 +1291,13 @@
               <div>
                 <div class="expand-label">输入字段</div>
                 <div v-if="row.inputKeys?.length" class="tag-list">
-                  <el-tag
+                  <CnStatusTag
                     v-for="item in row.inputKeys"
-                    :key="`${row.caseId}-${item}`"
-                    size="small"
+                    :key="`${row.caseId}-${item}`" size="sm"
                     type="info"
                   >
                     {{ item }}
-                  </el-tag>
+                  </CnStatusTag>
                 </div>
                 <span v-else class="empty-text">当前用例没有声明输入字段</span>
               </div>
@@ -1321,22 +1324,21 @@
                 <div class="expand-label">执行链路</div>
                 <div v-if="regressionResultMap[row.caseId]" class="expand-panel">
                   <div class="tag-list">
-                    <el-tag v-if="regressionResultMap[row.caseId].modelName" size="small" type="primary">
+                    <CnStatusTag v-if="regressionResultMap[row.caseId].modelName" size="sm" type="brand">
                       模型：{{ regressionResultMap[row.caseId].modelName }}
-                    </el-tag>
-                    <el-tag v-if="regressionResultMap[row.caseId].graphName" size="small" type="success">
+                    </CnStatusTag>
+                    <CnStatusTag v-if="regressionResultMap[row.caseId].graphName" size="sm" type="success">
                       图编排：{{ regressionResultMap[row.caseId].graphName }}
-                    </el-tag>
+                    </CnStatusTag>
                   </div>
                   <div v-if="regressionResultMap[row.caseId].promptIds?.length" class="tag-list">
-                    <el-tag
+                    <CnStatusTag
                       v-for="item in regressionResultMap[row.caseId].promptIds"
-                      :key="`${row.caseId}-prompt-${item}`"
-                      size="small"
+                      :key="`${row.caseId}-prompt-${item}`" size="sm"
                       type="info"
                     >
                       {{ item }}
-                    </el-tag>
+                    </CnStatusTag>
                   </div>
                   <span v-else class="empty-text">当前用例未记录 Prompt 元信息</span>
                 </div>
@@ -1348,30 +1350,29 @@
         <el-table-column prop="caseId" label="Case ID" min-width="220" />
         <el-table-column label="Scene" min-width="150">
           <template #default="{ row }">
-            <el-tag size="small" type="warning">
+            <CnStatusTag size="sm" type="warning">
               {{ row.scenario || '-' }}
-            </el-tag>
+            </CnStatusTag>
           </template>
         </el-table-column>
         <el-table-column prop="description" label="说明" min-width="280" show-overflow-tooltip />
         <el-table-column label="预期降级" width="110">
           <template #default="{ row }">
-            <el-tag :type="row.expectedFallback ? 'warning' : 'info'" size="small">
+            <CnStatusTag :type="row.expectedFallback ? 'warning' : 'info'" size="sm">
               {{ row.expectedFallback ? '是' : '否' }}
-            </el-tag>
+            </CnStatusTag>
           </template>
         </el-table-column>
         <el-table-column label="输入字段" min-width="220">
           <template #default="{ row }">
             <div v-if="row.inputKeys?.length" class="tag-list">
-              <el-tag
+              <CnStatusTag
                 v-for="item in row.inputKeys.slice(0, 3)"
-                :key="`${row.caseId}-input-${item}`"
-                size="small"
+                :key="`${row.caseId}-input-${item}`" size="sm"
                 type="info"
               >
                 {{ item }}
-              </el-tag>
+              </CnStatusTag>
               <span v-if="row.inputKeys.length > 3" class="empty-text">
                 +{{ row.inputKeys.length - 3 }}
               </span>
@@ -1383,18 +1384,16 @@
           <template #default="{ row }">
             <div v-if="regressionResultMap[row.caseId]" class="regression-result-cell">
               <div class="tag-list">
-                <el-tag
-                  :type="regressionResultMap[row.caseId].passed ? 'success' : 'danger'"
-                  size="small"
+                <CnStatusTag
+                  :type="regressionResultMap[row.caseId].passed ? 'success' : 'danger'" size="sm"
                 >
                   {{ regressionResultMap[row.caseId].passed ? '通过' : '失败' }}
-                </el-tag>
-                <el-tag
-                  :type="regressionResultMap[row.caseId].actualFallback ? 'warning' : 'info'"
-                  size="small"
+                </CnStatusTag>
+                <CnStatusTag
+                  :type="regressionResultMap[row.caseId].actualFallback ? 'warning' : 'info'" size="sm"
                 >
                   实际降级：{{ resolveRegressionFallbackText(regressionResultMap[row.caseId].actualFallback) }}
-                </el-tag>
+                </CnStatusTag>
               </div>
               <span class="empty-text">耗时 {{ formatLatency(regressionResultMap[row.caseId].durationMs) }}</span>
               <span
@@ -1434,10 +1433,10 @@
         <div class="card-title">
           <div class="title-group">
             <span>Prompt / RAG / Schema 调试</span>
-            <el-tag type="primary">{{ schemaCatalog.prompts.length }} Prompt</el-tag>
-            <el-tag type="success">{{ schemaCatalog.ragQueries.length }} Query</el-tag>
-            <el-tag type="warning">{{ schemaCatalog.retrievalProfiles.length }} Profile</el-tag>
-            <el-tag type="info">{{ schemaCatalog.structuredSchemas.length }} Schema</el-tag>
+            <CnStatusTag type="brand">{{ schemaCatalog.prompts.length }} Prompt</CnStatusTag>
+            <CnStatusTag type="success">{{ schemaCatalog.ragQueries.length }} Query</CnStatusTag>
+            <CnStatusTag type="warning">{{ schemaCatalog.retrievalProfiles.length }} Profile</CnStatusTag>
+            <CnStatusTag type="info">{{ schemaCatalog.structuredSchemas.length }} Schema</CnStatusTag>
           </div>
           <el-button :loading="catalogLoading" @click="loadSchemaCatalog">
             <el-icon><Refresh /></el-icon>
@@ -1448,7 +1447,7 @@
 
       <el-form :inline="true" :model="catalogFilters" class="catalog-filter-form">
         <el-form-item label="业务域">
-          <el-select v-model="catalogFilters.domain" placeholder="全部业务域" style="width: 220px">
+          <el-select v-model="catalogFilters.domain" placeholder="全部业务域" class="select-wide">
             <el-option label="全部业务域" value="all" />
             <el-option
               v-for="domain in schemaCatalog.domains"
@@ -1476,7 +1475,7 @@
 
       <el-tabs v-model="catalogFilters.activeTab" class="catalog-tabs">
         <el-tab-pane :label="`Prompt (${filteredPrompts.length})`" name="prompts">
-          <el-empty v-if="!filteredPrompts.length" description="当前筛选条件下没有 Prompt" />
+          <CnEmptyState v-if="!filteredPrompts.length" description="当前筛选条件下没有 Prompt" />
           <el-table v-else :data="filteredPrompts" stripe>
             <el-table-column type="expand">
               <template #default="{ row }">
@@ -1494,7 +1493,7 @@
             </el-table-column>
             <el-table-column label="业务域" width="150">
               <template #default="{ row }">
-                <el-tag size="small">{{ formatDomainLabel(row.domain, false) }}</el-tag>
+                <CnStatusTag size="sm">{{ formatDomainLabel(row.domain, false) }}</CnStatusTag>
               </template>
             </el-table-column>
             <el-table-column prop="key" label="Prompt Key" min-width="220" />
@@ -1503,9 +1502,9 @@
             <el-table-column label="模板变量" min-width="240">
               <template #default="{ row }">
                 <div class="tag-list">
-                  <el-tag v-for="item in row.templateVariables" :key="item" size="small" type="info">
+                  <CnStatusTag v-for="item in row.templateVariables" :key="item" size="sm" type="info">
                     {{ item }}
-                  </el-tag>
+                  </CnStatusTag>
                   <span v-if="!row.templateVariables?.length" class="empty-text">无变量</span>
                 </div>
               </template>
@@ -1514,7 +1513,7 @@
         </el-tab-pane>
 
         <el-tab-pane :label="`RAG Query (${filteredRagQueries.length})`" name="ragQueries">
-          <el-empty v-if="!filteredRagQueries.length" description="当前筛选条件下没有 RAG Query" />
+          <CnEmptyState v-if="!filteredRagQueries.length" description="当前筛选条件下没有 RAG Query" />
           <el-table v-else :data="filteredRagQueries" stripe>
             <el-table-column type="expand">
               <template #default="{ row }">
@@ -1528,7 +1527,7 @@
             </el-table-column>
             <el-table-column label="业务域" width="150">
               <template #default="{ row }">
-                <el-tag size="small" type="success">{{ formatDomainLabel(row.domain, false) }}</el-tag>
+                <CnStatusTag size="sm" type="success">{{ formatDomainLabel(row.domain, false) }}</CnStatusTag>
               </template>
             </el-table-column>
             <el-table-column prop="key" label="Query Key" min-width="240" />
@@ -1537,9 +1536,9 @@
             <el-table-column label="模板变量" min-width="240">
               <template #default="{ row }">
                 <div class="tag-list">
-                  <el-tag v-for="item in row.templateVariables" :key="item" size="small" type="info">
+                  <CnStatusTag v-for="item in row.templateVariables" :key="item" size="sm" type="info">
                     {{ item }}
-                  </el-tag>
+                  </CnStatusTag>
                   <span v-if="!row.templateVariables?.length" class="empty-text">无变量</span>
                 </div>
               </template>
@@ -1548,7 +1547,7 @@
         </el-tab-pane>
 
         <el-tab-pane :label="`Retrieval Profile (${filteredRetrievalProfiles.length})`" name="retrievalProfiles">
-          <el-empty v-if="!filteredRetrievalProfiles.length" description="当前筛选条件下没有 Retrieval Profile" />
+          <CnEmptyState v-if="!filteredRetrievalProfiles.length" description="当前筛选条件下没有 Retrieval Profile" />
           <el-table v-else :data="filteredRetrievalProfiles" stripe>
             <el-table-column type="expand">
               <template #default="{ row }">
@@ -1562,7 +1561,7 @@
             </el-table-column>
             <el-table-column label="业务域" width="150">
               <template #default="{ row }">
-                <el-tag size="small" type="warning">{{ formatDomainLabel(row.domain, false) }}</el-tag>
+                <CnStatusTag size="sm" type="warning">{{ formatDomainLabel(row.domain, false) }}</CnStatusTag>
               </template>
             </el-table-column>
             <el-table-column prop="queryKey" label="Query Key" min-width="240" />
@@ -1573,7 +1572,7 @@
         </el-tab-pane>
 
         <el-tab-pane :label="`Structured Schema (${filteredStructuredSchemas.length})`" name="structuredSchemas">
-          <el-empty v-if="!filteredStructuredSchemas.length" description="当前筛选条件下没有 Structured Schema" />
+          <CnEmptyState v-if="!filteredStructuredSchemas.length" description="当前筛选条件下没有 Structured Schema" />
           <el-table v-else :data="filteredStructuredSchemas" stripe>
             <el-table-column type="expand">
               <template #default="{ row }">
@@ -1587,7 +1586,7 @@
             </el-table-column>
             <el-table-column label="业务域" width="150">
               <template #default="{ row }">
-                <el-tag size="small" type="info">{{ formatDomainLabel(row.domain, false) }}</el-tag>
+                <CnStatusTag size="sm" type="info">{{ formatDomainLabel(row.domain, false) }}</CnStatusTag>
               </template>
             </el-table-column>
             <el-table-column prop="promptKey" label="Prompt Key" min-width="220" />
@@ -1604,7 +1603,7 @@
       <template #header>
         <div class="card-title">
           <span>运行观测筛选</span>
-          <el-tag type="primary">scene / outcome / model / recent</el-tag>
+          <CnStatusTag type="brand">scene / outcome / model / recent</CnStatusTag>
         </div>
       </template>
 
@@ -1657,9 +1656,9 @@
         <div class="card-title">
           <div class="title-group">
             <span>AI 运行观测总览</span>
-            <el-tag :type="runtimeMetrics.overview.totalInvocations > 0 ? 'success' : 'info'">
+            <CnStatusTag :type="runtimeMetrics.overview.totalInvocations > 0 ? 'success' : 'info'">
               {{ runtimeMetrics.overview.totalInvocations > 0 ? '已有调用数据' : '暂无调用数据' }}
-            </el-tag>
+            </CnStatusTag>
           </div>
           <el-button
             type="danger"
@@ -1714,11 +1713,11 @@
       <template #header>
         <div class="card-title">
           <span>分场景聚合</span>
-          <el-tag type="primary">{{ runtimeMetrics.sceneStats.length }} 个场景</el-tag>
+          <CnStatusTag type="brand">{{ runtimeMetrics.sceneStats.length }} 个场景</CnStatusTag>
         </div>
       </template>
 
-      <el-empty v-if="!runtimeMetrics.sceneStats.length" description="当前还没有 AI 调用数据" />
+      <CnEmptyState v-if="!runtimeMetrics.sceneStats.length" description="当前还没有 AI 调用数据" />
       <el-table v-else :data="runtimeMetrics.sceneStats" stripe>
         <el-table-column prop="scene" label="Scene" min-width="220" />
         <el-table-column prop="promptKey" label="Prompt Key" min-width="180" />
@@ -1756,11 +1755,11 @@
       <template #header>
         <div class="card-title">
           <span>分模型聚合</span>
-          <el-tag type="success">{{ runtimeMetrics.modelStats.length }} 个模型</el-tag>
+          <CnStatusTag type="success">{{ runtimeMetrics.modelStats.length }} 个模型</CnStatusTag>
         </div>
       </template>
 
-      <el-empty v-if="!runtimeMetrics.modelStats.length" description="当前还没有模型维度调用数据" />
+      <CnEmptyState v-if="!runtimeMetrics.modelStats.length" description="当前还没有模型维度调用数据" />
       <el-table v-else :data="runtimeMetrics.modelStats" stripe>
         <el-table-column prop="modelName" label="模型" min-width="180" />
         <el-table-column prop="invocations" label="调用" width="90" />
@@ -1798,11 +1797,11 @@
       <template #header>
         <div class="card-title">
           <span>最近调用</span>
-          <el-tag type="info">最多展示 50 条</el-tag>
+          <CnStatusTag type="info">最多展示 50 条</CnStatusTag>
         </div>
       </template>
 
-      <el-empty v-if="!runtimeMetrics.recentCalls.length" description="最近暂无 AI 调用记录" />
+      <CnEmptyState v-if="!runtimeMetrics.recentCalls.length" description="最近暂无 AI 调用记录" />
       <el-table v-else :data="runtimeMetrics.recentCalls" stripe>
         <el-table-column label="时间" min-width="170">
           <template #default="{ row }">
@@ -1813,9 +1812,9 @@
         <el-table-column prop="modelName" label="模型" min-width="120" />
         <el-table-column label="结果" width="100">
           <template #default="{ row }">
-            <el-tag :type="outcomeTagType(row.outcome)" size="small">
+            <CnStatusTag :type="outcomeTagType(row.outcome)" size="sm">
               {{ row.outcome }}
-            </el-tag>
+            </CnStatusTag>
           </template>
         </el-table-column>
         <el-table-column label="耗时" width="110">
@@ -1845,10 +1844,10 @@
         </el-table-column>
       </el-table>
     </el-card>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Connection, Delete, Histogram, Refresh, RefreshLeft } from '@element-plus/icons-vue'
@@ -1873,6 +1872,10 @@ import {
   runAiRegression,
   testAiConfig
 } from '@/api/aiConfig'
+import { CnEmptyState, CnPage, CnPageHeader, CnStatusTag } from '@/design-system'
+import type { CnBreadcrumbItem } from '@/design-system'
+
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '系统管理' }, { label: 'AI 配置与观测' }]
 
 const runtimeLoading = ref(false)
 const catalogLoading = ref(false)
@@ -3177,10 +3180,6 @@ const resolveRegressionFallbackText = (value) => {
 </script>
 
 <style scoped>
-.ai-config-page {
-  padding: 20px;
-}
-
 .header-card,
 .summary-card,
 .form-card,
@@ -3207,7 +3206,7 @@ const resolveRegressionFallbackText = (value) => {
 
 .header-content p {
   margin: 0;
-  color: #666;
+  color: var(--cn-color-text-secondary);
 }
 
 .header-actions,
@@ -3261,7 +3260,7 @@ const resolveRegressionFallbackText = (value) => {
 }
 
 .section-title {
-  color: #303133;
+  color: var(--cn-color-text-primary);
   font-size: 14px;
   font-weight: 600;
 }
@@ -3273,8 +3272,8 @@ const resolveRegressionFallbackText = (value) => {
   justify-content: space-between;
   gap: 16px;
   padding: 14px 16px;
-  border-radius: 10px;
-  background: #f7f9fc;
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .result-grid {
@@ -3297,11 +3296,11 @@ const resolveRegressionFallbackText = (value) => {
 
 .overview-item strong {
   font-size: 22px;
-  color: #1f2d3d;
+  color: var(--cn-color-text-primary);
 }
 
 .overview-label {
-  color: #909399;
+  color: var(--cn-color-text-tertiary);
   font-size: 13px;
 }
 
@@ -3310,12 +3309,12 @@ const resolveRegressionFallbackText = (value) => {
 }
 
 .label {
-  color: #909399;
+  color: var(--cn-color-text-tertiary);
   flex-shrink: 0;
 }
 
 .value {
-  color: #303133;
+  color: var(--cn-color-text-primary);
   text-align: right;
   word-break: break-word;
 }
@@ -3343,16 +3342,16 @@ const resolveRegressionFallbackText = (value) => {
 
 .expand-label {
   margin-bottom: 8px;
-  color: #606266;
+  color: var(--cn-color-text-secondary);
   font-weight: 600;
 }
 
 .code-block {
   margin: 0;
   padding: 14px 16px;
-  border-radius: 12px;
-  background: #0f172a;
-  color: #e5e7eb;
+  border-radius: var(--cn-radius-card);
+  background: color-mix(in srgb, var(--cn-color-text-primary) 86%, var(--cn-color-bg-surface));
+  color: var(--cn-color-bg-surface);
   white-space: pre-wrap;
   word-break: break-word;
   font-size: 12px;
@@ -3366,7 +3365,7 @@ const resolveRegressionFallbackText = (value) => {
 }
 
 .node-text-preview {
-  color: #303133;
+  color: var(--cn-color-text-primary);
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
@@ -3375,8 +3374,8 @@ const resolveRegressionFallbackText = (value) => {
 .highlight-block :deep(mark),
 .node-text-preview :deep(mark) {
   padding: 0 2px;
-  border-radius: 4px;
-  background: rgba(250, 204, 21, 0.35);
+  border-radius: var(--cn-radius-sm);
+  background: color-mix(in srgb, var(--cn-color-warning) 28%, transparent);
   color: inherit;
   font-weight: 600;
 }
@@ -3398,20 +3397,20 @@ const resolveRegressionFallbackText = (value) => {
   justify-content: space-between;
   gap: 12px;
   padding: 12px 14px;
-  border-radius: 10px;
-  background: #f7f9fc;
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .insight-item--reason {
-  background: #fff9eb;
+  background: var(--cn-color-warning-soft);
 }
 
 .insight-item--prompt {
-  background: #eef6ff;
+  background: var(--cn-color-info-soft);
 }
 
 .insight-label {
-  color: #303133;
+  color: var(--cn-color-text-primary);
   line-height: 1.6;
   word-break: break-word;
 }
@@ -3424,12 +3423,12 @@ const resolveRegressionFallbackText = (value) => {
 .failure-list {
   margin: 0;
   padding-left: 18px;
-  color: #606266;
+  color: var(--cn-color-text-secondary);
   line-height: 1.7;
 }
 
 .muted-text {
-  color: #909399;
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
   line-height: 1.6;
 }
@@ -3445,37 +3444,57 @@ const resolveRegressionFallbackText = (value) => {
   justify-content: space-between;
   gap: 16px;
   padding: 10px 12px;
-  border-radius: 10px;
-  background: #f7f9fc;
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .score-breakdown-label {
-  color: #606266;
+  color: var(--cn-color-text-secondary);
 }
 
 .score-breakdown-value {
-  color: #1f2d3d;
+  color: var(--cn-color-text-primary);
   font-size: 13px;
 }
 
 .empty-text {
-  color: #909399;
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
 }
 
 .form-tip {
   margin-top: 8px;
-  color: #909399;
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
   line-height: 1.6;
 }
 
 .success-text {
-  color: #67c23a;
+  color: var(--cn-color-success);
 }
 
 .warning-text {
-  color: #e6a23c;
+  color: var(--cn-color-warning);
+}
+
+.full-width {
+  width: 100%;
+}
+
+.select-compact {
+  width: 140px;
+}
+
+.select-wide {
+  width: 220px;
+}
+
+.input-wide {
+  width: 260px;
+}
+
+.input-large {
+  width: 320px;
 }
 
 @media (max-width: 992px) {
@@ -3497,3 +3516,5 @@ const resolveRegressionFallbackText = (value) => {
   }
 }
 </style>
+
+

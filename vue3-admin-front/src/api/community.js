@@ -45,6 +45,11 @@ export function getCommentList(params) {
   return request.post('/admin/community/comments/list', params)
 }
 
+// 获取评论详情
+export function getCommentById(id) {
+  return request.get(`/admin/community/comments/${id}`)
+}
+
 // 删除评论
 export function deleteComment(id) {
   return request.delete(`/admin/community/comments/${id}`)
@@ -152,6 +157,7 @@ export const communityApi = {
   
   // 评论相关
   getCommentList,
+  getCommentById,
   deleteComment,
   
   // 用户相关

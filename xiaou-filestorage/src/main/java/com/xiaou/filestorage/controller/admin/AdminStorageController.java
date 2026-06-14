@@ -2,6 +2,7 @@ package com.xiaou.filestorage.controller.admin;
 
 import com.xiaou.common.annotation.RequireAdmin;
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.core.domain.ResultCode;
 import com.xiaou.filestorage.domain.StorageConfig;
 import com.xiaou.filestorage.service.StorageConfigService;
 import lombok.extern.slf4j.Slf4j;
@@ -58,7 +59,7 @@ public class AdminStorageController {
             if (config != null) {
                 return Result.success(config);
             } else {
-                return Result.error("存储配置不存在");
+                return Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "存储配置不存在");
             }
         } catch (Exception e) {
             log.error("查询存储配置失败: {}", e.getMessage(), e);

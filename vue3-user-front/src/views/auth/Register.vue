@@ -1,80 +1,34 @@
 <template>
-  <div class="register-container">
-    <!-- 左侧视觉区 -->
-    <div class="register-left">
-      <!-- 波浪背景 -->
-      <div class="wave-bg">
-        <svg class="wave wave1" viewBox="0 0 1440 320" preserveAspectRatio="none">
-          <path fill="rgba(159, 122, 234, 0.1)" d="M0,192L48,197.3C96,203,192,213,288,229.3C384,245,480,267,576,250.7C672,235,768,181,864,181.3C960,181,1056,235,1152,234.7C1248,235,1344,181,1392,154.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
-        </svg>
-        <svg class="wave wave2" viewBox="0 0 1440 320" preserveAspectRatio="none">
-          <path fill="rgba(237, 100, 166, 0.08)" d="M0,64L48,80C96,96,192,128,288,128C384,128,480,96,576,90.7C672,85,768,107,864,144C960,181,1056,235,1152,234.7C1248,235,1344,181,1392,154.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
-        </svg>
-      </div>
-      <!-- 粒子背景 -->
-      <div class="particles">
-        <span v-for="i in 50" :key="i" class="particle"></span>
-      </div>
-      <!-- 3D装饰卡片 - 展示平台功能 -->
-      <div class="floating-cards">
-        <div class="float-card card-1">
-          <div class="card-icon">📝</div>
-          <div class="card-text">面试刷题</div>
+  <CnPage class="legacy-auth" surface="transparent">
+    <div class="auth-shell">
+      <section class="auth-aside">
+        <CnStatusTag type="success" size="lg">Join Code Nest</CnStatusTag>
+        <h1>创建账户</h1>
+        <p>把刷题、复盘、作品和社区交流放进一个稳定的成长系统里。</p>
+        <div class="auth-aside__tags">
+          <CnStatusTag type="brand" size="sm" subtle>学习路径</CnStatusTag>
+          <CnStatusTag type="info" size="sm" subtle>代码工坊</CnStatusTag>
+          <CnStatusTag type="warning" size="sm" subtle>积分激励</CnStatusTag>
         </div>
-        <div class="float-card card-2">
-          <div class="card-icon">🤖</div>
-          <div class="card-text">AI模拟面试</div>
-        </div>
-        <div class="float-card card-3">
-          <div class="card-icon">💻</div>
-          <div class="card-text">代码工坊</div>
-        </div>
-        <div class="float-card card-4">
-          <div class="card-icon">📚</div>
-          <div class="card-text">知识图谱</div>
-        </div>
-        <div class="float-card card-5">
-          <div class="card-icon">📄</div>
-          <div class="card-text">在线简历</div>
-        </div>
-        <div class="float-card card-6">
-          <div class="card-icon">💬</div>
-          <div class="card-text">即时聊天</div>
-        </div>
-        <div class="float-card card-7">
-          <div class="card-icon">🏆</div>
-          <div class="card-text">积分抽奖</div>
-        </div>
-        <div class="float-card card-8">
-          <div class="card-icon">📅</div>
-          <div class="card-text">计划打卡</div>
-        </div>
-      </div>
-      <!-- 品牌信息 -->
-      <div class="brand-section">
-        <h1 class="brand-title">Code Nest</h1>
-        <p class="brand-subtitle">加入我们，开启编程之旅</p>
-        <p class="brand-desc">刷题 · 面试 · 知识图谱 · 代码工坊 · 简历 · 社区</p>
-      </div>
-    </div>
+      </section>
 
-    <!-- 右侧表单区 -->
-    <div class="register-right">
-      <div class="register-card">
-        <div class="register-header">
-          <h2>创建账户</h2>
-          <p>注册 Code Nest 开始你的学习之旅</p>
-        </div>
+      <CnSection surface="plain" class="auth-card">
+        <CnPageHeader
+          compact
+          title="注册 Code Nest"
+          description="这个旧注册页已接入 design-system；当前路由默认使用 Auth.vue。"
+        />
 
         <el-form
           ref="registerFormRef"
           :model="registerForm"
           :rules="registerRules"
-          class="register-form"
+          class="auth-form"
+          label-position="top"
           @submit.prevent="handleRegister"
         >
-          <div class="form-row">
-            <el-form-item prop="username">
+          <div class="form-grid">
+            <el-form-item label="用户名" prop="username">
               <el-input
                 v-model="registerForm.username"
                 placeholder="用户名"
@@ -84,7 +38,7 @@
               />
             </el-form-item>
 
-            <el-form-item prop="email">
+            <el-form-item label="邮箱" prop="email">
               <el-input
                 v-model="registerForm.email"
                 placeholder="邮箱"
@@ -93,10 +47,8 @@
                 @blur="checkEmail"
               />
             </el-form-item>
-          </div>
 
-          <div class="form-row">
-            <el-form-item prop="password">
+            <el-form-item label="密码" prop="password">
               <el-input
                 v-model="registerForm.password"
                 type="password"
@@ -107,7 +59,7 @@
               />
             </el-form-item>
 
-            <el-form-item prop="confirmPassword">
+            <el-form-item label="确认密码" prop="confirmPassword">
               <el-input
                 v-model="registerForm.confirmPassword"
                 type="password"
@@ -117,84 +69,66 @@
                 show-password
               />
             </el-form-item>
-          </div>
 
-          <div class="form-row">
-            <el-form-item prop="realName">
-              <el-input
-                v-model="registerForm.realName"
-                placeholder="姓名（可选）"
-                size="large"
-                :prefix-icon="UserFilled"
-              />
+            <el-form-item label="姓名" prop="realName">
+              <el-input v-model="registerForm.realName" placeholder="姓名（可选）" size="large" :prefix-icon="UserFilled" />
             </el-form-item>
 
-            <el-form-item prop="phone">
-              <el-input
-                v-model="registerForm.phone"
-                placeholder="手机号（可选）"
-                size="large"
-                :prefix-icon="Phone"
-              />
+            <el-form-item label="手机号" prop="phone">
+              <el-input v-model="registerForm.phone" placeholder="手机号（可选）" size="large" :prefix-icon="Phone" />
             </el-form-item>
           </div>
 
-          <!-- 验证码 -->
-          <el-form-item prop="captcha" v-if="captchaImage">
+          <el-form-item v-if="captchaImage" label="验证码" prop="captcha">
             <div class="captcha-row">
-              <el-input
-                v-model="registerForm.captcha"
-                placeholder="请输入验证码"
-                size="large"
-                class="captcha-input"
-              />
-              <div class="captcha-image" @click="refreshCaptcha">
+              <el-input v-model="registerForm.captcha" placeholder="请输入验证码" size="large" />
+              <button class="captcha-image" type="button" aria-label="刷新验证码" @click="refreshCaptcha">
                 <img :src="captchaImage" alt="验证码" />
-              </div>
+              </button>
             </div>
           </el-form-item>
 
-          <el-form-item>
-            <el-button
-              type="primary"
-              size="large"
-              :loading="loading"
-              @click="handleRegister"
-              class="register-btn"
-            >
-              注 册
-            </el-button>
-          </el-form-item>
+          <el-button type="primary" size="large" :loading="loading" class="submit-button" @click="handleRegister">
+            注册
+          </el-button>
         </el-form>
 
-        <div class="register-footer">
-          <p>
-            已有账户？
-            <router-link to="/login" class="login-link">
-              立即登录
-            </router-link>
-          </p>
+        <div class="auth-footer">
+          <span>已有账户？</span>
+          <router-link to="/login">立即登录</router-link>
         </div>
-      </div>
+      </CnSection>
     </div>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted } from 'vue'
+<script setup lang="ts">
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { Lock, Message, Phone, User, UserFilled } from '@element-plus/icons-vue'
+import { CnPage, CnPageHeader, CnSection, CnStatusTag } from '@/design-system'
 import { authApi } from '@/api/auth'
 import { captchaApi } from '@/api/captcha'
-import { ElMessage } from 'element-plus'
-import { User, Message, Lock, UserFilled, Phone } from '@element-plus/icons-vue'
+
+interface RegisterForm {
+  username: string
+  email: string
+  password: string
+  confirmPassword: string
+  realName: string
+  phone: string
+  captcha: string
+  captchaKey: string
+}
 
 const router = useRouter()
 
-// 表单引用
-const registerFormRef = ref()
+const registerFormRef = ref<FormInstance | null>(null)
+const captchaImage = ref('')
+const loading = ref(false)
 
-// 表单数据
-const registerForm = reactive({
+const registerForm = reactive<RegisterForm>({
   username: '',
   email: '',
   password: '',
@@ -205,12 +139,7 @@ const registerForm = reactive({
   captchaKey: ''
 })
 
-// 验证码
-const captchaImage = ref('')
-const loading = ref(false)
-
-// 表单验证规则
-const registerRules = {
+const registerRules: FormRules<RegisterForm> = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { min: 3, max: 20, message: '用户名长度在 3 到 20 个字符', trigger: 'blur' },
@@ -227,25 +156,20 @@ const registerRules = {
   confirmPassword: [
     { required: true, message: '请确认密码', trigger: 'blur' },
     {
-      validator: (rule, value, callback) => {
+      validator: (_rule, value: string, callback) => {
         if (value !== registerForm.password) {
           callback(new Error('两次输入密码不一致'))
-        } else {
-          callback()
+          return
         }
+        callback()
       },
       trigger: 'blur'
     }
   ],
-  phone: [
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }
-  ],
-  captcha: [
-    { required: true, message: '请输入验证码', trigger: 'blur' }
-  ]
+  phone: [{ pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }],
+  captcha: [{ required: true, message: '请输入验证码', trigger: 'blur' }]
 }
 
-// 获取验证码
 const loadCaptcha = async () => {
   try {
     const result = await captchaApi.generateCaptcha()
@@ -256,41 +180,36 @@ const loadCaptcha = async () => {
   }
 }
 
-// 刷新验证码
 const refreshCaptcha = () => {
   registerForm.captcha = ''
   loadCaptcha()
 }
 
-// 检查用户名
 const checkUsername = async () => {
-  if (registerForm.username && registerForm.username.length >= 3) {
-    try {
-      await authApi.checkUsername(registerForm.username)
-    } catch (error) {
-      // API会返回错误信息
-    }
-  }
-}
-
-// 检查邮箱
-const checkEmail = async () => {
-  if (registerForm.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerForm.email)) {
-    try {
-      await authApi.checkEmail(registerForm.email)
-    } catch (error) {
-      // API会返回错误信息
-    }
-  }
-}
-
-// 注册处理
-const handleRegister = async () => {
+  if (!registerForm.username || registerForm.username.length < 3) return
   try {
-    await registerFormRef.value.validate()
-    loading.value = true
+    await authApi.checkUsername(registerForm.username)
+  } catch (error) {
+    // API interceptor shows availability errors.
+  }
+}
 
-    const registerData = {
+const checkEmail = async () => {
+  if (!registerForm.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerForm.email)) return
+  try {
+    await authApi.checkEmail(registerForm.email)
+  } catch (error) {
+    // API interceptor shows availability errors.
+  }
+}
+
+const handleRegister = async () => {
+  const valid = await registerFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+
+  loading.value = true
+  try {
+    await authApi.register({
       username: registerForm.username,
       email: registerForm.email,
       password: registerForm.password,
@@ -299,16 +218,13 @@ const handleRegister = async () => {
       phone: registerForm.phone || undefined,
       captcha: registerForm.captcha,
       captchaKey: registerForm.captchaKey
-    }
+    })
 
-    await authApi.register(registerData)
-    
     ElMessage.success('注册成功，请登录')
     router.push('/login')
-    
   } catch (error) {
     console.error('注册失败:', error)
-    refreshCaptcha() // 注册失败刷新验证码
+    refreshCaptcha()
   } finally {
     loading.value = false
   }
@@ -320,379 +236,95 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.register-container {
+.legacy-auth {
   min-height: 100vh;
-  display: flex;
-  background: #0f0f1a;
 }
 
-/* ========== 左侧视觉区 ========== */
-.register-left {
-  flex: 1;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  position: relative;
+.auth-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 0.78fr) minmax(460px, 620px);
+  gap: var(--cn-space-6);
+  align-items: stretch;
+  min-height: calc(100vh - 2 * var(--cn-space-6));
+}
+
+.auth-aside,
+.auth-card {
+  min-width: 0;
+}
+
+.auth-aside {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: center;
-  padding: 60px;
-  overflow: hidden;
+  gap: var(--cn-space-5);
+  padding: clamp(var(--cn-space-6), 6vw, var(--cn-space-10));
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-panel);
+  background: color-mix(in srgb, var(--cn-color-bg-surface) 88%, var(--cn-color-success-soft));
+  box-shadow: var(--cn-shadow-card);
 }
 
-/* 粒子效果 */
-.particles {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-.particle {
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  background: rgba(159, 122, 234, 0.6);
-  border-radius: 50%;
-  animation: floatParticle 15s infinite;
-  opacity: 0;
-}
-
-.particle:nth-child(1) { left: 10%; animation-delay: 0s; }
-.particle:nth-child(2) { left: 20%; animation-delay: 1s; }
-.particle:nth-child(3) { left: 30%; animation-delay: 2s; }
-.particle:nth-child(4) { left: 40%; animation-delay: 3s; }
-.particle:nth-child(5) { left: 50%; animation-delay: 4s; }
-.particle:nth-child(6) { left: 60%; animation-delay: 5s; }
-.particle:nth-child(7) { left: 70%; animation-delay: 6s; }
-.particle:nth-child(8) { left: 80%; animation-delay: 7s; }
-.particle:nth-child(9) { left: 90%; animation-delay: 8s; }
-.particle:nth-child(10) { left: 15%; animation-delay: 0.5s; }
-.particle:nth-child(11) { left: 25%; animation-delay: 1.5s; }
-.particle:nth-child(12) { left: 35%; animation-delay: 2.5s; }
-.particle:nth-child(13) { left: 45%; animation-delay: 3.5s; }
-.particle:nth-child(14) { left: 55%; animation-delay: 4.5s; }
-.particle:nth-child(15) { left: 65%; animation-delay: 5.5s; }
-.particle:nth-child(16) { left: 75%; animation-delay: 6.5s; }
-.particle:nth-child(17) { left: 85%; animation-delay: 7.5s; }
-.particle:nth-child(18) { left: 95%; animation-delay: 8.5s; }
-.particle:nth-child(19) { left: 5%; animation-delay: 9s; }
-.particle:nth-child(20) { left: 12%; animation-delay: 9.5s; }
-
-@keyframes floatParticle {
-  0% {
-    transform: translateY(100vh) scale(0);
-    opacity: 0;
-  }
-  10% {
-    opacity: 1;
-  }
-  90% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(-100vh) scale(1);
-    opacity: 0;
-  }
-}
-
-/* 3D悬浮卡片 */
-.floating-cards {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  perspective: 1000px;
-}
-
-.float-card {
-  position: absolute;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  transform-style: preserve-3d;
-  animation: float3d 6s ease-in-out infinite;
-}
-
-.float-card .card-icon {
-  font-size: 28px;
-}
-
-.float-card .card-text {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.card-1 {
-  top: 8%;
-  left: 8%;
-  animation-delay: 0s;
-}
-
-.card-2 {
-  top: 8%;
-  right: 12%;
-  animation-delay: -1s;
-}
-
-.card-3 {
-  top: 35%;
-  left: 5%;
-  animation-delay: -2s;
-}
-
-.card-4 {
-  top: 38%;
-  right: 8%;
-  animation-delay: -3s;
-}
-
-.card-5 {
-  bottom: 35%;
-  left: 12%;
-  animation-delay: -4s;
-}
-
-.card-6 {
-  bottom: 32%;
-  right: 5%;
-  animation-delay: -5s;
-}
-
-.card-7 {
-  bottom: 8%;
-  left: 6%;
-  animation-delay: -6s;
-}
-
-.card-8 {
-  bottom: 10%;
-  right: 10%;
-  animation-delay: -7s;
-}
-
-@keyframes float3d {
-  0%, 100% {
-    transform: translateY(0) rotateX(0deg) rotateY(0deg);
-  }
-  25% {
-    transform: translateY(-15px) rotateX(5deg) rotateY(5deg);
-  }
-  50% {
-    transform: translateY(-5px) rotateX(0deg) rotateY(-5deg);
-  }
-  75% {
-    transform: translateY(-20px) rotateX(-5deg) rotateY(3deg);
-  }
-}
-
-/* 品牌信息 */
-.brand-section {
-  position: relative;
-  z-index: 10;
-  text-align: center;
-}
-
-.brand-title {
-  font-size: 48px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #9f7aea 0%, #ed64a6 50%, #f687b3 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: 16px;
-  text-shadow: 0 0 40px rgba(159, 122, 234, 0.3);
-}
-
-.brand-subtitle {
-  font-size: 20px;
-  color: rgba(255, 255, 255, 0.9);
-  margin-bottom: 12px;
-  font-weight: 500;
-}
-
-.brand-desc {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
-  letter-spacing: 2px;
-}
-
-/* 波浪背景 */
-.wave-bg {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  z-index: 1;
-}
-
-.wave {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 200%;
-  height: 200px;
-}
-
-.wave1 {
-  animation: waveMove 12s linear infinite;
-}
-
-.wave2 {
-  animation: waveMove 8s linear infinite reverse;
-  bottom: 10px;
-}
-
-@keyframes waveMove {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-
-/* ========== 右侧表单区 ========== */
-.register-right {
-  width: 580px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-  background: #f8fafc;
-  position: relative;
-  overflow: hidden;
-}
-
-/* 右侧波浪装饰 */
-.register-right::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: radial-gradient(ellipse at 30% 20%, rgba(159, 122, 234, 0.05) 0%, transparent 50%);
-  animation: pulse 8s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 0.5; }
-  50% { transform: scale(1.1); opacity: 0.8; }
-}
-
-.register-card {
-  width: 100%;
-  max-width: 500px;
-  background: white;
-  border-radius: 24px;
-  padding: 40px 36px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
-  position: relative;
-  z-index: 1;
-  animation: cardEnter 0.5s ease-out;
-}
-
-@keyframes cardEnter {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.register-header {
-  text-align: center;
-  margin-bottom: 32px;
-}
-
-.register-header h2 {
-  color: #1a202c;
-  margin-bottom: 8px;
-  font-size: 26px;
-  font-weight: 700;
-}
-
-.register-header p {
-  color: #718096;
+.auth-aside h1 {
   margin: 0;
-  font-size: 14px;
+  color: var(--cn-color-text-primary);
+  font-family: var(--cn-font-heading);
+  font-size: clamp(34px, 5vw, 54px);
+  font-weight: 760;
+  line-height: 1.08;
+  overflow-wrap: anywhere;
 }
 
-.register-form {
-  margin-bottom: 20px;
+.auth-aside p {
+  max-width: 520px;
+  margin: 0;
+  color: var(--cn-color-text-secondary);
+  font-size: 15px;
+  line-height: 1.8;
 }
 
-.form-row {
+.auth-aside__tags {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
 }
 
-.form-row .el-form-item {
-  flex: 1;
+.auth-card :deep(.cn-section__body) {
+  display: grid;
+  gap: var(--cn-space-5);
 }
 
-.register-form :deep(.el-form-item) {
-  margin-bottom: 16px;
+.auth-form {
+  display: grid;
 }
 
-.register-form :deep(.el-input__wrapper) {
-  border-radius: 10px;
-  border: 2px solid #e2e8f0;
-  background: #f8fafc;
-  transition: all 0.3s ease;
-  padding: 4px 12px;
-  box-shadow: none;
-}
-
-.register-form :deep(.el-input__wrapper:hover) {
-  border-color: #cbd5e0;
-}
-
-.register-form :deep(.el-input__wrapper.is-focus) {
-  border-color: #9f7aea;
-  background: white;
-  box-shadow: 0 0 0 3px rgba(159, 122, 234, 0.15);
-}
-
-.register-form :deep(.el-input__inner) {
-  font-size: 14px;
-  color: #2d3748;
-  height: 40px;
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 var(--cn-space-3);
 }
 
 .captcha-row {
   display: flex;
-  gap: 12px;
-  align-items: center;
+  gap: var(--cn-space-3);
+  width: 100%;
 }
 
-.captcha-input {
+.captcha-row :deep(.el-input) {
   flex: 1;
 }
 
 .captcha-image {
-  cursor: pointer;
-  border-radius: 8px;
+  width: 122px;
+  height: 42px;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
-  width: 120px;
-  height: 40px;
-  border: 2px solid #e2e8f0;
-  transition: all 0.3s ease;
+  border: 1px solid var(--cn-color-border);
+  border-radius: var(--cn-radius-control);
+  background: var(--cn-color-bg-surface-muted);
+  cursor: pointer;
   flex-shrink: 0;
-}
-
-.captcha-image:hover {
-  border-color: #9f7aea;
-  transform: scale(1.02);
 }
 
 .captcha-image img {
@@ -701,84 +333,42 @@ onMounted(() => {
   object-fit: cover;
 }
 
-.register-btn {
+.submit-button {
   width: 100%;
-  height: 46px;
-  font-size: 16px;
-  font-weight: 600;
-  background: linear-gradient(135deg, #9f7aea 0%, #ed64a6 100%);
-  border: none;
-  border-radius: 12px;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(159, 122, 234, 0.35);
+  min-height: 44px;
+  margin-top: var(--cn-space-2);
 }
 
-.register-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(159, 122, 234, 0.45);
-}
-
-.register-btn:active {
-  transform: translateY(0);
-}
-
-.register-footer {
-  text-align: center;
-  padding-top: 16px;
-  border-top: 1px solid #e2e8f0;
-}
-
-.register-footer p {
-  color: #718096;
-  margin: 0;
+.auth-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cn-space-2);
+  padding-top: var(--cn-space-4);
+  border-top: 1px solid var(--cn-color-border-subtle);
+  color: var(--cn-color-text-secondary);
   font-size: 14px;
 }
 
-.login-link {
-  color: #9f7aea;
+.auth-footer a {
+  color: var(--cn-color-brand-primary);
+  font-weight: 700;
   text-decoration: none;
-  font-weight: 600;
-  margin-left: 4px;
-  transition: color 0.3s ease;
 }
 
-.login-link:hover {
-  color: #805ad5;
-}
-
-/* ========== 响应式 ========== */
-@media (max-width: 1024px) {
-  .register-left {
-    display: none;
-  }
-  
-  .register-right {
-    width: 100%;
+@media (max-width: 980px) {
+  .auth-shell {
+    grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 600px) {
-  .register-right {
-    padding: 20px;
-  }
-  
-  .register-card {
-    padding: 32px 24px;
-  }
-  
-  .register-header h2 {
-    font-size: 22px;
-  }
-  
-  .form-row {
-    flex-direction: column;
-    gap: 0;
-  }
-  
+@media (max-width: 640px) {
+  .form-grid,
   .captcha-row {
-    flex-direction: column;
+    grid-template-columns: 1fr;
+    display: grid;
   }
-  
+
   .captcha-image {
     width: 100%;
   }

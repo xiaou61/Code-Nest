@@ -3,7 +3,6 @@
     <!-- 头部 -->
     <div class="heatmap-header">
       <div class="header-left">
-        <div class="header-icon">✨</div>
         <div class="header-text">
           <h3 class="header-title">学习足迹</h3>
           <p class="header-subtitle">{{ selectedYear }} 年共学习 <strong>{{ heatmapData.totalDays || 0 }}</strong> 天</p>
@@ -21,34 +20,10 @@
 
     <!-- 统计卡片 -->
     <div class="stats-cards">
-      <div class="stat-card">
-        <div class="stat-icon">🔥</div>
-        <div class="stat-info">
-          <div class="stat-value">{{ heatmapData.currentStreak || 0 }}</div>
-          <div class="stat-name">连续学习</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">🏆</div>
-        <div class="stat-info">
-          <div class="stat-value">{{ heatmapData.longestStreak || 0 }}</div>
-          <div class="stat-name">最长连续</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">📅</div>
-        <div class="stat-info">
-          <div class="stat-value">{{ currentMonthDays }}</div>
-          <div class="stat-name">本月学习</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">🎯</div>
-        <div class="stat-info">
-          <div class="stat-value">{{ heatmapData.totalDays || 0 }}</div>
-          <div class="stat-name">总学习天</div>
-        </div>
-      </div>
+      <CnStatCard title="连续学习" :value="heatmapData.currentStreak || 0" unit="天" tone="success" />
+      <CnStatCard title="最长连续" :value="heatmapData.longestStreak || 0" unit="天" tone="brand" />
+      <CnStatCard title="本月学习" :value="currentMonthDays" unit="天" tone="info" />
+      <CnStatCard title="总学习天" :value="heatmapData.totalDays || 0" unit="天" tone="warning" />
     </div>
 
     <!-- 热力图 -->
@@ -110,14 +85,33 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { CnStatCard } from '@/design-system'
 import { interviewApi } from '@/api/interview'
 import dayjs from 'dayjs'
 
+interface DailyHeatmapItem {
+  date: string
+  count?: number
+  level?: number
+}
+
+interface HeatmapData {
+  totalDays: number
+  currentStreak: number
+  longestStreak: number
+  monthStats: Record<string, number>
+  dailyData: DailyHeatmapItem[]
+}
+
+interface WeekDay {
+  date: string | null
+}
+
 const loading = ref(false)
 const selectedYear = ref(dayjs().year())
-const heatmapData = ref({
+const heatmapData = ref<HeatmapData>({
   totalDays: 0,
   currentStreak: 0,
   longestStreak: 0,
@@ -140,7 +134,7 @@ const currentMonthDays = computed(() => {
 // 生成整年的周数据（简单直接的方式）
 const weeksData = computed(() => {
   const year = selectedYear.value
-  const weeks = []
+  const weeks: WeekDay[][] = []
   
   // 从1月1日开始
   let date = dayjs(`${year}-01-01`)
@@ -152,7 +146,7 @@ const weeksData = computed(() => {
   const offset = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1
   
   // 第一周
-  let currentWeek = []
+  let currentWeek: WeekDay[] = []
   
   // 填充第一周开始的空白
   for (let i = 0; i < offset; i++) {
@@ -188,7 +182,7 @@ const weeksData = computed(() => {
 // 月份标签位置
 const monthPositions = computed(() => {
   const year = selectedYear.value
-  const positions = []
+  const positions: Array<{ month: number; name: string; left: number }> = []
   const cellSize = 14 // 格子大小
   const gap = 3 // 间隔
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -217,13 +211,13 @@ const monthPositions = computed(() => {
 })
 
 // 获取日期的学习数据
-const getDayData = (dateStr) => {
+const getDayData = (dateStr: string | null) => {
   if (!dateStr || !heatmapData.value.dailyData) return null
   return heatmapData.value.dailyData.find(d => d.date === dateStr)
 }
 
 // 获取格子的CSS类
-const getCellClass = (day) => {
+const getCellClass = (day: WeekDay) => {
   if (!day.date) return 'empty'
   
   const data = getDayData(day.date)
@@ -237,7 +231,7 @@ const getCellClass = (day) => {
 }
 
 // 获取提示文本
-const getTooltip = (day) => {
+const getTooltip = (day: WeekDay) => {
   if (!day.date) return ''
   
   const data = getDayData(day.date)
@@ -255,7 +249,7 @@ const fetchHeatmap = async () => {
   try {
     const res = await interviewApi.getHeatmap(selectedYear.value)
     if (res) {
-      heatmapData.value = res
+      heatmapData.value = res as HeatmapData
     }
   } catch (error) {
     console.error('获取热力图失败', error)
@@ -270,10 +264,12 @@ onMounted(fetchHeatmap)
 
 <style scoped>
 .learning-heatmap-wrapper {
-  background: linear-gradient(135deg, #6c63ff 0%, #7c3aed 50%, #06b6d4 100%);
-  border-radius: 16px;
-  padding: 20px;
-  color: #fff;
+  background: var(--cn-color-bg-surface);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-panel);
+  padding: var(--cn-space-5);
+  color: var(--cn-color-text-primary);
+  box-shadow: var(--cn-shadow-card);
 }
 
 /* 头部 */
@@ -281,33 +277,31 @@ onMounted(fetchHeatmap)
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  gap: var(--cn-space-4);
+  margin-bottom: var(--cn-space-4);
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-
-.header-icon {
-  font-size: 32px;
 }
 
 .header-title {
   margin: 0;
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--cn-color-text-primary);
 }
 
 .header-subtitle {
   margin: 4px 0 0;
   font-size: 13px;
-  opacity: 0.9;
+  color: var(--cn-color-text-secondary);
 }
 
 .header-subtitle strong {
   font-size: 16px;
+  color: var(--cn-color-brand-primary);
 }
 
 .year-select {
@@ -315,57 +309,24 @@ onMounted(fetchHeatmap)
 }
 
 .year-select :deep(.el-input__wrapper) {
-  background: rgba(255,255,255,0.2);
-  box-shadow: none;
-}
-
-.year-select :deep(.el-input__inner),
-.year-select :deep(.el-select__caret) {
-  color: #fff;
+  background: var(--cn-color-bg-surface-muted);
+  box-shadow: 0 0 0 1px var(--cn-color-border-subtle) inset;
 }
 
 /* 统计卡片 */
 .stats-cards {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.stat-card {
-  background: rgba(255,255,255,0.15);
-  border-radius: 10px;
-  padding: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.stat-icon {
-  font-size: 24px;
-}
-
-.stat-info {
-  min-width: 0;
-}
-
-.stat-value {
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.stat-name {
-  font-size: 11px;
-  opacity: 0.85;
-  white-space: nowrap;
+  gap: var(--cn-space-3);
+  margin-bottom: var(--cn-space-4);
 }
 
 /* 热力图区域 */
 .heatmap-box {
-  background: #fff;
-  border-radius: 10px;
-  padding: 16px;
+  background: var(--cn-color-bg-surface-muted);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  padding: var(--cn-space-4);
 }
 
 .heatmap-scroll {
@@ -397,7 +358,7 @@ onMounted(fetchHeatmap)
 .month-name {
   position: absolute;
   font-size: 11px;
-  color: #57606a;
+  color: var(--cn-color-text-tertiary);
   white-space: nowrap;
 }
 
@@ -418,7 +379,7 @@ onMounted(fetchHeatmap)
   height: 14px;
   line-height: 14px;
   font-size: 10px;
-  color: #57606a;
+  color: var(--cn-color-text-tertiary);
 }
 
 .cells-container {
@@ -436,7 +397,10 @@ onMounted(fetchHeatmap)
   width: 14px;
   height: 14px;
   border-radius: 3px;
-  background: #ebedf0;
+  background: var(--cn-color-bg-surface);
+  transition:
+    transform var(--cn-motion-fast) var(--cn-ease-out),
+    outline-color var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .cell.empty {
@@ -444,19 +408,19 @@ onMounted(fetchHeatmap)
 }
 
 .cell.today {
-  outline: 2px solid #fb7185;
+  outline: 2px solid var(--cn-color-danger);
   outline-offset: -1px;
 }
 
-.cell.level-0 { background: #ebedf0; }
-.cell.level-1 { background: #ddd6fe; }
-.cell.level-2 { background: #a78bfa; }
-.cell.level-3 { background: #7c3aed; }
-.cell.level-4 { background: #5b21b6; }
+.cell.level-0 { background: var(--cn-color-bg-surface); }
+.cell.level-1 { background: color-mix(in srgb, var(--cn-color-brand-primary) 18%, var(--cn-color-bg-surface)); }
+.cell.level-2 { background: color-mix(in srgb, var(--cn-color-brand-primary) 38%, var(--cn-color-bg-surface)); }
+.cell.level-3 { background: color-mix(in srgb, var(--cn-color-brand-primary) 66%, var(--cn-color-bg-surface)); }
+.cell.level-4 { background: var(--cn-color-brand-primary); }
 
 .cell:not(.empty):hover {
   transform: scale(1.3);
-  outline: 2px solid #333;
+  outline: 2px solid var(--cn-color-text-primary);
   outline-offset: 1px;
 }
 
@@ -468,12 +432,12 @@ onMounted(fetchHeatmap)
   gap: 4px;
   margin-top: 12px;
   padding-top: 10px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--cn-color-border-subtle);
 }
 
 .legend-label {
   font-size: 11px;
-  color: #57606a;
+  color: var(--cn-color-text-tertiary);
 }
 
 .legend-cell {
@@ -487,17 +451,16 @@ onMounted(fetchHeatmap)
   .stats-cards {
     grid-template-columns: repeat(2, 1fr);
   }
-  
-  .stat-card {
-    padding: 10px;
+
+  .heatmap-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
-  
-  .stat-icon {
-    font-size: 20px;
-  }
-  
-  .stat-value {
-    font-size: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cell {
+    transition: none;
   }
 }
 </style>

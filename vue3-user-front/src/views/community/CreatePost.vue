@@ -1,22 +1,30 @@
 <template>
-  <div class="create-post-container">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-content">
-        <div class="breadcrumb-nav">
-          <span class="back-link" @click="goBack">
-            <el-icon><Back /></el-icon>
-            社区首页
-          </span>
-          <span class="breadcrumb-sep">/</span>
-          <span class="current-page">创作帖子</span>
-        </div>
-        <div class="page-title-row">
-          <h1 class="page-title">✍️ 创作帖子</h1>
-          <p class="page-subtitle">使用 Markdown 格式，让你的内容更加丰富多彩</p>
-        </div>
-      </div>
-    </div>
+  <CnPage class="create-post-container" surface="transparent" max-width="1400px">
+    <CnPageHeader
+      title="创作帖子"
+      description="使用 Markdown 格式组织内容，发布后将在技术社区中展示。"
+      eyebrow="Community Editor"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">{{ postForm.title.length }}/200 标题</CnStatusTag>
+        <CnStatusTag type="info" size="sm">{{ postForm.content.length }}/50000 内容</CnStatusTag>
+        <CnStatusTag v-if="draftSavedAt" type="success" size="sm">
+          草稿已保存 {{ draftSavedAt }}
+        </CnStatusTag>
+      </template>
+
+      <template #actions>
+        <el-button plain :icon="Back" @click="goBack">社区首页</el-button>
+        <el-button
+          type="primary"
+          :loading="publishLoading"
+          @click="handlePublish"
+        >
+          发布帖子
+        </el-button>
+      </template>
+    </CnPageHeader>
 
     <!-- 主内容区 -->
     <div class="create-main">
@@ -25,10 +33,10 @@
         <div class="card-header">
           <h3>📝 基本信息</h3>
           <div class="draft-status">
-            <span v-if="draftSavedAt" class="saved-hint">
+            <CnStatusTag v-if="draftSavedAt" type="success" size="sm">
               <el-icon><CircleCheck /></el-icon>
               草稿已保存于 {{ draftSavedAt }}
-            </span>
+            </CnStatusTag>
             <button 
               v-if="postForm.title || postForm.content"
               class="clear-draft-btn"
@@ -76,14 +84,17 @@
         <div class="tags-section">
           <label>标签（最多5个）</label>
           <div class="tags-wrapper">
-            <span 
+            <CnStatusTag
               v-for="tagId in postForm.tagIds" 
               :key="tagId" 
               class="tag-item selected"
+              type="brand"
+              size="sm"
+              :dot="false"
             >
               # {{ getTagName(tagId) }}
               <span class="tag-remove" @click="removeTag(tagId)">×</span>
-            </span>
+            </CnStatusTag>
             <button 
               v-if="postForm.tagIds.length < 5"
               class="add-tag-btn"
@@ -156,7 +167,9 @@
                 <span class="icon">👁️</span>
                 实时预览
               </h3>
-              <span class="preview-badge">{{ previewWordCount }} 字</span>
+              <CnStatusTag type="info" size="sm" :dot="false" subtle>
+                {{ previewWordCount }} 字
+              </CnStatusTag>
             </div>
             <div class="preview-body markdown-content" v-html="previewHtml"></div>
           </div>
@@ -207,20 +220,39 @@
         <button class="dialog-btn" @click="showTagSelector = false">完成</button>
       </template>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Back, Edit, Plus, Check, CircleCheck, Delete, Loading
 } from '@element-plus/icons-vue'
+import { CnPage, CnPageHeader, CnStatusTag } from '@/design-system'
 import { communityApi } from '@/api/community'
 import { renderMarkdown } from '@/utils/markdown'
 
 const router = useRouter()
+
+interface CommunityCategory {
+  id: number | string
+  name: string
+}
+
+interface CommunityTag {
+  id: number | string
+  name: string
+}
+
+interface PostDraft {
+  title?: string
+  content?: string
+  categoryId?: number | string | null
+  tagIds?: Array<number | string>
+  savedAt?: number
+}
 
 // 响应式数据
 const publishLoading = ref(false)
@@ -231,19 +263,25 @@ const draftSavedAt = ref('')
 const postForm = reactive({
   title: '',
   content: '',
-  categoryId: null,
-  tagIds: []
+  categoryId: null as number | string | null,
+  tagIds: [] as Array<number | string>
 })
 
 // 分类列表
-const categoryList = ref([])
+const categoryList = ref<CommunityCategory[]>([])
 // 标签列表
-const tagList = ref([])
+const tagList = ref<CommunityTag[]>([])
 
 // 草稿保存的key
 const DRAFT_KEY = 'community_post_draft'
 // 防抖定时器
-let draftTimer = null
+let draftTimer: ReturnType<typeof setTimeout> | null = null
+
+const breadcrumbs = [
+  { label: '首页', to: '/' },
+  { label: '技术社区', to: '/community' },
+  { label: '创作帖子' }
+]
 
 // 计算属性 - 预览内容
 const previewHtml = computed(() => {
@@ -259,13 +297,13 @@ const previewWordCount = computed(() => {
 })
 
 // 获取标签名称
-const getTagName = (tagId) => {
-  const tag = tagList.value.find(t => t.id === tagId)
+const getTagName = (tagId: number | string) => {
+  const tag = tagList.value.find((item) => item.id === tagId)
   return tag ? tag.name : ''
 }
 
 // 切换标签
-const toggleTag = (tagId) => {
+const toggleTag = (tagId: number | string) => {
   const index = postForm.tagIds.indexOf(tagId)
   if (index > -1) {
     postForm.tagIds.splice(index, 1)
@@ -280,7 +318,7 @@ const toggleTag = (tagId) => {
 }
 
 // 移除标签
-const removeTag = (tagId) => {
+const removeTag = (tagId: number | string) => {
   const index = postForm.tagIds.indexOf(tagId)
   if (index > -1) {
     postForm.tagIds.splice(index, 1)
@@ -336,7 +374,7 @@ const loadDraft = () => {
   try {
     const draftStr = localStorage.getItem(DRAFT_KEY)
     if (draftStr) {
-      const draft = JSON.parse(draftStr)
+      const draft = JSON.parse(draftStr) as PostDraft
       postForm.title = draft.title || ''
       postForm.content = draft.content || ''
       postForm.categoryId = draft.categoryId || null
@@ -359,8 +397,8 @@ const handleContentInput = () => {
 }
 
 // 插入Markdown标记
-const insertMarkdown = (before, after) => {
-  const textarea = document.querySelector('.markdown-editor textarea')
+const insertMarkdown = (before: string, after: string) => {
+  const textarea = document.querySelector<HTMLTextAreaElement>('.markdown-editor textarea')
   if (!textarea) return
   
   const start = textarea.selectionStart
@@ -487,22 +525,26 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* ========== 全局容器 ========== */
 .create-post-container {
+  --editor-surface: var(--cn-color-bg-surface);
+  --editor-surface-muted: var(--cn-color-bg-surface-muted);
+  --editor-border: var(--cn-color-border-subtle);
+  --editor-border-strong: var(--cn-color-border);
+  --editor-accent: var(--cn-color-brand-primary);
+  --editor-accent-hover: var(--cn-color-brand-hover);
+  --editor-accent-soft: var(--cn-color-brand-soft);
+  --editor-text: var(--cn-color-text-primary);
+  --editor-text-muted: var(--cn-color-text-secondary);
+  --editor-text-subtle: var(--cn-color-text-tertiary);
+  --editor-danger: var(--cn-color-danger);
+  --editor-danger-soft: var(--cn-color-danger-soft);
+  --editor-shadow: var(--cn-shadow-sm);
+  --editor-radius: var(--cn-radius-card);
+  --editor-radius-sm: var(--cn-radius-control);
+  --editor-ring: var(--cn-color-focus-ring);
+
   min-height: 100vh;
-  background: #f4f5f5;
-}
-
-/* ========== 页面头部 ========== */
-.page-header {
-  background: white;
-  border-bottom: 1px solid #e5e5e5;
-}
-
-.header-content {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 20px 24px;
+  background: var(--cn-color-bg-page);
 }
 
 .breadcrumb-nav {
@@ -511,63 +553,44 @@ onBeforeUnmount(() => {
   gap: 8px;
   font-size: 14px;
   margin-bottom: 12px;
-  color: #999;
+  color: var(--editor-text-subtle);
 }
 
 .back-link {
   display: flex;
   align-items: center;
   gap: 4px;
-  color: #00b894;
+  color: var(--editor-accent);
   cursor: pointer;
-  transition: color 0.3s;
+  transition: color var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .back-link:hover {
-  color: #00a085;
+  color: var(--editor-accent-hover);
 }
 
 .breadcrumb-sep {
-  color: #ddd;
+  color: var(--editor-border-strong);
 }
 
 .current-page {
-  color: #666;
+  color: var(--editor-text-muted);
 }
 
-.page-title-row {
-  display: flex;
-  align-items: baseline;
-  gap: 16px;
-}
-
-.page-title {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 700;
-  color: #1a1a1a;
-}
-
-.page-subtitle {
-  margin: 0;
-  font-size: 14px;
-  color: #999;
-}
-
-/* ========== 主内容区 ========== */
 .create-main {
   max-width: 1400px;
   margin: 0 auto;
   padding: 24px;
 }
 
-/* ========== 信息卡片 ========== */
-.info-card {
-  background: white;
-  border-radius: 12px;
+.info-card,
+.editor-card {
+  background: var(--editor-surface);
+  border: 1px solid var(--editor-border);
+  border-radius: var(--editor-radius);
   padding: 24px;
   margin-bottom: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--editor-shadow);
 }
 
 .card-header {
@@ -576,14 +599,20 @@ onBeforeUnmount(() => {
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--editor-border);
+}
+
+.card-header h3,
+.form-group label,
+.tags-section label,
+.pane-header h3 {
+  color: var(--editor-text);
 }
 
 .card-header h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #333;
 }
 
 .draft-status {
@@ -597,7 +626,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 4px;
   font-size: 13px;
-  color: #10b981;
+  color: var(--cn-color-success);
 }
 
 .clear-draft-btn {
@@ -605,21 +634,20 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 4px;
   padding: 4px 10px;
-  background: none;
-  border: 1px solid #f56565;
+  background: transparent;
+  border: 1px solid var(--editor-danger);
   border-radius: 6px;
   font-size: 12px;
-  color: #f56565;
+  color: var(--editor-danger);
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all var(--cn-motion-base) var(--cn-ease-out);
 }
 
 .clear-draft-btn:hover {
-  background: #f56565;
+  background: var(--editor-danger);
   color: white;
 }
 
-/* 表单 */
 .form-row {
   display: grid;
   grid-template-columns: 1fr 200px;
@@ -633,38 +661,52 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
-.form-group label {
+.form-group label,
+.tags-section label {
   font-size: 14px;
   font-weight: 500;
-  color: #333;
 }
 
 .required {
-  color: #f56565;
+  color: var(--editor-danger);
 }
 
 .title-group {
   position: relative;
 }
 
-.form-input {
+.form-input,
+.editor-textarea,
+.preview-body {
   width: 100%;
-  padding: 12px 16px;
-  border: 1px solid #e5e5e5;
-  border-radius: 8px;
-  font-size: 15px;
-  transition: all 0.3s;
+  border: 1px solid var(--editor-border-strong);
+  border-radius: var(--editor-radius-sm);
+  color: var(--editor-text);
+  transition: all var(--cn-motion-base) var(--cn-ease-out);
   box-sizing: border-box;
 }
 
-.form-input:focus {
+.form-input {
+  padding: 12px 16px;
+  background: var(--editor-surface);
+  font-size: 15px;
+}
+
+.form-input:focus,
+.editor-textarea:focus {
   outline: none;
-  border-color: #00b894;
-  box-shadow: 0 0 0 3px rgba(0, 184, 148, 0.1);
+  border-color: var(--editor-accent);
+  box-shadow: 0 0 0 3px var(--editor-ring);
 }
 
 .title-input {
   padding-right: 70px;
+}
+
+.char-count,
+.word-count,
+.empty-tags {
+  color: var(--editor-text-subtle);
 }
 
 .char-count {
@@ -672,7 +714,6 @@ onBeforeUnmount(() => {
   right: 12px;
   bottom: 12px;
   font-size: 12px;
-  color: #999;
 }
 
 .category-select {
@@ -680,21 +721,14 @@ onBeforeUnmount(() => {
 }
 
 :deep(.category-select .el-input__wrapper) {
-  border-radius: 8px;
+  border-radius: var(--editor-radius-sm);
   padding: 8px 12px;
 }
 
-/* 标签区域 */
 .tags-section {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.tags-section label {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
 }
 
 .tags-wrapper {
@@ -708,7 +742,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
+  background: var(--editor-accent);
   border-radius: 6px;
   font-size: 13px;
   color: white;
@@ -724,32 +758,31 @@ onBeforeUnmount(() => {
   opacity: 1;
 }
 
-.add-tag-btn {
+.add-tag-btn,
+.tool-btn,
+.tag-option,
+.cancel-btn {
   display: flex;
   align-items: center;
+  border-radius: 6px;
+  color: var(--editor-text-muted);
+  cursor: pointer;
+  transition: all var(--cn-motion-base) var(--cn-ease-out);
+}
+
+.add-tag-btn {
   gap: 4px;
   padding: 6px 12px;
-  background: #f5f5f5;
-  border: 1px dashed #ccc;
-  border-radius: 6px;
+  background: var(--editor-surface-muted);
+  border: 1px dashed var(--editor-border-strong);
   font-size: 13px;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.3s;
 }
 
-.add-tag-btn:hover {
-  border-color: #00b894;
-  color: #00b894;
-}
-
-/* ========== 编辑器卡片 ========== */
-.editor-card {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+.add-tag-btn:hover,
+.tag-option:hover,
+.cancel-btn:hover {
+  border-color: var(--editor-accent);
+  color: var(--editor-accent);
 }
 
 .editor-layout {
@@ -779,14 +812,12 @@ onBeforeUnmount(() => {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #333;
 }
 
 .pane-header .icon {
   font-size: 18px;
 }
 
-/* 工具栏 */
 .toolbar {
   display: flex;
   gap: 4px;
@@ -795,41 +826,26 @@ onBeforeUnmount(() => {
 .tool-btn {
   width: 32px;
   height: 32px;
-  display: flex;
-  align-items: center;
   justify-content: center;
-  background: #f5f5f5;
+  background: var(--editor-surface-muted);
   border: none;
-  border-radius: 6px;
   font-size: 14px;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.3s;
 }
 
 .tool-btn:hover {
-  background: #00b894;
+  background: var(--editor-accent);
   color: white;
 }
 
-/* 编辑器 */
 .editor-textarea {
   flex: 1;
   min-height: 400px;
   padding: 16px;
-  border: 1px solid #e5e5e5;
-  border-radius: 8px;
+  background: var(--editor-surface);
   font-family: 'Consolas', 'Monaco', 'SF Mono', monospace;
   font-size: 14px;
   line-height: 1.6;
   resize: none;
-  transition: all 0.3s;
-}
-
-.editor-textarea:focus {
-  outline: none;
-  border-color: #00b894;
-  box-shadow: 0 0 0 3px rgba(0, 184, 148, 0.1);
 }
 
 .editor-footer {
@@ -840,25 +856,21 @@ onBeforeUnmount(() => {
 
 .word-count {
   font-size: 12px;
-  color: #999;
 }
 
-/* 预览 */
 .preview-badge {
   padding: 2px 10px;
-  background: #e8f8f5;
-  border-radius: 12px;
+  background: var(--editor-accent-soft);
+  border-radius: var(--cn-radius-pill);
   font-size: 12px;
-  color: #00b894;
+  color: var(--editor-accent);
 }
 
 .preview-body {
   flex: 1;
   min-height: 400px;
   padding: 16px;
-  border: 1px solid #e5e5e5;
-  border-radius: 8px;
-  background: #fafafa;
+  background: var(--editor-surface-muted);
   overflow-y: auto;
 }
 
@@ -867,11 +879,10 @@ onBeforeUnmount(() => {
 }
 
 .preview-body::-webkit-scrollbar-thumb {
-  background: #ddd;
+  background: var(--editor-border-strong);
   border-radius: 3px;
 }
 
-/* ========== 发布栏 ========== */
 .publish-bar {
   display: flex;
   justify-content: flex-end;
@@ -880,18 +891,23 @@ onBeforeUnmount(() => {
 
 .cancel-btn {
   padding: 12px 32px;
-  background: white;
-  border: 1px solid #e5e5e5;
-  border-radius: 8px;
+  background: var(--editor-surface);
+  border: 1px solid var(--editor-border-strong);
   font-size: 15px;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.3s;
 }
 
-.cancel-btn:hover {
-  border-color: #00b894;
-  color: #00b894;
+.publish-btn,
+.dialog-btn,
+.tag-option.selected {
+  background: var(--editor-accent);
+  color: white;
+}
+
+.publish-btn,
+.dialog-btn {
+  border: none;
+  border-radius: var(--editor-radius-sm);
+  cursor: pointer;
 }
 
 .publish-btn {
@@ -899,19 +915,14 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   padding: 12px 32px;
-  background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
-  border: none;
-  border-radius: 8px;
   font-size: 15px;
   font-weight: 500;
-  color: white;
-  cursor: pointer;
-  transition: all 0.3s;
+  transition: all var(--cn-motion-base) var(--cn-ease-out);
 }
 
 .publish-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 184, 148, 0.4);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--editor-accent) 36%, transparent);
 }
 
 .publish-btn:disabled {
@@ -919,7 +930,6 @@ onBeforeUnmount(() => {
   cursor: not-allowed;
 }
 
-/* ========== 标签对话框 ========== */
 .tag-selector-grid {
   display: flex;
   flex-wrap: wrap;
@@ -930,26 +940,11 @@ onBeforeUnmount(() => {
 
 .tag-option {
   display: inline-flex;
-  align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  background: #f5f5f5;
+  background: var(--editor-surface-muted);
   border: 1px solid transparent;
-  border-radius: 6px;
   font-size: 14px;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.tag-option:hover {
-  border-color: #00b894;
-  color: #00b894;
-}
-
-.tag-option.selected {
-  background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
-  color: white;
 }
 
 .check-icon {
@@ -960,29 +955,22 @@ onBeforeUnmount(() => {
   width: 100%;
   text-align: center;
   padding: 40px;
-  color: #999;
 }
 
 .dialog-btn {
   padding: 10px 24px;
-  background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
-  border: none;
-  border-radius: 8px;
   font-size: 14px;
-  color: white;
-  cursor: pointer;
 }
 
-/* ========== 响应式 ========== */
 @media (max-width: 900px) {
   .editor-layout {
     grid-template-columns: 1fr;
   }
-  
+
   .preview-pane {
     order: -1;
   }
-  
+
   .editor-textarea,
   .preview-body {
     min-height: 300px;
@@ -990,40 +978,27 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 768px) {
-  .header-content {
-    padding: 16px;
-  }
-  
-  .page-title-row {
-    flex-direction: column;
-    gap: 4px;
-  }
-  
-  .page-title {
-    font-size: 20px;
-  }
-  
   .create-main {
     padding: 16px;
   }
-  
+
   .info-card,
   .editor-card {
     padding: 16px;
   }
-  
+
   .form-row {
     grid-template-columns: 1fr;
   }
-  
+
   .toolbar {
     flex-wrap: wrap;
   }
-  
+
   .publish-bar {
     flex-direction: column;
   }
-  
+
   .cancel-btn,
   .publish-btn {
     width: 100%;

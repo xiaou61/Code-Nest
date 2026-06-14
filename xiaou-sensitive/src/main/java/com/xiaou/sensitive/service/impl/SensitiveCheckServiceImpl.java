@@ -8,6 +8,7 @@ import com.xiaou.sensitive.engine.SensitiveEngine;
 import com.xiaou.sensitive.mapper.SensitiveLogMapper;
 import com.xiaou.sensitive.mapper.SensitiveWordMapper;
 import com.xiaou.sensitive.domain.SensitiveLog;
+import com.xiaou.sensitive.domain.SensitiveWord;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.*;
 
@@ -43,9 +45,12 @@ public class SensitiveCheckServiceImpl implements SensitiveCheckService {
     private static final int MAX_TEXT_LENGTH = 10000; // 最大文本长度
     private static final int MAX_BATCH_SIZE = 100; // 最大批量处理数量
     private static final long MAX_PROCESSING_TIME = 5000; // 最大处理时间（毫秒）
+    private static final int DEFAULT_RISK_LEVEL = 1;
+    private static final int DEFAULT_WORD_ACTION = 1;
     
     // 线程池用于批量处理
     private ExecutorService batchExecutor;
+    private volatile Map<String, SensitiveWordMeta> enabledWordMeta = Map.of();
 
     @PostConstruct
     public void init() {
@@ -167,11 +172,11 @@ public class SensitiveCheckServiceImpl implements SensitiveCheckService {
                     .hitWords(hitWords);
 
             if (hit) {
-                // 4. 根据策略计算风险等级和动作
-                int riskLevel = calculateRiskLevel(hitWords.size());
+                // 4. 根据命中词配置和策略计算风险等级和动作
+                HitPolicy hitPolicy = resolveHitPolicy(hitWords);
+                int riskLevel = hitPolicy.riskLevel();
                 com.xiaou.sensitive.domain.SensitiveStrategy strategy = strategyService.getStrategy(module, riskLevel);
-                
-                String action = strategy != null ? strategy.getAction() : determineAction(riskLevel);
+                String action = chooseAction(hitPolicy.wordAction(), strategy, riskLevel);
                 
                 // 5. 处理文本
                 String processedText = processText(text, action);
@@ -322,13 +327,34 @@ public class SensitiveCheckServiceImpl implements SensitiveCheckService {
     public void refreshWordLibrary() {
         try {
             long startTime = System.currentTimeMillis();
-            List<String> enabledWords = sensitiveWordMapper.selectEnabledWords();
-            Set<String> wordSet = new HashSet<>(enabledWords != null ? enabledWords : new ArrayList<>());
+            List<SensitiveWord> enabledWords = sensitiveWordMapper.selectEnabledWordDetails();
+            Set<String> wordSet = new HashSet<>();
+            ConcurrentHashMap<String, SensitiveWordMeta> wordMeta = new ConcurrentHashMap<>();
+            if (enabledWords != null) {
+                for (SensitiveWord word : enabledWords) {
+                    if (word == null || word.getWord() == null) {
+                        continue;
+                    }
+                    String normalizedWord = word.getWord().trim();
+                    if (normalizedWord.isEmpty()) {
+                        continue;
+                    }
+                    wordSet.add(normalizedWord);
+                    wordMeta.put(
+                            normalizedWord.toLowerCase(),
+                            new SensitiveWordMeta(
+                                    defaultIfNull(word.getLevel(), DEFAULT_RISK_LEVEL),
+                                    defaultIfNull(word.getAction(), DEFAULT_WORD_ACTION)
+                            )
+                    );
+                }
+            }
             
             // 过滤无效词汇
             wordSet.removeIf(word -> word == null || word.trim().isEmpty() || word.length() > 100);
             
             sensitiveEngine.refresh(wordSet);
+            enabledWordMeta = Map.copyOf(wordMeta);
             long refreshTime = System.currentTimeMillis() - startTime;
             
             log.info("敏感词库刷新完成，加载词汇数量: {}，耗时: {}ms", wordSet.size(), refreshTime);
@@ -376,8 +402,76 @@ public class SensitiveCheckServiceImpl implements SensitiveCheckService {
             case 3:
                 return "reject";  // 拒绝
             default:
-                return "none";
+            return "none";
         }
+    }
+
+    private HitPolicy resolveHitPolicy(List<String> hitWords) {
+        if (hitWords == null || hitWords.isEmpty()) {
+            return new HitPolicy(0, DEFAULT_WORD_ACTION);
+        }
+
+        int riskLevel = 0;
+        int wordAction = DEFAULT_WORD_ACTION;
+        Map<String, SensitiveWordMeta> metaSnapshot = enabledWordMeta;
+        for (String hitWord : hitWords) {
+            if (hitWord == null) {
+                continue;
+            }
+            SensitiveWordMeta meta = metaSnapshot.get(hitWord.toLowerCase());
+            if (meta == null) {
+                continue;
+            }
+            riskLevel = Math.max(riskLevel, normalizeRiskLevel(meta.level()));
+            wordAction = Math.max(wordAction, normalizeWordAction(meta.action()));
+        }
+
+        if (riskLevel == 0) {
+            riskLevel = calculateRiskLevel(hitWords.size());
+        }
+        return new HitPolicy(riskLevel, wordAction);
+    }
+
+    private String chooseAction(int wordAction, com.xiaou.sensitive.domain.SensitiveStrategy strategy, int riskLevel) {
+        String configuredAction = wordActionToAction(wordAction);
+        if ("reject".equals(configuredAction)) {
+            return configuredAction;
+        }
+
+        String strategyAction = strategy != null ? strategy.getAction() : determineAction(riskLevel);
+        if ("reject".equals(strategyAction)) {
+            return strategyAction;
+        }
+        if ("warn".equals(configuredAction) || "warn".equals(strategyAction)) {
+            return "warn";
+        }
+        return "replace";
+    }
+
+    private String wordActionToAction(int action) {
+        return switch (normalizeWordAction(action)) {
+            case 2 -> "reject";
+            case 3 -> "warn";
+            default -> "replace";
+        };
+    }
+
+    private int normalizeRiskLevel(Integer level) {
+        if (level == null || level < 1 || level > 3) {
+            return DEFAULT_RISK_LEVEL;
+        }
+        return level;
+    }
+
+    private int normalizeWordAction(Integer action) {
+        if (action == null || action < 1 || action > 3) {
+            return DEFAULT_WORD_ACTION;
+        }
+        return action;
+    }
+
+    private int defaultIfNull(Integer value, int defaultValue) {
+        return value == null ? defaultValue : value;
     }
 
     /**
@@ -409,6 +503,12 @@ public class SensitiveCheckServiceImpl implements SensitiveCheckService {
      */
     private boolean isAllowed(String action) {
         return !"reject".equals(action);
+    }
+
+    private record SensitiveWordMeta(int level, int action) {
+    }
+
+    private record HitPolicy(int riskLevel, int wordAction) {
     }
 
     /**

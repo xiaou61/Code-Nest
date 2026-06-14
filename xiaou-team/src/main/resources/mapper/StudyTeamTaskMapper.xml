@@ -13,11 +13,11 @@
         INSERT INTO study_team_task (
             team_id, task_name, task_desc, task_type, target_value, target_unit,
             repeat_type, repeat_days, require_content, require_image,
-            start_date, end_date, status, create_by, create_time, update_time
+            start_date, end_date, creator_id, status, create_by, create_time, update_time
         ) VALUES (
             #{teamId}, #{taskName}, #{taskDesc}, #{taskType}, #{targetValue}, #{targetUnit},
             #{repeatType}, #{repeatDays}, #{requireContent}, #{requireImage},
-            #{startDate}, #{endDate}, #{status}, #{createBy}, NOW(), NOW()
+            #{startDate}, #{endDate}, #{creatorId}, #{status}, #{createBy}, NOW(), NOW()
         )
     </insert>
     

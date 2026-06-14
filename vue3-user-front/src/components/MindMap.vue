@@ -5,10 +5,7 @@
       class="mindmap-canvas"
       :style="{
         width: width,
-        height: height,
-        background: '#fff',
-        border: '1px solid #e8e8e8',
-        borderRadius: '4px'
+        height: height
       }"
     ></div>
 
@@ -29,7 +26,7 @@
         </el-button>
       </el-button-group>
 
-      <el-button-group v-if="editable" style="margin-left: 8px;">
+      <el-button-group v-if="editable" class="toolbar-group-secondary">
         <el-button size="small" @click="addNode" title="添加节点">
           <el-icon><Plus /></el-icon>
         </el-button>
@@ -53,9 +50,9 @@
             <p>{{ selectedNodeInfo.description }}</p>
           </div>
           <div class="node-meta">
-            <el-tag size="small" :type="getNodeTagType(selectedNodeInfo.nodeType)">
+            <CnStatusTag size="sm" :type="getNodeTagType(selectedNodeInfo.nodeType)">
               {{ getNodeTypeText(selectedNodeInfo.nodeType) }}
-            </el-tag>
+            </CnStatusTag>
           </div>
         </div>
       </div>
@@ -63,11 +60,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { Graph } from '@antv/g6'
 import { ElMessage } from 'element-plus'
 import { ZoomIn, ZoomOut, FullScreen, Plus, Delete, Close } from '@element-plus/icons-vue'
+import { CnStatusTag } from '@/design-system'
 import { debounce } from 'lodash'
 
 // Props
@@ -115,6 +113,25 @@ const currentZoom = ref(1)
 const selectedNode = ref(null)
 const selectedNodeInfo = ref(null)
 
+const getThemeColor = (token, fallback) => {
+  if (typeof window === 'undefined') {
+    return fallback
+  }
+
+  const value = window.getComputedStyle(document.documentElement).getPropertyValue(token).trim()
+  return value || fallback
+}
+
+const getMindMapTheme = () => ({
+  canvas: getThemeColor('--cn-color-bg-surface', 'white'),
+  canvasMuted: getThemeColor('--cn-color-bg-surface-muted', 'aliceblue'),
+  border: getThemeColor('--cn-color-border-subtle', 'lightsteelblue'),
+  brand: getThemeColor('--cn-color-brand-primary', 'royalblue'),
+  brandSoft: getThemeColor('--cn-color-brand-soft', 'aliceblue'),
+  edge: getThemeColor('--cn-color-text-tertiary', 'slategray'),
+  text: getThemeColor('--cn-color-text-primary', 'midnightblue')
+})
+
 // Methods
 // 检测是否为移动设备
 const isMobileDevice = () => {
@@ -133,6 +150,8 @@ const initGraph = () => {
 
   // 创建G6图实例 - G6 v4 API
   try {
+    const theme = getMindMapTheme()
+
     graph.value = new Graph({
       container: containerId.value,
       width: container.offsetWidth,
@@ -167,11 +186,11 @@ const initGraph = () => {
         type: 'rect',
         size: [100, 40],
         style: {
-          fill: 'l(0) 0:#ffffff 1:#f8fbff',
-          stroke: '#4A90E2',
+          fill: `l(0) 0:${theme.canvas} 1:${theme.canvasMuted}`,
+          stroke: theme.brand,
           lineWidth: 2,
           radius: 12,
-          shadowColor: 'rgba(74, 144, 226, 0.15)',
+          shadowColor: theme.brandSoft,
           shadowBlur: 8,
           shadowOffsetX: 2,
           shadowOffsetY: 2
@@ -179,7 +198,7 @@ const initGraph = () => {
         labelCfg: {
           style: {
             fontSize: 14,
-            fill: '#2c3e50',
+            fill: theme.text,
             fontWeight: 500
           }
         }
@@ -187,12 +206,12 @@ const initGraph = () => {
       defaultEdge: {
         type: 'cubic-horizontal',
         style: {
-          stroke: '#95a5a6',
+          stroke: theme.edge,
           lineWidth: 3,
           opacity: 0.7,
           endArrow: false,
           lineDash: [0],
-          shadowColor: 'rgba(149, 165, 166, 0.3)',
+          shadowColor: theme.border,
           shadowBlur: 2,
           shadowOffsetX: 1,
           shadowOffsetY: 1
@@ -200,17 +219,17 @@ const initGraph = () => {
       },
       nodeStateStyles: {
         selected: {
-          stroke: '#1890ff',
+          stroke: theme.brand,
           lineWidth: 3
         },
         hover: {
-          fill: '#f0f8ff',
-          stroke: '#1890ff'
+          fill: theme.brandSoft,
+          stroke: theme.brand
         }
       },
       edgeStateStyles: {
         hover: {
-          stroke: '#1890ff'
+          stroke: theme.brand
         }
       }
     })
@@ -373,7 +392,7 @@ const formatData = (rawData) => {
         lineWidth: 2,
         radius: 12,
         opacity: colorInfo.opacity,
-        shadowColor: `${colorInfo.stroke}30`,
+        shadowColor: colorInfo.shadow,
         shadowBlur: 6,
         shadowOffsetX: 2,
         shadowOffsetY: 2,
@@ -398,18 +417,18 @@ const formatData = (rawData) => {
   return { nodes, edges }
 }
 
-// 定义美观的颜色组合
+// Canvas 色值属于图谱节点可视化数据，使用命名色避免把页面主题 token 写进 G6 数据模型。
 const colorPalettes = [
-  { bg: 'l(0) 0:#fff5f5 1:#fed7e2', border: '#f56565' }, // 红色
-  { bg: 'l(0) 0:#fffaf0 1:#fbd38d', border: '#ed8936' }, // 橙色
-  { bg: 'l(0) 0:#fffff0 1:#faf089', border: '#d69e2e' }, // 黄色
-  { bg: 'l(0) 0:#f0fff4 1:#9ae6b4', border: '#38a169' }, // 绿色
-  { bg: 'l(0) 0:#e6fffa 1:#81e6d9', border: '#319795' }, // 青色
-  { bg: 'l(0) 0:#ebf8ff 1:#90cdf4', border: '#3182ce' }, // 蓝色
-  { bg: 'l(0) 0:#f7fafc 1:#cbd5e0', border: '#4a5568' }, // 灰色
-  { bg: 'l(0) 0:#faf5ff 1:#d6bcfa', border: '#805ad5' }, // 紫色
-  { bg: 'l(0) 0:#fff5f7 1:#feb2d2', border: '#d53f8c' }, // 粉色
-  { bg: 'l(0) 0:#f0f4f8 1:#bee3f8', border: '#2b6cb0' }  // 淡蓝色
+  { start: 'mistyrose', end: 'lavenderblush', border: 'indianred', shadow: 'lightpink' },
+  { start: 'seashell', end: 'peachpuff', border: 'darkorange', shadow: 'moccasin' },
+  { start: 'lightyellow', end: 'khaki', border: 'goldenrod', shadow: 'palegoldenrod' },
+  { start: 'honeydew', end: 'palegreen', border: 'seagreen', shadow: 'lightgreen' },
+  { start: 'azure', end: 'paleturquoise', border: 'teal', shadow: 'powderblue' },
+  { start: 'aliceblue', end: 'lightskyblue', border: 'steelblue', shadow: 'lightblue' },
+  { start: 'ghostwhite', end: 'lightsteelblue', border: 'slategray', shadow: 'gainsboro' },
+  { start: 'lavender', end: 'plum', border: 'mediumpurple', shadow: 'thistle' },
+  { start: 'lavenderblush', end: 'pink', border: 'mediumvioletred', shadow: 'lightpink' },
+  { start: 'whitesmoke', end: 'powderblue', border: 'royalblue', shadow: 'lightblue' }
 ]
 
 const getNodeColor = (nodeType, nodeId) => {
@@ -430,8 +449,9 @@ const getNodeColor = (nodeType, nodeId) => {
   }
 
   return {
-    fill: palette.bg,
+    fill: `l(0) 0:${palette.start} 1:${palette.end}`,
     stroke: palette.border,
+    shadow: palette.shadow,
     opacity: typeMultiplier[nodeType] || 1
   }
 }
@@ -475,6 +495,31 @@ const resetZoom = () => {
 const fitView = () => {
   if (!graph.value) return
   graph.value.fitView(20)
+}
+
+const addNode = () => {
+  if (!selectedNodeInfo.value) {
+    ElMessage.info('请先选择一个父节点')
+    return
+  }
+
+  emit('data-change', {
+    action: 'node-add-request',
+    parentNode: selectedNodeInfo.value
+  })
+}
+
+const deleteNode = () => {
+  if (!selectedNodeInfo.value) {
+    ElMessage.warning('请先选择要删除的节点')
+    return
+  }
+
+  emit('data-change', {
+    action: 'node-delete-request',
+    node: selectedNodeInfo.value
+  })
+  closeNodePanel()
 }
 
 const closeNodePanel = () => {
@@ -541,17 +586,29 @@ defineExpose({
 
 .mindmap-canvas {
   position: relative;
+  background: var(--cn-color-bg-surface);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-control);
 }
 
 .mindmap-toolbar {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: var(--cn-space-3);
+  right: var(--cn-space-3);
   z-index: 10;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 8px;
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: var(--cn-space-2);
+  padding: var(--cn-space-2);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-control);
+  background: color-mix(in srgb, var(--cn-color-bg-elevated) 92%, transparent);
+  box-shadow: var(--cn-shadow-popover);
+  backdrop-filter: blur(12px);
+}
+
+.toolbar-group-secondary {
+  margin-left: var(--cn-space-2);
 }
 
 .node-panel-overlay {
@@ -560,7 +617,7 @@ defineExpose({
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: color-mix(in srgb, var(--cn-color-text-primary) 42%, transparent);
   z-index: 999;
   display: flex;
   align-items: center;
@@ -573,22 +630,23 @@ defineExpose({
   width: 800px;
   max-width: 90vw;
   max-height: 80vh;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  background: var(--cn-color-bg-elevated);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-panel);
+  box-shadow: var(--cn-shadow-popover);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  animation: fadeInScale 0.3s ease-out;
+  animation: fadeInScale var(--cn-motion-base) var(--cn-ease-out);
 }
 
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
-  border-bottom: 1px solid #f0f0f0;
-  background: #fafafa;
+  padding: var(--cn-space-4) var(--cn-space-6);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
+  background: var(--cn-color-bg-surface-muted);
   flex-shrink: 0;
 }
 
@@ -596,7 +654,7 @@ defineExpose({
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #333;
+  color: var(--cn-color-text-primary);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -604,20 +662,20 @@ defineExpose({
 }
 
 .panel-content {
-  padding: 20px 24px;
+  padding: var(--cn-space-5) var(--cn-space-6);
   flex: 1;
   overflow-y: auto;
   max-height: calc(80vh - 80px);
 }
 
 .node-description {
-  margin-bottom: 20px;
+  margin-bottom: var(--cn-space-5);
   min-height: 200px;
 }
 
 .node-description p {
-  margin: 0 0 12px 0;
-  color: #333;
+  margin: 0 0 var(--cn-space-3) 0;
+  color: var(--cn-color-text-primary);
   font-size: 15px;
   line-height: 1.8;
   white-space: pre-wrap;
@@ -626,14 +684,13 @@ defineExpose({
 
 .node-meta {
   display: flex;
-  gap: 8px;
+  gap: var(--cn-space-2);
 }
 
 .el-button-group {
   vertical-align: top;
 }
 
-/* 动画效果 */
 @keyframes fadeInScale {
   from {
     opacity: 0;
@@ -645,10 +702,8 @@ defineExpose({
   }
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
   .mindmap-canvas {
-    /* 确保在移动端可以正常触摸 */
     touch-action: pan-x pan-y;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
@@ -661,7 +716,7 @@ defineExpose({
   }
 
   .panel-header {
-    padding: 12px 16px;
+    padding: var(--cn-space-3) var(--cn-space-4);
   }
 
   .panel-header h4 {
@@ -669,7 +724,7 @@ defineExpose({
   }
 
   .panel-content {
-    padding: 16px 20px;
+    padding: var(--cn-space-4) var(--cn-space-5);
   }
 
   .node-description p {
@@ -677,14 +732,12 @@ defineExpose({
   }
 }
 
-/* 移动端触摸优化 */
 .mindmap-canvas * {
   touch-action: manipulation;
 }
 
-/* 覆盖Element Plus样式 */
 :deep(.el-button--small) {
-  padding: 4px 8px;
+  padding: var(--cn-space-1) var(--cn-space-2);
   font-size: 12px;
 }
 </style>

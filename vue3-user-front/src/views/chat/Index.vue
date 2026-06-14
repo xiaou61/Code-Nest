@@ -4,12 +4,24 @@
     <header class="chat-header">
       <div class="header-left">
         <div class="room-avatar">
-          <el-icon :size="28" color="#fff"><ChatDotRound /></el-icon>
+          <el-icon :size="28" color="var(--cn-button-primary-color)"><ChatDotRound /></el-icon>
         </div>
-        <div class="room-info">
-          <h2 class="room-name">Code-Nest官方群组</h2>
-          <p class="room-desc">大家一起交流技术问题</p>
-        </div>
+        <CnPageHeader
+          class="room-info"
+          title="Code-Nest官方群组"
+          description="大家一起交流技术问题"
+          eyebrow="CHAT"
+          compact
+        >
+          <template #meta>
+            <CnStatusTag :type="connectionStatusTone" size="sm" dot>
+              {{ connectionStatusText }}
+            </CnStatusTag>
+            <CnStatusTag type="success" size="sm" subtle>
+              {{ onlineCount }} 人在线
+            </CnStatusTag>
+          </template>
+        </CnPageHeader>
       </div>
       <div class="header-right">
         <!-- 消息搜索 -->
@@ -39,10 +51,6 @@
               </div>
             </div>
           </Transition>
-        </div>
-        <div class="connection-status" :class="connectionStatusClass">
-          <span class="status-dot"></span>
-          <span class="status-text">{{ connectionStatusText }}</span>
         </div>
         <el-badge :value="onlineCount" :max="999" type="success">
           <el-button 
@@ -202,10 +210,13 @@
           </TransitionGroup>
 
           <!-- 空状态 -->
-          <el-empty 
+          <CnEmptyState
             v-if="!loading && messages.length === 0" 
-            description="暂无消息，快来开启聊天吧！"
-            :image-size="120"
+            title="暂无消息"
+            description="快来开启聊天吧。"
+            icon="CH"
+            size="sm"
+            surface="plain"
           />
 
           <!-- 加载状态 -->
@@ -263,7 +274,14 @@
                 <div class="user-join-time">{{ user.connectTime }}</div>
               </div>
             </div>
-            <el-empty v-if="filteredOnlineUsers.length === 0" description="暂无在线用户" :image-size="60" />
+            <CnEmptyState
+              v-if="filteredOnlineUsers.length === 0"
+              title="暂无在线用户"
+              description="在线用户会显示在这里。"
+              icon="ON"
+              size="sm"
+              surface="plain"
+            />
           </el-scrollbar>
         </aside>
       </Transition>
@@ -378,7 +396,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
@@ -388,6 +406,7 @@ import {
 } from '@element-plus/icons-vue'
 import { getChatHistory, getOnlineCount, getOnlineUsers, recallMessage, uploadChatImage, getWebSocketTicket } from '@/api/chat'
 import { useUserStore } from '@/stores/user'
+import { CnEmptyState, CnPageHeader, CnStatusTag } from '@/design-system'
 
 const userStore = useUserStore()
 const currentUserId = computed(() => userStore.userInfo?.id)
@@ -433,7 +452,20 @@ let reconnectTimer = null
 let heartbeatTimer = null
 let pongTimer = null
 const connectionStatus = ref('disconnected')
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:9999/api'
+
+const getWebSocketBaseUrl = () => {
+  const configuredUrl = import.meta.env.VITE_WS_URL
+  if (configuredUrl) {
+    return configuredUrl.replace(/\/$/, '')
+  }
+
+  if (typeof window === 'undefined') {
+    return 'ws://localhost:9999/api'
+  }
+
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${protocol}//${window.location.host}/api`
+}
 
 // 重连配置 - 指数退避
 const reconnectConfig = {
@@ -477,7 +509,15 @@ const emojiCategories = [
 ]
 
 // ==================== 计算属性 ====================
-const connectionStatusClass = computed(() => connectionStatus.value)
+const connectionStatusTone = computed(() => {
+  const map = {
+    disconnected: 'danger',
+    connecting: 'warning',
+    connected: 'success',
+    reconnecting: 'warning'
+  }
+  return map[connectionStatus.value] || 'neutral'
+})
 const connectionStatusText = computed(() => {
   const map = {
     disconnected: '未连接',
@@ -810,7 +850,7 @@ const connectWebSocket = async () => {
       throw new Error('获取WebSocket票据失败')
     }
 
-    ws = new WebSocket(`${WS_URL}/ws/chat?ticket=${encodeURIComponent(ticket)}`)
+    ws = new WebSocket(`${getWebSocketBaseUrl()}/ws/chat?ticket=${encodeURIComponent(ticket)}`)
     ws.onopen = () => {
       console.log('WebSocket连接成功')
       connectionStatus.value = 'connected'
@@ -1344,17 +1384,17 @@ const handleDragOver = (e) => {
 </script>
 
 <style scoped lang="scss">
-$header-height: 64px;
+$header-height: 76px;
 $footer-height: 80px;
 $sidebar-width: 280px;
-$primary-color: #409eff;
-$success-color: #67c23a;
-$warning-color: #e6a23c;
-$danger-color: #f56c6c;
-$text-primary: #303133;
-$text-secondary: #909399;
-$bg-color: #f5f7fa;
-$border-color: #ebeef5;
+$primary-color: var(--cn-color-brand-primary);
+$success-color: var(--cn-color-success);
+$warning-color: var(--cn-color-warning);
+$danger-color: var(--cn-color-danger);
+$text-primary: var(--cn-color-text-primary);
+$text-secondary: var(--cn-color-text-secondary);
+$bg-color: var(--cn-color-bg-page);
+$border-color: var(--cn-color-border-subtle);
 
 .chat-container {
   height: 100vh;
@@ -1365,15 +1405,15 @@ $border-color: #ebeef5;
 }
 
 .chat-header {
-  height: $header-height;
-  padding: 0 20px;
+  min-height: $header-height;
+  padding: 10px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: linear-gradient(135deg, $primary-color 0%, #53a8ff 100%);
-  color: white;
+  background: color-mix(in srgb, var(--cn-color-brand-primary) 82%, var(--cn-color-info));
+  color: var(--cn-button-primary-color);
   flex-shrink: 0;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--cn-shadow-sm);
 
   .header-left {
     display: flex;
@@ -1384,22 +1424,34 @@ $border-color: #ebeef5;
       width: 44px;
       height: 44px;
       border-radius: 10px;
-      background: rgba(255, 255, 255, 0.2);
+      background: color-mix(in srgb, var(--cn-button-primary-color) 18%, transparent);
       display: flex;
       align-items: center;
       justify-content: center;
     }
 
     .room-info {
-      .room-name {
-        font-size: 18px;
-        font-weight: 600;
-        margin: 0 0 2px 0;
+      :deep(.cn-page-header__eyebrow),
+      :deep(.cn-page-header__title) {
+        color: var(--cn-button-primary-color);
       }
-      .room-desc {
-        font-size: 12px;
-        margin: 0;
-        opacity: 0.9;
+
+      :deep(.cn-page-header__eyebrow) {
+        margin-bottom: 2px;
+        opacity: 0.72;
+      }
+
+      :deep(.cn-page-header__title) {
+        font-size: 18px;
+      }
+
+      :deep(.cn-page-header__description) {
+        margin-top: 0;
+        color: color-mix(in srgb, var(--cn-button-primary-color) 78%, transparent);
+      }
+
+      :deep(.cn-page-header__meta) {
+        margin-top: 6px;
       }
     }
   }
@@ -1419,9 +1471,10 @@ $border-color: #ebeef5;
         display: flex;
         align-items: center;
         gap: 8px;
-        background: rgba(255, 255, 255, 0.9);
+        background: color-mix(in srgb, var(--cn-color-bg-surface) 92%, transparent);
         border-radius: 20px;
         padding: 4px 12px;
+        box-shadow: var(--cn-shadow-xs);
 
         :deep(.el-input__wrapper) {
           box-shadow: none;
@@ -1446,13 +1499,13 @@ $border-color: #ebeef5;
       font-size: 12px;
       padding: 4px 10px;
       border-radius: 12px;
-      background: rgba(255, 255, 255, 0.2);
+      background: color-mix(in srgb, var(--cn-button-primary-color) 20%, transparent);
 
       .status-dot {
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        background: #909399;
+        background: var(--cn-color-text-tertiary);
       }
 
       &.connected .status-dot {
@@ -1499,7 +1552,7 @@ $border-color: #ebeef5;
       width: 6px;
     }
     &::-webkit-scrollbar-thumb {
-      background: #c0c4cc;
+      background: var(--cn-color-border);
       border-radius: 3px;
     }
   }
@@ -1529,11 +1582,11 @@ $border-color: #ebeef5;
     gap: 6px;
     padding: 8px 16px;
     background: $primary-color;
-    color: white;
+    color: var(--cn-button-primary-color);
     border-radius: 20px;
     cursor: pointer;
     font-size: 13px;
-    box-shadow: 0 4px 12px rgba(64, 158, 255, 0.4);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--cn-color-brand-primary) 32%, transparent);
     transition: transform 0.2s;
 
     &:hover {
@@ -1550,9 +1603,9 @@ $border-color: #ebeef5;
     align-items: center;
     gap: 8px;
     padding: 6px 12px;
-    background: white;
+    background: var(--cn-color-bg-surface);
     border-radius: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--cn-shadow-xs);
     font-size: 12px;
     color: $text-secondary;
 
@@ -1591,7 +1644,7 @@ $border-color: #ebeef5;
 
   // 消息高亮效果
   &.highlight-message {
-    background-color: rgba(64, 158, 255, 0.15);
+    background-color: color-mix(in srgb, var(--cn-color-brand-primary) 14%, transparent);
     border-radius: 8px;
     padding: 8px;
     margin: -8px;
@@ -1600,7 +1653,7 @@ $border-color: #ebeef5;
 
   // 搜索结果高亮
   &.search-highlight {
-    background-color: rgba(255, 200, 0, 0.25);
+    background-color: color-mix(in srgb, var(--cn-color-warning) 24%, transparent);
     border-radius: 8px;
     padding: 8px;
     margin: -8px;
@@ -1610,8 +1663,8 @@ $border-color: #ebeef5;
 }
 
 @keyframes searchPulse {
-  0%, 100% { background-color: rgba(255, 200, 0, 0.25); }
-  50% { background-color: rgba(255, 200, 0, 0.5); }
+  0%, 100% { background-color: color-mix(in srgb, var(--cn-color-warning) 24%, transparent); }
+  50% { background-color: color-mix(in srgb, var(--cn-color-warning) 42%, transparent); }
 }
 
 .system-message {
@@ -1623,7 +1676,7 @@ $border-color: #ebeef5;
     align-items: center;
     gap: 6px;
     padding: 8px 16px;
-    background: linear-gradient(135deg, #fef0f0, #fdf2f2);
+    background: var(--cn-color-warning-soft);
     border-radius: 16px;
     color: $warning-color;
     font-size: 13px;
@@ -1696,13 +1749,13 @@ $border-color: #ebeef5;
     word-break: break-word;
 
     &.other-bubble {
-      background: white;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      background: var(--cn-color-bg-surface);
+      box-shadow: var(--cn-shadow-xs);
     }
 
     &.my-bubble {
-      background: linear-gradient(135deg, $primary-color 0%, #53a8ff 100%);
-      color: white;
+      background: color-mix(in srgb, var(--cn-color-brand-primary) 82%, var(--cn-color-info));
+      color: var(--cn-button-primary-color);
       border-radius: 16px 4px 16px 16px;
     }
 
@@ -1715,24 +1768,24 @@ $border-color: #ebeef5;
       :deep(.mention-highlight) {
         color: $primary-color;
         font-weight: 500;
-        background: rgba(64, 158, 255, 0.1);
+        background: var(--cn-color-brand-soft);
         padding: 1px 4px;
         border-radius: 4px;
         cursor: pointer;
 
         &:hover {
-          background: rgba(64, 158, 255, 0.2);
+          background: color-mix(in srgb, var(--cn-color-brand-primary) 18%, transparent);
         }
       }
     }
 
     // 自己的消息中@高亮
     &.my-bubble .text-content :deep(.mention-highlight) {
-      color: white;
-      background: rgba(255, 255, 255, 0.2);
+      color: var(--cn-button-primary-color);
+      background: color-mix(in srgb, var(--cn-button-primary-color) 20%, transparent);
 
       &:hover {
-        background: rgba(255, 255, 255, 0.3);
+        background: color-mix(in srgb, var(--cn-button-primary-color) 30%, transparent);
       }
     }
 
@@ -1746,7 +1799,7 @@ $border-color: #ebeef5;
     .reply-quote {
       padding: 6px 10px;
       margin-bottom: 8px;
-      background: rgba(0, 0, 0, 0.04);
+      background: var(--cn-color-bg-surface-muted);
       border-left: 3px solid $primary-color;
       border-radius: 4px;
       font-size: 12px;
@@ -1754,7 +1807,7 @@ $border-color: #ebeef5;
       transition: background 0.2s;
 
       &:hover {
-        background: rgba(0, 0, 0, 0.08);
+        background: var(--cn-color-brand-soft);
       }
 
       .reply-user {
@@ -1774,19 +1827,19 @@ $border-color: #ebeef5;
       }
 
       &.my-reply-quote {
-        background: rgba(255, 255, 255, 0.15);
-        border-left-color: rgba(255, 255, 255, 0.6);
+        background: color-mix(in srgb, var(--cn-button-primary-color) 15%, transparent);
+        border-left-color: color-mix(in srgb, var(--cn-button-primary-color) 60%, transparent);
 
         &:hover {
-          background: rgba(255, 255, 255, 0.25);
+          background: color-mix(in srgb, var(--cn-button-primary-color) 24%, transparent);
         }
 
         .reply-user {
-          color: rgba(255, 255, 255, 0.9);
+          color: color-mix(in srgb, var(--cn-button-primary-color) 90%, transparent);
         }
 
         .reply-content {
-          color: rgba(255, 255, 255, 0.7);
+          color: color-mix(in srgb, var(--cn-button-primary-color) 70%, transparent);
         }
       }
     }
@@ -1812,7 +1865,7 @@ $border-color: #ebeef5;
 
 .users-sidebar {
   width: $sidebar-width;
-  background: white;
+  background: var(--cn-color-bg-surface);
   border-left: 1px solid $border-color;
   display: flex;
   flex-direction: column;
@@ -1857,7 +1910,7 @@ $border-color: #ebeef5;
         width: 10px;
         height: 10px;
         background: $success-color;
-        border: 2px solid white;
+        border: 2px solid var(--cn-color-bg-surface);
         border-radius: 50%;
       }
     }
@@ -1884,7 +1937,7 @@ $border-color: #ebeef5;
 .chat-footer {
   min-height: $footer-height;
   padding: 12px 20px;
-  background: white;
+  background: var(--cn-color-bg-surface);
   border-top: 1px solid $border-color;
   display: flex;
   flex-direction: column;
@@ -1897,7 +1950,7 @@ $border-color: #ebeef5;
     justify-content: space-between;
     padding: 8px 12px;
     margin-bottom: 8px;
-    background: #f0f7ff;
+    background: var(--cn-color-brand-soft);
     border-radius: 8px;
     border-left: 3px solid $primary-color;
 
@@ -1941,9 +1994,9 @@ $border-color: #ebeef5;
       left: 0;
       width: 200px;
       max-height: 240px;
-      background: white;
+      background: var(--cn-color-bg-surface);
       border-radius: 8px;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      box-shadow: var(--cn-shadow-popover);
       overflow-y: auto;
       margin-bottom: 8px;
       z-index: 100;
@@ -1984,9 +2037,9 @@ $border-color: #ebeef5;
   padding-bottom: 100px;
 
   .emoji-picker {
-    background: white;
+    background: var(--cn-color-bg-surface);
     border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--cn-shadow-popover);
     width: 320px;
     max-height: 300px;
     display: flex;
@@ -2040,11 +2093,11 @@ $border-color: #ebeef5;
 
 @media (max-width: 768px) {
   .chat-header {
-    padding: 0 12px;
+    padding: 10px 12px;
 
     .header-left {
       .room-avatar { display: none; }
-      .room-info .room-desc { display: none; }
+      .room-info :deep(.cn-page-header__description) { display: none; }
     }
 
     .header-right {
@@ -2059,7 +2112,7 @@ $border-color: #ebeef5;
     top: 0;
     bottom: 0;
     z-index: 100;
-    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.1);
+    box-shadow: -4px 0 16px color-mix(in srgb, var(--cn-color-text-primary) 10%, transparent);
   }
 
   .message-item {

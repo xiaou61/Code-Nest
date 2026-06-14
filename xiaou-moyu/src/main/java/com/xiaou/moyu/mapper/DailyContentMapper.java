@@ -113,6 +113,15 @@ public interface DailyContentMapper {
     int updateById(DailyContent content);
 
     /**
+     * 根据ID更新内容状态
+     *
+     * @param id 内容ID
+     * @param status 状态
+     * @return 影响行数
+     */
+    int updateStatusById(@Param("id") Long id, @Param("status") Integer status);
+
+    /**
      * 增加查看次数
      *
      * @param id 内容ID

@@ -38,7 +38,7 @@ public class LocalStorageStrategy extends AbstractFileStorageStrategy {
     @Override
     protected boolean doInitialize(Map<String, Object> configParams) {
         this.basePath = getConfigParam("basePath", "/uploads");
-        this.urlPrefix = getConfigParam("urlPrefix", "http://localhost:9999/api/files");
+        this.urlPrefix = getConfigParam("urlPrefix", "http://localhost:9999/files");
 
         // 创建基础目录
         try {

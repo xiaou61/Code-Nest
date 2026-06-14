@@ -1,199 +1,204 @@
 <template>
-  <div class="favorites-page">
-    <!-- 头部导航 -->
-    <div class="header">
-      <div class="header-content">
-        <div class="header-left">
-          <h2>我的收藏</h2>
-          <p>收藏的题单和题目</p>
-        </div>
-        <div class="header-right">
-          <el-button @click="goBack" :icon="Back">
-            返回题库
-          </el-button>
-        </div>
-      </div>
-    </div>
+  <CnPage class="favorites-page" max-width="1180px" full-height>
+    <CnPageHeader
+      title="我的收藏"
+      description="集中管理收藏的面试题单和题目，快速回到学习上下文。"
+      eyebrow="INTERVIEW FAVORITES"
+      :breadcrumbs="[{ label: '面试题库', to: '/interview' }, { label: '我的收藏' }]"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm" subtle>{{ currentTypeLabel }}</CnStatusTag>
+        <CnStatusTag v-if="total > 0" type="info" size="sm">{{ total }} 个收藏</CnStatusTag>
+      </template>
 
-    <!-- 分类选择 -->
-    <div class="type-nav">
-      <el-card shadow="never" class="type-card">
-        <el-radio-group v-model="currentType" @change="handleTypeChange">
-          <el-radio-button :value="2">题单收藏</el-radio-button>
-          <el-radio-button :value="3">题目收藏</el-radio-button>
-        </el-radio-group>
-      </el-card>
-    </div>
+      <template #actions>
+        <el-button :icon="Back" @click="goBack">返回题库</el-button>
+      </template>
+    </CnPageHeader>
 
-    <!-- 收藏列表 -->
-    <div class="content-section">
-      <el-card shadow="never" class="content-card">
-        <template #header>
-          <div class="content-header">
-            <span>{{ currentType === 2 ? '收藏的题单' : '收藏的题目' }}</span>
-            <span class="total-count" v-if="total > 0">共 {{ total }} 个</span>
-          </div>
-        </template>
+    <CnSection title="收藏类型" description="在题单收藏和题目收藏之间切换，列表会自动刷新。" divided>
+      <el-radio-group v-model="currentType" @change="handleTypeChange">
+        <el-radio-button :value="2">题单收藏</el-radio-button>
+        <el-radio-button :value="3">题目收藏</el-radio-button>
+      </el-radio-group>
+    </CnSection>
 
-        <div v-loading="loading" class="favorites-list">
-          <!-- 题单收藏列表 -->
-          <div v-if="currentType === 2" class="question-sets-grid">
-            <div 
-              v-for="favorite in favoriteList" 
-              :key="favorite.id"
-              class="question-set-card"
-              @click="goToQuestionSet(favorite.targetId)"
-            >
-              <div class="card-header">
-                <h3 class="card-title">{{ favorite.title }}</h3>
-                <div class="card-badges">
-                  <el-tag :type="favorite.type === 1 ? 'success' : 'info'" size="small">
-                    {{ favorite.type === 1 ? '官方' : '用户' }}
-                  </el-tag>
-                  <el-tag type="warning" size="small" v-if="favorite.categoryName">
-                    {{ favorite.categoryName }}
-                  </el-tag>
-                </div>
+    <CnSection :title="currentType === 2 ? '收藏的题单' : '收藏的题目'" divided>
+      <template #actions>
+        <CnStatusTag v-if="total > 0" type="neutral" size="sm" subtle>共 {{ total }} 个</CnStatusTag>
+      </template>
+
+      <div v-loading="loading" class="favorites-list">
+        <div v-if="currentType === 2 && favoriteList.length" class="question-sets-grid">
+          <article
+            v-for="favorite in favoriteList"
+            :key="favorite.id"
+            class="question-set-card"
+            @click="goToQuestionSet(favorite.targetId)"
+          >
+            <div class="card-header">
+              <h3 class="card-title">{{ favorite.title }}</h3>
+              <div class="card-badges">
+                <CnStatusTag :type="favorite.type === 1 ? 'success' : 'info'" size="sm">
+                  {{ favorite.type === 1 ? '官方' : '用户' }}
+                </CnStatusTag>
+                <CnStatusTag v-if="favorite.categoryName" type="warning" size="sm" subtle>
+                  {{ favorite.categoryName }}
+                </CnStatusTag>
               </div>
-              
-              <p class="card-description">{{ favorite.description || '暂无描述' }}</p>
-              
-              <div class="card-stats">
-                <div class="stat-item">
-                  <el-icon><Edit /></el-icon>
-                  <span>{{ favorite.questionCount || 0 }} 题</span>
-                </div>
-                <div class="stat-item">
+            </div>
+
+            <p class="card-description">{{ favorite.description || '暂无描述' }}</p>
+
+            <div class="card-stats">
+              <span>
+                <el-icon><Edit /></el-icon>
+                {{ favorite.questionCount || 0 }} 题
+              </span>
+              <span>
+                <el-icon><View /></el-icon>
+                {{ favorite.viewCount || 0 }} 浏览
+              </span>
+              <span>
+                <el-icon><Star /></el-icon>
+                {{ favorite.favoriteCount || 0 }} 收藏
+              </span>
+            </div>
+
+            <div class="card-footer">
+              <span>{{ favorite.creatorName || '匿名用户' }}</span>
+              <span>收藏于 {{ formatDate(favorite.favoriteTime) }}</span>
+            </div>
+
+            <el-button
+              class="remove-favorite"
+              type="danger"
+              :icon="Delete"
+              size="small"
+              circle
+              @click.stop="removeFavorite(favorite)"
+            />
+          </article>
+        </div>
+
+        <div v-else-if="currentType === 3 && favoriteList.length" class="questions-list">
+          <article
+            v-for="favorite in favoriteList"
+            :key="favorite.id"
+            class="question-item"
+            @click="goToQuestion(favorite)"
+          >
+            <div class="question-content">
+              <h4 class="question-title">{{ favorite.title }}</h4>
+              <div class="question-meta">
+                <span class="set-name">所属题单：{{ favorite.questionSetTitle || '未知题单' }}</span>
+                <span>
                   <el-icon><View /></el-icon>
-                  <span>{{ favorite.viewCount || 0 }} 浏览</span>
-                </div>
-                <div class="stat-item">
+                  {{ favorite.viewCount || 0 }} 浏览
+                </span>
+                <span>
                   <el-icon><Star /></el-icon>
-                  <span>{{ favorite.favoriteCount || 0 }} 收藏</span>
-                </div>
-              </div>
-              
-              <div class="card-footer">
-                <span class="creator">{{ favorite.creatorName }}</span>
-                <span class="favorite-time">收藏于 {{ formatDate(favorite.favoriteTime) }}</span>
-              </div>
-
-              <div class="remove-favorite">
-                <el-button 
-                  type="danger" 
-                  :icon="Delete" 
-                  size="small" 
-                  @click.stop="removeFavorite(favorite)"
-                  circle
-                />
+                  {{ favorite.favoriteCount || 0 }} 收藏
+                </span>
+                <span>收藏于 {{ formatDate(favorite.favoriteTime) }}</span>
               </div>
             </div>
-          </div>
 
-          <!-- 题目收藏列表 -->
-          <div v-else class="questions-list">
-            <div 
-              v-for="favorite in favoriteList" 
-              :key="favorite.id"
-              class="question-item"
-              @click="goToQuestion(favorite)"
-            >
-              <div class="question-content">
-                <h4 class="question-title">{{ favorite.title }}</h4>
-                <div class="question-meta">
-                  <span class="set-name">所属题单：{{ favorite.questionSetTitle }}</span>
-                  <span class="view-count">
-                    <el-icon><View /></el-icon>
-                    {{ favorite.viewCount || 0 }} 浏览
-                  </span>
-                  <span class="favorite-count">
-                    <el-icon><Star /></el-icon>
-                    {{ favorite.favoriteCount || 0 }} 收藏
-                  </span>
-                  <span class="favorite-time">
-                    收藏于 {{ formatDate(favorite.favoriteTime) }}
-                  </span>
-                </div>
-              </div>
-              <div class="question-actions">
-                <el-button 
-                  type="danger" 
-                  :icon="Delete" 
-                  size="small" 
-                  @click.stop="removeFavorite(favorite)"
-                >
-                  取消收藏
-                </el-button>
-                <el-button type="primary" :icon="ArrowRight" size="small">
-                  查看题目
-                </el-button>
-              </div>
+            <div class="question-actions">
+              <el-button type="danger" :icon="Delete" size="small" @click.stop="removeFavorite(favorite)">
+                取消收藏
+              </el-button>
+              <el-button type="primary" :icon="ArrowRight" size="small">查看题目</el-button>
             </div>
-          </div>
+          </article>
         </div>
 
-        <!-- 空状态 -->
-        <el-empty 
-          v-if="!loading && favoriteList.length === 0" 
-          :description="`暂无${currentType === 2 ? '题单' : '题目'}收藏`"
-          :image-size="120"
+        <CnEmptyState
+          v-if="!loading && favoriteList.length === 0"
+          :title="`暂无${currentType === 2 ? '题单' : '题目'}收藏`"
+          description="可以回到面试题库，收藏需要重点复习的内容。"
+          icon="FAV"
+          surface="transparent"
+        >
+          <template #actions>
+            <el-button type="primary" @click="goBack">返回题库</el-button>
+          </template>
+        </CnEmptyState>
+      </div>
+
+      <div v-if="total > 0" class="pagination-wrapper">
+        <el-pagination
+          v-model:current-page="queryParams.page"
+          v-model:page-size="queryParams.size"
+          :page-sizes="[10, 20, 30, 50]"
+          :total="total"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
         />
-
-        <!-- 分页 -->
-        <div class="pagination-wrapper" v-if="total > 0">
-          <el-pagination 
-            v-model:current-page="queryParams.page" 
-            v-model:page-size="queryParams.size"
-            :page-sizes="[10, 20, 30, 50]"
-            :total="total"
-            layout="total, sizes, prev, pager, next, jumper"
-            @size-change="handleSizeChange"
-            @current-change="handleCurrentChange"
-          />
-        </div>
-      </el-card>
-    </div>
-  </div>
+      </div>
+    </CnSection>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  Back, Edit, View, Star, Delete, ArrowRight
-} from '@element-plus/icons-vue'
+import { ArrowRight, Back, Delete, Edit, Star, View } from '@element-plus/icons-vue'
+import { CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatusTag } from '@/design-system'
 import { interviewApi } from '@/api/interview'
+
+type FavoriteType = 2 | 3
+
+interface FavoriteItem {
+  id: number | string
+  targetId: number | string
+  title?: string
+  description?: string
+  type?: number
+  categoryName?: string
+  questionCount?: number
+  viewCount?: number
+  favoriteCount?: number
+  creatorName?: string
+  favoriteTime?: string
+  questionSetTitle?: string
+  questionSetId?: number | string
+}
+
+interface FavoritePageResponse {
+  records?: FavoriteItem[]
+  total?: number
+}
 
 const router = useRouter()
 
-// 响应式数据
 const loading = ref(false)
-const favoriteList = ref([])
-const currentType = ref(2) // 2=题单，3=题目
+const favoriteList = ref<FavoriteItem[]>([])
+const currentType = ref<FavoriteType>(2)
 const total = ref(0)
 
-// 查询参数
 const queryParams = reactive({
   page: 1,
   size: 12
 })
 
-// 格式化日期
-const formatDate = (dateStr) => {
+const currentTypeLabel = computed(() => currentType.value === 2 ? '题单收藏' : '题目收藏')
+
+const formatDate = (dateStr?: string) => {
   if (!dateStr) return ''
   return new Date(dateStr).toLocaleDateString('zh-CN')
 }
 
-// 获取收藏列表
 const fetchFavorites = async () => {
   loading.value = true
   try {
-    const data = await interviewApi.getMyFavoritePage(
+    const data = (await interviewApi.getMyFavoritePage(
       currentType.value,
       queryParams.page,
       queryParams.size
-    )
+    )) as FavoritePageResponse
     favoriteList.value = data?.records || []
     total.value = data?.total || 0
   } catch (error) {
@@ -204,42 +209,34 @@ const fetchFavorites = async () => {
   }
 }
 
-// 类型切换
-const handleTypeChange = (type) => {
+const handleTypeChange = (type: FavoriteType) => {
   currentType.value = type
   queryParams.page = 1
   fetchFavorites()
 }
 
-// 分页大小改变
-const handleSizeChange = (size) => {
+const handleSizeChange = (size: number) => {
   queryParams.size = size
   queryParams.page = 1
   fetchFavorites()
 }
 
-// 当前页改变
-const handleCurrentChange = (page) => {
+const handleCurrentChange = (page: number) => {
   queryParams.page = page
   fetchFavorites()
 }
 
-// 取消收藏
-const removeFavorite = async (favorite) => {
+const removeFavorite = async (favorite: FavoriteItem) => {
   try {
-    await ElMessageBox.confirm(
-      `确定要取消收藏"${favorite.title}"吗？`,
-      '确认取消收藏',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
+    await ElMessageBox.confirm(`确定要取消收藏"${favorite.title}"吗？`, '确认取消收藏', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
 
     await interviewApi.removeFavorite(currentType.value, favorite.targetId)
     ElMessage.success('取消收藏成功')
-    fetchFavorites() // 重新加载列表
+    fetchFavorites()
   } catch (error) {
     if (error !== 'cancel') {
       console.error('取消收藏失败:', error)
@@ -248,23 +245,18 @@ const removeFavorite = async (favorite) => {
   }
 }
 
-// 跳转到题单详情
-const goToQuestionSet = (setId) => {
+const goToQuestionSet = (setId: FavoriteItem['targetId']) => {
   router.push(`/interview/question-sets/${setId}`)
 }
 
-// 跳转到题目详情
-const goToQuestion = (favorite) => {
-  // 需要从favorite中获取题单ID和题目ID
+const goToQuestion = (favorite: FavoriteItem) => {
   router.push(`/interview/questions/${favorite.questionSetId}/${favorite.targetId}`)
 }
 
-// 返回题库
 const goBack = () => {
   router.push('/interview')
 }
 
-// 页面挂载
 onMounted(() => {
   fetchFavorites()
 })
@@ -272,277 +264,173 @@ onMounted(() => {
 
 <style scoped>
 .favorites-page {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f8f7ff 0%, #f0eeff 50%, #ede9fe 100%);
-}
-
-.header {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid #e4e7ed;
-  padding: 20px 0;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.header-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.header-left h2 {
-  margin: 0 0 5px 0;
-  font-size: 28px;
-  font-weight: bold;
-  background: linear-gradient(135deg, #6c63ff, #ec4899);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.header-left p {
-  margin: 0;
-  color: #909399;
-  font-size: 14px;
-}
-
-.header-right {
-  display: flex;
-  gap: 12px;
-}
-
-.type-nav {
-  padding: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.type-card {
-  background: rgba(255, 255, 255, 0.9);
-  border: none;
-  text-align: center;
-}
-
-.content-section {
-  padding: 0 20px 40px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.content-card {
-  background: rgba(255, 255, 255, 0.95);
-  border: none;
-  min-height: 500px;
-}
-
-.content-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: bold;
-}
-
-.total-count {
-  color: #909399;
-  font-size: 14px;
-  font-weight: normal;
+  min-height: calc(100vh - 68px);
 }
 
 .favorites-list {
-  margin-top: 20px;
+  min-height: 260px;
 }
 
-/* 题单卡片样式 */
 .question-sets-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--cn-space-4);
+}
+
+.question-set-card,
+.question-item {
+  position: relative;
+  min-width: 0;
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
+  cursor: pointer;
+  transition:
+    transform var(--cn-motion-fast) var(--cn-ease-out),
+    border-color var(--cn-motion-fast) var(--cn-ease-out),
+    box-shadow var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .question-set-card {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: 1px solid #e4e7ed;
-  position: relative;
+  display: grid;
+  gap: var(--cn-space-3);
+  padding: var(--cn-space-4);
   overflow: hidden;
 }
 
-.question-set-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 12px 32px rgba(108, 99, 255, 0.15);
-  border-color: #6c63ff;
+.question-set-card:hover,
+.question-item:hover {
+  transform: translateY(-2px);
+  border-color: var(--cn-color-brand-primary);
+  box-shadow: var(--cn-shadow-card);
 }
 
 .card-header {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 12px;
+  justify-content: space-between;
+  gap: var(--cn-space-3);
+}
+
+.card-title,
+.question-title {
+  margin: 0;
+  color: var(--cn-color-text-primary);
+  font-weight: 750;
+  line-height: 1.45;
 }
 
 .card-title {
-  margin: 0;
-  color: #303133;
-  font-size: 18px;
-  font-weight: bold;
-  line-height: 1.4;
-  flex: 1;
-  margin-right: 12px;
+  padding-right: var(--cn-space-6);
+  font-size: 17px;
 }
 
-.card-badges {
+.question-title {
+  font-size: 16px;
+}
+
+.card-badges,
+.card-stats,
+.question-meta,
+.question-actions {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cn-space-2);
 }
 
 .card-description {
-  color: #606266;
-  font-size: 14px;
-  line-height: 1.6;
-  margin: 0 0 16px 0;
   display: -webkit-box;
+  min-height: 42px;
+  margin: 0;
+  overflow: hidden;
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+  line-height: 1.65;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  overflow: hidden;
-  min-height: 40px;
 }
 
 .card-stats {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 16px;
-  padding: 12px 0;
-  border-top: 1px solid #f0f2f5;
-  border-bottom: 1px solid #f0f2f5;
+  padding: var(--cn-space-3) 0;
+  border-top: 1px solid var(--cn-color-border-subtle);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
 }
 
-.stat-item {
-  display: flex;
+.card-stats span,
+.question-meta span {
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  color: #909399;
-  font-size: 13px;
+  gap: var(--cn-space-1);
 }
 
 .card-footer {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  gap: var(--cn-space-3);
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
-  color: #C0C4CC;
 }
 
 .remove-favorite {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: var(--cn-space-3);
+  right: var(--cn-space-3);
 }
 
-/* 题目列表样式 */
 .questions-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  gap: var(--cn-space-3);
 }
 
 .question-item {
   display: flex;
   align-items: center;
-  padding: 20px;
-  background: white;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: 1px solid #e4e7ed;
-}
-
-.question-item:hover {
-  background: #f8f7ff;
-  border-color: #6c63ff;
-  transform: translateX(4px);
+  justify-content: space-between;
+  gap: var(--cn-space-4);
+  padding: var(--cn-space-4);
 }
 
 .question-content {
-  flex: 1;
-}
-
-.question-title {
-  margin: 0 0 8px 0;
-  color: #303133;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1.4;
+  display: grid;
+  gap: var(--cn-space-2);
+  min-width: 0;
 }
 
 .question-meta {
-  display: flex;
-  gap: 16px;
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
-  color: #909399;
-  flex-wrap: wrap;
-}
-
-.question-meta span {
-  display: flex;
-  align-items: center;
-  gap: 4px;
 }
 
 .set-name {
-  color: #6c63ff;
-  font-weight: 500;
-}
-
-.question-actions {
-  display: flex;
-  gap: 8px;
-  margin-left: 16px;
+  color: var(--cn-color-brand-primary);
+  font-weight: 650;
 }
 
 .pagination-wrapper {
-  margin-top: 30px;
   display: flex;
   justify-content: center;
+  margin-top: var(--cn-space-5);
 }
 
-@media (max-width: 768px) {
-  .header-content {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
-  }
-  
-  .header-right {
-    align-self: flex-end;
-  }
-  
+@media (max-width: 760px) {
   .question-sets-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .question-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+    display: grid;
   }
-  
+
   .question-actions {
-    margin-left: 0;
-    align-self: flex-end;
+    justify-content: flex-start;
   }
-  
-  .question-meta {
-    gap: 8px;
+
+  .pagination-wrapper {
+    overflow-x: auto;
+    justify-content: flex-start;
   }
 }
-</style> 
+</style>

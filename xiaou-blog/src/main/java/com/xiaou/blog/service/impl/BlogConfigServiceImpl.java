@@ -1,6 +1,5 @@
 package com.xiaou.blog.service.impl;
 
-import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.json.JSONUtil;
 import com.xiaou.blog.domain.BlogConfig;
 import com.xiaou.blog.dto.BlogCheckStatusResponse;
@@ -144,15 +143,16 @@ public class BlogConfigServiceImpl implements BlogConfigService {
             throw new BusinessException("该用户未开通博客");
         }
         
-        BlogConfigResponse response = BeanUtil.copyProperties(config, BlogConfigResponse.class);
-        
-        // 解析JSON字段
-        if (config.getPersonalTags() != null) {
-            response.setPersonalTags(JSONUtil.toList(config.getPersonalTags(), String.class));
-        }
-        if (config.getSocialLinks() != null) {
-            response.setSocialLinks(JsonUtils.parseStringMap(config.getSocialLinks()));
-        }
+        BlogConfigResponse response = new BlogConfigResponse();
+        response.setUserId(config.getUserId());
+        response.setBlogName(config.getBlogName());
+        response.setBlogDescription(config.getBlogDescription());
+        response.setBlogAvatar(config.getBlogAvatar());
+        response.setBlogCover(config.getBlogCover());
+        response.setBlogNotice(config.getBlogNotice());
+        response.setTotalArticles(config.getTotalArticles());
+        response.setPersonalTags(JsonUtils.parseArray(config.getPersonalTags(), String.class));
+        response.setSocialLinks(JsonUtils.parseStringMap(config.getSocialLinks()));
         
         return response;
     }

@@ -3,6 +3,7 @@ package com.xiaou.sensitive.controller;
 import com.xiaou.common.annotation.RequireAdmin;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.core.domain.ResultCode;
 import com.xiaou.sensitive.domain.SensitiveSource;
 import com.xiaou.sensitive.dto.SensitiveSourceQuery;
 import com.xiaou.sensitive.service.SensitiveSourceService;
@@ -39,7 +40,7 @@ public class SensitiveSourceController {
     public Result<SensitiveSource> getById(@PathVariable Integer id) {
         SensitiveSource source = sourceService.getSourceById(id);
         if (source == null) {
-            return Result.error("词库来源不存在");
+            return Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "词库来源不存在");
         }
         return Result.success(source);
     }
@@ -51,7 +52,7 @@ public class SensitiveSourceController {
     @RequireAdmin
     public Result<Void> add(@RequestBody SensitiveSource source) {
         boolean success = sourceService.addSource(source);
-        return success ? Result.success() : Result.error("新增词库来源失败");
+        return success ? Result.success() : Result.error(ResultCode.BUSINESS_ERROR.getCode(), "新增词库来源失败");
     }
 
     /**
@@ -61,10 +62,10 @@ public class SensitiveSourceController {
     @RequireAdmin
     public Result<Void> update(@RequestBody SensitiveSource source) {
         if (source.getId() == null) {
-            return Result.error("ID不能为空");
+            return Result.error(ResultCode.PARAM_VALIDATE_ERROR.getCode(), "ID不能为空");
         }
         boolean success = sourceService.updateSource(source);
-        return success ? Result.success() : Result.error("更新词库来源失败");
+        return success ? Result.success() : Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "词库来源不存在");
     }
 
     /**
@@ -74,7 +75,7 @@ public class SensitiveSourceController {
     @RequireAdmin
     public Result<Void> delete(@PathVariable Integer id) {
         boolean success = sourceService.deleteSource(id);
-        return success ? Result.success() : Result.error("删除词库来源失败");
+        return success ? Result.success() : Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "词库来源不存在");
     }
 
     /**

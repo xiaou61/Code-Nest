@@ -1,47 +1,34 @@
 <template>
-  <div class="team-container cn-learn-shell">
-    <div class="cn-learn-shell__inner">
-    <section class="cn-learn-hero cn-wave-reveal">
-      <div class="cn-learn-hero__content">
-        <span class="cn-learn-hero__eyebrow">Learning Team</span>
-        <h1 class="cn-learn-hero__title">学习小组协作广场</h1>
-        <p class="cn-learn-hero__desc">围绕目标型、学习型、打卡型小组构建协作氛围，持续增强学习执行力。</p>
-      </div>
-      <div class="cn-learn-hero__meta">
-        <span class="cn-learn-chip">小组总量 {{ total }}</span>
-        <span class="cn-learn-chip">推荐 {{ recommendList.length }}</span>
-        <span class="cn-learn-chip">我的小组 {{ myTeamList.length }}</span>
-      </div>
-    </section>
+  <CnPage class="team-container cn-learn-shell" surface="transparent" max-width="1220px">
+    <CnPageHeader
+      title="学习小组"
+      description="组队学习，互相监督，共同进步。围绕目标型、学习型、打卡型小组构建协作氛围。"
+      eyebrow="Learning Team"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">小组总量 {{ total }}</CnStatusTag>
+        <CnStatusTag type="info" size="sm">推荐 {{ recommendList.length }}</CnStatusTag>
+        <CnStatusTag type="success" size="sm">我的小组 {{ myTeamList.length }}</CnStatusTag>
+      </template>
 
-    <!-- 页面头部 -->
-    <div class="page-header cn-learn-panel cn-learn-reveal">
-      <div class="header-content">
-        <h1>👥 学习小组</h1>
-        <p class="header-subtitle">组队学习，互相监督，共同进步</p>
-      </div>
-      <div class="header-actions">
-        <el-button type="primary" @click="goToCreate">
-          <el-icon><Plus /></el-icon>
-          创建小组
-        </el-button>
-        <el-button @click="goToMy">
-          <el-icon><User /></el-icon>
-          我的小组
-        </el-button>
-      </div>
-    </div>
+      <template #actions>
+        <el-button type="primary" :icon="Plus" @click="goToCreate">创建小组</el-button>
+        <el-button plain :icon="User" @click="goToMy">我的小组</el-button>
+      </template>
+    </CnPageHeader>
 
     <!-- 主体内容区域 - 三栏布局 -->
     <div class="team-main">
       <!-- 左侧边栏 -->
       <aside class="sidebar sidebar-left">
         <!-- 类型筛选 -->
-        <div class="sidebar-card filter-card cn-learn-panel cn-learn-float cn-learn-reveal">
-          <div class="card-header">
+        <CnSection class="sidebar-card filter-card" surface="panel" compact>
+          <template #actions>
+            <div class="card-header">
             <el-icon><Filter /></el-icon>
             <span>小组类型</span>
-          </div>
+            </div>
+          </template>
           <div class="filter-list">
             <div 
               class="filter-item"
@@ -76,14 +63,16 @@
               <span>打卡型</span>
             </div>
           </div>
-        </div>
+        </CnSection>
 
         <!-- 邀请码加入 -->
-        <div class="sidebar-card invite-card cn-learn-panel cn-learn-float cn-learn-reveal">
-          <div class="card-header">
+        <CnSection class="sidebar-card invite-card" surface="panel" compact>
+          <template #actions>
+            <div class="card-header">
             <el-icon><Key /></el-icon>
             <span>邀请码加入</span>
-          </div>
+            </div>
+          </template>
           <div class="invite-input">
             <el-input 
               v-model="inviteCode" 
@@ -97,13 +86,13 @@
               </template>
             </el-input>
           </div>
-        </div>
+        </CnSection>
       </aside>
 
       <!-- 中间内容区 -->
       <main class="main-content">
         <!-- 搜索和排序 -->
-        <div class="content-header-card cn-learn-panel cn-learn-reveal">
+        <CnSection class="content-header-card" surface="panel" compact>
           <div class="search-bar">
             <el-input 
               v-model="keyword" 
@@ -142,7 +131,7 @@
               <span class="teams-count">共 {{ total }} 个小组</span>
             </div>
           </div>
-        </div>
+        </CnSection>
 
         <!-- 小组列表 -->
         <div v-loading="loading" class="teams-list">
@@ -154,11 +143,16 @@
             @apply="openApplyDialog"
           />
           
-          <div v-if="!loading && teamList.length === 0" class="empty-state">
-            <div class="empty-icon">📋</div>
-            <p>暂无小组，快来创建第一个吧~</p>
-            <el-button type="primary" @click="goToCreate">创建小组</el-button>
-          </div>
+          <CnEmptyState
+            v-if="!loading && teamList.length === 0"
+            title="暂无小组"
+            description="快来创建第一个学习小组。"
+            icon="TM"
+          >
+            <template #actions>
+              <el-button type="primary" @click="goToCreate">创建小组</el-button>
+            </template>
+          </CnEmptyState>
         </div>
 
         <!-- 分页 -->
@@ -176,11 +170,13 @@
       <!-- 右侧边栏 -->
       <aside class="sidebar sidebar-right">
         <!-- 推荐小组 -->
-        <div class="sidebar-card recommend-card cn-learn-panel cn-learn-float cn-learn-reveal">
-          <div class="card-header">
+        <CnSection class="sidebar-card recommend-card" surface="panel" compact>
+          <template #actions>
+            <div class="card-header">
             <el-icon><Star /></el-icon>
             <span>推荐小组</span>
-          </div>
+            </div>
+          </template>
           <div v-loading="recommendLoading" class="recommend-list">
             <div 
               v-for="team in recommendList" 
@@ -203,15 +199,17 @@
               暂无推荐
             </div>
           </div>
-        </div>
+        </CnSection>
 
         <!-- 我的小组快捷入口 -->
-        <div class="sidebar-card my-teams-card cn-learn-panel cn-learn-float cn-learn-reveal" v-if="myTeamList.length > 0">
-          <div class="card-header">
+        <CnSection v-if="myTeamList.length > 0" class="sidebar-card my-teams-card" surface="panel" compact>
+          <template #actions>
+            <div class="card-header">
             <el-icon><Folder /></el-icon>
             <span>我的小组</span>
             <span class="view-all" @click="goToMy">查看全部</span>
-          </div>
+            </div>
+          </template>
           <div class="my-teams-list">
             <div 
               v-for="team in myTeamList.slice(0, 3)" 
@@ -226,7 +224,7 @@
               <span class="my-team-name">{{ team.teamName }}</span>
             </div>
           </div>
-        </div>
+        </CnSection>
       </aside>
     </div>
 
@@ -259,11 +257,10 @@
         </el-button>
       </template>
     </el-dialog>
-    </div>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -271,23 +268,33 @@ import {
   Plus, User, Filter, Key, Search, Clock, TrendCharts, 
   Star, Folder 
 } from '@element-plus/icons-vue'
+import { CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatusTag } from '@/design-system'
 import teamApi from '@/api/team'
 import { useRevealMotion } from '@/utils/reveal-motion'
 import TeamCard from './components/TeamCard.vue'
+
+interface TeamRecord {
+  id: number | string
+  teamName?: string
+  teamAvatar?: string
+  teamDesc?: string
+  teamType?: number
+  currentMembers?: number
+}
 
 const router = useRouter()
 useRevealMotion('.team-container .cn-learn-reveal')
 
 // 列表数据
-const teamList = ref([])
+const teamList = ref<TeamRecord[]>([])
 const loading = ref(false)
 const pageNum = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 
 // 筛选条件
-const filterType = ref(null)
-const sortBy = ref('new')
+const filterType = ref<number | null>(null)
+const sortBy = ref<'new' | 'hot'>('new')
 const keyword = ref('')
 
 // 邀请码
@@ -295,15 +302,15 @@ const inviteCode = ref('')
 const joiningByCode = ref(false)
 
 // 推荐小组
-const recommendList = ref([])
+const recommendList = ref<TeamRecord[]>([])
 const recommendLoading = ref(false)
 
 // 我的小组
-const myTeamList = ref([])
+const myTeamList = ref<TeamRecord[]>([])
 
 // 申请弹窗
 const showApplyDialog = ref(false)
-const applyTeam = ref(null)
+const applyTeam = ref<TeamRecord | null>(null)
 const applyReason = ref('')
 const applying = ref(false)
 
@@ -378,7 +385,7 @@ const joinByCode = async () => {
 }
 
 // 打开申请弹窗
-const openApplyDialog = (team) => {
+const openApplyDialog = (team: TeamRecord) => {
   applyTeam.value = team
   applyReason.value = ''
   showApplyDialog.value = true
@@ -386,6 +393,7 @@ const openApplyDialog = (team) => {
 
 // 提交申请
 const submitApply = async () => {
+  if (!applyTeam.value) return
   applying.value = true
   try {
     await teamApi.applyJoin(applyTeam.value.id, { applyReason: applyReason.value })
@@ -400,7 +408,7 @@ const submitApply = async () => {
 }
 
 // 获取类型文本
-const getTypeText = (type) => {
+const getTypeText = (type?: number) => {
   const typeMap = { 1: '目标型', 2: '学习型', 3: '打卡型' }
   return typeMap[type] || '学习型'
 }
@@ -408,58 +416,15 @@ const getTypeText = (type) => {
 // 路由跳转
 const goToCreate = () => router.push('/team/create')
 const goToMy = () => router.push('/team/my')
-const goToDetail = (id) => router.push(`/team/${id}`)
+const goToDetail = (id: number | string) => router.push(`/team/${id}`)
 </script>
 
 <style lang="scss" scoped>
 .team-container {
   min-height: calc(100vh - 68px);
-  
+
   @media (max-width: 768px) {
     min-height: calc(100vh - 62px);
-  }
-}
-
-// 页面头部
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 20px 0 24px;
-  padding: 24px;
-  border-radius: 16px;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-  
-  h1 {
-    font-size: 24px;
-    margin: 0 0 4px 0;
-    color: #333;
-  }
-  
-  .header-subtitle {
-    font-size: 14px;
-    color: #999;
-    margin: 0;
-  }
-  
-  .header-actions {
-    display: flex;
-    gap: 12px;
-  }
-  
-  @media (max-width: 600px) {
-    flex-direction: column;
-    gap: 16px;
-    
-    .header-actions {
-      width: 100%;
-      
-      .el-button {
-        flex: 1;
-      }
-    }
   }
 }
 
@@ -488,31 +453,25 @@ const goToDetail = (id) => router.push(`/team/${id}`)
 
 // 侧边栏卡片
 .sidebar-card {
-  border-radius: 12px;
-  padding: 16px;
   margin-bottom: 16px;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-  
+
   .card-header {
     display: flex;
     align-items: center;
     gap: 8px;
     font-size: 15px;
     font-weight: 600;
-    color: #333;
-    margin-bottom: 12px;
-    
+    color: var(--cn-color-text-primary);
+
     .el-icon {
-      color: #409eff;
+      color: var(--cn-color-brand-primary);
     }
-    
+
     .view-all {
       margin-left: auto;
       font-size: 12px;
       font-weight: normal;
-      color: #409eff;
+      color: var(--cn-color-brand-primary);
       cursor: pointer;
     }
   }
@@ -529,18 +488,18 @@ const goToDetail = (id) => router.push(`/team/${id}`)
     cursor: pointer;
     transition: all 0.3s;
     font-size: 14px;
-    color: #666;
-    
+    color: var(--cn-color-text-secondary);
+
     &:hover {
-      background: #f5f7fa;
+      background: var(--cn-color-bg-surface-muted);
     }
-    
+
     &.active {
-      background: #ecf5ff;
-      color: #409eff;
+      background: var(--cn-color-brand-soft);
+      color: var(--cn-color-brand-primary);
       font-weight: 500;
     }
-    
+
     .filter-icon {
       font-size: 16px;
     }
@@ -563,12 +522,7 @@ const goToDetail = (id) => router.push(`/team/${id}`)
 
 // 内容区头部
 .content-header-card {
-  border-radius: 12px;
-  padding: 16px 20px;
   margin-bottom: 16px;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
 }
 
 .search-bar {
@@ -597,27 +551,27 @@ const goToDetail = (id) => router.push(`/team/${id}`)
     gap: 6px;
     padding: 8px 16px;
     border: none;
-    background: #f5f7fa;
+    background: var(--cn-color-bg-surface-muted);
     border-radius: 8px;
     font-size: 14px;
-    color: #666;
+    color: var(--cn-color-text-secondary);
     cursor: pointer;
     transition: all 0.3s;
     
     &:hover {
-      background: #ecf5ff;
-      color: #409eff;
+      background: var(--cn-color-brand-soft);
+      color: var(--cn-color-brand-primary);
     }
-    
+
     &.active {
-      background: #409eff;
+      background: var(--cn-color-brand-primary);
       color: white;
     }
   }
-  
+
   .teams-count {
     font-size: 13px;
-    color: #999;
+    color: var(--cn-color-text-tertiary);
   }
 }
 
@@ -627,24 +581,6 @@ const goToDetail = (id) => router.push(`/team/${id}`)
   flex-direction: column;
   gap: 12px;
   min-height: 200px;
-}
-
-// 空状态
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  background: rgba(255, 255, 255, 0.78);
-  border-radius: 12px;
-  
-  .empty-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-  }
-  
-  p {
-    color: #999;
-    margin: 0 0 16px 0;
-  }
 }
 
 // 分页
@@ -666,18 +602,18 @@ const goToDetail = (id) => router.push(`/team/${id}`)
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.3s;
-    
+
     &:hover {
-      background: #f5f7fa;
+      background: var(--cn-color-bg-surface-muted);
     }
   }
-  
+
   .recommend-avatar {
     width: 40px;
     height: 40px;
     border-radius: 8px;
     overflow: hidden;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: color-mix(in srgb, var(--cn-color-brand-primary) 74%, var(--cn-color-info));
     flex-shrink: 0;
     
     img {
@@ -706,7 +642,7 @@ const goToDetail = (id) => router.push(`/team/${id}`)
   .recommend-name {
     font-size: 14px;
     font-weight: 500;
-    color: #333;
+    color: var(--cn-color-text-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -714,14 +650,14 @@ const goToDetail = (id) => router.push(`/team/${id}`)
   
   .recommend-meta {
     font-size: 12px;
-    color: #999;
+    color: var(--cn-color-text-tertiary);
     margin-top: 2px;
   }
   
   .empty-tip {
     text-align: center;
     padding: 20px;
-    color: #999;
+    color: var(--cn-color-text-tertiary);
     font-size: 13px;
   }
 }
@@ -736,18 +672,18 @@ const goToDetail = (id) => router.push(`/team/${id}`)
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.3s;
-    
+
     &:hover {
-      background: #f5f7fa;
+      background: var(--cn-color-bg-surface-muted);
     }
   }
-  
+
   .my-team-avatar {
     width: 32px;
     height: 32px;
     border-radius: 6px;
     overflow: hidden;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: color-mix(in srgb, var(--cn-color-brand-primary) 74%, var(--cn-color-info));
     flex-shrink: 0;
     
     img {
@@ -770,7 +706,7 @@ const goToDetail = (id) => router.push(`/team/${id}`)
   
   .my-team-name {
     font-size: 14px;
-    color: #333;
+    color: var(--cn-color-text-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -780,20 +716,20 @@ const goToDetail = (id) => router.push(`/team/${id}`)
 // 申请弹窗
 .apply-team-info {
   padding: 16px;
-  background: #f5f7fa;
+  background: var(--cn-color-bg-surface-muted);
   border-radius: 8px;
   margin-bottom: 16px;
   
   .apply-team-name {
     font-size: 16px;
     font-weight: 600;
-    color: #333;
+    color: var(--cn-color-text-primary);
     margin-bottom: 8px;
   }
   
   .apply-team-desc {
     font-size: 14px;
-    color: #666;
+    color: var(--cn-color-text-secondary);
     line-height: 1.5;
   }
 }

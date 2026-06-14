@@ -1,7 +1,9 @@
 package com.xiaou.mockinterview.controller.admin;
 
+import cn.hutool.core.util.StrUtil;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.core.domain.ResultCode;
 import com.xiaou.common.utils.PageHelper;
 import com.xiaou.mockinterview.domain.MockInterviewDirection;
 import com.xiaou.mockinterview.domain.MockInterviewQA;
@@ -59,6 +61,14 @@ public class AdminMockInterviewController {
     @Operation(summary = "新增方向配置")
     @PostMapping("/directions")
     public Result<Long> addDirection(@RequestBody DirectionRequest request) {
+        if (request == null
+                || StrUtil.isBlank(request.getDirectionCode())
+                || StrUtil.isBlank(request.getDirectionName())) {
+            return Result.error(ResultCode.PARAM_VALIDATE_ERROR.getCode(), "方向代码和方向名称不能为空");
+        }
+        if (directionMapper.selectByCode(request.getDirectionCode()) != null) {
+            return Result.error(ResultCode.DATA_ALREADY_EXIST.getCode(), "方向配置已存在");
+        }
         MockInterviewDirection direction = new MockInterviewDirection()
                 .setDirectionCode(request.getDirectionCode())
                 .setDirectionName(request.getDirectionName())
@@ -77,7 +87,7 @@ public class AdminMockInterviewController {
     public Result<Void> updateDirection(@PathVariable Long id, @RequestBody DirectionRequest request) {
         MockInterviewDirection direction = directionMapper.selectById(id);
         if (direction == null) {
-            return Result.error("方向配置不存在");
+            return Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "方向配置不存在");
         }
 
         direction.setDirectionName(request.getDirectionName())
@@ -130,7 +140,7 @@ public class AdminMockInterviewController {
     public Result<AdminInterviewSessionDetailResponse> getSessionDetail(@PathVariable Long id) {
         MockInterviewSession session = sessionMapper.selectById(id);
         if (session == null) {
-            return Result.error("面试会话不存在");
+            return Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "面试会话不存在");
         }
 
         fillSessionDisplayFields(session, buildDirectionNameMap());

@@ -1,185 +1,129 @@
 <template>
-  <div class="sensitive-whitelist-page">
-    <!-- 搜索栏 -->
-    <div class="search-bar">
-      <el-card shadow="never">
-        <el-form :model="queryForm" inline>
-          <el-form-item label="白名单词汇">
-            <el-input
-              v-model="queryForm.word"
-              placeholder="请输入词汇"
-              clearable
-              style="width: 200px"
-            />
-          </el-form-item>
-          <el-form-item label="分类">
-            <el-input
-              v-model="queryForm.category"
-              placeholder="请输入分类"
-              clearable
-              style="width: 150px"
-            />
-          </el-form-item>
-          <el-form-item label="作用范围">
-            <el-select
-              v-model="queryForm.scope"
-              placeholder="请选择范围"
-              clearable
-              style="width: 130px"
-            >
-              <el-option label="全局" value="global" />
-              <el-option label="模块级" value="module" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="状态">
-            <el-select
-              v-model="queryForm.status"
-              placeholder="请选择状态"
-              clearable
-              style="width: 120px"
-            >
-              <el-option label="启用" :value="1" />
-              <el-option label="禁用" :value="0" />
-            </el-select>
-          </el-form-item>
-          <el-form-item>
-            <el-button type="primary" @click="handleQuery">
-              <el-icon><Search /></el-icon>
-              搜索
-            </el-button>
-            <el-button @click="resetQuery">
-              <el-icon><Refresh /></el-icon>
-              重置
-            </el-button>
-          </el-form-item>
-        </el-form>
-      </el-card>
+  <CnPage class="sensitive-whitelist-page" surface="transparent" max-width="1320px">
+    <CnPageHeader
+      title="白名单管理"
+      description="维护不会触发敏感词命中的安全词汇，按全局和模块级范围控制内容检测例外策略。"
+      eyebrow="Sensitive Whitelist"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand">内容安全</CnStatusTag>
+        <CnStatusTag type="neutral">共 {{ total }} 条</CnStatusTag>
+        <CnStatusTag type="success">全局 {{ globalCountInPage }} 条</CnStatusTag>
+        <CnStatusTag v-if="selectedRows.length" type="warning">已选择 {{ selectedRows.length }} 条</CnStatusTag>
+      </template>
+
+      <template #actions>
+        <el-button :icon="Refresh" :loading="loading" @click="loadWhitelist">刷新</el-button>
+        <el-button type="primary" :icon="Plus" @click="handleAdd">新增白名单</el-button>
+      </template>
+    </CnPageHeader>
+
+    <div class="sensitive-stat-grid">
+      <CnStatCard title="当前总量" :value="total" description="当前筛选条件下的白名单规模" tone="brand" />
+      <CnStatCard title="启用词汇" :value="enabledCountInPage" description="当前页可参与豁免的词汇" tone="success" />
+      <CnStatCard title="全局词汇" :value="globalCountInPage" description="当前页全站生效的白名单" tone="info" />
+      <CnStatCard title="已选择" :value="selectedRows.length" description="批量删除将作用于所选词汇" tone="warning" />
     </div>
 
-    <!-- 操作栏 -->
-    <div class="toolbar">
-      <el-card shadow="never">
-        <el-row :gutter="10">
-          <el-col :span="1.5">
-            <el-button type="primary" @click="handleAdd">
-              <el-icon><Plus /></el-icon>
-              新增
-            </el-button>
-          </el-col>
-          <el-col :span="1.5">
-            <el-button
-              type="danger"
-              :disabled="selectedRows.length === 0"
-              @click="handleBatchDelete"
-            >
-              <el-icon><Delete /></el-icon>
+    <CnSection title="筛选条件" description="按白名单词汇、分类、作用范围和启用状态定位记录。" divided>
+      <CnFilterForm
+        :model-value="queryForm"
+        :fields="filterFields"
+        :columns="4"
+        :loading="loading"
+        @update:model-value="handleQueryFormUpdate"
+        @search="handleSearch"
+        @reset="resetQuery"
+      />
+    </CnSection>
+
+    <CnSection title="白名单列表" :description="`共 ${total} 条白名单记录`" divided>
+      <CnDataTable
+        :columns="tableColumns"
+        :data="tableData"
+        :loading="loading"
+        :pagination="tablePagination"
+        row-key="id"
+        @selection-change="handleSelectionChange"
+        @page-change="handlePageChange"
+        @page-size-change="handlePageSizeChange"
+      >
+        <template #toolbar>
+          <CnToolbar title="白名单数据" description="刷新缓存后，白名单例外策略会按最新配置参与内容检测。" align="center">
+            <template #meta>
+              <CnStatusTag type="neutral" size="sm">每页 {{ queryForm.pageSize }} 条</CnStatusTag>
+              <CnStatusTag v-if="selectedRows.length" type="warning" size="sm">
+                已选择 {{ selectedRows.length }} 条
+              </CnStatusTag>
+            </template>
+
+            <el-button type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
+            <el-button type="danger" :icon="Delete" :disabled="selectedRows.length === 0" @click="handleBatchDelete">
               批量删除
             </el-button>
-          </el-col>
-          <el-col :span="1.5">
-            <el-button type="warning" @click="handleRefreshCache">
-              <el-icon><Refresh /></el-icon>
-              刷新缓存
-            </el-button>
-          </el-col>
-        </el-row>
-      </el-card>
-    </div>
+            <el-button type="warning" :icon="Refresh" @click="handleRefreshCache">刷新缓存</el-button>
+          </CnToolbar>
+        </template>
 
-    <!-- 数据表格 -->
-    <el-card shadow="never">
-      <el-table
-        v-loading="loading"
-        :data="tableData"
-        @selection-change="handleSelectionChange"
-      >
-        <el-table-column type="selection" width="50" />
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="word" label="白名单词汇" min-width="150" />
-        <el-table-column prop="category" label="分类" width="120" />
-        <el-table-column label="作用范围" width="100">
-          <template #default="{ row }">
-            <el-tag
-              :type="row.scope === 'global' ? 'success' : 'info'"
-              size="small"
-            >
-              {{ row.scope === 'global' ? '全局' : '模块级' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="moduleName" label="模块名称" width="120" />
-        <el-table-column label="状态" width="80">
-          <template #default="{ row }">
-            <el-tag
-              :type="row.status === 1 ? 'success' : 'danger'"
-              size="small"
-            >
-              {{ row.status === 1 ? '启用' : '禁用' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column label="操作" width="180" fixed="right">
-          <template #default="{ row }">
-            <el-button
-              type="primary"
-              size="small"
-              @click="handleEdit(row)"
-            >
-              编辑
-            </el-button>
-            <el-button
-              type="danger"
-              size="small"
-              @click="handleDelete(row)"
-            >
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+        <template #word="{ row }">
+          <div class="word-cell">
+            <strong>{{ row.word || '-' }}</strong>
+            <span>ID {{ row.id }}</span>
+          </div>
+        </template>
 
-      <!-- 分页 -->
-      <div class="pagination">
-        <el-pagination
-          v-model:current-page="queryForm.pageNum"
-          v-model:page-size="queryForm.pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleQuery"
-          @current-change="handleQuery"
-        />
-      </div>
-    </el-card>
+        <template #scope="{ row }">
+          <CnStatusTag :type="getScopeTone(row.scope)" size="sm">
+            {{ getScopeText(row.scope) }}
+          </CnStatusTag>
+        </template>
 
-    <!-- 新增/编辑对话框 -->
+        <template #moduleName="{ row }">
+          <span class="muted-text">{{ row.scope === 'module' ? row.moduleName || '-' : '全局生效' }}</span>
+        </template>
+
+        <template #status="{ row }">
+          <CnStatusTag :type="row.status === 1 ? 'success' : 'danger'" size="sm">
+            {{ row.status === 1 ? '启用' : '禁用' }}
+          </CnStatusTag>
+        </template>
+
+        <template #actions="{ row }">
+          <div class="table-actions">
+            <el-button type="primary" link size="small" :icon="Edit" @click="handleEdit(row)">编辑</el-button>
+            <el-button type="danger" link size="small" :icon="Delete" @click="handleDelete(row)">删除</el-button>
+          </div>
+        </template>
+
+        <template #empty>
+          <CnEmptyState
+            title="暂无白名单"
+            description="当前筛选条件下没有匹配记录，可以重置筛选或新增白名单词汇。"
+            icon="WL"
+            surface="transparent"
+          >
+            <template #actions>
+              <el-button @click="resetQuery">重置筛选</el-button>
+              <el-button type="primary" @click="handleAdd">新增白名单</el-button>
+            </template>
+          </CnEmptyState>
+        </template>
+      </CnDataTable>
+    </CnSection>
+
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
       width="600px"
       @close="resetForm"
     >
-      <el-form
-        ref="formRef"
-        :model="form"
-        :rules="formRules"
-        label-width="100px"
-      >
+      <el-form ref="formRef" :model="form" :rules="formRules" label-width="100px">
         <el-form-item label="词汇" prop="word">
-          <el-input
-            v-model="form.word"
-            placeholder="请输入白名单词汇"
-            maxlength="255"
-            show-word-limit
-          />
+          <el-input v-model="form.word" placeholder="请输入白名单词汇" maxlength="255" show-word-limit />
         </el-form-item>
         <el-form-item label="分类" prop="category">
-          <el-input
-            v-model="form.category"
-            placeholder="请输入分类，如：专业术语、成语、人名等"
-            maxlength="50"
-          />
+          <el-input v-model="form.category" placeholder="请输入分类，如：专业术语、成语、人名等" maxlength="50" />
         </el-form-item>
         <el-form-item label="作用范围" prop="scope">
           <el-radio-group v-model="form.scope">
@@ -187,16 +131,8 @@
             <el-radio value="module">模块级</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item
-          v-if="form.scope === 'module'"
-          label="模块名称"
-          prop="moduleName"
-        >
-          <el-select
-            v-model="form.moduleName"
-            placeholder="请选择模块"
-            style="width: 100%"
-          >
+        <el-form-item v-if="form.scope === 'module'" label="模块名称" prop="moduleName">
+          <el-select v-model="form.moduleName" placeholder="请选择模块" class="full-width-control">
             <el-option label="社区模块" value="community" />
             <el-option label="面试模块" value="interview" />
             <el-option label="朋友圈模块" value="moment" />
@@ -211,42 +147,84 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">确定</el-button>
+        <div class="dialog-footer">
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="handleSubmit">确定</el-button>
+        </div>
       </template>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
+import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Delete, Edit, Plus, Refresh } from '@element-plus/icons-vue'
 import {
-  Search,
-  Refresh,
-  Plus,
-  Delete
-} from '@element-plus/icons-vue'
-import {
-  listWhitelist,
   addWhitelist,
-  updateWhitelist,
   deleteWhitelist,
   deleteWhitelistBatch,
-  refreshWhitelistCache
+  listWhitelist,
+  refreshWhitelistCache,
+  updateWhitelist
 } from '@/api/sensitive'
+import {
+  CnDataTable,
+  CnEmptyState,
+  CnFilterForm,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag,
+  CnToolbar
+} from '@/design-system'
+import type { CnBreadcrumbItem, CnFilterField, CnPagination, CnTableColumn, CnTone } from '@/design-system'
 
-// 响应式数据
+type WhitelistScope = 'global' | 'module'
+
+interface WhitelistRecord {
+  id: number
+  word: string
+  category?: string
+  scope: WhitelistScope
+  moduleName?: string
+  status: number
+  createTime?: string
+  [key: string]: unknown
+}
+
+interface WhitelistQuery {
+  pageNum: number
+  pageSize: number
+  word: string
+  category: string
+  scope: WhitelistScope | null
+  moduleName: string
+  status: number | null
+}
+
+interface WhitelistForm {
+  id: number | null
+  word: string
+  category: string
+  scope: WhitelistScope
+  moduleName: string
+  status: number
+}
+
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '敏感词管理' }, { label: '白名单管理' }]
+
 const loading = ref(false)
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
-const tableData = ref([])
-const selectedRows = ref([])
+const tableData = ref<WhitelistRecord[]>([])
+const selectedRows = ref<WhitelistRecord[]>([])
 const total = ref(0)
-const formRef = ref()
+const formRef = ref<FormInstance>()
 
-// 查询表单
-const queryForm = reactive({
+const queryForm = reactive<WhitelistQuery>({
   pageNum: 1,
   pageSize: 10,
   word: '',
@@ -256,8 +234,7 @@ const queryForm = reactive({
   status: null
 })
 
-// 编辑表单
-const form = reactive({
+const form = reactive<WhitelistForm>({
   id: null,
   word: '',
   category: '',
@@ -266,110 +243,211 @@ const form = reactive({
   status: 1
 })
 
-// 表单验证规则
-const formRules = {
+const formRules: FormRules<WhitelistForm> = {
   word: [
     { required: true, message: '请输入白名单词汇', trigger: 'blur' },
     { min: 1, max: 255, message: '长度在 1 到 255 个字符', trigger: 'blur' }
   ],
-  scope: [
-    { required: true, message: '请选择作用范围', trigger: 'change' }
-  ],
+  scope: [{ required: true, message: '请选择作用范围', trigger: 'change' }],
   moduleName: [
-    { required: true, message: '请选择模块名称', trigger: 'change' }
+    {
+      validator: (_rule, value, callback) => {
+        if (form.scope === 'module' && !value) {
+          callback(new Error('请选择模块名称'))
+          return
+        }
+        callback()
+      },
+      trigger: 'change'
+    }
   ],
-  status: [
-    { required: true, message: '请选择状态', trigger: 'change' }
-  ]
+  status: [{ required: true, message: '请选择状态', trigger: 'change' }]
 }
 
-// 方法
-const handleQuery = async () => {
+const filterFields: CnFilterField[] = [
+  { prop: 'word', label: '白名单词汇', type: 'input', placeholder: '请输入词汇' },
+  { prop: 'category', label: '分类', type: 'input', placeholder: '请输入分类' },
+  {
+    prop: 'scope',
+    label: '作用范围',
+    type: 'select',
+    placeholder: '请选择范围',
+    options: [
+      { label: '全局', value: 'global' },
+      { label: '模块级', value: 'module' }
+    ]
+  },
+  {
+    prop: 'status',
+    label: '状态',
+    type: 'select',
+    placeholder: '请选择状态',
+    options: [
+      { label: '启用', value: 1 },
+      { label: '禁用', value: 0 }
+    ]
+  }
+]
+
+const tableColumns: CnTableColumn<WhitelistRecord>[] = [
+  { type: 'selection', width: 52 },
+  { prop: 'id', label: 'ID', width: 80 },
+  { prop: 'word', label: '白名单词汇', minWidth: 150, slot: 'word', showOverflowTooltip: true },
+  { prop: 'category', label: '分类', minWidth: 120, showOverflowTooltip: true },
+  { prop: 'scope', label: '作用范围', width: 110, slot: 'scope' },
+  { prop: 'moduleName', label: '模块名称', minWidth: 120, slot: 'moduleName', showOverflowTooltip: true },
+  { prop: 'status', label: '状态', width: 90, slot: 'status' },
+  { prop: 'createTime', label: '创建时间', width: 180 },
+  { label: '操作', width: 130, fixed: 'right', slot: 'actions' }
+]
+
+const tablePagination = computed<CnPagination>(() => ({
+  page: queryForm.pageNum,
+  pageSize: queryForm.pageSize,
+  total: total.value,
+  pageSizes: [10, 20, 50, 100]
+}))
+
+const enabledCountInPage = computed(() => tableData.value.filter((item) => item.status === 1).length)
+const globalCountInPage = computed(() => tableData.value.filter((item) => item.scope === 'global').length)
+
+onMounted(() => {
+  loadWhitelist()
+})
+
+const loadWhitelist = async () => {
   loading.value = true
   try {
-    const response = await listWhitelist(queryForm)
-    tableData.value = response.records
-    total.value = response.total
+    const response = await listWhitelist({ ...queryForm })
+    tableData.value = response?.records || []
+    total.value = response?.total || 0
   } catch (error) {
+    console.error('查询白名单失败:', error)
     ElMessage.error('查询失败')
   } finally {
     loading.value = false
   }
 }
 
-const resetQuery = () => {
+const handleSearch = () => {
   queryForm.pageNum = 1
-  queryForm.pageSize = 10
-  queryForm.word = ''
-  queryForm.category = ''
-  queryForm.scope = null
-  queryForm.moduleName = ''
-  queryForm.status = null
-  handleQuery()
+  loadWhitelist()
+}
+
+const resetQuery = () => {
+  Object.assign(queryForm, {
+    pageNum: 1,
+    pageSize: 10,
+    word: '',
+    category: '',
+    scope: null,
+    moduleName: '',
+    status: null
+  })
+  loadWhitelist()
+}
+
+const handleQueryFormUpdate = (value: Record<string, unknown>) => {
+  Object.assign(queryForm, value)
+}
+
+const handlePageChange = (page: number) => {
+  queryForm.pageNum = page
+  loadWhitelist()
+}
+
+const handlePageSizeChange = (size: number) => {
+  queryForm.pageSize = size
+  queryForm.pageNum = 1
+  loadWhitelist()
 }
 
 const handleAdd = () => {
   dialogTitle.value = '新增白名单'
+  resetForm()
   dialogVisible.value = true
 }
 
-const handleEdit = (row) => {
+const handleEdit = (row: WhitelistRecord) => {
   dialogTitle.value = '编辑白名单'
-  Object.assign(form, row)
+  Object.assign(form, {
+    id: row.id,
+    word: row.word || '',
+    category: row.category || '',
+    scope: row.scope === 'module' ? 'module' : 'global',
+    moduleName: row.moduleName || '',
+    status: Number(row.status) === 0 ? 0 : 1
+  })
   dialogVisible.value = true
 }
 
 const handleSubmit = async () => {
-  const valid = await formRef.value.validate()
+  if (!formRef.value) return
+
+  const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
 
   try {
+    const payload = {
+      ...form,
+      moduleName: form.scope === 'module' ? form.moduleName : ''
+    }
+
     if (form.id) {
-      await updateWhitelist(form)
+      await updateWhitelist(payload)
       ElMessage.success('更新成功')
     } else {
-      await addWhitelist(form)
+      await addWhitelist(payload)
       ElMessage.success('新增成功')
     }
     dialogVisible.value = false
-    handleQuery()
+    loadWhitelist()
   } catch (error) {
+    console.error(form.id ? '更新白名单失败:' : '新增白名单失败:', error)
     ElMessage.error(form.id ? '更新失败' : '新增失败')
   }
 }
 
-const handleDelete = async (row) => {
+const handleDelete = async (row: WhitelistRecord) => {
   try {
-    await ElMessageBox.confirm('确定要删除这个白名单词汇吗？', '提示', {
+    await ElMessageBox.confirm(`确定要删除白名单词汇 "${row.word}" 吗？`, '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
       type: 'warning'
     })
     await deleteWhitelist(row.id)
     ElMessage.success('删除成功')
-    handleQuery()
+    loadWhitelist()
   } catch (error) {
     if (error !== 'cancel') {
+      console.error('删除白名单失败:', error)
       ElMessage.error('删除失败')
     }
   }
 }
 
 const handleBatchDelete = async () => {
+  if (!selectedRows.value.length) return
+
   try {
-    await ElMessageBox.confirm('确定要删除选中的白名单词汇吗？', '提示', {
+    await ElMessageBox.confirm(`确定要删除选中的 ${selectedRows.value.length} 个白名单词汇吗？`, '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
       type: 'warning'
     })
-    const ids = selectedRows.value.map(row => row.id)
+    const ids = selectedRows.value.map((row) => row.id)
     await deleteWhitelistBatch(ids)
     ElMessage.success('删除成功')
-    handleQuery()
+    loadWhitelist()
   } catch (error) {
     if (error !== 'cancel') {
+      console.error('批量删除白名单失败:', error)
       ElMessage.error('删除失败')
     }
   }
 }
 
-const handleSelectionChange = (selection) => {
+const handleSelectionChange = (selection: WhitelistRecord[]) => {
   selectedRows.value = selection
 }
 
@@ -378,43 +456,93 @@ const handleRefreshCache = async () => {
     await refreshWhitelistCache()
     ElMessage.success('缓存刷新成功')
   } catch (error) {
+    console.error('刷新白名单缓存失败:', error)
     ElMessage.error('缓存刷新失败')
   }
 }
 
 const resetForm = () => {
-  form.id = null
-  form.word = ''
-  form.category = ''
-  form.scope = 'global'
-  form.moduleName = ''
-  form.status = 1
-  if (formRef.value) {
-    formRef.value.resetFields()
-  }
+  Object.assign(form, {
+    id: null,
+    word: '',
+    category: '',
+    scope: 'global',
+    moduleName: '',
+    status: 1
+  })
+  formRef.value?.resetFields()
 }
 
-// 生命周期
-onMounted(() => {
-  handleQuery()
-})
+const getScopeText = (scope: WhitelistScope) => {
+  const scopeMap: Record<WhitelistScope, string> = { global: '全局', module: '模块级' }
+  return scopeMap[scope] || '未知'
+}
+
+const getScopeTone = (scope: WhitelistScope): CnTone => {
+  const toneMap: Record<WhitelistScope, CnTone> = { global: 'success', module: 'info' }
+  return toneMap[scope] || 'neutral'
+}
 </script>
 
 <style scoped>
 .sensitive-whitelist-page {
-  padding: 20px;
+  min-height: 100%;
 }
 
-.search-bar {
-  margin-bottom: 16px;
+.sensitive-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.toolbar {
-  margin-bottom: 16px;
+.word-cell {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
 }
 
-.pagination {
-  margin-top: 20px;
-  text-align: center;
+.word-cell strong {
+  overflow: hidden;
+  color: var(--cn-color-text-primary);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.word-cell span,
+.muted-text {
+  color: var(--cn-color-text-secondary);
+  font-size: 12px;
+}
+
+.table-actions,
+.dialog-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
+}
+
+.table-actions .el-button {
+  margin-left: 0;
+}
+
+.dialog-footer {
+  justify-content: flex-end;
+}
+
+@media (max-width: 1180px) {
+  .sensitive-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .sensitive-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dialog-footer {
+    justify-content: flex-start;
+  }
 }
 </style>

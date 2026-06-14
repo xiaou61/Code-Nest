@@ -3,52 +3,52 @@
     <div v-if="loading" class="loading-state">
       <el-skeleton :rows="4" animated />
     </div>
-    
-    <div v-else-if="discussions.length === 0" class="empty-state">
-      <el-empty description="暂无讨论" :image-size="80" />
-    </div>
-    
+
+    <CnEmptyState
+      v-else-if="discussions.length === 0"
+      title="暂无讨论"
+      description="发布讨论后，小组成员可以在这里交流经验和问题。"
+      icon="DS"
+      size="sm"
+      surface="transparent"
+    />
+
     <div v-else class="discussions">
-      <div 
-        v-for="item in discussions" 
-        :key="item.id" 
-        class="discussion-item"
-        @click="viewDetail(item)"
-      >
+      <article v-for="item in discussions" :key="item.id" class="discussion-item" @click="viewDetail(item)">
         <div class="discussion-header">
           <div class="author-info">
             <div class="author-avatar">
-              <img v-if="item.userAvatar" :src="item.userAvatar" />
+              <img v-if="item.userAvatar" :src="item.userAvatar" :alt="item.userName || '作者头像'" />
               <span v-else>{{ item.userName?.charAt(0) || '用' }}</span>
             </div>
-            <span class="author-name">{{ item.userName }}</span>
+            <span class="author-name">{{ item.userName || '匿名成员' }}</span>
             <span class="post-time">{{ formatTime(item.createTime) }}</span>
           </div>
           <div class="discussion-badges">
-            <span v-if="item.isTop" class="badge top">置顶</span>
-            <span v-if="item.isEssence" class="badge essence">精华</span>
+            <CnStatusTag v-if="item.isTop" type="brand" size="sm" :dot="false">置顶</CnStatusTag>
+            <CnStatusTag v-if="item.isEssence" type="warning" size="sm" :dot="false">精华</CnStatusTag>
           </div>
         </div>
-        
-        <h3 class="discussion-title">{{ item.title }}</h3>
+
+        <h3 class="discussion-title">{{ item.title || '未命名讨论' }}</h3>
         <p class="discussion-content">{{ truncateContent(item.content) }}</p>
-        
+
         <div class="discussion-footer">
           <span class="meta-item">
             <el-icon><View /></el-icon>
             {{ item.viewCount || 0 }}
           </span>
-          <span class="meta-item" :class="{ liked: item.isLiked }" @click.stop="handleLike(item)">
+          <button class="meta-item like" :class="{ liked: item.isLiked }" type="button" @click.stop="handleLike(item)">
             <el-icon><Star /></el-icon>
             {{ item.likeCount || 0 }}
-          </span>
+          </button>
           <span class="meta-item">
             <el-icon><ChatDotRound /></el-icon>
             {{ item.replyCount || 0 }}
           </span>
-          
+
           <el-dropdown v-if="isAdmin" trigger="click" @click.stop>
-            <el-button text size="small">
+            <el-button text size="small" aria-label="讨论操作">
               <el-icon><MoreFilled /></el-icon>
             </el-button>
             <template #dropdown>
@@ -60,82 +60,98 @@
                   {{ item.isEssence ? '取消精华' : '设为精华' }}
                 </el-dropdown-item>
                 <el-dropdown-item @click.stop="handleDelete(item)" divided>
-                  <el-icon><Delete /></el-icon>删除
+                  <el-icon><Delete /></el-icon>
+                  删除
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
         </div>
-      </div>
-    </div>
-    
-    <!-- 加载更多 -->
-    <div v-if="hasMore" class="load-more">
-      <el-button text @click="loadMore" :loading="loadingMore">
-        加载更多
-      </el-button>
+      </article>
     </div>
 
-    <!-- 详情弹窗 -->
-    <el-dialog 
-      v-model="showDetailDialog" 
-      :title="currentDiscussion?.title"
-      width="600px"
-    >
-      <div class="discussion-detail" v-if="currentDiscussion">
+    <div v-if="hasMore" class="load-more">
+      <el-button text @click="loadMore" :loading="loadingMore">加载更多</el-button>
+    </div>
+
+    <el-dialog v-model="showDetailDialog" :title="currentDiscussion?.title" width="600px">
+      <div v-if="currentDiscussion" class="discussion-detail">
         <div class="detail-author">
           <div class="author-avatar">
-            <img v-if="currentDiscussion.userAvatar" :src="currentDiscussion.userAvatar" />
+            <img v-if="currentDiscussion.userAvatar" :src="currentDiscussion.userAvatar" :alt="currentDiscussion.userName || '作者头像'" />
             <span v-else>{{ currentDiscussion.userName?.charAt(0) || '用' }}</span>
           </div>
-          <div class="author-info">
-            <span class="author-name">{{ currentDiscussion.userName }}</span>
+          <div class="author-copy">
+            <span class="author-name">{{ currentDiscussion.userName || '匿名成员' }}</span>
             <span class="post-time">{{ formatTime(currentDiscussion.createTime) }}</span>
           </div>
         </div>
-        <div class="detail-content" v-html="sanitizeDiscussionContent(currentDiscussion.content)"></div>
+        <div class="detail-content" v-html="sanitizeDiscussionContent(currentDiscussion.content)" />
       </div>
     </el-dialog>
   </div>
 </template>
 
-<script setup>
-import { ref, watch, onMounted } from 'vue'
+<script setup lang="ts">
+import { onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { View, Star, ChatDotRound, MoreFilled, Delete } from '@element-plus/icons-vue'
+import { ChatDotRound, Delete, MoreFilled, Star, View } from '@element-plus/icons-vue'
+import { CnEmptyState, CnStatusTag } from '@/design-system'
 import teamApi from '@/api/team'
 import { sanitizeHtml } from '@/utils/markdown'
 
-const props = defineProps({
-  teamId: { type: [String, Number], required: true },
-  isAdmin: { type: Boolean, default: false }
-})
+interface DiscussionRecord {
+  id: number | string
+  title?: string
+  content?: string
+  userAvatar?: string
+  userName?: string
+  createTime?: string
+  isTop?: boolean | number
+  isEssence?: boolean | number
+  viewCount?: number
+  isLiked?: boolean
+  likeCount?: number
+  replyCount?: number
+}
 
-const discussions = ref([])
+const props = withDefaults(
+  defineProps<{
+    teamId: string | number
+    isAdmin?: boolean
+  }>(),
+  {
+    isAdmin: false
+  }
+)
+
+const discussions = ref<DiscussionRecord[]>([])
 const loading = ref(false)
 const loadingMore = ref(false)
 const hasMore = ref(false)
 const pageNum = ref(1)
 
-// 详情弹窗
 const showDetailDialog = ref(false)
-const currentDiscussion = ref(null)
+const currentDiscussion = ref<DiscussionRecord | null>(null)
 
 onMounted(() => {
   loadDiscussions()
 })
 
-watch(() => props.teamId, () => {
-  pageNum.value = 1
-  loadDiscussions()
-})
+watch(
+  () => props.teamId,
+  () => {
+    pageNum.value = 1
+    loadDiscussions()
+  }
+)
 
-const sanitizeDiscussionContent = (content) => {
+const sanitizeDiscussionContent = (content?: string) => {
   if (!content) return ''
   return sanitizeHtml(escapeHtml(content).replace(/\n/g, '<br>'))
 }
 
-const escapeHtml = (text) => {
+const escapeHtml = (text: string) => {
   return String(text)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -147,10 +163,10 @@ const escapeHtml = (text) => {
 const loadDiscussions = async () => {
   loading.value = true
   try {
-    const response = await teamApi.getDiscussionList(props.teamId, { 
-      pageNum: pageNum.value, 
-      pageSize: 10 
-    })
+    const response = (await teamApi.getDiscussionList(props.teamId, {
+      pageNum: pageNum.value,
+      pageSize: 10
+    })) as DiscussionRecord[]
     discussions.value = response || []
     hasMore.value = discussions.value.length === 10
   } catch (error) {
@@ -164,10 +180,10 @@ const loadMore = async () => {
   loadingMore.value = true
   pageNum.value++
   try {
-    const response = await teamApi.getDiscussionList(props.teamId, { 
-      pageNum: pageNum.value, 
-      pageSize: 10 
-    })
+    const response = (await teamApi.getDiscussionList(props.teamId, {
+      pageNum: pageNum.value,
+      pageSize: 10
+    })) as DiscussionRecord[]
     const newItems = response || []
     discussions.value = [...discussions.value, ...newItems]
     hasMore.value = newItems.length === 10
@@ -179,17 +195,16 @@ const loadMore = async () => {
   }
 }
 
-const viewDetail = async (item) => {
+const viewDetail = async (item: DiscussionRecord) => {
   try {
-    const detail = await teamApi.getDiscussionDetail(item.id)
-    currentDiscussion.value = detail
+    currentDiscussion.value = (await teamApi.getDiscussionDetail(item.id)) as DiscussionRecord
     showDetailDialog.value = true
   } catch (error) {
     console.error('加载详情失败:', error)
   }
 }
 
-const handleLike = async (item) => {
+const handleLike = async (item: DiscussionRecord) => {
   try {
     if (item.isLiked) {
       await teamApi.unlikeDiscussion(item.id)
@@ -205,7 +220,7 @@ const handleLike = async (item) => {
   }
 }
 
-const toggleTop = async (item) => {
+const toggleTop = async (item: DiscussionRecord) => {
   try {
     await teamApi.setDiscussionTop(item.id, item.isTop ? 0 : 1)
     item.isTop = !item.isTop
@@ -215,7 +230,7 @@ const toggleTop = async (item) => {
   }
 }
 
-const toggleEssence = async (item) => {
+const toggleEssence = async (item: DiscussionRecord) => {
   try {
     await teamApi.setDiscussionEssence(item.id, item.isEssence ? 0 : 1)
     item.isEssence = !item.isEssence
@@ -225,7 +240,7 @@ const toggleEssence = async (item) => {
   }
 }
 
-const handleDelete = async (item) => {
+const handleDelete = async (item: DiscussionRecord) => {
   try {
     await ElMessageBox.confirm('确定要删除这个讨论吗？', '提示', {
       confirmButtonText: '确定',
@@ -242,216 +257,195 @@ const handleDelete = async (item) => {
   }
 }
 
-const truncateContent = (content) => {
+const truncateContent = (content?: string) => {
   if (!content) return ''
-  // 去除HTML标签
   const text = content.replace(/<[^>]+>/g, '')
-  return text.length > 100 ? text.substring(0, 100) + '...' : text
+  return text.length > 100 ? `${text.substring(0, 100)}...` : text
 }
 
-const formatTime = (time) => {
+const formatTime = (time?: string) => {
   if (!time) return ''
   const date = new Date(time)
   const now = new Date()
-  const diff = now - date
-  
+  const diff = now.getTime() - date.getTime()
+
   if (diff < 60000) return '刚刚'
-  if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前'
-  if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
   if (diff < 172800000) return '昨天'
-  
+
   return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
 }
 
 defineExpose({ loadDiscussions })
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .discussion-list {
-  .loading-state, .empty-state {
-    padding: 20px 0;
-  }
+  min-width: 0;
+}
+
+.loading-state {
+  padding: var(--cn-space-5) 0;
+}
+
+.discussions {
+  display: grid;
 }
 
 .discussion-item {
-  padding: 16px;
-  border-radius: 8px;
+  padding: var(--cn-space-4);
+  border-radius: var(--cn-radius-card);
   cursor: pointer;
-  transition: background 0.2s;
-  
-  &:hover {
-    background: #f8f9fc;
-  }
-  
-  & + .discussion-item {
-    border-top: 1px solid #f0f0f0;
-  }
+  transition: background-color var(--cn-motion-base) var(--cn-ease-out);
+}
+
+.discussion-item:hover {
+  background: var(--cn-color-bg-surface-muted);
+}
+
+.discussion-item + .discussion-item {
+  border-top: 1px solid var(--cn-color-border-subtle);
+}
+
+.discussion-header,
+.author-info,
+.discussion-badges,
+.discussion-footer,
+.detail-author {
+  display: flex;
+  align-items: center;
 }
 
 .discussion-header {
-  display: flex;
   justify-content: space-between;
+  gap: var(--cn-space-3);
+  margin-bottom: var(--cn-space-3);
+}
+
+.author-info {
+  gap: var(--cn-space-2);
+  min-width: 0;
+}
+
+.author-avatar {
+  display: inline-flex;
   align-items: center;
-  margin-bottom: 10px;
-  
-  .author-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    
-    .author-avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      overflow: hidden;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      
-      img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-      
-      span {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 100%;
-        color: white;
-        font-size: 12px;
-      }
-    }
-    
-    .author-name {
-      font-size: 13px;
-      color: #666;
-    }
-    
-    .post-time {
-      font-size: 12px;
-      color: #999;
-    }
-  }
-  
-  .discussion-badges {
-    display: flex;
-    gap: 6px;
-    
-    .badge {
-      padding: 2px 8px;
-      font-size: 11px;
-      border-radius: 4px;
-      
-      &.top {
-        background: #e8f4fd;
-        color: #409eff;
-      }
-      
-      &.essence {
-        background: #fdf2e9;
-        color: #e6a23c;
-      }
-    }
-  }
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  overflow: hidden;
+  border-radius: var(--cn-radius-pill);
+  background: var(--cn-color-brand-soft);
+  color: var(--cn-color-brand-primary);
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.detail-author .author-avatar {
+  width: 42px;
+  height: 42px;
+  font-size: 16px;
+}
+
+.author-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.author-name {
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.post-time {
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+}
+
+.discussion-badges {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--cn-space-2);
 }
 
 .discussion-title {
+  margin: 0 0 var(--cn-space-2);
+  color: var(--cn-color-text-primary);
   font-size: 16px;
-  font-weight: 500;
-  color: #333;
-  margin: 0 0 8px 0;
-  line-height: 1.4;
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .discussion-content {
-  font-size: 14px;
-  color: #666;
-  line-height: 1.6;
   margin: 0;
+  color: var(--cn-color-text-secondary);
+  font-size: 14px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
 }
 
 .discussion-footer {
-  display: flex;
+  gap: var(--cn-space-4);
+  margin-top: var(--cn-space-3);
+}
+
+.discussion-footer .el-dropdown {
+  margin-left: auto;
+}
+
+.meta-item {
+  display: inline-flex;
   align-items: center;
-  gap: 16px;
-  margin-top: 12px;
-  
-  .meta-item {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 13px;
-    color: #999;
-    
-    &.liked {
-      color: #f56c6c;
-    }
-  }
-  
-  .el-dropdown {
-    margin-left: auto;
-  }
+  gap: var(--cn-space-1);
+  color: var(--cn-color-text-tertiary);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+button.meta-item {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.meta-item.liked,
+.meta-item.like:hover {
+  color: var(--cn-color-danger);
 }
 
 .load-more {
-  text-align: center;
-  padding: 12px 0;
+  display: flex;
+  justify-content: center;
+  padding: var(--cn-space-3) 0;
 }
 
-// 详情弹窗
 .discussion-detail {
-  .detail-author {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid #f0f0f0;
-    margin-bottom: 16px;
-    
-    .author-avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      overflow: hidden;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      
-      img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-      
-      span {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 100%;
-        color: white;
-        font-size: 16px;
-      }
-    }
-    
-    .author-info {
-      .author-name {
-        display: block;
-        font-size: 14px;
-        font-weight: 500;
-        color: #333;
-      }
-      
-      .post-time {
-        font-size: 12px;
-        color: #999;
-      }
-    }
-  }
-  
-  .detail-content {
-    font-size: 15px;
-    color: #333;
-    line-height: 1.8;
-  }
+  display: grid;
+  gap: var(--cn-space-4);
+}
+
+.detail-author {
+  gap: var(--cn-space-3);
+  padding-bottom: var(--cn-space-4);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
+}
+
+.author-copy {
+  display: grid;
+  gap: var(--cn-space-1);
+}
+
+.detail-content {
+  color: var(--cn-color-text-primary);
+  font-size: 15px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
 }
 </style>

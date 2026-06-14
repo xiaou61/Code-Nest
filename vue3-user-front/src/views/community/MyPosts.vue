@@ -1,122 +1,154 @@
 <template>
-  <div class="my-posts-page">
-    <!-- 返回按钮 -->
-    <div class="back-section">
-      <el-button @click="goBack" :icon="Back">
-        返回社区
-      </el-button>
-    </div>
+  <CnPage class="community-my-posts" surface="transparent" max-width="1120px">
+    <CnPageHeader
+      title="我的帖子"
+      description="查看自己发布过的社区内容，以及每篇帖子获得的浏览、点赞、评论和收藏反馈。"
+      eyebrow="Community Posts"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">共 {{ total }} 个帖子</CnStatusTag>
+        <CnStatusTag type="info" size="sm">当前页 {{ queryParams.pageNum }}</CnStatusTag>
+      </template>
 
-    <!-- 我的帖子 -->
-    <div class="content-section">
-      <el-card shadow="never" class="content-card">
-        <template #header>
-          <div class="content-header">
-            <span>我的帖子</span>
-            <span class="total-count" v-if="total > 0">共 {{ total }} 个帖子</span>
+      <template #actions>
+        <el-button plain :icon="Back" @click="goBack">返回社区</el-button>
+        <el-button type="primary" @click="goToCreatePost">发表帖子</el-button>
+      </template>
+    </CnPageHeader>
+
+    <CnSection
+      title="发布记录"
+      :description="sectionDescription"
+      surface="panel"
+      divided
+    >
+      <template #actions>
+        <CnStatusTag v-if="total > 0" type="neutral" size="sm">
+          每页 {{ queryParams.pageSize }} 条
+        </CnStatusTag>
+      </template>
+
+      <div v-loading="loading" class="posts-list">
+        <article
+          v-for="post in postList"
+          :key="post.id"
+          class="post-card"
+          @click="goToPostDetail(post)"
+        >
+          <header class="post-header">
+            <div class="post-meta">
+              <span class="post-date">发表于 {{ formatDate(post.createTime) }}</span>
+              <CnStatusTag v-if="post.categoryName" type="info" size="sm" :dot="false" subtle>
+                {{ post.categoryName }}
+              </CnStatusTag>
+            </div>
+          </header>
+
+          <h2 class="post-title">{{ post.title }}</h2>
+          <p class="post-content">{{ post.content }}</p>
+
+          <div class="post-stats" aria-label="帖子数据">
+            <span class="stat-item">
+              <el-icon><View /></el-icon>
+              {{ post.viewCount || 0 }} 浏览
+            </span>
+            <span class="stat-item">
+              <el-icon><StarFilled /></el-icon>
+              {{ post.likeCount || 0 }} 点赞
+            </span>
+            <span class="stat-item">
+              <el-icon><ChatDotRound /></el-icon>
+              {{ post.commentCount || 0 }} 评论
+            </span>
+            <span class="stat-item">
+              <el-icon><Star /></el-icon>
+              {{ post.collectCount || 0 }} 收藏
+            </span>
           </div>
+
+          <footer class="post-actions" @click.stop>
+            <el-button size="small" @click="goToPostDetail(post)">
+              <el-icon><View /></el-icon>
+              查看详情
+            </el-button>
+          </footer>
+        </article>
+      </div>
+
+      <CnEmptyState
+        v-if="!loading && postList.length === 0"
+        title="暂无发表的帖子"
+        description="发布第一篇帖子后，你可以在这里查看自己的社区内容表现。"
+        icon="PO"
+      >
+        <template #actions>
+          <el-button type="primary" @click="goToCreatePost">去发表帖子</el-button>
         </template>
+      </CnEmptyState>
 
-        <div v-loading="loading" class="posts-list">
-          <div 
-            v-for="post in postList" 
-            :key="post.id"
-            class="post-card"
-            @click="goToPostDetail(post)"
-          >
-            <div class="post-header">
-              <div class="post-meta">
-                <span class="post-date">发表于 {{ formatDate(post.createTime) }}</span>
-                <el-tag v-if="post.categoryName" type="info" size="small" class="category-tag">
-                  {{ post.categoryName }}
-                </el-tag>
-              </div>
-            </div>
-            
-            <h3 class="post-title">{{ post.title }}</h3>
-            <p class="post-content">{{ post.content }}</p>
-            
-            <div class="post-stats">
-              <div class="stat-item">
-                <el-icon><View /></el-icon>
-                <span>{{ post.viewCount || 0 }} 浏览</span>
-              </div>
-                             <div class="stat-item">
-                 <el-icon><StarFilled /></el-icon>
-                <span>{{ post.likeCount || 0 }} 点赞</span>
-              </div>
-              <div class="stat-item">
-                <el-icon><ChatDotRound /></el-icon>
-                <span>{{ post.commentCount || 0 }} 评论</span>
-              </div>
-              <div class="stat-item">
-                <el-icon><Star /></el-icon>
-                <span>{{ post.collectCount || 0 }} 收藏</span>
-              </div>
-            </div>
-            
-            <div class="post-actions" @click.stop>
-              <el-button size="small" @click="goToPostDetail(post)">
-                <el-icon><View /></el-icon>
-                查看详情
-              </el-button>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="!loading && postList.length === 0" class="empty-state">
-          <el-empty description="暂无发表的帖子">
-            <el-button type="primary" @click="goToCommunity">去发表帖子</el-button>
-          </el-empty>
-        </div>
-
-        <div class="pagination-wrapper" v-if="total > 0">
-          <el-pagination 
-            v-model:current-page="queryParams.pageNum" 
-            v-model:page-size="queryParams.pageSize"
-            :page-sizes="[10, 20, 30, 50]"
-            :total="total"
-            layout="total, sizes, prev, pager, next, jumper"
-            @size-change="handleSizeChange"
-            @current-change="handleCurrentChange"
-          />
-        </div>
-      </el-card>
-    </div>
-  </div>
+      <div v-if="total > 0" class="pagination-wrapper">
+        <el-pagination
+          v-model:current-page="queryParams.pageNum"
+          v-model:page-size="queryParams.pageSize"
+          :page-sizes="[10, 20, 30, 50]"
+          :total="total"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+        />
+      </div>
+    </CnSection>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { 
-  Back, View, StarFilled, ChatDotRound, Star
-} from '@element-plus/icons-vue'
+import { Back, ChatDotRound, Star, StarFilled, View } from '@element-plus/icons-vue'
+import { CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatusTag } from '@/design-system'
 import { communityApi } from '@/api/community'
+
+interface CommunityPost {
+  id: number | string
+  title?: string
+  content?: string
+  categoryName?: string
+  createTime?: string
+  viewCount?: number
+  likeCount?: number
+  commentCount?: number
+  collectCount?: number
+}
 
 const router = useRouter()
 
-// 响应式数据
 const loading = ref(false)
-const postList = ref([])
+const postList = ref<CommunityPost[]>([])
 const total = ref(0)
 
-// 查询参数
 const queryParams = reactive({
   pageNum: 1,
   pageSize: 10
 })
 
-// 格式化日期
-const formatDate = (dateStr) => {
-  if (!dateStr) return ''
+const breadcrumbs = [
+  { label: '首页', to: '/' },
+  { label: '技术社区', to: '/community' },
+  { label: '我的帖子' }
+]
+
+const sectionDescription = computed(() => {
+  if (total.value <= 0) return '暂时没有发布记录。'
+  return `当前第 ${queryParams.pageNum} 页，按发布时间分页展示。`
+})
+
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return '-'
   return new Date(dateStr).toLocaleString('zh-CN')
 }
 
-
-
-// 获取我的帖子列表
 const fetchMyPosts = async () => {
   loading.value = true
   try {
@@ -130,183 +162,145 @@ const fetchMyPosts = async () => {
   }
 }
 
-// 分页大小改变
-const handleSizeChange = (size) => {
+const handleSizeChange = (size: number) => {
   queryParams.pageSize = size
   queryParams.pageNum = 1
   fetchMyPosts()
 }
 
-// 当前页改变
-const handleCurrentChange = (page) => {
+const handleCurrentChange = (page: number) => {
   queryParams.pageNum = page
   fetchMyPosts()
 }
 
-// 跳转到帖子详情
-const goToPostDetail = (post) => {
+const goToPostDetail = (post: CommunityPost) => {
   router.push(`/community/posts/${post.id}`)
 }
 
-// 返回社区
 const goBack = () => {
   router.push('/community')
 }
 
-// 跳转到社区
-const goToCommunity = () => {
-  router.push('/community')
+const goToCreatePost = () => {
+  router.push('/community/create')
 }
 
-// 初始化
 onMounted(() => {
   fetchMyPosts()
 })
 </script>
 
 <style scoped>
-.my-posts-page {
-  min-height: 100vh;
-  background-color: #f5f5f5;
-  padding: 20px;
-}
-
-.back-section {
-  margin-bottom: 20px;
-}
-
-.content-section {
-  margin-bottom: 20px;
-}
-
-.content-card {
-  border: none;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-}
-
-.content-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.total-count {
-  color: #909399;
-  font-size: 14px;
+.community-my-posts {
+  min-height: calc(100vh - 68px);
 }
 
 .posts-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 20px;
+  display: grid;
+  gap: var(--cn-space-4);
 }
 
 .post-card {
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  padding: 24px;
+  display: grid;
+  gap: var(--cn-space-4);
+  min-width: 0;
+  padding: var(--cn-space-5);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface);
   cursor: pointer;
-  transition: all 0.3s;
-  background: white;
+  transition:
+    border-color var(--cn-motion-fast) var(--cn-ease-out),
+    box-shadow var(--cn-motion-fast) var(--cn-ease-out),
+    transform var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .post-card:hover {
-  border-color: #00b894;
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 36%, var(--cn-color-border));
+  box-shadow: var(--cn-shadow-card);
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 185, 148, 0.15);
 }
 
 .post-header {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
+  gap: var(--cn-space-3);
+  min-width: 0;
 }
 
 .post-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  color: #909399;
-  font-size: 14px;
-}
-
-.collect-date {
-  color: #f6ad55;
+  gap: var(--cn-space-2);
+  min-width: 0;
+  color: var(--cn-color-text-tertiary);
   font-size: 13px;
 }
 
+.post-date {
+  color: var(--cn-color-text-tertiary);
+}
+
 .post-title {
-  margin: 0 0 12px 0;
+  margin: 0;
+  color: var(--cn-color-text-primary);
   font-size: 18px;
-  font-weight: 600;
-  color: #303133;
-  line-height: 1.4;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.post-card:hover .post-title {
+  color: var(--cn-color-brand-primary);
 }
 
 .post-content {
-  margin: 0 0 16px 0;
-  color: #606266;
-  line-height: 1.6;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  margin: 0;
   overflow: hidden;
+  color: var(--cn-color-text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
 }
 
 .post-stats {
   display: flex;
-  justify-content: flex-start;
-  gap: 24px;
-  margin-bottom: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #f0f0f0;
+  flex-wrap: wrap;
+  gap: var(--cn-space-4);
+  padding-top: var(--cn-space-3);
+  border-top: 1px solid var(--cn-color-border-subtle);
 }
 
 .stat-item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  color: #909399;
-  font-size: 14px;
+  gap: var(--cn-space-1);
+  color: var(--cn-color-text-tertiary);
+  font-size: 13px;
 }
 
 .post-actions {
   display: flex;
-  gap: 12px;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 40px 0;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
 }
 
 .pagination-wrapper {
   display: flex;
   justify-content: center;
-  margin-top: 20px;
+  margin-top: var(--cn-space-5);
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
-  .my-posts-page {
-    padding: 10px;
-  }
-  
   .post-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
+    display: grid;
   }
-  
-  .post-stats {
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-  
-  .post-actions {
-    flex-wrap: wrap;
+
+  .post-card {
+    padding: var(--cn-space-4);
   }
 }
-</style> 
+</style>

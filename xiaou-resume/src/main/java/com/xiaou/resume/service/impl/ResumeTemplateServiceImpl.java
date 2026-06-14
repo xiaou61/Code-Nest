@@ -35,13 +35,19 @@ public class ResumeTemplateServiceImpl implements ResumeTemplateService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long createTemplate(ResumeTemplateRequest request) {
+        return createTemplate(StpUserUtil.getLoginIdAsLong(), request);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long createTemplate(Long operatorId, ResumeTemplateRequest request) {
         ResumeTemplate template = mapToEntity(request);
         LocalDateTime now = LocalDateTime.now();
         template.setStatus(request.getStatus());
         template.setRating(0.0);
         template.setRatingCount(0);
         template.setDownloadCount(0);
-        template.setCreatedBy(StpUserUtil.getLoginIdAsLong());
+        template.setCreatedBy(operatorId);
         template.setUpdatedBy(template.getCreatedBy());
         template.setCreateTime(now);
         template.setUpdateTime(now);
@@ -52,6 +58,12 @@ public class ResumeTemplateServiceImpl implements ResumeTemplateService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateTemplate(Long id, ResumeTemplateRequest request) {
+        updateTemplate(StpUserUtil.getLoginIdAsLong(), id, request);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateTemplate(Long operatorId, Long id, ResumeTemplateRequest request) {
         ResumeTemplate exists = resumeTemplateMapper.selectById(id);
         if (exists == null) {
             throw new BusinessException("模板不存在");
@@ -59,7 +71,7 @@ public class ResumeTemplateServiceImpl implements ResumeTemplateService {
         ResumeTemplate template = mapToEntity(request);
         template.setId(id);
         template.setUpdateTime(LocalDateTime.now());
-        template.setUpdatedBy(StpUserUtil.getLoginIdAsLong());
+        template.setUpdatedBy(operatorId);
         resumeTemplateMapper.updateById(template);
     }
 

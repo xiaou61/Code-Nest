@@ -1,155 +1,232 @@
 <template>
-  <div class="oj-index cn-learn-shell">
-    <div class="cn-learn-shell__inner">
-      <section class="cn-learn-hero cn-wave-reveal">
-        <div class="cn-learn-hero__content">
-          <span class="cn-learn-hero__eyebrow">Online Judge</span>
-          <h1 class="cn-learn-hero__title">在线判题训练台</h1>
-          <p class="cn-learn-hero__desc">按难度与标签精确筛题，结合每日一题与数据追踪，稳步提升算法实战能力。</p>
-        </div>
-        <div class="cn-learn-hero__meta">
-          <span class="cn-learn-chip">总题量 {{ ojStore.problemsTotal }}</span>
-          <span class="cn-learn-chip">标签 {{ ojStore.tags.length }}</span>
-          <span class="cn-learn-chip">筛选页 {{ queryParams.pageNum }}</span>
-        </div>
-      </section>
+  <CnPage class="oj-index" surface="transparent" max-width="1440px" full-height>
+    <CnPageHeader
+      class="oj-page-header cn-wave-reveal"
+      title="在线判题训练台"
+      description="按难度与标签精确筛题，结合每日一题与数据追踪，稳步提升算法实战能力。"
+      eyebrow="Online Judge"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">
+          总题量 {{ ojStore.problemsTotal }}
+        </CnStatusTag>
+        <CnStatusTag type="success" size="sm">
+          标签 {{ ojStore.tags.length }}
+        </CnStatusTag>
+        <CnStatusTag type="info" size="sm">
+          {{ activeFilterText }}
+        </CnStatusTag>
+      </template>
 
-      <div class="cn-learn-layout">
-        <!-- 左侧边栏 -->
-        <aside class="sidebar cn-learn-sidebar">
-          <!-- 搜索框 -->
-          <div class="sidebar-section search-section cn-learn-panel cn-learn-float cn-learn-reveal">
-            <el-input
-              v-model="searchKeyword"
-              placeholder="搜索题目..."
-              clearable
-              @clear="handleSearch"
-              @keyup.enter="handleSearch"
+      <template #actions>
+        <el-button plain @click="router.push('/oj/my-submissions')">
+          <el-icon><List /></el-icon>
+          我的提交
+        </el-button>
+        <el-button type="primary" @click="router.push('/oj/playground')">
+          <el-icon><Lightning /></el-icon>
+          练习场
+        </el-button>
+      </template>
+    </CnPageHeader>
+
+    <section class="oj-summary-grid cn-learn-reveal" aria-label="OJ 数据概览">
+      <CnStatCard
+        title="题库总量"
+        :value="ojStore.problemsTotal"
+        unit="题"
+        description="当前筛选条件下的公开题目"
+        tone="brand"
+        trend="flat"
+        :loading="ojStore.problemsLoading"
+        trend-text="实时"
+      />
+      <CnStatCard
+        title="标签数量"
+        :value="ojStore.tags.length"
+        unit="个"
+        description="用于拆解算法知识点"
+        tone="success"
+        trend="flat"
+        :loading="ojStore.tagsLoading"
+        trend-text="筛选"
+      />
+      <CnStatCard
+        title="当前页码"
+        :value="queryParams.pageNum"
+        description="分页浏览刷题列表"
+        tone="info"
+        trend="flat"
+        trend-text="分页"
+      />
+      <CnStatCard
+        title="当前难度"
+        :value="selectedDifficultyLabel"
+        description="可按难度快速聚焦训练"
+        tone="warning"
+        trend="flat"
+        trend-text="过滤"
+      />
+    </section>
+
+    <div class="oj-layout">
+      <aside class="sidebar" aria-label="题目筛选">
+        <CnSection class="sidebar-section search-section cn-learn-reveal" surface="panel" compact>
+          <el-input
+            v-model="searchKeyword"
+            placeholder="搜索题目..."
+            clearable
+            @clear="handleSearch"
+            @keyup.enter="handleSearch"
+          >
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
+            <template #append>
+              <el-button :icon="Search" aria-label="搜索题目" @click="handleSearch" />
+            </template>
+          </el-input>
+        </CnSection>
+
+        <CnSection
+          class="sidebar-section cn-learn-reveal"
+          title="难度筛选"
+          description="控制训练颗粒度"
+          surface="panel"
+          compact
+        >
+          <template #actions>
+            <el-icon><Filter /></el-icon>
+          </template>
+          <div class="filter-list">
+            <button
+              class="filter-item"
+              :class="{ active: !queryParams.difficulty }"
+              type="button"
+              @click="selectDifficulty(null)"
             >
-              <template #prefix>
-                <el-icon><Search /></el-icon>
-              </template>
-              <template #append>
-                <el-button :icon="Search" @click="handleSearch" />
-              </template>
-            </el-input>
+              <span>全部难度</span>
+            </button>
+            <button
+              v-for="d in difficultyOptions"
+              :key="d.value"
+              class="filter-item"
+              :class="{ active: queryParams.difficulty === d.value }"
+              type="button"
+              @click="selectDifficulty(d.value)"
+            >
+              <CnStatusTag :type="d.tagType" size="sm" :dot="false">
+                {{ d.label }}
+              </CnStatusTag>
+            </button>
           </div>
+        </CnSection>
 
-          <!-- 难度筛选 -->
-          <div class="sidebar-section cn-learn-panel cn-learn-float cn-learn-reveal">
-            <div class="section-title">
-              <el-icon><Filter /></el-icon>
-              <span>难度筛选</span>
-            </div>
-            <div class="difficulty-list">
-              <div
-                class="difficulty-item"
-                :class="{ active: !queryParams.difficulty }"
-                @click="selectDifficulty(null)"
-              >
-                <span>全部难度</span>
-              </div>
-              <div
-                v-for="d in difficultyOptions"
-                :key="d.value"
-                class="difficulty-item"
-                :class="{ active: queryParams.difficulty === d.value }"
-                @click="selectDifficulty(d.value)"
-              >
-                <el-tag :type="d.tagType" size="small" effect="dark">{{ d.label }}</el-tag>
-              </div>
-            </div>
+        <CnSection
+          class="sidebar-section cn-learn-reveal"
+          title="标签筛选"
+          description="按知识点聚焦题目"
+          surface="panel"
+          compact
+        >
+          <template #actions>
+            <el-icon><CollectionTag /></el-icon>
+          </template>
+          <div class="filter-list tag-list" v-loading="ojStore.tagsLoading">
+            <button
+              class="filter-item"
+              :class="{ active: !queryParams.tagId }"
+              type="button"
+              @click="selectTag(null)"
+            >
+              <span>全部标签</span>
+            </button>
+            <button
+              v-for="tag in ojStore.tags"
+              :key="tag.id"
+              class="filter-item"
+              :class="{ active: queryParams.tagId === tag.id }"
+              type="button"
+              @click="selectTag(tag.id)"
+            >
+              <span>{{ tag.name }}</span>
+            </button>
           </div>
+        </CnSection>
 
-          <!-- 标签筛选 -->
-          <div class="sidebar-section cn-learn-panel cn-learn-float cn-learn-reveal">
-            <div class="section-title">
-              <el-icon><CollectionTag /></el-icon>
-              <span>标签筛选</span>
-            </div>
-            <div class="tag-list" v-loading="ojStore.tagsLoading">
-              <div
-                class="tag-item"
-                :class="{ active: !queryParams.tagId }"
-                @click="selectTag(null)"
-              >
-                <span>全部标签</span>
-              </div>
-              <div
-                v-for="tag in ojStore.tags"
-                :key="tag.id"
-                class="tag-item"
-                :class="{ active: queryParams.tagId === tag.id }"
-                @click="selectTag(tag.id)"
-              >
-                <span>{{ tag.name }}</span>
-              </div>
-            </div>
+        <CnSection
+          class="sidebar-section quick-actions cn-learn-reveal"
+          title="快捷入口"
+          description="跳转到常用 OJ 工作区"
+          surface="panel"
+          compact
+        >
+          <template #actions>
+            <el-icon><Lightning /></el-icon>
+          </template>
+          <div class="action-buttons">
+            <button class="action-btn" type="button" @click="router.push('/oj/my-submissions')">
+              <el-icon class="action-icon"><List /></el-icon>
+              <span>我的提交</span>
+            </button>
+            <button class="action-btn" type="button" @click="router.push('/oj/statistics')">
+              <el-icon class="action-icon"><DataLine /></el-icon>
+              <span>做题统计</span>
+            </button>
+            <button class="action-btn" type="button" @click="router.push('/oj/ranking')">
+              <el-icon class="action-icon"><Trophy /></el-icon>
+              <span>排行榜</span>
+            </button>
+            <button class="action-btn" type="button" @click="router.push('/oj/contests')">
+              <el-icon class="action-icon"><CollectionTag /></el-icon>
+              <span>赛事中心</span>
+            </button>
           </div>
+        </CnSection>
+      </aside>
 
-          <!-- 快捷入口 -->
-          <div class="sidebar-section quick-actions cn-learn-panel cn-learn-float cn-learn-reveal">
-            <div class="section-title">
-              <el-icon><Lightning /></el-icon>
-              <span>快捷入口</span>
-            </div>
-            <div class="action-buttons">
-              <div class="action-btn" @click="$router.push('/oj/my-submissions')">
-                <el-icon class="action-icon"><List /></el-icon>
-                <span>我的提交</span>
-              </div>
-              <div class="action-btn" @click="$router.push('/oj/statistics')">
-                <el-icon class="action-icon"><DataLine /></el-icon>
-                <span>做题统计</span>
-              </div>
-              <div class="action-btn" @click="$router.push('/oj/ranking')">
-                <el-icon class="action-icon"><Trophy /></el-icon>
-                <span>排行榜</span>
-              </div>
-              <div class="action-btn" @click="$router.push('/oj/contests')">
-                <el-icon class="action-icon"><CollectionTag /></el-icon>
-                <span>赛事中心</span>
-              </div>
-            </div>
-          </div>
-        </aside>
+      <main class="main-content">
+        <button
+          v-if="dailyProblem"
+          class="daily-card cn-learn-reveal cn-learn-shine"
+          type="button"
+          @click="goToProblem(dailyProblem)"
+        >
+          <span class="daily-label">每日一题</span>
+          <span class="daily-body">
+            <span class="daily-title">
+              <span>{{ dailyProblem.id }}. {{ dailyProblem.title }}</span>
+              <CnStatusTag :type="getDifficultyTag(dailyProblem.difficulty)" size="sm" :dot="false">
+                {{ getDifficultyLabel(dailyProblem.difficulty) }}
+              </CnStatusTag>
+            </span>
+            <span class="daily-desc" v-if="dailyProblem.inputDescription">
+              {{ dailyProblem.inputDescription.substring(0, 80) }}
+              <span v-if="dailyProblem.inputDescription.length > 80">...</span>
+            </span>
+          </span>
+          <el-icon class="daily-arrow"><ArrowRight /></el-icon>
+        </button>
 
-        <!-- 主内容区 -->
-        <main class="main-content cn-learn-main">
-          <!-- 内容头部 -->
-          <div class="content-header cn-learn-panel cn-learn-reveal">
-            <div class="header-left">
-              <h2 class="page-title">在线判题</h2>
-              <span class="total-badge" v-if="ojStore.problemsTotal > 0">
-                {{ ojStore.problemsTotal }} 道题目
-              </span>
-            </div>
-          </div>
-
-          <!-- 每日一题 -->
-          <div class="daily-card cn-learn-reveal cn-learn-shine" v-if="dailyProblem" @click="goToProblem(dailyProblem)">
-            <div class="daily-label">每日一题</div>
-            <div class="daily-body">
-              <div class="daily-title">
-                <span>{{ dailyProblem.id }}. {{ dailyProblem.title }}</span>
-                <el-tag :type="getDifficultyTag(dailyProblem.difficulty)" size="small" effect="dark">
-                  {{ getDifficultyLabel(dailyProblem.difficulty) }}
-                </el-tag>
-              </div>
-              <div class="daily-desc" v-if="dailyProblem.inputDescription">
-                {{ dailyProblem.inputDescription.substring(0, 80) }}
-                <span v-if="dailyProblem.inputDescription.length > 80">...</span>
-              </div>
-            </div>
-            <el-icon class="daily-arrow"><ArrowRight /></el-icon>
-          </div>
-
-          <!-- 题目表格 -->
-          <el-card shadow="never" class="table-card cn-learn-panel cn-learn-reveal">
+        <CnSection
+          class="problem-section cn-learn-reveal"
+          title="题目列表"
+          :description="problemSectionDescription"
+          surface="panel"
+          divided
+        >
+          <template #actions>
+            <CnStatusTag v-if="ojStore.problemsTotal > 0" type="brand" size="sm">
+              {{ ojStore.problemsTotal }} 道题目
+            </CnStatusTag>
+          </template>
+          <div class="problem-table-wrap">
             <el-table
+              v-if="ojStore.problemsLoading || ojStore.problems.length > 0"
               v-loading="ojStore.problemsLoading"
               :data="ojStore.problems"
-              style="width: 100%"
+              class="problem-table"
               @row-click="goToProblem"
               row-class-name="clickable-row"
             >
@@ -161,13 +238,9 @@
               </el-table-column>
               <el-table-column label="难度" width="100" align="center">
                 <template #default="{ row }">
-                  <el-tag
-                    :type="getDifficultyTag(row.difficulty)"
-                    size="small"
-                    effect="dark"
-                  >
+                  <CnStatusTag :type="getDifficultyTag(row.difficulty)" size="sm" :dot="false">
                     {{ getDifficultyLabel(row.difficulty) }}
-                  </el-tag>
+                  </CnStatusTag>
                 </template>
               </el-table-column>
               <el-table-column label="通过率" width="120" align="center">
@@ -180,17 +253,20 @@
               </el-table-column>
               <el-table-column label="标签" min-width="200">
                 <template #default="{ row }">
-                  <el-tag
+                  <CnStatusTag
                     v-for="tag in (row.tags || []).slice(0, 3)"
                     :key="tag.id"
-                    size="small"
+                    type="neutral"
+                    size="sm"
+                    :dot="false"
+                    subtle
                     class="tag-chip"
                   >
                     {{ tag.name }}
-                  </el-tag>
-                  <el-tag v-if="(row.tags || []).length > 3" size="small" type="info">
+                  </CnStatusTag>
+                  <CnStatusTag v-if="(row.tags || []).length > 3" type="info" size="sm" :dot="false">
                     +{{ row.tags.length - 3 }}
-                  </el-tag>
+                  </CnStatusTag>
                 </template>
               </el-table-column>
               <el-table-column label="提交/通过" width="120" align="center">
@@ -199,16 +275,20 @@
                 </template>
               </el-table-column>
             </el-table>
-          </el-card>
+            <CnEmptyState
+              v-else
+              title="暂无题目数据"
+              description="调整关键词、难度或标签后重新筛选。"
+              icon="OJ"
+              size="lg"
+              surface="transparent"
+            >
+              <template #actions>
+                <el-button plain @click="resetFilters">重置筛选</el-button>
+              </template>
+            </CnEmptyState>
+          </div>
 
-          <!-- 空状态 -->
-          <el-empty
-            v-if="!ojStore.problemsLoading && ojStore.problems.length === 0"
-            description="暂无题目数据"
-            :image-size="120"
-          />
-
-          <!-- 分页 -->
           <div class="pagination-wrapper cn-learn-reveal" v-if="ojStore.problemsTotal > 0">
             <el-pagination
               v-model:current-page="queryParams.pageNum"
@@ -220,18 +300,26 @@
               @current-change="handleCurrentChange"
             />
           </div>
-        </main>
-      </div>
+        </CnSection>
+      </main>
     </div>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   Search, Filter, CollectionTag, Lightning, List, DataLine, Trophy, ArrowRight
 } from '@element-plus/icons-vue'
+import {
+  CnEmptyState,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag
+} from '@/design-system'
 import { useOjStore } from '@/stores/oj'
 import { ojApi } from '@/api/oj'
 import { useRevealMotion } from '@/utils/reveal-motion'
@@ -255,6 +343,30 @@ const difficultyOptions = [
   { value: 'medium', label: '中等', tagType: 'warning' },
   { value: 'hard', label: '困难', tagType: 'danger' }
 ]
+
+const breadcrumbs = [
+  { label: '首页', to: '/' },
+  { label: '在线判题' }
+]
+
+const selectedDifficultyLabel = computed(() => {
+  const option = difficultyOptions.find(item => item.value === queryParams.difficulty)
+  return option?.label || '全部'
+})
+
+const selectedTagName = computed(() => {
+  const tag = ojStore.tags.find(item => item.id === queryParams.tagId)
+  return tag?.name || '全部标签'
+})
+
+const activeFilterText = computed(() => {
+  const keyword = queryParams.keyword ? `关键词 ${queryParams.keyword}` : '无关键词'
+  return `${selectedDifficultyLabel.value} · ${selectedTagName.value} · ${keyword}`
+})
+
+const problemSectionDescription = computed(() => {
+  return `当前页 ${queryParams.pageNum}，每页 ${queryParams.pageSize} 题，筛选条件：${activeFilterText.value}`
+})
 
 // ============ 方法 ============
 
@@ -293,6 +405,15 @@ const handleCurrentChange = () => {
   loadProblems()
 }
 
+const resetFilters = () => {
+  searchKeyword.value = ''
+  queryParams.keyword = ''
+  queryParams.difficulty = null
+  queryParams.tagId = null
+  queryParams.pageNum = 1
+  loadProblems()
+}
+
 const goToProblem = (row) => {
   router.push(`/oj/problem/${row.id}`)
 }
@@ -321,8 +442,21 @@ onMounted(() => {
   min-height: calc(100vh - 68px);
 }
 
-.oj-index .cn-learn-layout {
+.oj-page-header {
+  margin-bottom: var(--cn-space-1);
+}
+
+.oj-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
+}
+
+.oj-layout {
+  display: flex;
   align-items: flex-start;
+  gap: var(--cn-space-5);
+  min-width: 0;
 }
 
 .sidebar {
@@ -334,53 +468,46 @@ onMounted(() => {
 }
 
 .sidebar-section {
-  border-radius: 16px;
-  padding: 16px;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
+  min-width: 0;
 }
 
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--cn-text-primary);
-  margin-bottom: 12px;
-}
-
-.difficulty-list,
+.filter-list,
 .tag-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--cn-space-2);
 }
 
-.difficulty-item,
-.tag-item {
-  padding: 8px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--cn-text-secondary);
-  transition: all 0.2s;
+.filter-item {
   display: flex;
   align-items: center;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 var(--cn-space-3);
+  border: 1px solid transparent;
+  border-radius: var(--cn-radius-card);
+  background: transparent;
+  color: var(--cn-color-text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+  transition:
+    background-color var(--cn-motion-fast) var(--cn-ease-out),
+    border-color var(--cn-motion-fast) var(--cn-ease-out),
+    color var(--cn-motion-fast) var(--cn-ease-out);
 }
 
-.difficulty-item:hover,
-.tag-item:hover {
-  background: #eef4ff;
-  color: #2458b1;
+.filter-item:hover {
+  border-color: var(--cn-color-border);
+  background: var(--cn-color-bg-surface-muted);
+  color: var(--cn-color-brand-primary);
 }
 
-.difficulty-item.active,
-.tag-item.active {
-  background: #e6f0ff;
-  color: #1f6feb;
-  font-weight: 500;
+.filter-item.active {
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 28%, var(--cn-color-border-subtle));
+  background: var(--cn-color-brand-soft);
+  color: var(--cn-color-brand-primary);
+  font-weight: 650;
 }
 
 .tag-list {
@@ -397,18 +524,27 @@ onMounted(() => {
 .action-btn {
   display: flex;
   align-items: center;
+  width: 100%;
+  min-height: 38px;
   gap: 8px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--cn-radius-card);
+  background: transparent;
   cursor: pointer;
   font-size: 13px;
-  color: var(--cn-text-secondary);
-  transition: all 0.2s;
+  color: var(--cn-color-text-secondary);
+  text-align: left;
+  transition:
+    background-color var(--cn-motion-fast) var(--cn-ease-out),
+    border-color var(--cn-motion-fast) var(--cn-ease-out),
+    color var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .action-btn:hover {
-  background: #edf4ff;
-  color: var(--cn-primary);
+  border-color: var(--cn-color-border);
+  background: var(--cn-color-bg-surface-muted);
+  color: var(--cn-color-brand-primary);
 }
 
 .action-icon {
@@ -420,42 +556,16 @@ onMounted(() => {
   min-width: 0;
 }
 
-.content-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 14px;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--cn-text-primary);
-  margin: 0;
-}
-
-.total-badge {
-  background: #edf4ff;
-  color: #1f6feb;
-  padding: 3px 11px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.table-card {
-  border-radius: 16px;
-  border: 1px solid rgba(115, 156, 225, 0.24);
-}
-
-.table-card :deep(.el-card__body) {
+.problem-section :deep(.cn-section__body) {
   padding: 0;
+}
+
+.problem-table-wrap {
+  min-width: 0;
+}
+
+.problem-table {
+  width: 100%;
 }
 
 .clickable-row {
@@ -463,12 +573,12 @@ onMounted(() => {
 }
 
 .clickable-row:hover {
-  background: #f4f9ff;
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .problem-title {
-  font-weight: 500;
-  color: var(--cn-text-primary);
+  font-weight: 600;
+  color: var(--cn-color-text-primary);
 }
 
 .tag-chip {
@@ -476,44 +586,44 @@ onMounted(() => {
 }
 
 .text-muted {
-  color: #9ca3af;
+  color: var(--cn-color-text-tertiary);
   font-size: 13px;
 }
 
 .pagination-wrapper {
   display: flex;
   justify-content: center;
-  margin-top: 18px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.84);
-  border: 1px solid rgba(115, 156, 225, 0.24);
-  box-shadow: 0 18px 42px rgba(22, 63, 119, 0.12);
+  padding: var(--cn-space-4);
+  border-top: 1px solid var(--cn-color-border-subtle);
+  background: var(--cn-color-bg-surface);
 }
 
-/* 每日一题 */
 .daily-card {
-  background: linear-gradient(135deg, #4f8eff 0%, #1f6feb 100%);
-  border-radius: 16px;
+  width: 100%;
+  background: color-mix(in srgb, var(--cn-color-brand-primary) 82%, var(--cn-color-info));
+  border-radius: var(--cn-radius-panel);
   padding: 16px 20px;
   margin-bottom: 14px;
   display: flex;
   align-items: center;
   gap: 16px;
   cursor: pointer;
-  transition: transform 0.22s, box-shadow 0.22s;
-  color: #fff;
-  box-shadow: 0 16px 36px rgba(31, 111, 235, 0.28);
-  border: 1px solid rgba(163, 212, 255, 0.36);
+  transition:
+    transform var(--cn-motion-base) var(--cn-ease-out),
+    box-shadow var(--cn-motion-base) var(--cn-ease-out);
+  color: white;
+  text-align: left;
+  box-shadow: var(--cn-shadow-card);
+  border: 1px solid color-mix(in srgb, var(--cn-color-brand-primary) 26%, transparent);
 }
 
 .daily-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 16px 34px rgba(31, 111, 235, 0.34);
+  transform: translateY(-2px);
+  box-shadow: var(--cn-shadow-lg);
 }
 
 .daily-label {
-  background: rgba(255, 255, 255, 0.24);
+  background: color-mix(in srgb, white 24%, transparent);
   padding: 4px 10px;
   border-radius: 7px;
   font-size: 12px;
@@ -529,6 +639,7 @@ onMounted(() => {
 .daily-title {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   font-size: 15px;
   font-weight: 600;
@@ -537,7 +648,7 @@ onMounted(() => {
 
 .daily-desc {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.82);
+  color: color-mix(in srgb, white 82%, transparent);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -546,16 +657,36 @@ onMounted(() => {
 .daily-arrow {
   font-size: 20px;
   opacity: 0.7;
+  flex-shrink: 0;
 }
 
-/* 响应式 */
-@media (max-width: 900px) {
-  .oj-index .cn-learn-layout {
+@media (max-width: 1180px) {
+  .oj-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .oj-layout {
     flex-direction: column;
   }
 
   .sidebar {
     width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .oj-summary-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .daily-card {
+    align-items: flex-start;
+    padding: 14px 16px;
+  }
+
+  .daily-label,
+  .daily-arrow {
+    display: none;
   }
 }
 </style>

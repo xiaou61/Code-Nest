@@ -1,269 +1,290 @@
 <template>
-  <div class="job-match-engine-page cn-learn-shell">
-    <el-card class="hero-card" shadow="never">
-      <div class="hero-head">
-        <div>
-          <h2>岗位匹配引擎 2.0</h2>
-          <p>一次输入简历，批量评估多个岗位 JD，输出可解释评分、差距优先级与下一步动作。</p>
-        </div>
-        <div class="hero-actions">
-          <el-button @click="fillExample">填充示例</el-button>
-          <el-button type="primary" :loading="running" @click="runAnalysis">开始分析</el-button>
-        </div>
-      </div>
-    </el-card>
-
-    <el-row :gutter="16" class="section-row">
-      <el-col :xs="24" :lg="16">
-        <el-card shadow="never" class="form-card">
-          <template #header>
-            <div class="card-header">
-              <span>输入区</span>
-            </div>
-          </template>
-
-          <el-form label-position="top">
-            <el-form-item label="简历文本">
-              <el-input
-                v-model="form.resumeText"
-                type="textarea"
-                :rows="8"
-                placeholder="粘贴简历正文，建议包含项目经历和量化结果。"
-              />
-            </el-form-item>
-
-            <el-form-item label="项目亮点（可选）">
-              <el-input
-                v-model="form.projectHighlights"
-                type="textarea"
-                :rows="3"
-                placeholder="例如：主导百万级并发链路优化，接口 P99 延迟下降 42%。"
-              />
-            </el-form-item>
-
-            <el-form-item label="目标公司类型（可选）">
-              <el-select v-model="form.targetCompanyType" clearable style="width: 260px">
-                <el-option label="互联网" value="互联网" />
-                <el-option label="外企" value="外企" />
-                <el-option label="国企/央企" value="国企/央企" />
-                <el-option label="创业公司" value="创业公司" />
-              </el-select>
-            </el-form-item>
-          </el-form>
-
-          <div class="target-toolbar">
-            <h3>目标岗位列表</h3>
-            <el-button type="primary" plain @click="addTarget">新增岗位</el-button>
-          </div>
-
-          <div class="target-list">
-            <el-card v-for="(target, idx) in form.targets" :key="idx" shadow="hover" class="target-item">
-              <template #header>
-                <div class="target-head">
-                  <span>岗位 {{ idx + 1 }}</span>
-                  <el-button v-if="form.targets.length > 1" type="danger" link @click="removeTarget(idx)">
-                    删除
-                  </el-button>
-                </div>
-              </template>
-
-              <el-row :gutter="12">
-                <el-col :xs="24" :sm="8">
-                  <el-form-item label="岗位名称（可选）">
-                    <el-input v-model="target.targetRole" placeholder="如：Java后端开发" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :sm="8">
-                  <el-form-item label="级别（可选）">
-                    <el-input v-model="target.targetLevel" placeholder="如：P6 / 资深" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :sm="8">
-                  <el-form-item label="城市（可选）">
-                    <el-input v-model="target.city" placeholder="如：上海" />
-                  </el-form-item>
-                </el-col>
-              </el-row>
-
-              <el-form-item label="岗位JD">
-                <el-input
-                  v-model="target.jdText"
-                  type="textarea"
-                  :rows="6"
-                  placeholder="粘贴岗位JD全文。"
-                />
-              </el-form-item>
-            </el-card>
-          </div>
-        </el-card>
-      </el-col>
-
-      <el-col :xs="24" :lg="8">
-        <el-card shadow="never" class="tips-card">
-          <template #header>
-            <div class="card-header">
-              <span>使用建议</span>
-            </div>
-          </template>
-          <ol class="tips-list">
-            <li>优先放 3-5 个目标岗位，能看到“投递优先级”。</li>
-            <li>简历里尽量包含量化结果，评分稳定性更高。</li>
-            <li>关注 P0/P1 差距项，先补核心短板再扩展。</li>
-            <li>分析完成后可回到作战台继续生成冲刺计划。</li>
-          </ol>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <el-card v-if="analysisResult" shadow="never" class="result-card">
-      <template #header>
-        <div class="card-header">
-          <span>分析结果</span>
-          <el-tag type="success">{{ analysisResult.analysisName }}</el-tag>
-        </div>
+  <CnPage class="job-match-engine-page" max-width="1320px" full-height>
+    <CnPageHeader
+      title="岗位匹配引擎 2.0"
+      description="一次输入简历，批量评估多个岗位 JD，输出可解释评分、差距优先级与下一步动作。"
+      eyebrow="MATCH ENGINE"
+      :breadcrumbs="[{ label: '首页', to: '/' }, { label: '求职作战台', to: '/job-battle' }, { label: '岗位匹配引擎' }]"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">{{ form.targets.length }} 个岗位</CnStatusTag>
+        <CnStatusTag v-if="analysisResult" type="success" size="sm" subtle>
+          {{ analysisResult.analysisName || '已生成分析' }}
+        </CnStatusTag>
       </template>
 
-      <el-row :gutter="12" class="summary-grid">
-        <el-col :xs="12" :sm="6">
-          <div class="summary-item">
-            <div class="label">最佳匹配分</div>
-            <div class="value">{{ analysisResult.bestScore }}</div>
-          </div>
-        </el-col>
-        <el-col :xs="12" :sm="6">
-          <div class="summary-item">
-            <div class="label">平均匹配分</div>
-            <div class="value">{{ analysisResult.averageScore }}</div>
-          </div>
-        </el-col>
-        <el-col :xs="12" :sm="6">
-          <div class="summary-item">
-            <div class="label">目标岗位数</div>
-            <div class="value">{{ analysisResult.targetCount }}</div>
-          </div>
-        </el-col>
-        <el-col :xs="12" :sm="6">
-          <div class="summary-item">
-            <div class="label">降级岗位数</div>
-            <div class="value">{{ analysisResult.fallbackCount }}</div>
-          </div>
-        </el-col>
-      </el-row>
+      <template #actions>
+        <el-button @click="fillExample">填充示例</el-button>
+        <el-button type="primary" :loading="running" @click="runAnalysis">开始分析</el-button>
+      </template>
+    </CnPageHeader>
 
-      <div class="next-actions">
+    <section class="engine-stats" aria-label="岗位匹配引擎概览">
+      <CnStatCard
+        title="目标岗位"
+        :value="form.targets.length"
+        unit="个"
+        description="当前批量评估数量"
+        tone="brand"
+        trend="flat"
+        trend-text="输入"
+      />
+      <CnStatCard
+        title="最佳匹配分"
+        :value="analysisResult?.bestScore ?? '-'"
+        description="最近一次分析结果"
+        tone="success"
+        trend="flat"
+        trend-text="结果"
+      />
+      <CnStatCard
+        title="平均匹配分"
+        :value="analysisResult?.averageScore ?? '-'"
+        description="所有目标岗位平均值"
+        tone="info"
+        trend="flat"
+        trend-text="排行"
+      />
+      <CnStatCard
+        title="历史分析"
+        :value="historyTotal"
+        unit="条"
+        description="可加载过往分析"
+        tone="neutral"
+        trend="flat"
+        trend-text="历史"
+      />
+    </section>
+
+    <div class="engine-layout">
+      <CnSection class="form-section" title="输入区" description="先输入简历，再添加需要评估的目标岗位 JD。" divided>
+        <el-form label-position="top">
+          <el-form-item label="简历文本">
+            <el-input
+              v-model="form.resumeText"
+              type="textarea"
+              :rows="8"
+              placeholder="粘贴简历正文，建议包含项目经历和量化结果。"
+            />
+          </el-form-item>
+
+          <el-form-item label="项目亮点（可选）">
+            <el-input
+              v-model="form.projectHighlights"
+              type="textarea"
+              :rows="3"
+              placeholder="例如：主导百万级并发链路优化，接口 P99 延迟下降 42%。"
+            />
+          </el-form-item>
+
+          <el-form-item label="目标公司类型（可选）">
+            <el-select v-model="form.targetCompanyType" clearable class="company-select">
+              <el-option label="互联网" value="互联网" />
+              <el-option label="外企" value="外企" />
+              <el-option label="国企/央企" value="国企/央企" />
+              <el-option label="创业公司" value="创业公司" />
+            </el-select>
+          </el-form-item>
+        </el-form>
+
+        <div class="target-toolbar">
+          <div>
+            <h3>目标岗位列表</h3>
+            <p>单次最多添加 10 个岗位。</p>
+          </div>
+          <el-button type="primary" plain @click="addTarget">新增岗位</el-button>
+        </div>
+
+        <div class="target-list">
+          <el-card v-for="(target, idx) in form.targets" :key="idx" shadow="never" class="target-item">
+            <template #header>
+              <div class="target-head">
+                <CnStatusTag type="brand" size="sm">岗位 {{ idx + 1 }}</CnStatusTag>
+                <el-button v-if="form.targets.length > 1" type="danger" link @click="removeTarget(idx)">
+                  删除
+                </el-button>
+              </div>
+            </template>
+
+            <el-row :gutter="12">
+              <el-col :xs="24" :sm="8">
+                <el-form-item label="岗位名称（可选）">
+                  <el-input v-model="target.targetRole" placeholder="如：Java后端开发" />
+                </el-form-item>
+              </el-col>
+              <el-col :xs="24" :sm="8">
+                <el-form-item label="级别（可选）">
+                  <el-input v-model="target.targetLevel" placeholder="如：P6 / 资深" />
+                </el-form-item>
+              </el-col>
+              <el-col :xs="24" :sm="8">
+                <el-form-item label="城市（可选）">
+                  <el-input v-model="target.city" placeholder="如：上海" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+
+            <el-form-item label="岗位JD">
+              <el-input
+                v-model="target.jdText"
+                type="textarea"
+                :rows="6"
+                placeholder="粘贴岗位JD全文。"
+              />
+            </el-form-item>
+          </el-card>
+        </div>
+      </CnSection>
+
+      <CnSection class="tips-section" title="使用建议" description="批量评估前先保证简历证据足够具体。" divided>
+        <ol class="tips-list">
+          <li>优先放 3-5 个目标岗位，能看到投递优先级。</li>
+          <li>简历里尽量包含量化结果，评分稳定性更高。</li>
+          <li>关注 P0/P1 差距项，先补核心短板再扩展。</li>
+          <li>分析完成后可回到作战台继续生成冲刺计划。</li>
+        </ol>
+      </CnSection>
+    </div>
+
+    <CnSection v-if="analysisResult" class="result-section" title="分析结果" divided>
+      <template #actions>
+        <CnStatusTag type="success" size="sm">{{ analysisResult.analysisName }}</CnStatusTag>
+      </template>
+
+      <div v-if="analysisResult.nextActions?.length" class="next-actions">
         <h4>推荐下一步</h4>
-        <el-tag
-          v-for="(item, idx) in analysisResult.nextActions || []"
-          :key="idx"
-          effect="plain"
-          class="action-tag"
-        >
-          {{ item }}
-        </el-tag>
+        <div class="action-list">
+          <CnStatusTag
+            v-for="(item, idx) in analysisResult.nextActions || []"
+            :key="idx"
+            type="brand"
+            size="sm"
+            subtle
+          >
+            {{ item }}
+          </CnStatusTag>
+        </div>
       </div>
 
-      <el-table :data="analysisResult.ranking || []" border style="width: 100%">
-        <el-table-column type="expand">
-          <template #default="{ row }">
-            <div class="expand-panel">
-              <div class="expand-block">
-                <h5>关键优势</h5>
-                <el-tag v-for="(s, i) in row.strengths || []" :key="`s-${i}`" class="mini-tag">{{ s }}</el-tag>
+      <CnDataTable
+        :columns="rankingColumns"
+        :data="rankingRows"
+        border
+        empty-title="暂无分析结果"
+        empty-description="完成一次岗位匹配分析后，这里会展示目标岗位排行。"
+      >
+        <template #expand="{ row }">
+          <div class="expand-panel">
+            <div class="expand-block">
+              <h5>关键优势</h5>
+              <div class="tag-list">
+                <CnStatusTag v-for="(s, i) in row.strengths || []" :key="`s-${i}`" size="sm" type="success" subtle>
+                  {{ s }}
+                </CnStatusTag>
               </div>
-              <div class="expand-block">
-                <h5>缺失关键词</h5>
-                <el-tag
+            </div>
+            <div class="expand-block">
+              <h5>缺失关键词</h5>
+              <div class="tag-list">
+                <CnStatusTag
                   v-for="(k, i) in row.missingKeywords || []"
                   :key="`k-${i}`"
+                  size="sm"
                   type="warning"
-                  class="mini-tag"
+                  subtle
                 >
                   {{ k }}
-                </el-tag>
-              </div>
-              <div class="expand-block">
-                <h5>差距项（Top3）</h5>
-                <div v-for="(g, i) in row.topGaps || []" :key="`g-${i}`" class="gap-item">
-                  <el-tag size="small" :type="g.priority === 'P0' ? 'danger' : (g.priority === 'P1' ? 'warning' : 'info')">
-                    {{ g.priority || 'P2' }}
-                  </el-tag>
-                  <span class="gap-skill">{{ g.skill }}</span>
-                  <span class="gap-action">{{ g.suggestedAction }}</span>
-                </div>
+                </CnStatusTag>
               </div>
             </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="rank" label="#" width="54" />
-        <el-table-column prop="targetRole" label="岗位" min-width="160" />
-        <el-table-column prop="targetLevel" label="级别" min-width="100" />
-        <el-table-column prop="city" label="城市" min-width="90" />
-        <el-table-column label="引擎分" min-width="140">
-          <template #default="{ row }">
+            <div class="expand-block">
+              <h5>差距项（Top3）</h5>
+              <div v-for="(g, i) in row.topGaps || []" :key="`g-${i}`" class="gap-item">
+                <CnStatusTag size="sm" :type="gapPriorityTone(g.priority)">
+                  {{ g.priority || 'P2' }}
+                </CnStatusTag>
+                <span class="gap-skill">{{ g.skill }}</span>
+                <span class="gap-action">{{ g.suggestedAction }}</span>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <template #engineScore="{ row }">
+          <div class="score-cell">
             <el-progress :percentage="row.engineScore || 0" :stroke-width="10" :show-text="false" />
             <span class="score-text">{{ row.engineScore }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="overallScore" label="匹配总分" width="98" />
-        <el-table-column prop="estimatedPassRate" label="通过率" width="88" />
-        <el-table-column label="P0/P1" width="88">
-          <template #default="{ row }">{{ row.p0GapCount || 0 }}/{{ row.p1GapCount || 0 }}</template>
-        </el-table-column>
-        <el-table-column label="降级" width="70">
-          <template #default="{ row }">
-            <el-tag :type="row.fallback ? 'warning' : 'success'">{{ row.fallback ? '是' : '否' }}</el-tag>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
-
-    <el-card shadow="never" class="history-card">
-      <template #header>
-        <div class="card-header">
-          <span>历史分析</span>
-          <div>
-            <el-input
-              v-model="historyQuery.keyword"
-              placeholder="搜索分析名称/岗位"
-              clearable
-              style="width: 220px"
-              @keyup.enter="loadHistory"
-            />
           </div>
-        </div>
+        </template>
+
+        <template #gapCounts="{ row }">{{ row.p0GapCount || 0 }}/{{ row.p1GapCount || 0 }}</template>
+
+        <template #fallback="{ row }">
+          <CnStatusTag size="sm" :type="row.fallback ? 'warning' : 'success'" subtle>
+            {{ row.fallback ? '是' : '否' }}
+          </CnStatusTag>
+        </template>
+      </CnDataTable>
+    </CnSection>
+
+    <CnSection class="history-section" title="历史分析" description="加载历史结果后可直接查看排行与差距项。" divided>
+      <template #actions>
+        <el-input
+          v-model="historyQuery.keyword"
+          class="history-search"
+          placeholder="搜索分析名称/岗位"
+          clearable
+          @keyup.enter="handleHistorySearch"
+        />
+        <el-button type="primary" :loading="loadingHistory" @click="handleHistorySearch">查询</el-button>
       </template>
 
-      <el-table v-loading="loadingHistory" :data="historyList" border>
-        <el-table-column prop="id" label="ID" width="76" />
-        <el-table-column prop="analysisName" label="分析名称" min-width="220" />
-        <el-table-column prop="bestTargetRole" label="最佳岗位" min-width="140" />
-        <el-table-column prop="bestScore" label="最佳分" width="90" />
-        <el-table-column prop="targetCount" label="岗位数" width="80" />
-        <el-table-column prop="createTime" label="时间" min-width="170" />
-        <el-table-column label="操作" width="110">
-          <template #default="{ row }">
-            <el-button type="primary" link @click="applyHistory(row.id)">加载</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <div class="pagination-wrap">
-        <el-pagination
-          v-model:current-page="historyQuery.pageNum"
-          v-model:page-size="historyQuery.pageSize"
-          :total="historyTotal"
-          layout="total, prev, pager, next"
-          @current-change="loadHistory"
-        />
-      </div>
-    </el-card>
-  </div>
+      <CnDataTable
+        :columns="historyColumns"
+        :data="historyList"
+        :loading="loadingHistory"
+        :pagination="historyPagination"
+        border
+        empty-title="暂无历史分析"
+        empty-description="开始一次分析后，历史记录会出现在这里。"
+        @page-change="handleHistoryPageChange"
+      >
+        <template #historyActions="{ row }">
+          <el-button type="primary" link @click="applyHistory(row.id)">加载</el-button>
+        </template>
+      </CnDataTable>
+    </CnSection>
+  </CnPage>
 </template>
 
-<script setup>
-import { onMounted, reactive, ref } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { jobBattleApi } from '@/api/jobBattle'
+import { CnDataTable, CnPage, CnPageHeader, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
+
+const rankingColumns = [
+  { type: 'expand', slot: 'expand', width: 54 },
+  { prop: 'rank', label: '#', width: 54 },
+  { prop: 'targetRole', label: '岗位', minWidth: 160, showOverflowTooltip: true },
+  { prop: 'targetLevel', label: '级别', minWidth: 100, showOverflowTooltip: true },
+  { prop: 'city', label: '城市', minWidth: 90, showOverflowTooltip: true },
+  { prop: 'engineScore', label: '引擎分', minWidth: 150, slot: 'engineScore' },
+  { prop: 'overallScore', label: '匹配总分', width: 98 },
+  { prop: 'estimatedPassRate', label: '通过率', width: 88 },
+  { label: 'P0/P1', width: 88, slot: 'gapCounts' },
+  { label: '降级', width: 76, slot: 'fallback' }
+]
+
+const historyColumns = [
+  { prop: 'id', label: 'ID', width: 76 },
+  { prop: 'analysisName', label: '分析名称', minWidth: 220, showOverflowTooltip: true },
+  { prop: 'bestTargetRole', label: '最佳岗位', minWidth: 140, showOverflowTooltip: true },
+  { prop: 'bestScore', label: '最佳分', width: 90 },
+  { prop: 'targetCount', label: '岗位数', width: 80 },
+  { prop: 'createTime', label: '时间', minWidth: 170, showOverflowTooltip: true },
+  { label: '操作', width: 110, slot: 'historyActions' }
+]
 
 const running = ref(false)
 const loadingHistory = ref(false)
@@ -276,6 +297,15 @@ const historyQuery = reactive({
   pageNum: 1,
   pageSize: 8
 })
+
+const rankingRows = computed(() => analysisResult.value?.ranking || [])
+
+const historyPagination = computed(() => ({
+  page: historyQuery.pageNum,
+  pageSize: historyQuery.pageSize,
+  total: historyTotal.value,
+  layout: 'total, prev, pager, next'
+}))
 
 const form = reactive({
   resumeText: '',
@@ -363,6 +393,26 @@ async function loadHistory() {
   }
 }
 
+function handleHistorySearch() {
+  historyQuery.pageNum = 1
+  loadHistory()
+}
+
+function handleHistoryPageChange(page) {
+  historyQuery.pageNum = page
+  loadHistory()
+}
+
+function gapPriorityTone(priority) {
+  if (priority === 'P0') {
+    return 'danger'
+  }
+  if (priority === 'P1') {
+    return 'warning'
+  }
+  return 'info'
+}
+
 async function applyHistory(id) {
   try {
     const data = await jobBattleApi.getMatchEngineHistoryDetail(id)
@@ -412,178 +462,177 @@ onMounted(async () => {
 
 <style scoped>
 .job-match-engine-page {
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: 12px;
+  min-height: calc(100vh - 68px);
 }
 
-.section-row {
-  margin-top: 12px;
+.engine-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
+  margin-bottom: var(--cn-space-4);
 }
 
-.hero-card {
-  border-radius: 16px;
+.engine-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: var(--cn-space-4);
+  align-items: start;
 }
 
-.hero-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: flex-start;
+.form-section,
+.tips-section,
+.result-section,
+.history-section {
+  margin-bottom: var(--cn-space-4);
 }
 
-.hero-head h2 {
-  margin: 0;
-  font-size: 26px;
-  color: #123a6f;
-}
-
-.hero-head p {
-  margin: 8px 0 0;
-  color: #4a6789;
-}
-
-.hero-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-
-.form-card,
-.tips-card,
-.result-card,
-.history-card {
-  border-radius: 14px;
+.company-select {
+  width: 260px;
+  max-width: 100%;
 }
 
 .target-toolbar {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
+  align-items: flex-start;
+  gap: var(--cn-space-3);
+  margin: var(--cn-space-2) 0 var(--cn-space-3);
 }
 
 .target-toolbar h3 {
   margin: 0;
   font-size: 16px;
-  color: #1b3e6e;
+  color: var(--cn-color-text-primary);
+}
+
+.target-toolbar p {
+  margin: var(--cn-space-1) 0 0;
+  color: var(--cn-color-text-tertiary);
+  font-size: 13px;
 }
 
 .target-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--cn-space-3);
 }
 
 .target-item {
-  border-radius: 12px;
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface);
 }
 
 .target-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--cn-space-2);
 }
 
 .tips-list {
   margin: 0;
-  padding-left: 18px;
-  color: #4a6789;
+  padding-left: var(--cn-space-5);
+  color: var(--cn-color-text-secondary);
   line-height: 1.8;
 }
 
-.result-card,
-.history-card {
-  margin-top: 14px;
-}
-
-.summary-grid {
-  margin-bottom: 10px;
-}
-
-.summary-item {
-  border-radius: 10px;
-  padding: 12px;
-  background: linear-gradient(135deg, #f5f9ff 0%, #ecf4ff 100%);
-}
-
-.summary-item .label {
-  color: #6481a4;
-  font-size: 13px;
-}
-
-.summary-item .value {
-  margin-top: 6px;
-  font-size: 24px;
-  font-weight: 700;
-  color: #1c4f90;
-}
-
 .next-actions {
-  margin: 4px 0 12px;
+  margin-bottom: var(--cn-space-4);
 }
 
 .next-actions h4 {
-  margin: 0 0 8px;
-  color: #1b3e6e;
+  margin: 0 0 var(--cn-space-2);
+  color: var(--cn-color-text-primary);
 }
 
-.action-tag {
-  margin-right: 8px;
-  margin-bottom: 8px;
+.action-list,
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
+}
+
+.score-cell {
+  display: grid;
+  grid-template-columns: minmax(88px, 1fr) auto;
+  gap: var(--cn-space-2);
+  align-items: center;
 }
 
 .score-text {
-  margin-left: 8px;
   font-weight: 600;
-  color: #1c4f90;
+  color: var(--cn-color-brand-primary);
 }
 
 .expand-panel {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
+  gap: var(--cn-space-3);
+}
+
+.expand-block {
+  min-width: 0;
+  padding: var(--cn-space-3);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .expand-block h5 {
-  margin: 0 0 8px;
-  color: #1b3e6e;
-}
-
-.mini-tag {
-  margin-right: 6px;
-  margin-bottom: 6px;
+  margin: 0 0 var(--cn-space-2);
+  color: var(--cn-color-text-primary);
 }
 
 .gap-item {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 8px;
-  border-left: 3px solid #dce8f9;
-  padding-left: 8px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
+  margin-bottom: var(--cn-space-2);
+  padding-left: var(--cn-space-2);
+  border-left: 3px solid var(--cn-color-border);
 }
 
 .gap-skill {
   font-weight: 600;
-  color: #214f86;
+  color: var(--cn-color-text-primary);
 }
 
 .gap-action {
-  color: #537294;
+  flex-basis: 100%;
+  color: var(--cn-color-text-secondary);
   font-size: 13px;
 }
 
-.pagination-wrap {
-  margin-top: 12px;
-  display: flex;
-  justify-content: flex-end;
+.history-search {
+  width: 220px;
+}
+
+@media (max-width: 1180px) {
+  .engine-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 992px) {
+  .engine-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .engine-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .target-toolbar {
+    display: grid;
+  }
+
+  .history-search {
+    width: 100%;
+  }
 }
 </style>
 

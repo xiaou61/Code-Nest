@@ -1,0 +1,29 @@
+:root,
+[data-theme] {
+  --cn-card-bg: var(--cn-color-bg-surface);
+  --cn-card-border: var(--cn-color-border-subtle);
+  --cn-card-radius: var(--cn-radius-card);
+  --cn-card-shadow: var(--cn-shadow-card);
+
+  --cn-panel-bg: var(--cn-color-bg-elevated);
+  --cn-panel-border: var(--cn-color-border-subtle);
+  --cn-panel-radius: var(--cn-radius-panel);
+
+  --cn-button-radius: var(--cn-radius-control);
+  --cn-button-primary-bg: var(--cn-color-brand-primary);
+  --cn-button-primary-hover-bg: var(--cn-color-brand-hover);
+  --cn-button-primary-color: #ffffff;
+
+  --cn-input-bg: var(--cn-color-bg-surface);
+  --cn-input-border: var(--cn-color-border);
+  --cn-input-hover-border: color-mix(in srgb, var(--cn-color-brand-primary) 36%, var(--cn-color-border));
+  --cn-input-focus-border: var(--cn-color-brand-primary);
+
+  --cn-table-header-bg: var(--cn-color-bg-surface-muted);
+  --cn-table-row-hover-bg: var(--cn-color-brand-soft);
+  --cn-table-border: var(--cn-color-border-subtle);
+
+  --cn-nav-bg: color-mix(in srgb, var(--cn-color-bg-surface) 88%, transparent);
+  --cn-nav-active-bg: var(--cn-color-brand-soft);
+  --cn-nav-active-color: var(--cn-color-brand-primary);
+}

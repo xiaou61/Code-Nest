@@ -2,13 +2,17 @@
   <router-view />
 </template>
 
-<script setup>
-// App.vue 作为根组件，只需要渲染路由视图
+<script setup lang="ts">
+import { useTheme } from '@/design-system'
+
+useTheme()
 </script>
 
 <style>
 #app {
   height: 100vh;
   width: 100vw;
+  background: var(--cn-color-bg-page);
+  color: var(--cn-color-text-primary);
 }
 </style> 

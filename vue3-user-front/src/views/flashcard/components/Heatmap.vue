@@ -53,22 +53,30 @@
       </div>
     </div>
     
-    <el-empty v-else description="暂无学习记录" :image-size="60" />
+    <CnEmptyState v-else title="暂无学习记录" icon="HEAT" size="sm" surface="transparent" />
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 import { Calendar } from '@element-plus/icons-vue'
+import { CnEmptyState } from '@/design-system'
 
-const props = defineProps({
-  data: {
-    type: Array,
-    default: () => []
-  }
+interface HeatmapDay {
+  date: string
+  count: number
+  level?: number
+}
+
+const props = withDefaults(defineProps<{
+  data?: HeatmapDay[]
+}>(), {
+  data: () => []
 })
 
-defineEmits(['dayClick'])
+defineEmits<{
+  (e: 'dayClick', day: HeatmapDay): void
+}>()
 
 // 计算总结数据
 const summary = computed(() => {
@@ -82,7 +90,7 @@ const summary = computed(() => {
 const months = computed(() => {
   const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', 
                      '七月', '八月', '九月', '十月', '十一月', '十二月']
-  const result = []
+  const result: string[] = []
   const today = new Date()
   for (let i = 11; i >= 0; i--) {
     const d = new Date(today.getFullYear(), today.getMonth() - i, 1)
@@ -96,12 +104,12 @@ const weeks = computed(() => {
   if (!props.data || props.data.length === 0) return []
   
   // 创建日期到数据的映射
-  const dataMap = new Map()
+  const dataMap = new Map<string, HeatmapDay>()
   props.data.forEach(item => {
     dataMap.set(item.date, item)
   })
   
-  const result = []
+  const result: Array<Array<HeatmapDay | null>> = []
   const today = new Date()
   const startDate = new Date(today)
   startDate.setDate(startDate.getDate() - 364) // 过去一年
@@ -112,7 +120,7 @@ const weeks = computed(() => {
   startDate.setDate(startDate.getDate() + diff)
   
   let currentDate = new Date(startDate)
-  let currentWeek = []
+  let currentWeek: Array<HeatmapDay | null> = []
   
   while (currentDate <= today) {
     const dateStr = currentDate.toISOString().split('T')[0]
@@ -141,33 +149,34 @@ const weeks = computed(() => {
 
 <style lang="scss" scoped>
 .heatmap-container {
-  background: var(--el-bg-color);
-  border-radius: 12px;
-  padding: 20px;
-  border: 1px solid var(--el-border-color-light);
+  background: var(--cn-color-bg-surface);
+  border-radius: var(--cn-radius-panel);
+  padding: var(--cn-space-5);
+  border: 1px solid var(--cn-color-border-subtle);
+  box-shadow: var(--cn-shadow-card);
 }
 
 .heatmap-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: var(--cn-space-4);
   
   .heatmap-title {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--cn-space-2);
     font-size: 16px;
     font-weight: 600;
-    color: var(--el-text-color-primary);
+    color: var(--cn-color-text-primary);
   }
   
   .heatmap-summary {
     font-size: 13px;
-    color: var(--el-text-color-secondary);
+    color: var(--cn-color-text-secondary);
     
     strong {
-      color: var(--el-color-primary);
+      color: var(--cn-color-brand-primary);
     }
   }
 }
@@ -184,7 +193,7 @@ const weeks = computed(() => {
   .month-label {
     flex: 1;
     font-size: 11px;
-    color: var(--el-text-color-secondary);
+    color: var(--cn-color-text-secondary);
     text-align: center;
   }
 }
@@ -202,7 +211,7 @@ const weeks = computed(() => {
   
   span {
     font-size: 10px;
-    color: var(--el-text-color-secondary);
+    color: var(--cn-color-text-secondary);
     height: 12px;
     line-height: 12px;
   }
@@ -225,7 +234,7 @@ const weeks = computed(() => {
   height: 12px;
   border-radius: 2px;
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: transform var(--cn-motion-fast) var(--cn-ease-out);
   
   &:hover:not(.empty) {
     transform: scale(1.2);
@@ -235,26 +244,31 @@ const weeks = computed(() => {
     background: transparent;
     cursor: default;
   }
-  
-  &.level-0 {
-    background: var(--el-fill-color-light);
-  }
-  
-  &.level-1 {
-    background: #9be9a8;
-  }
-  
-  &.level-2 {
-    background: #40c463;
-  }
-  
-  &.level-3 {
-    background: #30a14e;
-  }
-  
-  &.level-4 {
-    background: #216e39;
-  }
+}
+
+.heatmap-day.level-0,
+.legend-cell.level-0 {
+  background: var(--cn-color-bg-surface-muted);
+}
+
+.heatmap-day.level-1,
+.legend-cell.level-1 {
+  background: color-mix(in srgb, var(--cn-color-success) 24%, var(--cn-color-bg-surface));
+}
+
+.heatmap-day.level-2,
+.legend-cell.level-2 {
+  background: color-mix(in srgb, var(--cn-color-success) 48%, var(--cn-color-bg-surface));
+}
+
+.heatmap-day.level-3,
+.legend-cell.level-3 {
+  background: color-mix(in srgb, var(--cn-color-success) 74%, var(--cn-color-bg-surface));
+}
+
+.heatmap-day.level-4,
+.legend-cell.level-4 {
+  background: var(--cn-color-success);
 }
 
 .heatmap-legend {
@@ -266,7 +280,7 @@ const weeks = computed(() => {
   
   .legend-label {
     font-size: 11px;
-    color: var(--el-text-color-secondary);
+    color: var(--cn-color-text-secondary);
   }
   
   .legend-cell {

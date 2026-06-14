@@ -70,10 +70,11 @@
     </update>
 
     <update id="incrementUseCount">
-        UPDATE blog_tag
-        SET use_count = use_count + 1,
+        INSERT INTO blog_tag (tag_name, use_count, create_time, update_time)
+        VALUES (#{tagName}, 1, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE
+            use_count = use_count + 1,
             update_time = NOW()
-        WHERE tag_name = #{tagName}
     </update>
 
     <insert id="insertBatch">

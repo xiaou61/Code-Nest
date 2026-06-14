@@ -3,6 +3,7 @@ package com.xiaou.sensitive.controller;
 import com.xiaou.common.annotation.RequireAdmin;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.core.domain.ResultCode;
 import com.xiaou.sensitive.domain.SensitiveVersion;
 import com.xiaou.sensitive.service.SensitiveVersionService;
 import lombok.RequiredArgsConstructor;
@@ -41,7 +42,7 @@ public class SensitiveVersionController {
     public Result<SensitiveVersion> getById(@PathVariable Long id) {
         SensitiveVersion version = versionService.getVersionById(id);
         if (version == null) {
-            return Result.error("版本不存在");
+            return Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "版本不存在");
         }
         return Result.success(version);
     }
@@ -53,7 +54,7 @@ public class SensitiveVersionController {
     @RequireAdmin
     public Result<Void> rollback(@PathVariable Long id, @RequestBody RollbackRequest request) {
         boolean success = versionService.rollbackToVersion(id, request.getOperatorId());
-        return success ? Result.success() : Result.error("回滚失败");
+        return success ? Result.success() : Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "版本不存在或无法回滚");
     }
 
     /**

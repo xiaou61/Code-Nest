@@ -1,150 +1,172 @@
 <template>
-  <div class="my-favorites-page">
-    <!-- 页面头部 -->
-    <div class="page-banner">
-      <div class="banner-content">
-        <button class="back-btn" @click="goBack">
-          <el-icon><ArrowLeft /></el-icon>
-          返回
-        </button>
-        <div class="banner-info">
-          <h1 class="banner-title">⭐ 我的收藏</h1>
-          <p class="banner-desc">收藏的精彩动态都在这里</p>
-        </div>
-      </div>
-    </div>
+  <CnPage class="my-favorites-page" surface="transparent" max-width="800px">
+    <CnPageHeader
+      title="我的收藏"
+      description="收藏的精彩动态都在这里，方便随时回看和继续互动。"
+      eyebrow="Moments Favorites"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="warning" size="sm">已收藏 {{ favoriteList.length }} 条</CnStatusTag>
+        <CnStatusTag v-if="hasMore" type="info" size="sm">可继续加载</CnStatusTag>
+      </template>
 
-    <div v-loading="loading" class="favorites-list">
-      <!-- 空状态 -->
-      <div v-if="!loading && favoriteList.length === 0" class="empty-state">
-        <div class="empty-icon">📑</div>
-        <p class="empty-text">暂无收藏</p>
-        <p class="empty-hint">收藏感兴趣的动态，方便随时查看</p>
-      </div>
+      <template #actions>
+        <el-button plain :icon="ArrowLeft" @click="goBack">返回</el-button>
+      </template>
+    </CnPageHeader>
+
+    <CnSection
+      title="收藏动态"
+      description="按收藏时间分页展示，取消收藏后会从当前列表移除。"
+      surface="panel"
+      divided
+    >
+      <div v-loading="loading" class="favorites-list">
+        <CnEmptyState
+          v-if="!loading && favoriteList.length === 0"
+          title="暂无收藏"
+          description="收藏感兴趣的动态后，可以在这里快速查看。"
+          icon="FA"
+        />
       
-      <div v-for="moment in favoriteList" :key="moment.id" class="moment-card">
-        <!-- 用户信息 -->
-        <div class="moment-header">
-          <div class="user-avatar">
-            {{ moment.userNickname?.charAt(0) }}
+        <div v-for="moment in favoriteList" :key="moment.id" class="moment-card">
+          <div class="moment-header">
+            <div class="user-avatar">
+              {{ moment.userNickname?.charAt(0) }}
+            </div>
+            <div class="user-info">
+              <span class="user-name">{{ moment.userNickname }}</span>
+              <span class="post-time">{{ formatTime(moment.createTime) }}</span>
+            </div>
           </div>
-          <div class="user-info">
-            <span class="user-name">{{ moment.userNickname }}</span>
-            <span class="post-time">{{ formatTime(moment.createTime) }}</span>
-          </div>
-        </div>
 
-        <!-- 动态内容 -->
-        <div class="moment-body">
-          <p class="moment-text">{{ moment.content }}</p>
-          
-          <!-- 图片展示 -->
-          <div v-if="moment.images && moment.images.length" class="images-grid">
-            <div 
-              v-for="(image, index) in moment.images" 
-              :key="index" 
-              class="image-item"
-              @click="previewImage(moment.images, index)"
-            >
-              <img :src="image" alt="" loading="lazy" />
+          <div class="moment-body">
+            <p class="moment-text">{{ moment.content }}</p>
+
+            <div v-if="moment.images && moment.images.length" class="images-grid">
+              <div
+                v-for="(image, index) in moment.images"
+                :key="index"
+                class="image-item"
+                @click="previewImage(moment.images, index)"
+              >
+                <img :src="image" alt="" loading="lazy" />
+              </div>
+            </div>
+          </div>
+
+          <div class="moment-footer">
+            <div v-if="moment.likeCount > 0 || moment.commentCount > 0 || moment.viewCount > 0" class="stats-bar">
+              <CnStatusTag v-if="moment.likeCount > 0" type="danger" size="sm" subtle>
+                <el-icon><Pointer /></el-icon>
+                {{ moment.likeCount }} 赞
+              </CnStatusTag>
+              <CnStatusTag v-if="moment.commentCount > 0" type="info" size="sm" subtle>
+                {{ moment.commentCount }} 评论
+              </CnStatusTag>
+              <CnStatusTag v-if="moment.viewCount > 0" type="neutral" size="sm" subtle>
+                {{ moment.viewCount }} 浏览
+              </CnStatusTag>
+            </div>
+
+            <div class="action-bar">
+              <button
+                class="action-btn"
+                :class="{ active: moment.isLiked }"
+                :disabled="moment.liking"
+                @click="toggleLikeMoment(moment)"
+              >
+                <el-icon><Pointer /></el-icon>
+                <span>{{ moment.isLiked ? '已赞' : '点赞' }}</span>
+              </button>
+              <button class="action-btn" @click="showCommentDialog(moment)">
+                <el-icon><ChatDotRound /></el-icon>
+                <span>评论</span>
+              </button>
+              <button
+                class="action-btn unfav-btn"
+                :disabled="moment.favoriting"
+                @click="toggleFavoriteMoment(moment)"
+              >
+                <el-icon><StarFilled /></el-icon>
+                <span>取消收藏</span>
+              </button>
             </div>
           </div>
         </div>
 
-        <!-- 互动区域 -->
-        <div class="moment-footer">
-          <div v-if="moment.likeCount > 0 || moment.commentCount > 0 || moment.viewCount > 0" class="stats-bar">
-            <span v-if="moment.likeCount > 0" class="stat">
-              <el-icon><Pointer /></el-icon> {{ moment.likeCount }} 赞
-            </span>
-            <span v-if="moment.commentCount > 0" class="stat">
-              {{ moment.commentCount }} 评论
-            </span>
-            <span v-if="moment.viewCount > 0" class="stat">
-              {{ moment.viewCount }} 浏览
-            </span>
-          </div>
-          
-          <div class="action-bar">
-            <button 
-              class="action-btn"
-              :class="{ active: moment.isLiked }"
-              @click="toggleLikeMoment(moment)"
-              :disabled="moment.liking"
-            >
-              <el-icon><Pointer /></el-icon>
-              <span>{{ moment.isLiked ? '已赞' : '点赞' }}</span>
-            </button>
-            <button class="action-btn" @click="showCommentDialog(moment)">
-              <el-icon><ChatDotRound /></el-icon>
-              <span>评论</span>
-            </button>
-            <button 
-              class="action-btn unfav-btn"
-              @click="toggleFavoriteMoment(moment)"
-              :disabled="moment.favoriting"
-            >
-              <el-icon><StarFilled /></el-icon>
-              <span>取消收藏</span>
-            </button>
-          </div>
+        <div v-if="hasMore" class="load-more">
+          <el-button :loading="loadingMore" @click="loadMore">
+            {{ loadingMore ? '加载中...' : '加载更多' }}
+          </el-button>
         </div>
       </div>
+    </CnSection>
 
-      <!-- 加载更多 -->
-      <div v-if="hasMore" class="load-more">
-        <button class="load-more-btn" @click="loadMore" :disabled="loadingMore">
-          {{ loadingMore ? '加载中...' : '加载更多' }}
-        </button>
-      </div>
-    </div>
-
-    <!-- 评论对话框 -->
     <CommentDialog
       v-model="commentDialogVisible"
       :moment="currentMoment"
       @commented="handleCommented"
     />
 
-    <!-- 图片预览 -->
     <el-image-viewer
       v-if="imageViewerVisible"
       :url-list="previewImages"
       :initial-index="previewIndex"
       @close="closeImageViewer"
     />
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, ElImageViewer } from 'element-plus'
 import { ChatDotRound, StarFilled, ArrowLeft, Pointer } from '@element-plus/icons-vue'
+import { CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatusTag } from '@/design-system'
 import { getMyFavorites, toggleLike, toggleFavorite } from '@/api/moment'
 import { formatRelativeTime } from '@/utils/timeUtil'
 import CommentDialog from './components/CommentDialog.vue'
 
+interface FavoriteMoment {
+  id: number | string
+  userNickname?: string
+  content?: string
+  images: string[]
+  createTime?: string
+  likeCount: number
+  commentCount: number
+  viewCount: number
+  isLiked?: boolean
+  liking?: boolean
+  favoriting?: boolean
+}
+
 const router = useRouter()
 
-// 数据状态
 const loading = ref(false)
 const loadingMore = ref(false)
-const favoriteList = ref([])
+const favoriteList = ref<FavoriteMoment[]>([])
 const hasMore = ref(true)
 const currentPage = ref(1)
 const pageSize = ref(20)
 
-// 评论相关
 const commentDialogVisible = ref(false)
-const currentMoment = ref(null)
+const currentMoment = ref<FavoriteMoment | null>(null)
 
-// 图片预览
 const imageViewerVisible = ref(false)
-const previewImages = ref([])
+const previewImages = ref<string[]>([])
 const previewIndex = ref(0)
 
-// 加载收藏列表
+const breadcrumbs = [
+  { label: '首页', to: '/' },
+  { label: '朋友圈', to: '/moments' },
+  { label: '我的收藏' }
+]
+
+const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : String(error)
+
 const loadFavoriteList = async (page = 1) => {
   if (page === 1) {
     loading.value = true
@@ -159,12 +181,15 @@ const loadFavoriteList = async (page = 1) => {
     }
 
     const result = await getMyFavorites(params)
-    const newMoments = result.records.map(moment => ({
+    const newMoments = (result.records || []).map((moment: Partial<FavoriteMoment>) => ({
       ...moment,
       images: moment.images || [],
+      likeCount: moment.likeCount || 0,
+      commentCount: moment.commentCount || 0,
+      viewCount: moment.viewCount || 0,
       liking: false,
       favoriting: false
-    }))
+    })) as FavoriteMoment[]
 
     if (page === 1) {
       favoriteList.value = newMoments
@@ -174,35 +199,32 @@ const loadFavoriteList = async (page = 1) => {
 
     hasMore.value = newMoments.length === pageSize.value
   } catch (error) {
-    ElMessage.error('加载失败：' + error.message)
+    ElMessage.error('加载失败：' + getErrorMessage(error))
   } finally {
     loading.value = false
     loadingMore.value = false
   }
 }
 
-// 加载更多
 const loadMore = () => {
   currentPage.value++
   loadFavoriteList(currentPage.value)
 }
 
-// 点赞切换
-const toggleLikeMoment = async (moment) => {
+const toggleLikeMoment = async (moment: FavoriteMoment) => {
   moment.liking = true
   try {
     const isLiked = await toggleLike(moment.id)
     moment.isLiked = isLiked
     moment.likeCount += isLiked ? 1 : -1
   } catch (error) {
-    ElMessage.error('操作失败：' + error.message)
+    ElMessage.error('操作失败：' + getErrorMessage(error))
   } finally {
     moment.liking = false
   }
 }
 
-// 取消收藏
-const toggleFavoriteMoment = async (moment) => {
+const toggleFavoriteMoment = async (moment: FavoriteMoment) => {
   try {
     await ElMessageBox.confirm('确定要取消收藏吗？', '确认', {
       confirmButtonText: '确定',
@@ -222,20 +244,18 @@ const toggleFavoriteMoment = async (moment) => {
     ElMessage.success('取消收藏成功')
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('操作失败：' + error.message)
+      ElMessage.error('操作失败：' + getErrorMessage(error))
     }
   } finally {
     moment.favoriting = false
   }
 }
 
-// 显示评论对话框
-const showCommentDialog = (moment) => {
+const showCommentDialog = (moment: FavoriteMoment) => {
   currentMoment.value = moment
   commentDialogVisible.value = true
 }
 
-// 处理评论成功
 const handleCommented = (_comment) => {
   const moment = currentMoment.value
   if (moment) {
@@ -243,8 +263,7 @@ const handleCommented = (_comment) => {
   }
 }
 
-// 图片预览
-const previewImage = (images, index) => {
+const previewImage = (images: string[], index: number) => {
   previewImages.value = images
   previewIndex.value = index
   imageViewerVisible.value = true
@@ -254,12 +273,10 @@ const closeImageViewer = () => {
   imageViewerVisible.value = false
 }
 
-// 相对时间格式化
-const formatTime = (time) => {
+const formatTime = (time?: string) => {
   return formatRelativeTime(time)
 }
 
-// 返回
 const goBack = () => {
   router.back()
 }
@@ -271,122 +288,24 @@ onMounted(() => {
 
 <style scoped>
 .my-favorites-page {
-  min-height: 100vh;
-  background: transparent;
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 0 14px 24px;
-}
-
-/* 页面头部 */
-.page-banner {
-  position: relative;
-  background: linear-gradient(135deg, #f0f4ff 0%, #f5f0ff 40%, #fff5f5 100%);
-  border: 1px solid #dbe7f8;
-  border-radius: 14px;
-  padding: 24px;
-  margin-bottom: 16px;
-  margin-top: 16px;
-  overflow: hidden;
-}
-
-.page-banner::before {
-  content: '';
-  position: absolute;
-  top: -20px;
-  right: -30px;
-  width: 140px;
-  height: 140px;
-  background: radial-gradient(circle, rgba(31, 111, 235, 0.06) 0%, transparent 70%);
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.banner-content {
-  position: relative;
-  z-index: 1;
-}
-
-.back-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  background: #fff;
-  border: 1px solid #d7e4f8;
-  border-radius: 8px;
-  color: #6a82ae;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-bottom: 14px;
-}
-
-.back-btn:hover {
-  border-color: #6c63ff;
-  color: #6c63ff;
-  background: #f5f3ff;
-}
-
-.banner-title {
-  margin: 0 0 6px 0;
-  font-size: 24px;
-  font-weight: 800;
-  background: linear-gradient(135deg, #2d2b55 0%, #6c63ff 50%, #3d7cf7 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.banner-desc {
-  margin: 0;
-  font-size: 14px;
-  color: #6a82ae;
+  min-height: calc(100vh - 68px);
 }
 
 .favorites-list {
+  display: grid;
+  gap: var(--cn-space-4);
   min-height: 400px;
 }
 
-/* 空状态 */
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  background: #fff;
-  border: 1px solid #dbe7f8;
-  border-radius: 14px;
-  box-shadow: 0 10px 24px rgba(18, 38, 63, 0.05);
-}
-
-.empty-icon {
-  font-size: 52px;
-  margin-bottom: 16px;
-}
-
-.empty-text {
-  margin: 0 0 8px 0;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--cn-text-primary, #1a2233);
-}
-
-.empty-hint {
-  margin: 0;
-  font-size: 14px;
-  color: #8ea0bd;
-}
-
-/* 动态卡片 */
 .moment-card {
   position: relative;
-  background: #fff;
-  border: 1px solid #dbe7f8;
-  border-radius: 14px;
-  padding: 20px;
-  margin-bottom: 14px;
-  box-shadow: 0 10px 24px rgba(18, 38, 63, 0.05);
-  transition: all 0.3s ease;
   overflow: hidden;
+  padding: var(--cn-space-5);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface);
+  box-shadow: var(--cn-shadow-xs);
+  transition: all 0.3s ease;
 }
 
 .moment-card::before {
@@ -396,14 +315,14 @@ onMounted(() => {
   left: 0;
   width: 3px;
   height: 100%;
-  background: linear-gradient(180deg, #f59e0b 0%, #f472b6 100%);
+  background: var(--cn-color-warning);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
 
 .moment-card:hover {
-  border-color: #c2d4f2;
-  box-shadow: 0 14px 32px rgba(18, 38, 63, 0.09);
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 32%, var(--cn-color-border));
+  box-shadow: var(--cn-shadow-card);
   transform: translateY(-2px);
 }
 
@@ -411,19 +330,18 @@ onMounted(() => {
   opacity: 1;
 }
 
-/* 用户头部 */
 .moment-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: var(--cn-space-3);
+  margin-bottom: var(--cn-space-4);
 }
 
 .user-avatar {
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #6c63ff 0%, #f472b6 100%);
+  background: color-mix(in srgb, var(--cn-color-brand-primary) 72%, var(--cn-color-warning));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -431,7 +349,7 @@ onMounted(() => {
   font-weight: 600;
   font-size: 15px;
   flex-shrink: 0;
-  box-shadow: 0 3px 10px rgba(108, 99, 255, 0.22);
+  box-shadow: var(--cn-shadow-sm);
 }
 
 .user-info {
@@ -441,26 +359,25 @@ onMounted(() => {
 .user-name {
   display: block;
   font-weight: 600;
-  color: var(--cn-text-primary, #1a2233);
+  color: var(--cn-color-text-primary);
   font-size: 15px;
 }
 
 .post-time {
   display: block;
-  color: #8ea0bd;
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
   margin-top: 2px;
 }
 
-/* 内容 */
 .moment-body {
-  margin-bottom: 14px;
+  margin-bottom: var(--cn-space-4);
 }
 
 .moment-text {
-  margin: 0 0 12px 0;
+  margin: 0 0 var(--cn-space-3) 0;
   line-height: 1.75;
-  color: var(--cn-text-primary, #1a2233);
+  color: var(--cn-color-text-primary);
   font-size: 15px;
   white-space: pre-wrap;
 }
@@ -469,13 +386,13 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  border-radius: 12px;
+  border-radius: var(--cn-radius-control);
   overflow: hidden;
 }
 
 .image-item {
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--cn-radius-control);
   overflow: hidden;
   width: 120px;
   height: 120px;
@@ -492,31 +409,23 @@ onMounted(() => {
   transform: scale(1.08);
 }
 
-/* 底部互动 */
 .moment-footer {
-  border-top: 1px solid #e8eef8;
-  padding-top: 12px;
+  border-top: 1px solid var(--cn-color-border-subtle);
+  padding-top: var(--cn-space-3);
 }
 
 .stats-bar {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
-  margin-bottom: 10px;
-  font-size: 13px;
-  color: #8ea0bd;
-}
-
-.stats-bar .stat {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  margin-bottom: var(--cn-space-3);
 }
 
 .action-bar {
   display: flex;
   justify-content: space-around;
   padding: 6px 0;
-  border-top: 1px solid #e8eef8;
+  border-top: 1px solid var(--cn-color-border-subtle);
 }
 
 .action-btn {
@@ -526,32 +435,32 @@ onMounted(() => {
   padding: 8px 18px;
   background: none;
   border: none;
-  color: #6a82ae;
+  color: var(--cn-color-text-secondary);
   font-size: 14px;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--cn-radius-control);
   transition: all 0.25s ease;
   font-weight: 500;
 }
 
 .action-btn:hover {
-  background: #f5f3ff;
-  color: #6c63ff;
+  background: var(--cn-color-brand-soft);
+  color: var(--cn-color-brand-primary);
   transform: translateY(-1px);
 }
 
 .action-btn.active {
-  color: #f43f5e;
+  color: var(--cn-color-danger);
   font-weight: 600;
 }
 
 .action-btn.unfav-btn {
-  color: #e0923b;
+  color: var(--cn-color-warning);
 }
 
 .action-btn.unfav-btn:hover {
-  background: #fff8f0;
-  color: #c2792e;
+  background: color-mix(in srgb, var(--cn-color-warning) 10%, transparent);
+  color: var(--cn-color-warning);
 }
 
 .action-btn:disabled {
@@ -560,33 +469,9 @@ onMounted(() => {
   transform: none;
 }
 
-/* 加载更多 */
 .load-more {
   text-align: center;
-  padding: 24px;
-}
-
-.load-more-btn {
-  padding: 10px 32px;
-  background: #fff;
-  border: 1px solid #d7e4f8;
-  border-radius: 10px;
-  color: #6a82ae;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.25s;
-}
-
-.load-more-btn:hover {
-  border-color: #6c63ff;
-  color: #6c63ff;
-  background: #f5f3ff;
-}
-
-.load-more-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  padding: var(--cn-space-5);
 }
 </style>
 

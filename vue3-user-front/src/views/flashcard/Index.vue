@@ -1,149 +1,191 @@
 <template>
-  <div class="flashcard-index cn-learn-shell">
-    <div class="cn-learn-shell__inner">
-      <section class="cn-learn-hero cn-wave-reveal">
-        <div class="cn-learn-hero__content">
-          <span class="cn-learn-hero__eyebrow">Flashcard Lab</span>
-          <h1 class="cn-learn-hero__title">闪卡记忆工作区</h1>
-          <p class="cn-learn-hero__desc">把卡组检索、间隔复习和学习热力图整合在同一视图，持续巩固知识点。</p>
-        </div>
-        <div class="cn-learn-hero__meta">
-          <span class="cn-learn-chip">公开卡组 {{ deckList.length }}</span>
-          <span class="cn-learn-chip">今日待复习 {{ stats?.todayDueCount || 0 }}</span>
-          <span class="cn-learn-chip">登录状态 {{ isLoggedIn ? '已登录' : '未登录' }}</span>
-        </div>
-      </section>
+  <CnPage class="flashcard-index" max-width="1240px" full-height>
+    <CnPageHeader
+      title="闪卡记忆工作区"
+      description="把卡组检索、间隔复习和学习热力图整合在同一视图，持续巩固知识点。"
+      eyebrow="FLASHCARD LAB"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">公开卡组 {{ deckList.length }}</CnStatusTag>
+        <CnStatusTag type="warning" size="sm" subtle>今日待复习 {{ stats?.todayDueCount || 0 }}</CnStatusTag>
+        <CnStatusTag :type="isLoggedIn ? 'success' : 'neutral'" size="sm" subtle>
+          {{ isLoggedIn ? '已登录' : '未登录' }}
+        </CnStatusTag>
+      </template>
 
-      <div class="cn-learn-layout">
-        <!-- 左侧边栏 -->
-        <aside class="sidebar cn-learn-sidebar">
-          <!-- 搜索框 -->
-          <div class="sidebar-section search-section cn-learn-panel cn-learn-float cn-learn-reveal">
+      <template #actions>
+        <el-button :icon="Collection" @click="goToMyDecks">我的卡组</el-button>
+        <el-button type="primary" :icon="Reading" @click="goToStudy">今日学习</el-button>
+      </template>
+    </CnPageHeader>
+
+    <div class="summary-grid">
+      <CnStatCard title="公开卡组" :value="deckList.length" description="当前筛选结果" tone="brand" :loading="loading" />
+      <CnStatCard title="今日已学" :value="stats?.todayLearnedCount || 0" description="登录后统计" tone="success" />
+      <CnStatCard title="待复习" :value="stats?.todayDueCount || 0" description="今日到期卡片" tone="warning" />
+      <CnStatCard title="连续天数" :value="stats?.streakDays || 0" unit="天" description="最近学习连续记录" tone="info" />
+    </div>
+
+    <div class="workspace-grid">
+      <aside class="side-stack">
+        <CnSection title="检索卡组" description="按关键词和标签筛选公开卡组。" divided>
+          <div class="search-stack">
             <el-input
               v-model="searchKeyword"
               placeholder="搜索卡组..."
               clearable
+              :prefix-icon="Search"
               @clear="handleSearch"
               @keyup.enter="handleSearch"
             >
-              <template #prefix>
-                <el-icon><Search /></el-icon>
-              </template>
               <template #append>
                 <el-button :icon="Search" @click="handleSearch" />
               </template>
             </el-input>
-          </div>
 
-          <!-- 快捷功能 -->
-          <div class="sidebar-section quick-actions cn-learn-panel cn-learn-float cn-learn-reveal">
-            <div class="section-title">
-              <el-icon><Lightning /></el-icon>
-              <span>快捷功能</span>
-            </div>
-            <div class="action-buttons">
-              <div class="action-btn" @click="goToStudy">
-                <el-icon class="action-icon study-icon"><Reading /></el-icon>
-                <span>今日学习</span>
-                <el-badge v-if="stats?.todayDueCount" :value="stats.todayDueCount" class="due-badge" />
-              </div>
-              <div class="action-btn" @click="goToMyDecks">
-                <el-icon class="action-icon deck-icon"><Collection /></el-icon>
-                <span>我的卡组</span>
-              </div>
-              <div class="action-btn" @click="goToCreate">
-                <el-icon class="action-icon create-icon"><Plus /></el-icon>
-                <span>创建卡组</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 学习统计 -->
-          <StudyStats :stats="stats" v-if="isLoggedIn" class="cn-learn-reveal" />
-        </aside>
-
-        <!-- 主内容区 -->
-        <main class="main-content cn-learn-main">
-          <!-- 学习热力图 -->
-          <Heatmap :data="heatmapData" class="heatmap-section cn-learn-reveal" v-if="isLoggedIn" />
-
-          <!-- 内容头部 -->
-          <div class="content-header cn-learn-panel cn-learn-reveal">
-            <div class="header-left">
-              <h2 class="page-title">公开卡组</h2>
-              <span class="total-badge" v-if="deckList.length > 0">{{ deckList.length }} 个卡组</span>
-            </div>
-            <div class="header-right">
-              <el-input
-                v-model="filterTags"
-                placeholder="按标签筛选"
-                style="width: 160px"
-                clearable
-                @change="handleSearch"
-              >
-                <template #prefix>
-                  <el-icon><PriceTag /></el-icon>
-                </template>
-              </el-input>
-            </div>
-          </div>
-
-          <!-- 卡组网格 -->
-          <div v-loading="loading" class="deck-grid">
-            <DeckCard
-              v-for="deck in deckList"
-              :key="deck.id"
-              :deck="deck"
-              :show-progress="isLoggedIn"
-              class="cn-learn-reveal"
-              @click="goToDeckDetail(deck)"
+            <el-input
+              v-model="filterTags"
+              placeholder="按标签筛选"
+              clearable
+              :prefix-icon="PriceTag"
+              @change="handleSearch"
+              @clear="handleSearch"
+              @keyup.enter="handleSearch"
             />
           </div>
+        </CnSection>
 
-          <!-- 空状态 -->
-          <el-empty
-            v-if="!loading && deckList.length === 0"
-            description="暂无公开卡组"
-            :image-size="120"
-          >
-            <el-button type="primary" @click="goToCreate">创建第一个卡组</el-button>
-          </el-empty>
-        </main>
-      </div>
+        <CnSection title="快捷功能" description="进入学习、管理和创建流程。" divided>
+          <div class="quick-actions">
+            <button type="button" class="quick-action" @click="goToStudy">
+              <span class="quick-icon is-study">
+                <el-icon><Reading /></el-icon>
+              </span>
+              <span class="quick-copy">
+                <strong>今日学习</strong>
+                <small>{{ stats?.todayDueCount || 0 }} 张待复习</small>
+              </span>
+              <CnStatusTag v-if="stats?.todayDueCount" type="warning" size="sm">{{ stats.todayDueCount }}</CnStatusTag>
+            </button>
+
+            <button type="button" class="quick-action" @click="goToMyDecks">
+              <span class="quick-icon is-deck">
+                <el-icon><Collection /></el-icon>
+              </span>
+              <span class="quick-copy">
+                <strong>我的卡组</strong>
+                <small>管理自建和 Fork 卡组</small>
+              </span>
+            </button>
+
+            <button type="button" class="quick-action" @click="goToCreate">
+              <span class="quick-icon is-create">
+                <el-icon><Plus /></el-icon>
+              </span>
+              <span class="quick-copy">
+                <strong>创建卡组</strong>
+                <small>沉淀新的记忆材料</small>
+              </span>
+            </button>
+          </div>
+        </CnSection>
+
+        <StudyStats v-if="isLoggedIn" :stats="stats" />
+      </aside>
+
+      <main class="main-stack">
+        <Heatmap v-if="isLoggedIn" :data="heatmapData" />
+
+        <CnSection title="公开卡组" description="浏览社区公开卡组，进入详情后可查看和 Fork。" divided>
+          <template #actions>
+            <CnStatusTag v-if="deckList.length" type="brand" size="sm">{{ deckList.length }} 个卡组</CnStatusTag>
+            <el-button type="primary" :icon="Plus" @click="goToCreate">创建卡组</el-button>
+          </template>
+
+          <div v-loading="loading" class="deck-shell">
+            <div v-if="deckList.length" class="deck-grid">
+              <DeckCard
+                v-for="deck in deckList"
+                :key="deck.id"
+                :deck="deck"
+                :show-progress="isLoggedIn"
+                @click="goToDeckDetail(deck)"
+              />
+            </div>
+
+            <CnEmptyState
+              v-else-if="!loading"
+              title="暂无公开卡组"
+              description="当前条件下没有卡组，可以调整搜索条件或创建第一个卡组。"
+              icon="FC"
+              surface="transparent"
+              size="sm"
+            >
+              <template #actions>
+                <el-button type="primary" :icon="Plus" @click="goToCreate">创建第一个卡组</el-button>
+              </template>
+            </CnEmptyState>
+          </div>
+        </CnSection>
+      </main>
     </div>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, onMounted, computed } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Search, Lightning, Reading, Collection, Plus, PriceTag } from '@element-plus/icons-vue'
+import { Collection, Plus, PriceTag, Reading, Search } from '@element-plus/icons-vue'
+import {
+  CnEmptyState,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag
+} from '@/design-system'
 import { useUserStore } from '@/stores/user'
 import { flashcardApi } from '@/api/flashcard'
-import { useRevealMotion } from '@/utils/reveal-motion'
 import DeckCard from './components/DeckCard.vue'
 import Heatmap from './components/Heatmap.vue'
 import StudyStats from './components/StudyStats.vue'
 
+interface DeckItem extends Record<string, unknown> {
+  id: number | string
+  name?: string
+}
+
+interface StudyStatsData {
+  todayLearnedCount?: number
+  todayDueCount?: number
+  todayNewCount?: number
+  streakDays?: number
+  masteredCount?: number
+  learningCount?: number
+  newCount?: number
+}
+
+interface HeatmapResponse {
+  data?: unknown[]
+}
+
 const router = useRouter()
 const userStore = useUserStore()
-useRevealMotion('.flashcard-index .cn-learn-reveal')
 
 const loading = ref(false)
 const searchKeyword = ref('')
 const filterTags = ref('')
-const deckList = ref([])
-const stats = ref(null)
-const heatmapData = ref([])
+const deckList = ref<DeckItem[]>([])
+const stats = ref<StudyStatsData | null>(null)
+const heatmapData = ref<unknown[]>([])
 
-const isLoggedIn = computed(() => userStore.isLoggedIn)
+const isLoggedIn = computed(() => Boolean(userStore.isLoggedIn))
 
-// 加载公开卡组列表
 const loadPublicDecks = async () => {
   loading.value = true
   try {
-    const data = await flashcardApi.getPublicDecks(searchKeyword.value, filterTags.value)
+    const data = (await flashcardApi.getPublicDecks(searchKeyword.value, filterTags.value)) as DeckItem[]
     deckList.value = data || []
   } catch (error) {
     console.error('加载卡组失败:', error)
@@ -153,33 +195,29 @@ const loadPublicDecks = async () => {
   }
 }
 
-// 加载学习统计
 const loadStats = async () => {
   if (!isLoggedIn.value) return
   try {
-    stats.value = await flashcardApi.getStudyStats()
+    stats.value = (await flashcardApi.getStudyStats()) as StudyStatsData
   } catch (error) {
     console.error('加载统计失败:', error)
   }
 }
 
-// 加载热力图数据
 const loadHeatmap = async () => {
   if (!isLoggedIn.value) return
   try {
-    const data = await flashcardApi.getHeatmap(365)
+    const data = (await flashcardApi.getHeatmap(365)) as HeatmapResponse
     heatmapData.value = data?.data || []
   } catch (error) {
     console.error('加载热力图失败:', error)
   }
 }
 
-// 搜索
 const handleSearch = () => {
   loadPublicDecks()
 }
 
-// 导航
 const goToStudy = () => {
   if (!isLoggedIn.value) {
     ElMessage.warning('请先登录')
@@ -207,7 +245,7 @@ const goToCreate = () => {
   router.push('/flashcard/deck/create')
 }
 
-const goToDeckDetail = (deck) => {
+const goToDeckDetail = (deck: DeckItem) => {
   router.push(`/flashcard/deck/${deck.id}`)
 }
 
@@ -218,162 +256,156 @@ onMounted(() => {
 })
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .flashcard-index {
   min-height: calc(100vh - 68px);
 }
 
-.flashcard-index .cn-learn-layout {
-  align-items: flex-start;
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.sidebar {
-  width: 300px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: var(--cn-space-5);
+  align-items: start;
 }
 
-.sidebar-section {
-  border-radius: 16px;
-  padding: 16px;
-  background: transparent;
-  border: 0;
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-  margin-bottom: 12px;
-}
-
-.quick-actions {
-  .action-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .action-btn {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
-    
-    &:hover {
-      background: var(--el-fill-color-light);
-    }
-    
-    .action-icon {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-    }
-    
-    .study-icon {
-      background: rgba(64, 158, 255, 0.1);
-      color: var(--el-color-primary);
-    }
-    
-    .deck-icon {
-      background: rgba(103, 194, 58, 0.1);
-      color: var(--el-color-success);
-    }
-    
-    .create-icon {
-      background: rgba(230, 162, 60, 0.1);
-      color: var(--el-color-warning);
-    }
-    
-    span {
-      font-size: 14px;
-      color: var(--el-text-color-primary);
-    }
-    
-    .due-badge {
-      position: absolute;
-      right: 12px;
-    }
-  }
-}
-
-.main-content {
-  flex: 1;
+.side-stack,
+.main-stack {
+  display: grid;
+  gap: var(--cn-space-5);
   min-width: 0;
 }
 
-.heatmap-section {
-  margin-bottom: 24px;
+.search-stack {
+  display: grid;
+  gap: var(--cn-space-3);
 }
 
-.content-header {
+.quick-actions {
+  display: grid;
+  gap: var(--cn-space-3);
+}
+
+.quick-action {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding: 15px 18px;
-  border-radius: 16px;
-  
-  .header-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    
-    .page-title {
-      font-size: 20px;
-      font-weight: 600;
-      color: var(--el-text-color-primary);
-      margin: 0;
-    }
-    
-    .total-badge {
-      padding: 4px 12px;
-      background: var(--el-color-primary-light-9);
-      color: var(--el-color-primary);
-      border-radius: 12px;
-      font-size: 12px;
-    }
-  }
+  gap: var(--cn-space-3);
+  width: 100%;
+  min-width: 0;
+  padding: var(--cn-space-3);
+  border: 1px solid var(--cn-card-border);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-card-bg);
+  color: var(--cn-color-text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    transform var(--cn-motion-fast) var(--cn-ease-out),
+    border-color var(--cn-motion-base) var(--cn-ease-out),
+    background-color var(--cn-motion-base) var(--cn-ease-out);
+}
+
+.quick-action:hover,
+.quick-action:focus-visible {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 30%, var(--cn-color-border));
+  background: var(--cn-color-bg-surface-muted);
+  outline: none;
+}
+
+.quick-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--cn-radius-card);
+  flex-shrink: 0;
+  font-size: 18px;
+}
+
+.quick-icon.is-study {
+  background: var(--cn-color-brand-soft);
+  color: var(--cn-color-brand-primary);
+}
+
+.quick-icon.is-deck {
+  background: var(--cn-color-success-soft);
+  color: var(--cn-color-success);
+}
+
+.quick-icon.is-create {
+  background: var(--cn-color-warning-soft);
+  color: var(--cn-color-warning);
+}
+
+.quick-copy {
+  display: grid;
+  gap: var(--cn-space-1);
+  min-width: 0;
+  flex: 1;
+}
+
+.quick-copy strong {
+  color: var(--cn-color-text-primary);
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.quick-copy small {
+  overflow-wrap: anywhere;
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.deck-shell {
+  min-height: 220px;
 }
 
 .deck-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
-  min-height: 200px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--cn-space-4);
 }
 
-@media (max-width: 900px) {
-  .flashcard-index .cn-learn-layout {
-    flex-direction: column;
+:deep(.study-stats),
+:deep(.heatmap-container),
+:deep(.deck-card) {
+  border-color: var(--cn-card-border);
+  border-radius: var(--cn-radius-panel);
+  background: var(--cn-card-bg);
+  box-shadow: var(--cn-card-shadow);
+}
+
+@media (max-width: 1080px) {
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  
-  .sidebar {
-    width: 100%;
-    flex-direction: row;
-    flex-wrap: wrap;
-    
-    .sidebar-section {
-      flex: 1;
-      min-width: 280px;
-    }
+
+  .workspace-grid {
+    grid-template-columns: 1fr;
   }
-  
+
+  .side-stack {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .side-stack :deep(.study-stats) {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 700px) {
+  .summary-grid,
+  .side-stack,
   .deck-grid {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: 1fr;
   }
 }
 </style>

@@ -1,52 +1,76 @@
 <template>
-  <div class="user-profile-page">
-    <!-- 用户信息卡片 -->
-    <div class="user-info-card" v-loading="loadingUserInfo">
-      <div class="card-cover"></div>
-      <div class="user-header">
-        <div class="avatar-wrapper">
-          <div class="user-avatar-large">
-            {{ userInfo.nickname?.charAt(0) }}
-          </div>
+  <CnPage class="moment-user-profile" surface="transparent" max-width="860px">
+    <CnPageHeader
+      :title="profileTitle"
+      description="查看这位用户在朋友圈发布过的动态，以及获得的互动反馈。"
+      eyebrow="Moments Profile"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">用户 ID {{ userId || '-' }}</CnStatusTag>
+        <CnStatusTag type="info" size="sm">动态 {{ userInfo.totalMoments || 0 }}</CnStatusTag>
+      </template>
+
+      <template #actions>
+        <el-button plain @click="goBackToMoments">返回朋友圈</el-button>
+      </template>
+    </CnPageHeader>
+
+    <div v-loading="loadingUserInfo" class="profile-hero">
+      <div class="profile-cover" />
+      <div class="profile-body">
+        <div class="user-avatar-large">
+          {{ userInitial }}
         </div>
         <div class="user-details">
           <h2 class="user-name">{{ userInfo.nickname }}</h2>
-          <div class="user-stats">
-            <div class="stat-item">
-              <span class="stat-value">{{ userInfo.totalMoments || 0 }}</span>
-              <span class="stat-label">动态</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-value">{{ userInfo.totalLikes || 0 }}</span>
-              <span class="stat-label">获赞</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-value">{{ userInfo.totalComments || 0 }}</span>
-              <span class="stat-label">评论</span>
-            </div>
-          </div>
+          <p class="user-subtitle">朋友圈个人主页</p>
         </div>
       </div>
     </div>
 
-    <!-- 动态列表 -->
-    <div class="moments-section">
-      <div class="section-title">
-        <span>Ta的动态</span>
-      </div>
+    <div class="profile-stats" aria-label="用户动态数据">
+      <CnStatCard
+        title="动态"
+        :value="userInfo.totalMoments || 0"
+        description="已发布内容"
+        tone="brand"
+        :loading="loadingUserInfo"
+      />
+      <CnStatCard
+        title="获赞"
+        :value="userInfo.totalLikes || 0"
+        description="累计点赞"
+        tone="danger"
+        :loading="loadingUserInfo"
+      />
+      <CnStatCard
+        title="评论"
+        :value="userInfo.totalComments || 0"
+        description="累计评论"
+        tone="info"
+        :loading="loadingUserInfo"
+      />
+    </div>
 
+    <CnSection
+      title="Ta 的动态"
+      :description="sectionDescription"
+      surface="panel"
+      divided
+    >
       <div v-loading="loading" class="moments-list">
-        <div v-if="!loading && momentList.length === 0" class="empty-state">
-          <div class="empty-icon">📝</div>
-          <p class="empty-text">暂无动态</p>
-        </div>
+        <CnEmptyState
+          v-if="!loading && momentList.length === 0"
+          title="暂无动态"
+          description="这位用户暂时还没有发布朋友圈动态。"
+          icon="MO"
+        />
         
         <div v-for="moment in momentList" :key="moment.id" class="moment-card">
-          <!-- 动态内容 -->
           <div class="moment-body">
             <p class="moment-text">{{ moment.content }}</p>
             
-            <!-- 图片展示 -->
             <div v-if="moment.images && moment.images.length" class="images-grid">
               <div 
                 v-for="(image, index) in moment.images" 
@@ -59,89 +83,118 @@
             </div>
           </div>
 
-          <!-- 互动信息 -->
           <div class="interaction-footer">
             <span class="time-text">{{ formatTime(moment.createTime) }}</span>
             <div class="interaction-stats">
-              <span v-if="moment.likeCount > 0" class="stat-badge">
+              <CnStatusTag v-if="moment.likeCount > 0" type="danger" size="sm" subtle>
                 <el-icon><Star /></el-icon>
                 {{ moment.likeCount }}
-              </span>
-              <span v-if="moment.commentCount > 0" class="stat-badge">
+              </CnStatusTag>
+              <CnStatusTag v-if="moment.commentCount > 0" type="info" size="sm" subtle>
                 <el-icon><ChatDotRound /></el-icon>
                 {{ moment.commentCount }}
-              </span>
-              <span v-if="moment.viewCount > 0" class="stat-badge">
+              </CnStatusTag>
+              <CnStatusTag v-if="moment.viewCount > 0" type="neutral" size="sm" subtle>
                 <el-icon><View /></el-icon>
                 {{ moment.viewCount }}
-              </span>
+              </CnStatusTag>
             </div>
           </div>
         </div>
 
-        <!-- 加载更多 -->
         <div v-if="hasMore" class="load-more">
-          <button class="load-more-btn" @click="loadMore" :disabled="loadingMore">
+          <el-button :loading="loadingMore" @click="loadMore">
             {{ loadingMore ? '加载中...' : '加载更多' }}
-          </button>
+          </el-button>
         </div>
       </div>
-    </div>
+    </CnSection>
 
-    <!-- 图片预览 -->
     <el-image-viewer
       v-if="imageViewerVisible"
       :url-list="previewImages"
       :initial-index="previewIndex"
       @close="closeImageViewer"
     />
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+<script setup lang="ts">
+import { computed, ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElImageViewer } from 'element-plus'
 import { Star, ChatDotRound, View } from '@element-plus/icons-vue'
+import { CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
 import { getUserMomentList, getUserMomentInfo } from '@/api/moment'
 import { formatRelativeTime } from '@/utils/timeUtil'
 
+interface MomentUserInfo {
+  nickname?: string
+  totalMoments?: number
+  totalLikes?: number
+  totalComments?: number
+}
+
+interface UserMoment {
+  id: number | string
+  content?: string
+  images?: string[]
+  createTime?: string
+  likeCount?: number
+  commentCount?: number
+  viewCount?: number
+}
+
 const route = useRoute()
+const router = useRouter()
 
-// 用户ID
-const userId = ref(null)
+const userId = ref<number | null>(null)
 
-// 用户信息
-const userInfo = ref({})
+const userInfo = ref<MomentUserInfo>({})
 const loadingUserInfo = ref(false)
 
-// 动态列表
 const loading = ref(false)
 const loadingMore = ref(false)
-const momentList = ref([])
+const momentList = ref<UserMoment[]>([])
 const hasMore = ref(true)
 const currentPage = ref(1)
 const pageSize = ref(20)
 
-// 图片预览
 const imageViewerVisible = ref(false)
-const previewImages = ref([])
+const previewImages = ref<string[]>([])
 const previewIndex = ref(0)
 
-// 加载用户信息
+const breadcrumbs = [
+  { label: '首页', to: '/' },
+  { label: '朋友圈', to: '/moments' },
+  { label: '用户主页' }
+]
+
+const profileTitle = computed(() => {
+  return userInfo.value.nickname ? `${userInfo.value.nickname} 的主页` : '用户主页'
+})
+
+const userInitial = computed(() => userInfo.value.nickname?.charAt(0) || 'U')
+
+const sectionDescription = computed(() => {
+  if (momentList.value.length <= 0) return '按发布时间展示用户动态。'
+  return `已加载 ${momentList.value.length} 条动态${hasMore.value ? '，可继续加载更多。' : '。'}`
+})
+
+const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : String(error)
+
 const loadUserInfo = async () => {
   loadingUserInfo.value = true
   try {
     const result = await getUserMomentInfo({ userId: userId.value })
-    userInfo.value = result
+    userInfo.value = result || {}
   } catch (error) {
-    ElMessage.error('加载用户信息失败：' + error.message)
+    ElMessage.error('加载用户信息失败：' + getErrorMessage(error))
   } finally {
     loadingUserInfo.value = false
   }
 }
 
-// 加载动态列表
 const loadMomentList = async (page = 1) => {
   if (page === 1) {
     loading.value = true
@@ -167,21 +220,19 @@ const loadMomentList = async (page = 1) => {
 
     hasMore.value = newMoments.length === pageSize.value
   } catch (error) {
-    ElMessage.error('加载失败：' + error.message)
+    ElMessage.error('加载失败：' + getErrorMessage(error))
   } finally {
     loading.value = false
     loadingMore.value = false
   }
 }
 
-// 加载更多
 const loadMore = () => {
   currentPage.value++
   loadMomentList(currentPage.value)
 }
 
-// 图片预览
-const previewImage = (images, index) => {
+const previewImage = (images: string[], index: number) => {
   previewImages.value = images
   previewIndex.value = index
   imageViewerVisible.value = true
@@ -191,13 +242,15 @@ const closeImageViewer = () => {
   imageViewerVisible.value = false
 }
 
-// 相对时间格式化
-const formatTime = (time) => {
+const formatTime = (time?: string) => {
   return formatRelativeTime(time)
 }
 
+const goBackToMoments = () => {
+  router.push('/moments')
+}
+
 onMounted(() => {
-  // 从路由获取用户ID
   userId.value = Number(route.params.userId || route.query.userId)
   
   if (!userId.value) {
@@ -211,164 +264,103 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.user-profile-page {
-  min-height: 100vh;
-  background: transparent;
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 16px 14px 24px;
+.moment-user-profile {
+  min-height: calc(100vh - 68px);
 }
 
-/* 用户信息卡片 */
-.user-info-card {
+.profile-hero {
   position: relative;
-  background: #fff;
-  border: 1px solid #dbe7f8;
-  border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 10px 24px rgba(18, 38, 63, 0.05);
-  margin-bottom: 20px;
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-panel);
+  background: var(--cn-color-bg-surface);
+  box-shadow: var(--cn-shadow-card);
+  margin-bottom: var(--cn-space-5);
 }
 
-.card-cover {
+.profile-cover {
   height: 100px;
-  background: linear-gradient(135deg, #6c63ff 0%, #a78bfa 50%, #f472b6 100%);
+  background: color-mix(in srgb, var(--cn-color-brand-primary) 72%, var(--cn-color-info));
   position: relative;
 }
 
-.card-cover::after {
+.profile-cover::after {
   content: '';
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
   height: 40px;
-  background: linear-gradient(to top, rgba(255,255,255,0.6), transparent);
+  background: color-mix(in srgb, var(--cn-color-bg-surface) 68%, transparent);
 }
 
-.user-header {
+.profile-body {
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 0 24px 24px;
+  gap: var(--cn-space-5);
+  padding: 0 var(--cn-space-6) var(--cn-space-6);
   margin-top: -36px;
   position: relative;
   z-index: 1;
-}
-
-.avatar-wrapper {
-  position: relative;
-  flex-shrink: 0;
 }
 
 .user-avatar-large {
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #6c63ff 0%, #f472b6 100%);
+  background: color-mix(in srgb, var(--cn-color-brand-primary) 78%, var(--cn-color-warning));
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   font-weight: 700;
   font-size: 28px;
-  border: 4px solid #fff;
-  box-shadow: 0 4px 16px rgba(108, 99, 255, 0.3);
+  border: 4px solid var(--cn-color-bg-surface);
+  box-shadow: var(--cn-shadow-card);
+  flex-shrink: 0;
 }
 
 .user-details {
   flex: 1;
   padding-top: 20px;
+  min-width: 0;
 }
 
 .user-name {
-  margin: 0 0 12px 0;
+  margin: 0;
   font-size: 22px;
   font-weight: 800;
-  color: var(--cn-text-primary, #1a2233);
+  color: var(--cn-color-text-primary);
 }
 
-.user-stats {
-  display: flex;
-  gap: 32px;
+.user-subtitle {
+  margin: var(--cn-space-2) 0 0;
+  color: var(--cn-color-text-tertiary);
+  font-size: 13px;
 }
 
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.stat-value {
-  font-size: 22px;
-  font-weight: 800;
-  background: linear-gradient(135deg, #6c63ff 0%, #f43f5e 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: #6a82ae;
-  margin-top: 4px;
-  font-weight: 500;
-}
-
-/* 动态列表 */
-.moments-section {
-  margin-top: 8px;
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--cn-text-primary, #1a2233);
-  padding: 14px 0;
-  border-bottom: 2px solid #6c63ff;
-  margin-bottom: 16px;
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cn-space-4);
+  margin-bottom: var(--cn-space-5);
 }
 
 .moments-list {
+  display: grid;
+  gap: var(--cn-space-4);
   min-height: 400px;
 }
 
-/* 空状态 */
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  background: #fff;
-  border: 1px solid #dbe7f8;
-  border-radius: 14px;
-  box-shadow: 0 10px 24px rgba(18, 38, 63, 0.05);
-}
-
-.empty-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
-}
-
-.empty-text {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #8ea0bd;
-}
-
-/* 动态卡片 */
 .moment-card {
   position: relative;
-  background: #fff;
-  border: 1px solid #dbe7f8;
-  border-radius: 14px;
-  padding: 20px;
-  margin-bottom: 14px;
-  box-shadow: 0 10px 24px rgba(18, 38, 63, 0.05);
-  transition: all 0.3s ease;
   overflow: hidden;
+  padding: var(--cn-space-5);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface);
+  box-shadow: var(--cn-shadow-xs);
+  transition: all 0.3s ease;
 }
 
 .moment-card::before {
@@ -378,14 +370,14 @@ onMounted(() => {
   left: 0;
   width: 3px;
   height: 100%;
-  background: linear-gradient(180deg, #6c63ff 0%, #f472b6 100%);
+  background: var(--cn-color-brand-primary);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
 
 .moment-card:hover {
-  border-color: #c2d4f2;
-  box-shadow: 0 14px 32px rgba(18, 38, 63, 0.09);
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 32%, var(--cn-color-border));
+  box-shadow: var(--cn-shadow-card);
   transform: translateY(-2px);
 }
 
@@ -394,13 +386,13 @@ onMounted(() => {
 }
 
 .moment-body {
-  margin-bottom: 14px;
+  margin-bottom: var(--cn-space-4);
 }
 
 .moment-text {
-  margin: 0 0 12px 0;
+  margin: 0 0 var(--cn-space-3) 0;
   line-height: 1.75;
-  color: var(--cn-text-primary, #1a2233);
+  color: var(--cn-color-text-primary);
   font-size: 15px;
   white-space: pre-wrap;
 }
@@ -409,13 +401,13 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  border-radius: 12px;
+  border-radius: var(--cn-radius-control);
   overflow: hidden;
 }
 
 .image-item {
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--cn-radius-control);
   overflow: hidden;
   width: 120px;
   height: 120px;
@@ -436,64 +428,40 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 12px;
-  border-top: 1px solid #e8eef8;
+  gap: var(--cn-space-3);
+  padding-top: var(--cn-space-3);
+  border-top: 1px solid var(--cn-color-border-subtle);
 }
 
 .time-text {
   font-size: 12px;
-  color: #8ea0bd;
+  color: var(--cn-color-text-tertiary);
 }
 
 .interaction-stats {
   display: flex;
-  gap: 14px;
-}
-
-.stat-badge {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  color: #6a82ae;
-  padding: 4px 10px;
-  background: #f6f9ff;
-  border-radius: 999px;
-  border: 1px solid #e8f0fa;
-  transition: all 0.2s;
-}
-
-.stat-badge:hover {
-  border-color: #c8d9f5;
-  background: #edf3ff;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
 }
 
 .load-more {
   text-align: center;
-  padding: 24px;
+  padding: var(--cn-space-5);
 }
 
-.load-more-btn {
-  padding: 10px 32px;
-  background: #fff;
-  border: 1px solid #d7e4f8;
-  border-radius: 10px;
-  color: #6a82ae;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.25s;
-}
+@media (max-width: 768px) {
+  .profile-stats {
+    grid-template-columns: 1fr;
+  }
 
-.load-more-btn:hover {
-  border-color: #6c63ff;
-  color: #6c63ff;
-  background: #f5f3ff;
-}
+  .profile-body {
+    align-items: flex-start;
+    padding: 0 var(--cn-space-4) var(--cn-space-5);
+  }
 
-.load-more-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  .interaction-footer {
+    display: grid;
+  }
 }
 </style>
 

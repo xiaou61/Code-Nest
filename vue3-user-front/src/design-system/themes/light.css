@@ -1,0 +1,23 @@
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+  --cn-color-bg-page: #f6f8fb;
+  --cn-color-bg-canvas: #eaf0f9;
+  --cn-color-bg-surface: #ffffff;
+  --cn-color-bg-surface-muted: #f8fbff;
+  --cn-color-bg-elevated: #ffffff;
+  --cn-color-text-primary: #172033;
+  --cn-color-text-secondary: #536179;
+  --cn-color-text-tertiary: #7b879a;
+  --cn-color-border: #d8e0ec;
+  --cn-color-border-subtle: #e7ecf4;
+  --cn-color-brand-primary: #2563eb;
+  --cn-color-brand-hover: #1d4ed8;
+  --cn-color-brand-soft: #eaf1ff;
+  --cn-color-focus-ring: color-mix(in srgb, var(--cn-color-brand-primary) 16%, transparent);
+  --cn-shadow-xs: 0 2px 8px color-mix(in srgb, var(--cn-color-text-primary) 4%, transparent);
+  --cn-shadow-sm: 0 8px 24px color-mix(in srgb, var(--cn-color-text-primary) 6%, transparent);
+  --cn-shadow-md: 0 14px 36px color-mix(in srgb, var(--cn-color-text-primary) 10%, transparent);
+  --cn-shadow-card: var(--cn-shadow-xs);
+  --cn-shadow-popover: 0 18px 42px color-mix(in srgb, var(--cn-color-text-primary) 16%, transparent);
+}

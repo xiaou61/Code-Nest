@@ -78,7 +78,7 @@ POST /admin/points/batch-grant
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| userIds | List<Long> | 是 | 用户 ID 列表 |
+| userIds | List&lt;Long&gt; | 是 | 用户 ID 列表 |
 | points | Integer | 是 | 积分数量（大于 0） |
 | reason | String | 是 | 发放原因 |
 

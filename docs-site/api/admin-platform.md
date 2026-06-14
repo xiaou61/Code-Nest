@@ -312,7 +312,7 @@ POST /admin/migration/create
 |------|------|------|------|
 | sourceConfigId | Long | 是 | 源存储配置 ID |
 | targetConfigId | Long | 是 | 目标存储配置 ID |
-| fileIds | List<Long> | 否 | 指定文件 ID 列表（空表示全部） |
+| fileIds | List&lt;Long&gt; | 否 | 指定文件 ID 列表（空表示全部） |
 
 **请求示例**：
 
@@ -512,7 +512,7 @@ POST /admin/chat/messages/batch-delete
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| messageIds | List<Long> | 是 | 消息 ID 列表 |
+| messageIds | List&lt;Long&gt; | 是 | 消息 ID 列表 |
 
 **请求示例**：
 
@@ -919,7 +919,7 @@ POST /admin/sensitive/words/import
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| words | List<String> | 是 | 敏感词列表 |
+| words | List&lt;String&gt; | 是 | 敏感词列表 |
 | categoryId | Long | 否 | 分类 ID |
 | level | Integer | 否 | 等级 |
 | action | Integer | 否 | 动作 |
@@ -1194,7 +1194,7 @@ POST /admin/notification/batch
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| userIds | List<Long> | 是 | 用户 ID 列表 |
+| userIds | List&lt;Long&gt; | 是 | 用户 ID 列表 |
 | title | String | 是 | 消息标题 |
 | content | String | 是 | 消息内容 |
 | type | String | 否 | 消息类型（默认 PERSONAL） |

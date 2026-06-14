@@ -1,46 +1,39 @@
 <template>
-  <div class="points-details">
-    <!-- 页面标题 -->
-    <div class="page-header">
-      <div class="header-title">
-        <h2>积分明细管理</h2>
-        <p>查看和管理所有用户的积分变动记录</p>
-      </div>
-    </div>
+  <CnPage class="points-details-page" surface="transparent" max-width="1480px">
+    <CnPageHeader
+      title="积分明细管理"
+      description="查看和管理所有用户的积分变动记录，支持筛选、分页、详情查看与 CSV 导出。"
+      eyebrow="Points Details"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand">明细 {{ pagination.total }} 条</CnStatusTag>
+        <CnStatusTag type="success">每页 {{ pagination.pageSize }} 条</CnStatusTag>
+      </template>
+      <template #actions>
+        <el-button type="success" :icon="Download" :loading="exporting" @click="handleExport">
+          {{ exporting ? '导出中...' : '导出' }}
+        </el-button>
+      </template>
+    </CnPageHeader>
 
-    <!-- 搜索和操作区域 -->
-    <el-card class="search-card">
+    <CnSection title="筛选条件" description="按用户、积分类型、管理员和时间范围筛选积分明细。" divided>
       <el-form :model="searchForm" inline class="search-form">
         <el-form-item label="用户ID">
-          <el-input
-            v-model="searchForm.userId"
-            placeholder="输入用户ID"
-            clearable
-            style="width: 150px"
-          />
+          <el-input v-model="searchForm.userId" placeholder="输入用户ID" clearable class="filter-sm" />
         </el-form-item>
         <el-form-item label="用户名">
-          <el-input
-            v-model="searchForm.userName"
-            placeholder="输入用户名搜索"
-            clearable
-            style="width: 200px"
-          />
+          <el-input v-model="searchForm.userName" placeholder="输入用户名搜索" clearable class="filter-md" />
         </el-form-item>
         <el-form-item label="积分类型">
-          <el-select v-model="searchForm.pointsType" clearable style="width: 150px">
+          <el-select v-model="searchForm.pointsType" clearable class="filter-sm">
             <el-option label="全部" :value="null" />
             <el-option label="后台发放" :value="1" />
             <el-option label="打卡积分" :value="2" />
           </el-select>
         </el-form-item>
         <el-form-item label="管理员ID">
-          <el-input
-            v-model="searchForm.adminId"
-            placeholder="输入管理员ID"
-            clearable
-            style="width: 150px"
-          />
+          <el-input v-model="searchForm.adminId" placeholder="输入管理员ID" clearable class="filter-sm" />
         </el-form-item>
         <el-form-item label="开始时间">
           <el-date-picker
@@ -49,7 +42,7 @@
             placeholder="选择开始时间"
             format="YYYY-MM-DD HH:mm:ss"
             value-format="YYYY-MM-DD HH:mm:ss"
-            style="width: 180px"
+            class="filter-date"
           />
         </el-form-item>
         <el-form-item label="结束时间">
@@ -59,174 +52,108 @@
             placeholder="选择结束时间"
             format="YYYY-MM-DD HH:mm:ss"
             value-format="YYYY-MM-DD HH:mm:ss"
-            style="width: 180px"
+            class="filter-date"
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">
-            <el-icon><Search /></el-icon>
-            搜索
-          </el-button>
-          <el-button @click="handleReset">
-            <el-icon><Refresh /></el-icon>
-            重置
-          </el-button>
-          <el-button type="success" :loading="exporting" @click="handleExport">
-            <el-icon><Download /></el-icon>
-            {{ exporting ? '导出中...' : '导出' }}
-          </el-button>
+          <el-button type="primary" :icon="Search" @click="handleSearch">搜索</el-button>
+          <el-button :icon="Refresh" @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
-    </el-card>
+    </CnSection>
 
-    <!-- 数据表格 -->
-    <el-card class="table-card">
-      <el-table
+    <CnSection title="积分明细列表" :description="`共 ${pagination.total} 条积分变动记录`" divided>
+      <CnDataTable
+        :columns="tableColumns"
         :data="tableData"
-        v-loading="loading"
-        stripe
-        style="width: 100%"
-        :default-sort="{ prop: 'createTime', order: 'descending' }"
+        :loading="loading"
+        :pagination="tablePagination"
+        row-key="id"
+        empty-title="暂无积分明细"
+        empty-description="当前筛选条件下没有匹配的积分变动记录。"
+        empty-icon="PD"
+        @page-change="handleCurrentChange"
+        @page-size-change="handleSizeChange"
       >
-        <el-table-column label="明细ID" prop="id" width="100" align="center">
-          <template #default="{ row }">
-            <el-text type="info">#{{ row.id }}</el-text>
-          </template>
-        </el-table-column>
+        <template #id="{ row }">
+          <span class="muted-id">#{{ row.id }}</span>
+        </template>
 
-        <el-table-column label="用户信息" min-width="150">
-          <template #default="{ row }">
-            <div class="user-cell">
-              <div class="user-avatar">
-                <el-avatar :size="32">
-                  <el-icon><User /></el-icon>
-                </el-avatar>
-              </div>
-              <div class="user-info">
-                <div class="user-name">{{ row.userName || `用户${row.userId}` }}</div>
-                <div class="user-id">ID: {{ row.userId }}</div>
-              </div>
+        <template #user="{ row }">
+          <div class="user-cell">
+            <el-avatar :size="32">
+              <el-icon><User /></el-icon>
+            </el-avatar>
+            <div class="user-info">
+              <div class="user-name">{{ row.userName || `用户${row.userId}` }}</div>
+              <div class="user-id">ID: {{ row.userId }}</div>
             </div>
-          </template>
-        </el-table-column>
+          </div>
+        </template>
 
-        <el-table-column label="积分变动" prop="pointsChange" width="120" align="center">
-          <template #default="{ row }">
-            <div class="points-change" :class="{ 'points-positive': row.pointsChange > 0 }">
-              <span class="points-symbol">+</span>
-              <span class="points-value">{{ formatNumber(row.pointsChange) }}</span>
-            </div>
-          </template>
-        </el-table-column>
+        <template #pointsChange="{ row }">
+          <div class="points-change" :class="{ 'points-positive': row.pointsChange > 0 }">
+            <span class="points-symbol">+</span>
+            <span class="points-value">{{ formatNumber(row.pointsChange) }}</span>
+          </div>
+        </template>
 
-        <el-table-column label="积分类型" prop="pointsType" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag
-              :type="row.pointsType === 1 ? 'warning' : row.pointsType === 2 ? 'success' : 'info'"
-              effect="light"
-            >
-              {{ row.pointsTypeDesc }}
-            </el-tag>
-          </template>
-        </el-table-column>
+        <template #pointsType="{ row }">
+          <CnStatusTag :type="getPointsTypeTone(row.pointsType)" size="sm">{{ row.pointsTypeDesc }}</CnStatusTag>
+        </template>
 
-        <el-table-column label="变动描述" prop="description" min-width="200">
-          <template #default="{ row }">
-            <div class="description-cell">
-              <div class="description-text">{{ row.description }}</div>
-              <div v-if="row.continuousDays" class="description-extra">
-                连续{{ row.continuousDays }}天
-              </div>
-            </div>
-          </template>
-        </el-table-column>
+        <template #description="{ row }">
+          <div class="description-cell">
+            <div class="description-text">{{ row.description }}</div>
+            <div v-if="row.continuousDays" class="description-extra">连续{{ row.continuousDays }}天</div>
+          </div>
+        </template>
 
-        <el-table-column label="变动后余额" prop="balanceAfter" width="120" align="right">
-          <template #default="{ row }">
-            <div class="balance-cell">
-              <div class="balance-value">{{ formatNumber(row.balanceAfter) }}</div>
-              <div class="balance-yuan">≈{{ ((row.balanceAfter || 0) / 1000).toFixed(2) }}元</div>
-            </div>
-          </template>
-        </el-table-column>
+        <template #balanceAfter="{ row }">
+          <div class="balance-cell">
+            <div class="balance-value">{{ formatNumber(row.balanceAfter) }}</div>
+            <div class="balance-yuan">≈{{ ((row.balanceAfter || 0) / 1000).toFixed(2) }}元</div>
+          </div>
+        </template>
 
-        <el-table-column label="操作管理员" width="120" align="center">
-          <template #default="{ row }">
-            <div v-if="row.adminId" class="admin-cell">
-              <div class="admin-name">{{ row.adminName || `管理员${row.adminId}` }}</div>
-              <div class="admin-id">ID: {{ row.adminId }}</div>
-            </div>
-            <el-text v-else type="info">系统</el-text>
-          </template>
-        </el-table-column>
+        <template #admin="{ row }">
+          <div v-if="row.adminId" class="admin-cell">
+            <div class="admin-name">{{ row.adminName || `管理员${row.adminId}` }}</div>
+            <div class="admin-id">ID: {{ row.adminId }}</div>
+          </div>
+          <CnStatusTag v-else type="neutral" size="sm" subtle>系统</CnStatusTag>
+        </template>
 
-        <el-table-column label="创建时间" prop="createTime" width="160" align="center" sortable>
-          <template #default="{ row }">
-            <div class="time-cell">
-              <div class="time-date">{{ formatDate(row.createTime) }}</div>
-              <div class="time-time">{{ formatTime(row.createTime) }}</div>
-            </div>
-          </template>
-        </el-table-column>
+        <template #createTime="{ row }">
+          <div class="time-cell">
+            <div class="time-date">{{ formatDate(row.createTime) }}</div>
+            <div class="time-time">{{ formatTime(row.createTime) }}</div>
+          </div>
+        </template>
 
-        <el-table-column label="操作" width="100" align="center" fixed="right">
-          <template #default="{ row }">
-            <el-button
-              type="info"
-              size="small"
-              text
-              @click="handleViewDetail(row)"
-            >
-              <el-icon><View /></el-icon>
-              详情
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+        <template #actions="{ row }">
+          <el-button type="info" link size="small" :icon="View" @click="handleViewDetail(row)">详情</el-button>
+        </template>
+      </CnDataTable>
+    </CnSection>
 
-      <!-- 分页 -->
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="pagination.pageNum"
-          v-model:page-size="pagination.pageSize"
-          :total="pagination.total"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
-      </div>
-    </el-card>
-
-    <!-- 积分明细详情对话框 -->
-    <el-dialog
-      v-model="showDetailDialog"
-      title="积分明细详情"
-      width="600px"
-    >
+    <el-dialog v-model="showDetailDialog" title="积分明细详情" width="600px">
       <div v-if="selectedDetail" class="detail-content">
         <el-descriptions :column="2" border>
           <el-descriptions-item label="明细ID">
-            <el-text type="info">#{{ selectedDetail.id }}</el-text>
+            <span class="muted-id">#{{ selectedDetail.id }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="用户ID">
-            {{ selectedDetail.userId }}
-          </el-descriptions-item>
+          <el-descriptions-item label="用户ID">{{ selectedDetail.userId }}</el-descriptions-item>
           <el-descriptions-item label="用户名">
             {{ selectedDetail.userName || `用户${selectedDetail.userId}` }}
           </el-descriptions-item>
           <el-descriptions-item label="积分变动">
-            <div class="points-change points-positive">
-              +{{ formatNumber(selectedDetail.pointsChange) }}
-            </div>
+            <div class="points-change points-positive">+{{ formatNumber(selectedDetail.pointsChange) }}</div>
           </el-descriptions-item>
           <el-descriptions-item label="积分类型">
-            <el-tag
-              :type="selectedDetail.pointsType === 1 ? 'warning' : selectedDetail.pointsType === 2 ? 'success' : 'info'"
-              effect="light"
-            >
+            <CnStatusTag :type="getPointsTypeTone(selectedDetail.pointsType)" size="sm">
               {{ selectedDetail.pointsTypeDesc }}
-            </el-tag>
+            </CnStatusTag>
           </el-descriptions-item>
           <el-descriptions-item label="变动后余额">
             <div class="balance-cell">
@@ -234,9 +161,7 @@
               <div class="balance-yuan">≈{{ ((selectedDetail.balanceAfter || 0) / 1000).toFixed(2) }}元</div>
             </div>
           </el-descriptions-item>
-          <el-descriptions-item label="变动描述" span="2">
-            {{ selectedDetail.description }}
-          </el-descriptions-item>
+          <el-descriptions-item label="变动描述" span="2">{{ selectedDetail.description }}</el-descriptions-item>
           <el-descriptions-item v-if="selectedDetail.continuousDays" label="连续打卡天数">
             {{ selectedDetail.continuousDays }}天
           </el-descriptions-item>
@@ -248,95 +173,131 @@
           </el-descriptions-item>
         </el-descriptions>
       </div>
-      
+
       <template #footer>
-        <el-button @click="showDetailDialog = false">关闭</el-button>
+        <div class="dialog-footer">
+          <el-button @click="showDetailDialog = false">关闭</el-button>
+        </div>
       </template>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Search, Refresh, Download, User, View } from '@element-plus/icons-vue'
+import { Download, Refresh, Search, User, View } from '@element-plus/icons-vue'
 import { pointsApi } from '@/api/points'
+import { CnDataTable, CnPage, CnPageHeader, CnSection, CnStatusTag } from '@/design-system'
+import type { CnBreadcrumbItem, CnPagination, CnTableColumn, CnTone } from '@/design-system'
+
+interface PointsDetail extends Record<string, unknown> {
+  id: number
+  userId: number
+  userName?: string
+  pointsChange?: number
+  pointsType?: number
+  pointsTypeDesc?: string
+  description?: string
+  balanceAfter?: number
+  continuousDays?: number
+  adminId?: number
+  adminName?: string
+  createTime?: string
+}
 
 const route = useRoute()
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '积分管理' }, { label: '积分明细' }]
 
-// 响应式数据
 const loading = ref(false)
-const tableData = ref([])
+const tableData = ref<PointsDetail[]>([])
 const showDetailDialog = ref(false)
-const selectedDetail = ref(null)
+const selectedDetail = ref<PointsDetail | null>(null)
 const exporting = ref(false)
 const MAX_EXPORT_ROWS = 5000
 
-// 搜索表单
 const searchForm = reactive({
-  userId: route.query.userId || '',
-  userName: route.query.userName || '',
-  pointsType: null,
+  userId: (route.query.userId as string) || '',
+  userName: (route.query.userName as string) || '',
+  pointsType: null as number | null,
   adminId: '',
   startTime: '',
   endTime: ''
 })
 
-// 分页信息
 const pagination = reactive({
   pageNum: 1,
   pageSize: 20,
   total: 0
 })
 
-// 格式化数字显示
-const formatNumber = (num) => {
+const tableColumns: CnTableColumn<PointsDetail>[] = [
+  { prop: 'id', label: '明细ID', width: 100, align: 'center', slot: 'id' },
+  { label: '用户信息', minWidth: 160, slot: 'user' },
+  { prop: 'pointsChange', label: '积分变动', width: 120, align: 'center', slot: 'pointsChange' },
+  { prop: 'pointsType', label: '积分类型', width: 110, align: 'center', slot: 'pointsType' },
+  { prop: 'description', label: '变动描述', minWidth: 200, slot: 'description' },
+  { prop: 'balanceAfter', label: '变动后余额', width: 130, align: 'right', slot: 'balanceAfter' },
+  { label: '操作管理员', width: 130, align: 'center', slot: 'admin' },
+  { prop: 'createTime', label: '创建时间', width: 170, align: 'center', slot: 'createTime', sortable: true },
+  { label: '操作', width: 100, align: 'center', fixed: 'right', slot: 'actions' }
+]
+
+const tablePagination = computed<CnPagination>(() => ({
+  page: pagination.pageNum,
+  pageSize: pagination.pageSize,
+  total: pagination.total,
+  pageSizes: [10, 20, 50, 100]
+}))
+
+const formatNumber = (num?: number | string) => {
   if (!num) return '0'
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
-// 格式化日期
-const formatDate = (dateTime) => {
+const formatDate = (dateTime?: string) => {
   if (!dateTime) return '-'
   return new Date(dateTime).toLocaleDateString('zh-CN')
 }
 
-// 格式化时间
-const formatTime = (dateTime) => {
+const formatTime = (dateTime?: string) => {
   if (!dateTime) return '-'
   return new Date(dateTime).toLocaleTimeString('zh-CN')
 }
 
-// 格式化日期时间
-const formatDateTime = (dateTime) => {
+const formatDateTime = (dateTime?: string) => {
   if (!dateTime) return '-'
   return new Date(dateTime).toLocaleString('zh-CN')
 }
 
-// 加载数据
+const getPointsTypeTone = (type?: number): CnTone => {
+  if (type === 1) return 'warning'
+  if (type === 2) return 'success'
+  return 'info'
+}
+
+const buildQueryParams = (source: Record<string, unknown>) => {
+  const params = { ...source }
+  Object.keys(params).forEach((key) => {
+    if (params[key] === '' || params[key] === null || params[key] === undefined) {
+      delete params[key]
+    }
+  })
+  return params
+}
+
 const loadData = async () => {
   loading.value = true
-  
   try {
-    const params = {
+    const params = buildQueryParams({
       pageNum: pagination.pageNum,
       pageSize: pagination.pageSize,
       ...searchForm
-    }
-    
-    // 过滤空值
-    Object.keys(params).forEach(key => {
-      if (params[key] === '' || params[key] === null || params[key] === undefined) {
-        delete params[key]
-      }
     })
-    
     const result = await pointsApi.getAllPointsDetailList(params)
-    
-    tableData.value = result.records || []
-    pagination.total = result.total || 0
-    
+    tableData.value = Array.isArray(result?.records) ? result.records : []
+    pagination.total = Number(result?.total) || 0
   } catch (error) {
     console.error('加载积分明细数据失败:', error)
     ElMessage.error('加载数据失败')
@@ -345,13 +306,11 @@ const loadData = async () => {
   }
 }
 
-// 搜索处理
 const handleSearch = () => {
   pagination.pageNum = 1
   loadData()
 }
 
-// 重置搜索
 const handleReset = () => {
   Object.assign(searchForm, {
     userId: '',
@@ -365,7 +324,6 @@ const handleReset = () => {
   loadData()
 }
 
-// 导出数据
 const handleExport = async () => {
   exporting.value = true
 
@@ -377,7 +335,7 @@ const handleExport = async () => {
     })
 
     const result = await pointsApi.getAllPointsDetailList(params)
-    const rows = result.records || []
+    const rows: PointsDetail[] = Array.isArray(result?.records) ? result.records : []
 
     if (!rows.length) {
       ElMessage.warning('当前筛选条件下暂无可导出的积分明细')
@@ -395,41 +353,23 @@ const handleExport = async () => {
   }
 }
 
-// 分页大小改变
-const handleSizeChange = (size) => {
+const handleSizeChange = (size: number) => {
   pagination.pageSize = size
   pagination.pageNum = 1
   loadData()
 }
 
-// 当前页改变
-const handleCurrentChange = (page) => {
+const handleCurrentChange = (page: number) => {
   pagination.pageNum = page
   loadData()
 }
 
-// 查看详情
-const handleViewDetail = (row) => {
+const handleViewDetail = (row: PointsDetail) => {
   selectedDetail.value = row
   showDetailDialog.value = true
 }
 
-// 组件挂载时加载数据
-onMounted(() => {
-  loadData()
-})
-
-const buildQueryParams = (source) => {
-  const params = { ...source }
-  Object.keys(params).forEach(key => {
-    if (params[key] === '' || params[key] === null || params[key] === undefined) {
-      delete params[key]
-    }
-  })
-  return params
-}
-
-const downloadCsv = (rows) => {
+const downloadCsv = (rows: PointsDetail[]) => {
   const headers = [
     ['id', '明细ID'],
     ['userId', '用户ID'],
@@ -446,9 +386,11 @@ const downloadCsv = (rows) => {
 
   const csvRows = [
     headers.map(([, title]) => escapeCsv(title)).join(','),
-    ...rows.map(row => headers
-      .map(([key]) => escapeCsv(row[key] ?? ''))
-      .join(','))
+    ...rows.map((row) =>
+      headers
+        .map(([key]) => escapeCsv(row[key] ?? ''))
+        .join(',')
+    )
   ]
 
   const blob = new Blob([`\uFEFF${csvRows.join('\n')}`], { type: 'text/csv;charset=utf-8;' })
@@ -462,7 +404,7 @@ const downloadCsv = (rows) => {
   window.URL.revokeObjectURL(url)
 }
 
-const escapeCsv = (value) => {
+const escapeCsv = (value: unknown) => {
   const text = String(value).replace(/\r?\n/g, ' ')
   if (/[",\n]/.test(text)) {
     return `"${text.replace(/"/g, '""')}"`
@@ -470,82 +412,75 @@ const escapeCsv = (value) => {
   return text
 }
 
-const formatExportTime = (date) => {
-  const pad = (num) => String(num).padStart(2, '0')
+const formatExportTime = (date: Date) => {
+  const pad = (num: number) => String(num).padStart(2, '0')
   return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
 }
+
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <style scoped>
-.points-details {
-  padding: 20px;
-}
-
-.page-header {
-  margin-bottom: 20px;
-}
-
-.header-title h2 {
-  margin: 0 0 8px 0;
-  font-size: 24px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.header-title p {
-  margin: 0;
-  color: #909399;
-  font-size: 14px;
-}
-
-.search-card {
-  margin-bottom: 20px;
+.points-details-page {
+  min-height: 100%;
 }
 
 .search-form {
-  margin-bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2) var(--cn-space-3);
 }
 
-.table-card {
-  margin-bottom: 20px;
+.filter-sm {
+  width: 150px;
+}
+
+.filter-md {
+  width: 200px;
+}
+
+.filter-date {
+  width: 180px;
 }
 
 .user-cell {
   display: flex;
   align-items: center;
-}
-
-.user-avatar {
-  margin-right: 8px;
+  gap: var(--cn-space-2);
 }
 
 .user-info {
-  flex: 1;
+  min-width: 0;
 }
 
-.user-name {
+.user-name,
+.description-text,
+.balance-value,
+.admin-name,
+.time-date {
+  color: var(--cn-color-text-primary);
   font-weight: 600;
-  color: #303133;
-  margin-bottom: 2px;
-  font-size: 13px;
 }
 
-.user-id {
-  font-size: 11px;
-  color: #909399;
+.user-id,
+.description-extra,
+.balance-yuan,
+.admin-id,
+.time-time,
+.muted-id {
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
 }
 
 .points-change {
-  font-weight: 600;
-  color: #909399;
+  color: var(--cn-color-text-tertiary);
+  font-weight: 650;
 }
 
 .points-change.points-positive {
-  color: #67C23A;
-}
-
-.points-symbol {
-  font-size: 14px;
+  color: var(--cn-color-success);
 }
 
 .points-value {
@@ -553,84 +488,32 @@ const formatExportTime = (date) => {
 }
 
 .description-cell {
-  line-height: 1.4;
-}
-
-.description-text {
-  color: #303133;
-  margin-bottom: 2px;
-}
-
-.description-extra {
-  font-size: 12px;
-  color: #67C23A;
+  line-height: 1.5;
 }
 
 .balance-cell {
   text-align: right;
 }
 
-.balance-value {
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 2px;
-}
-
-.balance-yuan {
-  font-size: 11px;
-  color: #67C23A;
-}
-
-.admin-cell {
-  text-align: center;
-}
-
-.admin-name {
-  color: #303133;
-  margin-bottom: 2px;
-  font-size: 12px;
-}
-
-.admin-id {
-  font-size: 10px;
-  color: #909399;
-}
-
+.admin-cell,
 .time-cell {
   text-align: center;
 }
 
-.time-date {
-  color: #303133;
-  margin-bottom: 2px;
-  font-size: 12px;
-}
-
-.time-time {
-  font-size: 11px;
-  color: #909399;
-}
-
-.pagination-container {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
-}
-
 .detail-content {
-  padding: 10px 0;
+  padding: var(--cn-space-2) 0;
 }
 
-:deep(.el-card__body) {
-  padding: 20px;
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
 }
 
-:deep(.el-table .cell) {
-  padding-left: 6px;
-  padding-right: 6px;
-}
-
-:deep(.el-descriptions__label) {
-  font-weight: 600;
+@media (max-width: 720px) {
+  .filter-sm,
+  .filter-md,
+  .filter-date {
+    width: 100%;
+  }
 }
 </style>

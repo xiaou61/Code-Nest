@@ -1,0 +1,22 @@
+[data-theme='growth'] {
+  color-scheme: light;
+  --cn-color-bg-page: #f3fbf7;
+  --cn-color-bg-canvas: #e4f7ed;
+  --cn-color-bg-surface: #ffffff;
+  --cn-color-bg-surface-muted: #f7fcfa;
+  --cn-color-bg-elevated: #ffffff;
+  --cn-color-text-primary: #173326;
+  --cn-color-text-secondary: #4f6c5e;
+  --cn-color-text-tertiary: #809387;
+  --cn-color-border: #cfe3d8;
+  --cn-color-border-subtle: #e4efe9;
+  --cn-color-brand-primary: #16a34a;
+  --cn-color-brand-hover: #15803d;
+  --cn-color-brand-soft: #dcfce7;
+  --cn-color-focus-ring: color-mix(in srgb, var(--cn-color-brand-primary) 18%, transparent);
+  --cn-shadow-xs: 0 2px 8px color-mix(in srgb, var(--cn-color-text-primary) 4%, transparent);
+  --cn-shadow-sm: 0 8px 24px color-mix(in srgb, var(--cn-color-text-primary) 6%, transparent);
+  --cn-shadow-md: 0 14px 36px color-mix(in srgb, var(--cn-color-text-primary) 10%, transparent);
+  --cn-shadow-card: var(--cn-shadow-xs);
+  --cn-shadow-popover: 0 18px 42px color-mix(in srgb, var(--cn-color-text-primary) 16%, transparent);
+}

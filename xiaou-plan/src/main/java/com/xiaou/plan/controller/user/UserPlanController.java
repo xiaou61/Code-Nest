@@ -2,6 +2,7 @@ package com.xiaou.plan.controller.user;
 
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.core.domain.Result;
+import com.xiaou.common.core.domain.ResultCode;
 import com.xiaou.common.satoken.StpUserUtil;
 import com.xiaou.plan.domain.PlanCheckinRecord;
 import com.xiaou.plan.dto.*;
@@ -61,7 +62,7 @@ public class UserPlanController {
         StpUserUtil.checkLogin();
         Long userId = StpUserUtil.getLoginIdAsLong();
         boolean success = planService.deletePlan(userId, planId);
-        return success ? Result.success("删除成功", true) : Result.error("删除失败");
+        return success ? Result.success("删除成功", true) : Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "删除失败");
     }
     
     /**

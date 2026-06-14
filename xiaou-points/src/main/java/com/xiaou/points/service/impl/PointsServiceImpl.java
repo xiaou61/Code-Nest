@@ -28,6 +28,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -159,6 +160,12 @@ public class PointsServiceImpl implements PointsService {
         if (StrUtil.isBlank(yearMonth)) {
             yearMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
         }
+        LocalDate monthStart;
+        try {
+            monthStart = LocalDate.parse(yearMonth + "-01");
+        } catch (DateTimeParseException e) {
+            throw new BusinessException("年月格式不正确，请使用yyyy-MM格式");
+        }
         
         UserCheckinBitmap bitmap = checkinBitmapMapper.selectByUserIdAndYearMonth(userId, yearMonth);
         if (bitmap == null) {
@@ -170,7 +177,7 @@ public class PointsServiceImpl implements PointsService {
                     .totalCheckinDays(0)
                     .continuousDays(0)
                     .monthlyStats(CheckinCalendarResponse.MonthlyStats.builder()
-                            .totalDays(LocalDate.parse(yearMonth + "-01").lengthOfMonth())
+                            .totalDays(monthStart.lengthOfMonth())
                             .checkinRate("0.00%")
                             .pointsEarned(0)
                             .build())
@@ -179,7 +186,7 @@ public class PointsServiceImpl implements PointsService {
         }
         
         List<Integer> checkinDays = CheckinBitmapUtil.getCheckinDays(bitmap.getCheckinBitmap());
-        int totalDaysInMonth = LocalDate.parse(yearMonth + "-01").lengthOfMonth();
+        int totalDaysInMonth = monthStart.lengthOfMonth();
         String checkinRate = String.format("%.2f%%", (double) checkinDays.size() / totalDaysInMonth * 100);
         
         // 计算当月获得积分（需要查询积分明细）
@@ -264,6 +271,7 @@ public class PointsServiceImpl implements PointsService {
     @Transactional(rollbackFor = Exception.class)
     public AdminGrantPointsResponse grantPoints(AdminGrantPointsRequest request, Long adminId) {
         log.info("管理员{}为用户{}发放{}积分，原因：{}", adminId, request.getUserId(), request.getPoints(), request.getReason());
+        SimpleUserInfo userInfo = requireExistingUser(request.getUserId());
         
         // 确保用户有积分账户
         ensureUserPointsBalance(request.getUserId());
@@ -292,7 +300,7 @@ public class PointsServiceImpl implements PointsService {
                 .detailId(detail.getId())
                 .userBalance(balance.getTotalPoints())
                 .balanceYuan(formatPointsToYuan(balance.getTotalPoints()))
-                .userName("用户" + request.getUserId()) // 简化处理，实际应该查询用户表
+                .userName(userInfo.getDisplayName())
                 .build();
     }
     
@@ -567,6 +575,8 @@ public class PointsServiceImpl implements PointsService {
         
         for (Long userId : request.getUserIds()) {
             try {
+                SimpleUserInfo userInfo = requireExistingUser(userId);
+
                 // 确保用户有积分账户
                 ensureUserPointsBalance(userId);
                 
@@ -588,10 +598,9 @@ public class PointsServiceImpl implements PointsService {
                 
                 pointsDetailMapper.insert(detail);
                 
-                String userName = getUserName(userId);
                 results.add(BatchGrantPointsResponse.GrantResult.builder()
                         .userId(userId)
-                        .userName(userName)
+                        .userName(userInfo.getDisplayName())
                         .success(true)
                         .message("发放成功")
                         .currentBalance(balance.getTotalPoints())
@@ -691,6 +700,7 @@ public class PointsServiceImpl implements PointsService {
     @Transactional(rollbackFor = Exception.class)
     public void grantSystemPoints(Long userId, int points, int type, String description) {
         log.info("系统发放积分: userId={}, points={}, type={}, desc={}", userId, points, type, description);
+        requireExistingUser(userId);
         ensureUserPointsBalance(userId);
         pointsBalanceMapper.addPoints(userId, points);
         UserPointsBalance balance = pointsBalanceMapper.selectByUserId(userId);
@@ -717,6 +727,14 @@ public class PointsServiceImpl implements PointsService {
      */
     private SimpleUserInfo getUserInfo(Long userId) {
         return userInfoApiService.getSimpleUserInfo(userId);
+    }
+
+    private SimpleUserInfo requireExistingUser(Long userId) {
+        SimpleUserInfo userInfo = getUserInfo(userId);
+        if (userInfo == null) {
+            throw new BusinessException("用户不存在");
+        }
+        return userInfo;
     }
     
     /**

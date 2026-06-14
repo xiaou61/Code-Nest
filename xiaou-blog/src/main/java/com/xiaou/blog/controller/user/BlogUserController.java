@@ -163,11 +163,7 @@ public class BlogUserController {
             @RequestParam @Positive(message = "分类ID必须为正数") Long categoryId,
             @RequestParam(defaultValue = "1") @Min(value = 1, message = "页码必须大于等于1") Integer pageNum,
             @RequestParam(defaultValue = "10") @Min(value = 1, message = "每页数量必须大于等于1") Integer pageSize) {
-        ArticleListRequest request = new ArticleListRequest();
-        request.setCategoryId(categoryId);
-        request.setPageNum(pageNum);
-        request.setPageSize(pageSize);
-        PageResult<ArticleSimpleResponse> result = blogArticleService.getUserArticleList(request);
+        PageResult<ArticleSimpleResponse> result = blogArticleService.getArticlesByCategory(categoryId, pageNum, pageSize);
         return Result.success(result);
     }
     

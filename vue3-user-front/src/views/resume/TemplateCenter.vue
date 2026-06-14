@@ -1,120 +1,107 @@
 <template>
-  <div class="resume-template-page">
-    <el-card class="filter-card" shadow="never">
-      <div class="filter-header">
-        <div>
-          <h2>简历模板中心</h2>
-          <p class="sub-title">挑选适合的模板开始创作你的专属简历</p>
-        </div>
-        <el-button type="primary" @click="goMyResumes">
-          <el-icon><Briefcase /></el-icon>
-          我的简历
-        </el-button>
-      </div>
-      <el-form :inline="true" :model="filters" class="filter-form" label-width="80px">
-        <el-form-item label="关键字">
-          <el-input v-model="filters.keyword" placeholder="输入模板名称或标签" clearable />
-        </el-form-item>
-        <el-form-item label="分类">
-          <el-select v-model="filters.category" placeholder="全部分类" clearable>
-            <el-option
-              v-for="item in categoryOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="经验">
-          <el-select v-model="filters.experienceLevel" placeholder="经验层级" clearable>
-            <el-option
-              v-for="item in experienceOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleSearch">查询</el-button>
-          <el-button @click="handleReset">重置</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+  <CnPage class="resume-template-page" max-width="1180px" full-height>
+    <CnPageHeader
+      title="简历模板中心"
+      description="挑选适合的模板，快速开始创作你的专属简历。"
+      eyebrow="RESUME TEMPLATES"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">共 {{ pagination.total }} 个模板</CnStatusTag>
+        <CnStatusTag type="success" size="sm" subtle>已发布模板</CnStatusTag>
+      </template>
 
-    <div class="template-grid" v-loading="loading">
-      <el-empty v-if="!templates.length && !loading" description="暂无模板，稍后再来~" />
-      <template v-else>
-        <el-card
-          v-for="template in templates"
-          :key="template.id"
-          class="template-card"
-          shadow="hover"
-        >
-          <div class="cover" @click="handleUseTemplate(template)">
-            <img :src="template.coverUrl || defaultCover" alt="模板封面" />
-            <div class="cover-mask">
-              <el-button type="primary" size="small">使用模板</el-button>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="title-row">
-              <h3>{{ template.name }}</h3>
-              <el-tag type="success" size="small">{{ formatExperience(template.experienceLevel) }}</el-tag>
-            </div>
-            <p class="desc">{{ template.description || '暂无描述' }}</p>
-            <div class="meta-row">
-              <div class="meta-item">
-                <el-icon><CollectionTag /></el-icon>
-                {{ template.category || '通用' }}
+      <template #actions>
+        <el-button type="primary" :icon="Briefcase" @click="goMyResumes">我的简历</el-button>
+      </template>
+    </CnPageHeader>
+
+    <div class="summary-grid">
+      <CnStatCard title="模板总数" :value="pagination.total" description="当前条件下可用模板" tone="brand" :loading="loading" />
+      <CnStatCard title="当前展示" :value="templates.length" description="本页加载模板数量" tone="success" :loading="loading" />
+      <CnStatCard title="每页容量" :value="pagination.size" description="分页展示容量" tone="info" :loading="loading" />
+    </div>
+
+    <CnSection title="筛选模板" description="按关键字、方向分类和经验层级定位合适模板。" divided>
+      <CnFilterForm
+        v-model="filters"
+        :fields="filterFields"
+        :columns="3"
+        :loading="loading"
+        @search="handleSearch"
+        @reset="handleReset"
+      />
+    </CnSection>
+
+    <CnSection title="模板列表" description="查看模板信息，预览后可直接进入编辑器使用。" divided>
+      <div v-loading="loading" class="template-shell">
+        <div v-if="templates.length" class="template-grid">
+          <article v-for="template in templates" :key="template.id" class="template-card">
+            <button class="cover" type="button" @click="handleUseTemplate(template)">
+              <img :src="template.coverUrl || defaultCover" :alt="`${template.name || '简历模板'}封面`" />
+              <span class="cover-mask">
+                <el-button type="primary" size="small">使用模板</el-button>
+              </span>
+            </button>
+
+            <div class="card-body">
+              <div class="title-row">
+                <h3>{{ template.name }}</h3>
+                <CnStatusTag type="success" size="sm">{{ formatExperience(template.experienceLevel) }}</CnStatusTag>
               </div>
-              <div class="meta-item">
+              <p class="desc">{{ template.description || '暂无描述' }}</p>
+
+              <div class="meta-row">
+                <span class="meta-item">
+                  <el-icon><CollectionTag /></el-icon>
+                  {{ template.category || '通用' }}
+                </span>
                 <el-rate
-                  v-model="template.rating"
+                  :model-value="Number(template.rating || 0)"
                   disabled
                   show-score
-                  text-color="#ff9900"
+                  text-color="var(--cn-color-warning)"
                   score-template="{value}"
                 />
               </div>
-            </div>
-            <div class="tags" v-if="template.tags">
-              <el-tag
-                v-for="tag in parseTags(template.tags)"
-                :key="tag"
-                size="small"
-                effect="plain"
-              >
-                {{ tag }}
-              </el-tag>
-            </div>
-            <div class="card-actions">
-              <el-button link type="primary" @click="previewTemplate(template)">查看详情</el-button>
-              <el-button type="primary" @click="handleUseTemplate(template)">
-                <el-icon><EditPen /></el-icon>
-                立即使用
-              </el-button>
-            </div>
-          </div>
-        </el-card>
-      </template>
-    </div>
 
-    <div class="pagination-wrapper" v-if="pagination.total > pagination.size">
-      <el-pagination
-        background
-        layout="total, sizes, prev, pager, next"
-        :current-page="pagination.page"
-        :page-size="pagination.size"
-        :total="pagination.total"
-        :page-sizes="[8, 12, 16, 24]"
-        @current-change="handlePageChange"
-        @size-change="handleSizeChange"
-      />
-    </div>
+              <div v-if="template.tags" class="tags">
+                <CnStatusTag v-for="tag in parseTags(template.tags)" :key="tag" type="neutral" size="sm" subtle>
+                  {{ tag }}
+                </CnStatusTag>
+              </div>
 
-    <el-dialog v-model="previewVisible" title="模板说明" width="520px">
-      <div v-if="currentTemplate">
+              <div class="card-actions">
+                <el-button link type="primary" @click="previewTemplate(template)">查看详情</el-button>
+                <el-button type="primary" :icon="EditPen" @click="handleUseTemplate(template)">立即使用</el-button>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <CnEmptyState
+          v-else-if="!loading"
+          title="暂无模板"
+          description="当前筛选条件下没有可用模板，稍后再来看看。"
+          icon="RT"
+        />
+      </div>
+
+      <div v-if="pagination.total > pagination.size" class="pagination-wrapper">
+        <el-pagination
+          :current-page="pagination.page"
+          :page-size="pagination.size"
+          :total="pagination.total"
+          :page-sizes="[8, 12, 16, 24]"
+          background
+          layout="total, sizes, prev, pager, next"
+          @current-change="handlePageChange"
+          @size-change="handleSizeChange"
+        />
+      </div>
+    </CnSection>
+
+    <el-dialog v-model="previewVisible" title="模板说明" width="560px">
+      <div v-if="currentTemplate" class="template-preview">
         <div class="preview-cover">
           <img :src="currentTemplate.previewUrl || currentTemplate.coverUrl || defaultCover" alt="模板预览" />
         </div>
@@ -131,24 +118,52 @@
         </el-descriptions>
       </div>
       <template #footer>
-        <el-button @click="previewVisible = false">取 消</el-button>
+        <el-button @click="previewVisible = false">取消</el-button>
         <el-button type="primary" @click="handleUseTemplate(currentTemplate)">立即使用</el-button>
       </template>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Briefcase, CollectionTag, EditPen } from '@element-plus/icons-vue'
+import {
+  CnEmptyState,
+  CnFilterForm,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag,
+  type CnFilterField
+} from '@/design-system'
 import { resumeApi } from '@/api/resume'
+
+interface ResumeTemplate extends Record<string, unknown> {
+  id: number | string
+  name?: string
+  description?: string
+  category?: string
+  experienceLevel?: number | string
+  techStack?: string
+  tags?: string
+  rating?: number
+  coverUrl?: string
+  previewUrl?: string
+}
+
+interface TemplateResponse {
+  records?: ResumeTemplate[]
+  total?: number
+}
 
 const router = useRouter()
 const loading = ref(false)
-const templates = ref([])
-const currentTemplate = ref(null)
+const templates = ref<ResumeTemplate[]>([])
+const currentTemplate = ref<ResumeTemplate | null>(null)
 const previewVisible = ref(false)
 
 const pagination = reactive({
@@ -157,27 +172,48 @@ const pagination = reactive({
   total: 0
 })
 
-const filters = reactive({
+const createFilters = () => ({
   keyword: '',
   category: '',
   experienceLevel: ''
 })
 
-const categoryOptions = [
-  { label: '前端', value: '前端' },
-  { label: '后端', value: '后端' },
-  { label: '全栈', value: '全栈' },
-  { label: '算法', value: '算法' },
-  { label: '移动端', value: '移动端' },
-  { label: '测试', value: '测试' }
-]
+const filters = ref<Record<string, unknown>>(createFilters())
 
-const experienceOptions = [
-  { label: '应届生/实习', value: 1 },
-  { label: '初级工程师', value: 2 },
-  { label: '中级工程师', value: 3 },
-  { label: '高级工程师', value: 4 },
-  { label: '专家/管理', value: 5 }
+const filterFields: CnFilterField[] = [
+  {
+    prop: 'keyword',
+    label: '关键字',
+    type: 'input',
+    placeholder: '输入模板名称或标签'
+  },
+  {
+    prop: 'category',
+    label: '分类',
+    type: 'select',
+    placeholder: '全部分类',
+    options: [
+      { label: '前端', value: '前端' },
+      { label: '后端', value: '后端' },
+      { label: '全栈', value: '全栈' },
+      { label: '算法', value: '算法' },
+      { label: '移动端', value: '移动端' },
+      { label: '测试', value: '测试' }
+    ]
+  },
+  {
+    prop: 'experienceLevel',
+    label: '经验',
+    type: 'select',
+    placeholder: '经验层级',
+    options: [
+      { label: '应届生/实习', value: 1 },
+      { label: '初级工程师', value: 2 },
+      { label: '中级工程师', value: 3 },
+      { label: '高级工程师', value: 4 },
+      { label: '专家/管理', value: 5 }
+    ]
+  }
 ]
 
 const defaultCover = 'https://cdn.xiaou.tech/static/resume-placeholder.png'
@@ -188,15 +224,16 @@ const fetchTemplates = async () => {
     const params = {
       page: pagination.page,
       size: pagination.size,
-      keyword: filters.keyword || undefined,
-      category: filters.category || undefined,
-      experienceLevel: filters.experienceLevel || undefined,
+      keyword: (filters.value.keyword as string) || undefined,
+      category: (filters.value.category as string) || undefined,
+      experienceLevel: filters.value.experienceLevel || undefined,
       status: 1
     }
-    const result = await resumeApi.getTemplates(params)
+    const result = (await resumeApi.getTemplates(params)) as TemplateResponse
     templates.value = result?.records || []
     pagination.total = result?.total || templates.value.length
   } catch (error) {
+    console.error('加载模板失败', error)
     ElMessage.error('加载模板失败，请稍后重试')
   } finally {
     loading.value = false
@@ -209,41 +246,39 @@ const handleSearch = () => {
 }
 
 const handleReset = () => {
-  filters.keyword = ''
-  filters.category = ''
-  filters.experienceLevel = ''
+  filters.value = createFilters()
   pagination.page = 1
   fetchTemplates()
 }
 
-const handlePageChange = (page) => {
+const handlePageChange = (page: number) => {
   pagination.page = page
   fetchTemplates()
 }
 
-const handleSizeChange = (size) => {
+const handleSizeChange = (size: number) => {
   pagination.size = size
   pagination.page = 1
   fetchTemplates()
 }
 
-const parseTags = (tags) => {
+const parseTags = (tags?: string) => {
   if (!tags) return []
-  return tags.split(',').map(tag => tag.trim()).filter(Boolean)
+  return tags.split(',').map((tag) => tag.trim()).filter(Boolean)
 }
 
-const formatExperience = (level) => {
-  const map = {
+const formatExperience = (level?: number | string) => {
+  const map: Record<string, string> = {
     1: '应届/实习',
     2: '初级',
     3: '中级',
     4: '高级',
     5: '专家'
   }
-  return map[level] || '通用'
+  return map[String(level)] || '通用'
 }
 
-const handleUseTemplate = (template) => {
+const handleUseTemplate = (template: ResumeTemplate | null) => {
   if (!template?.id) {
     ElMessage.warning('模板信息异常')
     return
@@ -256,7 +291,7 @@ const handleUseTemplate = (template) => {
   })
 }
 
-const previewTemplate = (template) => {
+const previewTemplate = (template: ResumeTemplate) => {
   currentTemplate.value = template
   previewVisible.value = true
 }
@@ -272,56 +307,55 @@ onMounted(() => {
 
 <style scoped>
 .resume-template-page {
-  padding: 24px 24px 48px;
-  max-width: 1200px;
-  margin: 0 auto;
+  min-height: calc(100vh - 68px);
 }
 
-.filter-card {
-  margin-bottom: 24px;
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.filter-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.filter-header h2 {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 600;
-  color: #1f2d3d;
-}
-
-.sub-title {
-  margin: 4px 0 0;
-  color: #909399;
-  font-size: 14px;
-}
-
-.filter-form {
-  margin-top: 8px;
+.template-shell {
+  min-height: 280px;
 }
 
 .template-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
-  min-height: 200px;
+  gap: var(--cn-space-4);
 }
 
 .template-card {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: 180px 1fr;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--cn-card-border);
+  border-radius: var(--cn-radius-panel);
+  background: var(--cn-card-bg);
+  box-shadow: var(--cn-card-shadow);
+  transition:
+    transform var(--cn-motion-fast) var(--cn-ease-out),
+    border-color var(--cn-motion-base) var(--cn-ease-out),
+    box-shadow var(--cn-motion-base) var(--cn-ease-out);
+}
+
+.template-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 30%, var(--cn-color-border));
+  box-shadow: var(--cn-shadow-popover);
 }
 
 .cover {
   position: relative;
-  height: 180px;
-  border-radius: 12px;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
   overflow: hidden;
+  border: 0;
+  background: var(--cn-color-bg-surface-muted);
   cursor: pointer;
 }
 
@@ -329,97 +363,107 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s ease;
+  transition: transform var(--cn-motion-base) var(--cn-ease-out);
 }
 
-.cover:hover img {
-  transform: scale(1.05);
+.cover:hover img,
+.cover:focus-visible img {
+  transform: scale(1.04);
 }
 
 .cover-mask {
   position: absolute;
   inset: 0;
   display: flex;
-  justify-content: center;
   align-items: center;
-  background: rgba(0, 0, 0, 0.45);
+  justify-content: center;
+  background: color-mix(in srgb, var(--cn-color-text-primary) 46%, transparent);
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity var(--cn-motion-fast) var(--cn-ease-out);
 }
 
-.cover:hover .cover-mask {
+.cover:hover .cover-mask,
+.cover:focus-visible .cover-mask {
   opacity: 1;
 }
 
 .card-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  margin-top: 12px;
+  display: grid;
+  gap: var(--cn-space-3);
+  padding: var(--cn-space-4);
 }
 
-.title-row {
+.title-row,
+.meta-row,
+.card-actions {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  justify-content: space-between;
+  gap: var(--cn-space-3);
 }
 
 .title-row h3 {
   margin: 0;
-  font-size: 18px;
-  color: #1f2d3d;
+  overflow-wrap: anywhere;
+  color: var(--cn-color-text-primary);
+  font-size: 17px;
+  font-weight: 750;
+  line-height: 1.35;
 }
 
 .desc {
-  flex: none;
-  margin: 0 0 8px;
-  color: #606266;
+  display: -webkit-box;
+  min-height: 44px;
+  margin: 0;
+  overflow: hidden;
+  color: var(--cn-color-text-secondary);
   font-size: 13px;
-  min-height: 40px;
+  line-height: 1.65;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .meta-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 
 .meta-item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  color: #909399;
+  gap: var(--cn-space-1);
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
+  font-weight: 600;
 }
 
 .tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 12px;
+  gap: var(--cn-space-2);
 }
 
 .card-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  align-self: end;
 }
 
 .pagination-wrapper {
-  margin-top: 24px;
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
+  margin-top: var(--cn-space-5);
+  overflow-x: auto;
+}
+
+.template-preview {
+  display: grid;
+  gap: var(--cn-space-4);
 }
 
 .preview-cover {
   width: 100%;
   height: 260px;
-  border-radius: 8px;
   overflow: hidden;
-  margin-bottom: 16px;
-  background: #f5f7fa;
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .preview-cover img {
@@ -428,19 +472,29 @@ onMounted(() => {
   object-fit: cover;
 }
 
-@media (max-width: 768px) {
-  .filter-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+@media (max-width: 820px) {
+  .summary-grid {
+    grid-template-columns: 1fr;
   }
-  
-  .filter-form {
-    flex-direction: column;
+
+  .pagination-wrapper {
+    justify-content: flex-start;
   }
-  
+}
+
+@media (max-width: 560px) {
   .template-grid {
     grid-template-columns: 1fr;
+  }
+
+  .title-row,
+  .card-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .card-actions :deep(.el-button) {
+    width: 100%;
   }
 }
 </style>

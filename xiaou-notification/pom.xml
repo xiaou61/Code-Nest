@@ -26,6 +26,11 @@
             <artifactId>xiaou-common</artifactId>
             <version>${revision}</version>
         </dependency>
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-user-api</artifactId>
+            <version>${revision}</version>
+        </dependency>
     </dependencies>
 
 </project> 

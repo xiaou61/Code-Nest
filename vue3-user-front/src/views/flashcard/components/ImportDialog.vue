@@ -31,7 +31,7 @@
         </div>
       </el-checkbox-group>
 
-      <el-empty v-if="!loading && questionList.length === 0" description="暂无题目" :image-size="60" />
+      <CnEmptyState v-if="!loading && questionList.length === 0" title="暂无题目" icon="Q" size="sm" surface="transparent" />
     </div>
 
     <div class="import-footer">
@@ -43,29 +43,34 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
+import { CnEmptyState } from '@/design-system'
 import { interviewApi } from '@/api/interview'
 import { flashcardApi } from '@/api/flashcard'
 
-const props = defineProps({
-  deckId: {
-    type: Number,
-    required: true
-  }
-})
+interface QuestionItem {
+  id: number
+  title: string
+}
 
-const emit = defineEmits(['imported'])
+const props = defineProps<{
+  deckId: number
+}>()
+
+const emit = defineEmits<{
+  (e: 'imported', count: number): void
+}>()
 
 const loading = ref(false)
 const importing = ref(false)
 const searchKeyword = ref('')
-const questionList = ref([])
-const selectedIds = ref([])
+const questionList = ref<QuestionItem[]>([])
+const selectedIds = ref<number[]>([])
 
-let searchTimer = null
+let searchTimer: ReturnType<typeof setTimeout> | null = null
 
 // 加载题目列表
 const loadQuestions = async () => {
@@ -73,7 +78,7 @@ const loadQuestions = async () => {
   try {
     // 获取题单列表，然后获取题目
     const sets = await interviewApi.getPublicQuestionSets({ page: 1, size: 5 })
-    const questions = []
+    const questions: QuestionItem[] = []
     
     for (const set of (sets.content || sets || []).slice(0, 3)) {
       const setQuestions = await interviewApi.getQuestionsBySetId(set.id)
@@ -90,7 +95,9 @@ const loadQuestions = async () => {
 
 // 搜索
 const handleSearch = () => {
-  clearTimeout(searchTimer)
+  if (searchTimer) {
+    clearTimeout(searchTimer)
+  }
   searchTimer = setTimeout(() => {
     // TODO: 实现搜索
   }, 300)
@@ -110,7 +117,7 @@ const handleImport = async () => {
     selectedIds.value = []
     emit('imported', count)
   } catch (error) {
-    ElMessage.error(error.message || '导入失败')
+    ElMessage.error(error instanceof Error ? error.message : '导入失败')
   } finally {
     importing.value = false
   }
@@ -127,47 +134,48 @@ onMounted(() => {
 }
 
 .import-header {
-  margin-bottom: 20px;
+  margin-bottom: var(--cn-space-5);
   
   h3 {
     font-size: 16px;
     font-weight: 600;
     margin: 0 0 8px 0;
-    color: var(--el-text-color-primary);
+    color: var(--cn-color-text-primary);
   }
   
   .hint {
     margin: 0;
     font-size: 13px;
-    color: var(--el-text-color-secondary);
+    color: var(--cn-color-text-secondary);
   }
 }
 
 .search-section {
-  margin-bottom: 16px;
+  margin-bottom: var(--cn-space-4);
 }
 
 .question-list {
   max-height: 300px;
   overflow-y: auto;
-  border: 1px solid var(--el-border-color-light);
-  border-radius: 8px;
-  padding: 8px;
-  margin-bottom: 16px;
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  padding: var(--cn-space-2);
+  margin-bottom: var(--cn-space-4);
+  background: var(--cn-color-bg-surface);
 }
 
 .question-item {
-  padding: 12px;
-  border-radius: 6px;
-  transition: background 0.2s;
+  padding: var(--cn-space-3);
+  border-radius: var(--cn-radius-control);
+  transition: background-color var(--cn-motion-fast) var(--cn-ease-out);
   
   &:hover {
-    background: var(--el-fill-color-light);
+    background: var(--cn-color-bg-surface-muted);
   }
   
   .question-title {
     font-size: 14px;
-    color: var(--el-text-color-primary);
+    color: var(--cn-color-text-primary);
   }
 }
 
@@ -178,7 +186,7 @@ onMounted(() => {
   
   .selected-count {
     font-size: 13px;
-    color: var(--el-text-color-secondary);
+    color: var(--cn-color-text-secondary);
   }
 }
 </style>

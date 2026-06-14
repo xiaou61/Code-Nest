@@ -23,15 +23,16 @@ public class RiskCheckChainBuilder {
     
     /**
      * 构建风控检查链
-     * 顺序：积分检查 → 限流检查 → 冷却检查 → 黑名单检查
+     * 顺序：黑名单检查 → 积分检查 → 限流检查 → 冷却检查
      * 
      * @return 风控链头节点
      */
     public RiskCheckHandler buildChain() {
+        blacklistCheckHandler.setNext(pointsCheckHandler);
         pointsCheckHandler.setNext(rateLimitCheckHandler);
         rateLimitCheckHandler.setNext(cooldownCheckHandler);
-        cooldownCheckHandler.setNext(blacklistCheckHandler);
-        return pointsCheckHandler;
+        cooldownCheckHandler.setNext(null);
+        return blacklistCheckHandler;
     }
 }
 

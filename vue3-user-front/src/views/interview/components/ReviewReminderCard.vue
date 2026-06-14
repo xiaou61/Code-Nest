@@ -1,23 +1,22 @@
 <template>
-  <el-card class="review-reminder-card" shadow="hover" v-if="hasReviewTasks">
-    <div class="card-header">
-      <span class="card-title">📚 今日待复习</span>
+  <CnSection v-if="hasReviewTasks" class="review-reminder-card" title="今日待复习" surface="panel" compact>
+    <template #actions>
       <el-button text type="primary" @click="goToReview">查看全部</el-button>
-    </div>
+    </template>
 
     <div class="stats-row">
       <div class="stat-item overdue" v-if="stats.overdueCount > 0">
-        <span class="stat-icon">🔴</span>
+        <CnStatusTag type="danger" size="sm">逾期</CnStatusTag>
         <span class="stat-label">紧急复习（已逾期）</span>
         <span class="stat-value">{{ stats.overdueCount }} 题</span>
       </div>
       <div class="stat-item today" v-if="stats.todayCount > 0">
-        <span class="stat-icon">🟡</span>
+        <CnStatusTag type="warning" size="sm">今日</CnStatusTag>
         <span class="stat-label">今日待复习</span>
         <span class="stat-value">{{ stats.todayCount }} 题</span>
       </div>
       <div class="stat-item week" v-if="stats.weekCount > 0">
-        <span class="stat-icon">🟢</span>
+        <CnStatusTag type="success" size="sm">本周</CnStatusTag>
         <span class="stat-label">本周待复习</span>
         <span class="stat-value">{{ stats.weekCount }} 题</span>
       </div>
@@ -31,17 +30,25 @@
         已学习 {{ stats.totalLearned || 0 }} 题
       </span>
     </div>
-  </el-card>
+  </CnSection>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { CnSection, CnStatusTag } from '@/design-system'
 import { interviewApi } from '@/api/interview'
 
 const router = useRouter()
 
-const stats = ref({
+interface ReviewStats {
+  overdueCount: number
+  todayCount: number
+  weekCount: number
+  totalLearned: number
+}
+
+const stats = ref<ReviewStats>({
   overdueCount: 0,
   todayCount: 0,
   weekCount: 0,
@@ -57,7 +64,7 @@ const fetchStats = async () => {
     const res = await interviewApi.getReviewStats()
     // request拦截器已经提取了data
     if (res) {
-      stats.value = res
+      stats.value = res as ReviewStats
     }
   } catch (error) {
     console.error('获取复习统计失败', error)
@@ -86,93 +93,62 @@ onMounted(() => {
 
 <style scoped>
 .review-reminder-card {
-  border-radius: 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
-}
-
-:deep(.el-card__body) {
-  padding: 20px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.card-title {
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.card-header :deep(.el-button) {
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.card-header :deep(.el-button:hover) {
-  color: #fff;
+  margin-bottom: var(--cn-space-4);
 }
 
 .stats-row {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: var(--cn-space-3);
+  margin-bottom: var(--cn-space-4);
 }
 
 .stat-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-}
-
-.stat-icon {
-  font-size: 14px;
+  gap: var(--cn-space-3);
+  padding: var(--cn-space-3) var(--cn-space-4);
+  background: var(--cn-color-bg-surface-muted);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
 }
 
 .stat-label {
   flex: 1;
   font-size: 14px;
+  color: var(--cn-color-text-secondary);
 }
 
 .stat-value {
   font-weight: 600;
   font-size: 15px;
+  color: var(--cn-color-text-primary);
 }
 
 .action-row {
   display: flex;
   align-items: center;
-  gap: 16px;
-}
-
-.action-row :deep(.el-button) {
-  background: #fff;
-  color: #667eea;
-  border: none;
-}
-
-.action-row :deep(.el-button:hover) {
-  background: rgba(255, 255, 255, 0.9);
+  gap: var(--cn-space-4);
 }
 
 .learned-info {
   font-size: 13px;
-  opacity: 0.9;
+  color: var(--cn-color-text-tertiary);
 }
 
 @media (max-width: 768px) {
   .stat-item {
-    padding: 8px 12px;
+    align-items: flex-start;
+    padding: var(--cn-space-3);
   }
 
   .stat-label {
     font-size: 13px;
+  }
+
+  .action-row {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 </style>

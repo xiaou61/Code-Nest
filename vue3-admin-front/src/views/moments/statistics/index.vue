@@ -1,410 +1,389 @@
 <template>
-  <div class="moment-statistics">
-    <!-- 统计概览 -->
-    <div class="stats-overview">
-      <el-row :gutter="20">
-        <el-col :span="6">
-          <el-card class="stats-card">
-            <div class="stats-item">
-              <div class="stats-icon total-moments">
-                <el-icon><Document /></el-icon>
-              </div>
-              <div class="stats-content">
-                <h3>{{ statisticsData.totalMoments || 0 }}</h3>
-                <p>总动态数</p>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :span="6">
-          <el-card class="stats-card">
-            <div class="stats-item">
-              <div class="stats-icon total-likes">
-                <el-icon><Star /></el-icon>
-              </div>
-              <div class="stats-content">
-                <h3>{{ statisticsData.totalLikes || 0 }}</h3>
-                <p>总点赞数</p>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :span="6">
-          <el-card class="stats-card">
-            <div class="stats-item">
-              <div class="stats-icon total-comments">
-                <el-icon><ChatDotRound /></el-icon>
-              </div>
-              <div class="stats-content">
-                <h3>{{ statisticsData.totalComments || 0 }}</h3>
-                <p>总评论数</p>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :span="6">
-          <el-card class="stats-card">
-            <div class="stats-item">
-              <div class="stats-icon active-users">
-                <el-icon><User /></el-icon>
-              </div>
-              <div class="stats-content">
-                <h3>{{ statisticsData.activeUsers || 0 }}</h3>
-                <p>活跃用户数</p>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
-    </div>
+  <CnPage class="moment-statistics-page" surface="transparent" max-width="1320px">
+    <CnPageHeader
+      title="数据统计"
+      description="查看朋友圈动态、点赞、评论和活跃用户趋势，支持按时间范围快速查询。"
+      eyebrow="Moment Analytics"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand">朋友圈管理</CnStatusTag>
+        <CnStatusTag type="neutral">动态 {{ statisticsData.totalMoments || 0 }}</CnStatusTag>
+        <CnStatusTag type="success">点赞 {{ statisticsData.totalLikes || 0 }}</CnStatusTag>
+        <CnStatusTag type="info">评论 {{ statisticsData.totalComments || 0 }}</CnStatusTag>
+      </template>
 
-    <!-- 时间范围选择 -->
-    <el-card style="margin-top: 20px;">
-      <div class="filter-section">
-        <el-row :gutter="20" justify="space-between" align="middle">
-          <el-col :span="12">
-            <div class="date-filter">
-              <span>时间范围：</span>
-              <el-date-picker
-                v-model="dateRange"
-                type="daterange"
-                range-separator="至"
-                start-placeholder="开始日期"
-                end-placeholder="结束日期"
-                format="YYYY-MM-DD"
-                value-format="YYYY-MM-DD"
-                @change="handleDateChange"
-              />
-              <el-button type="primary" @click="loadStatistics" :loading="loading" style="margin-left: 10px;">
-                <el-icon><Search /></el-icon>
-                查询
-              </el-button>
-            </div>
-          </el-col>
-          <el-col :span="8">
-            <div class="quick-filters">
-              <el-button @click="setQuickDate(7)" size="small">近7天</el-button>
-              <el-button @click="setQuickDate(30)" size="small">近30天</el-button>
-              <el-button @click="setQuickDate(90)" size="small">近3个月</el-button>
-            </div>
-          </el-col>
-        </el-row>
-      </div>
+      <template #actions>
+        <el-button :icon="Refresh" :loading="loading" @click="loadStatistics">刷新</el-button>
+      </template>
+    </CnPageHeader>
 
-      <!-- 趋势图表 -->
-      <div class="chart-section" v-loading="loading">
-        <h4>数据趋势</h4>
-        <div id="trendsChart" style="height: 400px;"></div>
-      </div>
-
-      <!-- 详细数据表格 -->
-      <div class="table-section" v-if="dailyStats.length">
-        <h4>每日数据详情</h4>
-        <el-table
-          :data="dailyStats"
-          style="width: 100%"
-        >
-          <el-table-column prop="date" label="日期" width="120" />
-          <el-table-column prop="momentCount" label="新增动态" width="100" align="center" />
-          <el-table-column prop="likeCount" label="新增点赞" width="100" align="center" />
-          <el-table-column prop="commentCount" label="新增评论" width="100" align="center" />
-          <el-table-column prop="activeUserCount" label="活跃用户" width="100" align="center" />
-        </el-table>
-        
-        <div class="pagination">
-          <el-pagination
-            v-model:current-page="pagination.currentPage"
-            v-model:page-size="pagination.pageSize"
-            :total="dailyStats.length"
-            :page-sizes="[10, 20, 50, 100]"
-            layout="total, sizes, prev, pager, next, jumper"
-            @size-change="handlePageSizeChange"
-            @current-change="handlePageChange"
-          />
+    <CnSection title="时间筛选" description="选择日期范围，或使用快捷入口查看近 7 天、近 30 天、近 3 个月趋势。" divided>
+      <div class="date-filter-bar">
+        <el-date-picker
+          v-model="dateRange"
+          type="daterange"
+          range-separator="至"
+          start-placeholder="开始日期"
+          end-placeholder="结束日期"
+          format="YYYY-MM-DD"
+          value-format="YYYY-MM-DD"
+          :clearable="false"
+          @change="handleDateChange"
+        />
+        <el-button type="primary" :icon="Search" :loading="loading" @click="loadStatistics">查询</el-button>
+        <div class="quick-filters">
+          <el-button size="small" @click="setQuickDate(7)">近7天</el-button>
+          <el-button size="small" @click="setQuickDate(30)">近30天</el-button>
+          <el-button size="small" @click="setQuickDate(90)">近3个月</el-button>
         </div>
       </div>
-    </el-card>
-  </div>
+    </CnSection>
+
+    <div class="moment-stat-grid">
+      <CnStatCard title="总动态数" :value="statisticsData.totalMoments || 0" description="当前范围内累计动态数量" tone="brand" />
+      <CnStatCard title="总点赞数" :value="statisticsData.totalLikes || 0" description="当前范围内累计点赞数量" tone="success" />
+      <CnStatCard title="总评论数" :value="statisticsData.totalComments || 0" description="当前范围内累计评论数量" tone="warning" />
+      <CnStatCard title="活跃用户数" :value="statisticsData.activeUsers || 0" description="当前范围内参与互动用户数" tone="info" />
+    </div>
+
+    <CnSection title="数据趋势" description="按日展示动态、点赞、评论和活跃用户变化。" divided>
+      <div v-loading="loading" ref="trendChartRef" class="trend-chart"></div>
+    </CnSection>
+
+    <CnSection v-if="dailyStats.length" title="每日数据详情" description="统计趋势图下钻明细，便于运营复核每日表现。" divided>
+      <CnDataTable
+        :columns="tableColumns"
+        :data="pagedDailyStats"
+        :loading="loading"
+        :pagination="tablePagination"
+        row-key="date"
+        @page-change="handlePageChange"
+        @page-size-change="handlePageSizeChange"
+      >
+        <template #momentCount="{ row }">
+          <CnStatusTag type="brand" size="sm">{{ row.momentCount || 0 }}</CnStatusTag>
+        </template>
+
+        <template #likeCount="{ row }">
+          <CnStatusTag type="success" size="sm">{{ row.likeCount || 0 }}</CnStatusTag>
+        </template>
+
+        <template #commentCount="{ row }">
+          <CnStatusTag type="warning" size="sm">{{ row.commentCount || 0 }}</CnStatusTag>
+        </template>
+
+        <template #activeUserCount="{ row }">
+          <CnStatusTag type="info" size="sm">{{ row.activeUserCount || 0 }}</CnStatusTag>
+        </template>
+      </CnDataTable>
+    </CnSection>
+
+    <CnSection v-else title="每日数据详情" description="当前时间范围暂无每日明细。" divided>
+      <CnEmptyState title="暂无统计数据" description="当前时间范围没有朋友圈统计明细，可以切换日期范围后再查询。" icon="MS" surface="transparent">
+        <template #actions>
+          <el-button @click="setQuickDate(30)">查看近30天</el-button>
+        </template>
+      </CnEmptyState>
+    </CnSection>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, onMounted, nextTick } from 'vue'
+<script setup lang="ts">
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Document, Star, ChatDotRound, User, Search } from '@element-plus/icons-vue'
-import { getMomentStatistics } from '@/api/moment'
-import { use, init } from 'echarts/core'
+import { Refresh, Search } from '@element-plus/icons-vue'
 import { LineChart } from 'echarts/charts'
-import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
+import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
+import { graphic, init, use } from 'echarts/core'
+import type { ECharts } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
+import { getMomentStatistics } from '@/api/moment'
+import {
+  CnDataTable,
+  CnEmptyState,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag
+} from '@/design-system'
+import type { CnBreadcrumbItem, CnPagination, CnTableColumn } from '@/design-system'
 
-use([LineChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent, CanvasRenderer])
+use([LineChart, TooltipComponent, LegendComponent, GridComponent, CanvasRenderer])
 
-// 数据状态
+interface MomentStatistics {
+  totalMoments?: number
+  totalLikes?: number
+  totalComments?: number
+  activeUsers?: number
+  dailyStats?: DailyStat[]
+}
+
+interface DailyStat {
+  date: string
+  momentCount?: number
+  likeCount?: number
+  commentCount?: number
+  activeUserCount?: number
+  [key: string]: unknown
+}
+
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '朋友圈管理' }, { label: '数据统计' }]
+
 const loading = ref(false)
-const statisticsData = ref({})
-const dailyStats = ref([])
-const dateRange = ref([])
-const chart = ref(null)
+const statisticsData = ref<MomentStatistics>({})
+const dailyStats = ref<DailyStat[]>([])
+const dateRange = ref<string[]>([])
+const trendChartRef = ref<HTMLElement>()
+let trendChart: ECharts | null = null
 
-// 分页配置
 const pagination = ref({
   currentPage: 1,
   pageSize: 20
 })
 
-// 初始化日期范围（默认近30天）
-const initDateRange = () => {
-  const end = new Date()
-  const start = new Date()
-  start.setDate(start.getDate() - 29)
-  
-  dateRange.value = [
-    start.toISOString().split('T')[0],
-    end.toISOString().split('T')[0]
-  ]
-}
+const tableColumns: CnTableColumn<DailyStat>[] = [
+  { prop: 'date', label: '日期', minWidth: 140, showOverflowTooltip: true },
+  { prop: 'momentCount', label: '新增动态', width: 110, align: 'center', slot: 'momentCount' },
+  { prop: 'likeCount', label: '新增点赞', width: 110, align: 'center', slot: 'likeCount' },
+  { prop: 'commentCount', label: '新增评论', width: 110, align: 'center', slot: 'commentCount' },
+  { prop: 'activeUserCount', label: '活跃用户', width: 110, align: 'center', slot: 'activeUserCount' }
+]
 
-// 设置快速日期
-const setQuickDate = (days) => {
-  const end = new Date()
-  const start = new Date()
-  start.setDate(start.getDate() - (days - 1))
-  
-  dateRange.value = [
-    start.toISOString().split('T')[0],
-    end.toISOString().split('T')[0]
-  ]
-  
-  loadStatistics()
-}
+const tablePagination = computed<CnPagination>(() => ({
+  page: pagination.value.currentPage,
+  pageSize: pagination.value.pageSize,
+  total: dailyStats.value.length,
+  pageSizes: [10, 20, 50, 100]
+}))
 
-// 日期变化处理
-const handleDateChange = (value) => {
-  if (value && value.length === 2) {
-    loadStatistics()
-  }
-}
+const pagedDailyStats = computed(() => {
+  const start = (pagination.value.currentPage - 1) * pagination.value.pageSize
+  return dailyStats.value.slice(start, start + pagination.value.pageSize)
+})
 
-// 加载统计数据
-const loadStatistics = async () => {
-  if (!dateRange.value || dateRange.value.length !== 2) {
-    ElMessage.warning('请选择时间范围')
-    return
-  }
-  
-  loading.value = true
-  try {
-    const params = {
-      startDate: dateRange.value[0],
-      endDate: dateRange.value[1],
-      type: 'daily'
-    }
-    
-    const result = await getMomentStatistics(params)
-    statisticsData.value = result
-    dailyStats.value = result.dailyStats || []
-    
-    // 更新图表
-    await nextTick()
-    renderChart()
-    
-  } catch (error) {
-    ElMessage.error('加载统计数据失败：' + error.message)
-  } finally {
-    loading.value = false
-  }
-}
+const resolveCssColor = (variableName: string, fallback: string) => {
+  if (typeof window === 'undefined') return fallback
 
-// 渲染图表
-const renderChart = () => {
-  const chartDom = document.getElementById('trendsChart')
-  if (!chartDom) return
-  
-  if (chart.value) {
-    chart.value.dispose()
-  }
-  
-  chart.value = init(chartDom)
-  
-  const dates = dailyStats.value.map(item => item.date)
-  const moments = dailyStats.value.map(item => item.momentCount || 0)
-  const likes = dailyStats.value.map(item => item.likeCount || 0)
-  const comments = dailyStats.value.map(item => item.commentCount || 0)
-  const activeUsers = dailyStats.value.map(item => item.activeUserCount || 0)
-  
-  const option = {
-    title: {
-      text: '朋友圈数据趋势',
-      left: 'center'
-    },
-    tooltip: {
-      trigger: 'axis'
-    },
-    legend: {
-      data: ['动态数', '点赞数', '评论数', '活跃用户'],
-      bottom: 10
-    },
-    xAxis: {
-      type: 'category',
-      data: dates
-    },
-    yAxis: {
-      type: 'value'
-    },
-    series: [
-      {
-        name: '动态数',
-        type: 'line',
-        data: moments,
-        smooth: true,
-        itemStyle: { color: '#409EFF' }
-      },
-      {
-        name: '点赞数',
-        type: 'line',
-        data: likes,
-        smooth: true,
-        itemStyle: { color: '#67C23A' }
-      },
-      {
-        name: '评论数',
-        type: 'line',
-        data: comments,
-        smooth: true,
-        itemStyle: { color: '#E6A23C' }
-      },
-      {
-        name: '活跃用户',
-        type: 'line',
-        data: activeUsers,
-        smooth: true,
-        itemStyle: { color: '#F56C6C' }
-      }
-    ]
-  }
-  
-  chart.value.setOption(option)
-}
+  const probe = document.createElement('span')
+  probe.style.color = `var(${variableName})`
+  probe.style.display = 'none'
+  document.body.appendChild(probe)
+  const color = window.getComputedStyle(probe).color
+  document.body.removeChild(probe)
 
-// 分页处理
-const handlePageSizeChange = () => {
-  // 由于是前端分页，这里可以不做处理或者实现前端分页逻辑
-}
-
-const handlePageChange = () => {
-  // 由于是前端分页，这里可以不做处理或者实现前端分页逻辑
-}
-
-// 窗口大小变化时重新调整图表
-const handleResize = () => {
-  if (chart.value) {
-    chart.value.resize()
-  }
+  return color || fallback
 }
 
 onMounted(() => {
   initDateRange()
   loadStatistics()
-  
   window.addEventListener('resize', handleResize)
 })
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+  trendChart?.dispose()
+  trendChart = null
+})
+
+const initDateRange = () => {
+  const end = new Date()
+  const start = new Date()
+  start.setDate(start.getDate() - 29)
+  dateRange.value = [formatDate(start), formatDate(end)]
+}
+
+const setQuickDate = (days: number) => {
+  const end = new Date()
+  const start = new Date()
+  start.setDate(start.getDate() - (days - 1))
+  dateRange.value = [formatDate(start), formatDate(end)]
+  pagination.value.currentPage = 1
+  loadStatistics()
+}
+
+const handleDateChange = (value: string[] | null) => {
+  if (value && value.length === 2) {
+    pagination.value.currentPage = 1
+    loadStatistics()
+  }
+}
+
+const loadStatistics = async () => {
+  if (!dateRange.value || dateRange.value.length !== 2) {
+    ElMessage.warning('请选择时间范围')
+    return
+  }
+
+  loading.value = true
+  try {
+    const result: MomentStatistics = await getMomentStatistics({
+      startDate: dateRange.value[0],
+      endDate: dateRange.value[1],
+      type: 'daily'
+    })
+
+    statisticsData.value = result || {}
+    dailyStats.value = result?.dailyStats || []
+    await nextTick()
+    renderChart()
+  } catch (error) {
+    console.error('加载朋友圈统计失败:', error)
+    ElMessage.error('加载统计数据失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+const renderChart = () => {
+  if (!trendChartRef.value) return
+
+  if (!trendChart) {
+    trendChart = init(trendChartRef.value)
+  }
+
+  const dates = dailyStats.value.map((item) => item.date)
+  const chartTextColor = resolveCssColor('--cn-color-text-secondary', 'slategray')
+  const chartPalette = {
+    brand: resolveCssColor('--cn-color-brand-primary', 'steelblue'),
+    success: resolveCssColor('--cn-color-success', 'seagreen'),
+    warning: resolveCssColor('--cn-color-warning', 'darkorange'),
+    info: resolveCssColor('--cn-color-info', 'dodgerblue')
+  }
+  const chartSoftPalette = {
+    brand: resolveCssColor('--cn-color-brand-soft', 'aliceblue'),
+    success: resolveCssColor('--cn-color-success-soft', 'honeydew'),
+    warning: resolveCssColor('--cn-color-warning-soft', 'cornsilk'),
+    info: resolveCssColor('--cn-color-info-soft', 'lavender')
+  }
+
+  trendChart.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: {
+      data: ['动态数', '点赞数', '评论数', '活跃用户'],
+      top: 0,
+      textStyle: { color: chartTextColor }
+    },
+    grid: {
+      left: 12,
+      right: 18,
+      bottom: 8,
+      top: 48,
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      boundaryGap: false,
+      axisLabel: { color: chartTextColor }
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { color: chartTextColor }
+    },
+    series: [
+      buildLineSeries('动态数', chartPalette.brand, chartSoftPalette.brand, dailyStats.value.map((item) => item.momentCount || 0)),
+      buildLineSeries('点赞数', chartPalette.success, chartSoftPalette.success, dailyStats.value.map((item) => item.likeCount || 0)),
+      buildLineSeries('评论数', chartPalette.warning, chartSoftPalette.warning, dailyStats.value.map((item) => item.commentCount || 0)),
+      buildLineSeries('活跃用户', chartPalette.info, chartSoftPalette.info, dailyStats.value.map((item) => item.activeUserCount || 0))
+    ]
+  })
+}
+
+const buildLineSeries = (name: string, color: string, areaColor: string, data: number[]) => ({
+  name,
+  type: 'line',
+  smooth: true,
+  data,
+  lineStyle: { color },
+  itemStyle: { color },
+  areaStyle: {
+    color: new graphic.LinearGradient(0, 0, 0, 1, [
+      { offset: 0, color: areaColor },
+      { offset: 1, color: 'transparent' }
+    ])
+  }
+})
+
+const handleResize = () => {
+  trendChart?.resize()
+}
+
+const handlePageChange = (page: number) => {
+  pagination.value.currentPage = page
+}
+
+const handlePageSizeChange = (size: number) => {
+  pagination.value.pageSize = size
+  pagination.value.currentPage = 1
+}
+
+const formatDate = (date: Date) => date.toISOString().split('T')[0]
 </script>
 
 <style scoped>
-.moment-statistics {
-  padding: 20px;
+.moment-statistics-page {
+  min-height: 100%;
 }
 
-.stats-overview {
-  margin-bottom: 20px;
-}
-
-.stats-card {
-  height: 120px;
-}
-
-.stats-item {
+.date-filter-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  height: 100%;
+  gap: var(--cn-space-3);
+  min-width: 0;
 }
 
-.stats-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 15px;
-  font-size: 24px;
-  color: white;
-}
-
-.total-moments {
-  background: linear-gradient(45deg, #409EFF, #66B1FF);
-}
-
-.total-likes {
-  background: linear-gradient(45deg, #67C23A, #85CE61);
-}
-
-.total-comments {
-  background: linear-gradient(45deg, #E6A23C, #EEBC6E);
-}
-
-.active-users {
-  background: linear-gradient(45deg, #F56C6C, #F78989);
-}
-
-.stats-content h3 {
-  margin: 0;
-  font-size: 28px;
-  font-weight: bold;
-  color: #333;
-}
-
-.stats-content p {
-  margin: 5px 0 0 0;
-  color: #666;
-  font-size: 14px;
-}
-
-.filter-section {
-  margin-bottom: 30px;
-  padding: 20px;
-  background-color: #f5f7fa;
-  border-radius: 6px;
-}
-
-.date-filter {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.date-filter-bar :deep(.el-date-editor) {
+  width: min(100%, 360px);
 }
 
 .quick-filters {
-  text-align: right;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
 }
 
-.chart-section,
-.table-section {
-  margin-top: 30px;
+.quick-filters .el-button {
+  margin-left: 0;
 }
 
-.chart-section h4,
-.table-section h4 {
-  margin: 0 0 20px 0;
-  color: #333;
-  font-size: 16px;
+.moment-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.pagination {
-  margin-top: 20px;
-  text-align: right;
+.trend-chart {
+  width: 100%;
+  min-width: 0;
+  height: 380px;
 }
 
-:deep(.el-card__body) {
-  padding: 20px;
+@media (max-width: 1180px) {
+  .moment-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .date-filter-bar {
+    align-items: stretch;
+  }
+
+  .date-filter-bar :deep(.el-date-editor),
+  .date-filter-bar > .el-button {
+    width: 100%;
+  }
+
+  .moment-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .trend-chart {
+    height: 320px;
+  }
 }
 </style>

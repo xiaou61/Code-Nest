@@ -4,15 +4,16 @@
       <div class="nav-brand">
         <el-icon class="brand-icon"><Tools /></el-icon>
         <span class="brand-text">程序员工具</span>
+        <CnStatusTag type="brand" size="sm" subtle>工具集</CnStatusTag>
       </div>
-      
+
       <div class="nav-items">
         <router-link
           v-for="tool in tools"
           :key="tool.path"
           :to="tool.path"
           class="nav-item"
-          :class="{ active: $route.path === tool.path }"
+          :class="{ active: route.path === tool.path }"
         >
           <el-icon class="nav-icon">
             <component :is="tool.icon" />
@@ -31,15 +32,20 @@
   </div>
 </template>
 
-<script setup>
-import { useRouter } from 'vue-router'
-import { 
-  Tools, Document, Operation, ChatLineSquare, ArrowLeft 
+<script setup lang="ts">
+import { useRoute, useRouter } from 'vue-router'
+import {
+  Tools,
+  Document,
+  Operation,
+  ChatLineSquare,
+  ArrowLeft
 } from '@element-plus/icons-vue'
+import { CnStatusTag } from '@/design-system'
 
 const router = useRouter()
+const route = useRoute()
 
-// 工具列表
 const tools = [
   {
     name: 'JSON工具',
@@ -58,7 +64,6 @@ const tools = [
   }
 ]
 
-// 返回工具箱首页
 const goBack = () => {
   router.push('/dev-tools')
 }
@@ -66,33 +71,35 @@ const goBack = () => {
 
 <style scoped>
 .dev-tools-nav {
-  background: white;
-  border-bottom: 1px solid #e5e7eb;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: var(--cn-nav-bg);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
+  box-shadow: var(--cn-shadow-xs);
+  backdrop-filter: blur(14px);
 }
 
 .nav-container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 var(--cn-space-5);
   height: 60px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: var(--cn-space-5);
 }
 
 .nav-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cn-space-2);
   font-weight: 600;
-  color: #374151;
+  color: var(--cn-color-text-primary);
+  min-width: 0;
 }
 
 .brand-icon {
   font-size: 1.5rem;
-  color: #3b82f6;
+  color: var(--cn-color-brand-primary);
 }
 
 .brand-text {
@@ -101,31 +108,33 @@ const goBack = () => {
 
 .nav-items {
   display: flex;
-  gap: 8px;
+  gap: var(--cn-space-2);
   flex: 1;
   justify-content: center;
+  min-width: 0;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 8px;
+  gap: var(--cn-space-2);
+  padding: var(--cn-space-2) var(--cn-space-4);
+  border-radius: var(--cn-radius-control);
   text-decoration: none;
-  color: #6b7280;
-  transition: all 0.3s;
+  color: var(--cn-color-text-secondary);
+  transition: var(--cn-transition);
   font-size: 0.9rem;
+  min-width: 0;
 }
 
 .nav-item:hover {
-  color: #3b82f6;
-  background: #f3f4f6;
+  color: var(--cn-color-brand-primary);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .nav-item.active {
-  color: #3b82f6;
-  background: #dbeafe;
+  color: var(--cn-nav-active-color);
+  background: var(--cn-nav-active-bg);
   font-weight: 500;
 }
 
@@ -135,37 +144,34 @@ const goBack = () => {
 
 .nav-actions {
   display: flex;
-  gap: 12px;
+  gap: var(--cn-space-3);
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
   .nav-container {
-    padding: 0 15px;
+    padding: var(--cn-space-3) var(--cn-space-4);
     flex-wrap: wrap;
     height: auto;
     min-height: 60px;
-    padding-top: 10px;
-    padding-bottom: 10px;
   }
-  
+
   .nav-items {
     order: 3;
     width: 100%;
     justify-content: space-around;
-    margin-top: 10px;
+    margin-top: var(--cn-space-2);
   }
-  
+
   .nav-item {
     flex-direction: column;
-    gap: 4px;
-    padding: 8px 12px;
+    gap: var(--cn-space-1);
+    padding: var(--cn-space-2) var(--cn-space-3);
   }
-  
+
   .nav-text {
     font-size: 0.8rem;
   }
-  
+
   .nav-actions {
     order: 2;
   }
@@ -175,13 +181,13 @@ const goBack = () => {
   .brand-text {
     display: none;
   }
-  
+
   .nav-text {
     display: none;
   }
-  
+
   .nav-item {
-    padding: 8px;
+    padding: var(--cn-space-2);
   }
 }
 </style>

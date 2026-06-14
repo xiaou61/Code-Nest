@@ -1,175 +1,108 @@
 <template>
-  <div class="questionset-management">
-    <!-- 页面头部 -->
-    <el-card class="header-card" shadow="never">
-      <div class="header-content">
-        <div class="title-section">
-          <h2>题单管理</h2>
-          <p>管理官方面试题单，支持增删改查和分类管理</p>
-        </div>
-        <div class="action-section">
-          <el-button type="primary" @click="handleAdd">
-            <el-icon><Plus /></el-icon>
-            新增题单
-          </el-button>
-        </div>
-      </div>
-    </el-card>
-
-    <!-- 搜索和过滤区 -->
-    <el-card class="search-card" shadow="never">
-      <el-row :gutter="20">
-        <el-col :span="6">
-          <el-input 
-            v-model="queryForm.title" 
-            placeholder="请输入题单标题" 
-            clearable
-            @clear="handleSearch"
-            @keyup.enter="handleSearch"
-          >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
-            </template>
-          </el-input>
-        </el-col>
-        <el-col :span="5">
-          <el-select v-model="queryForm.categoryId" placeholder="请选择分类" clearable @change="handleSearch">
-            <el-option 
-              v-for="category in categoryList" 
-              :key="category.id" 
-              :label="category.name" 
-              :value="category.id" 
-            />
-          </el-select>
-        </el-col>
-        <el-col :span="4">
-          <el-select v-model="queryForm.status" placeholder="请选择状态" clearable @change="handleSearch">
-            <el-option label="草稿" :value="0" />
-            <el-option label="发布" :value="1" />
-            <el-option label="下线" :value="2" />
-          </el-select>
-        </el-col>
-        <el-col :span="4">
-          <el-select v-model="queryForm.type" placeholder="请选择类型" clearable @change="handleSearch">
-            <el-option label="官方" :value="1" />
-            <el-option label="用户创建" :value="2" />
-          </el-select>
-        </el-col>
-        <el-col :span="5">
-          <el-button type="primary" @click="handleSearch">
-            <el-icon><Search /></el-icon>
-            搜索
-          </el-button>
-          <el-button @click="handleReset">
-            <el-icon><Refresh /></el-icon>
-            重置
-          </el-button>
-        </el-col>
-      </el-row>
-    </el-card>
-
-    <!-- 题单表格 -->
-    <el-card class="table-card" shadow="never">
-      <el-table 
-        v-loading="loading" 
-        :data="questionSetList" 
-        style="width: 100%"
-        :row-key="row => row.id"
-      >
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="title" label="题单标题" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="description" label="描述" min-width="250" show-overflow-tooltip />
-        <el-table-column prop="categoryName" label="分类" width="120" />
-        <el-table-column prop="type" label="类型" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.type === 1 ? 'success' : 'info'">
-              {{ row.type === 1 ? '官方' : '用户' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="questionCount" label="题目数" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag type="info">{{ row.questionCount || 0 }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="viewCount" label="浏览量" width="100" align="center" />
-        <el-table-column prop="favoriteCount" label="收藏量" width="100" align="center" />
-        <el-table-column prop="status" label="状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag 
-              :type="row.status === 1 ? 'success' : (row.status === 0 ? 'warning' : 'danger')"
-            >
-              {{ getStatusText(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="creatorName" label="创建者" width="120" />
-        <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column label="操作" width="300" fixed="right">
-          <template #default="{ row }">
-            <el-button type="info" size="small" @click="handleViewQuestions(row)">
-              <el-icon><View /></el-icon>
-              题目
-            </el-button>
-            <el-button type="primary" size="small" @click="handleEdit(row)">
-              <el-icon><Edit /></el-icon>
-              编辑
-            </el-button>
-            <el-button type="danger" size="small" @click="handleDelete(row)">
-              <el-icon><Delete /></el-icon>
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <!-- 分页组件 -->
-      <div class="pagination-wrapper">
-        <el-pagination 
-          v-model:current-page="queryForm.pageNum" 
-          v-model:page-size="queryForm.pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
-      </div>
-    </el-card>
-
-    <!-- 添加/编辑对话框 -->
-    <el-dialog 
-      :title="dialogTitle" 
-      v-model="dialogVisible" 
-      width="700px" 
-      @close="resetForm"
+  <CnPage class="interview-question-sets-page" surface="transparent" max-width="1320px">
+    <CnPageHeader
+      title="题单管理"
+      description="管理官方面试题单，支持分类归属、发布状态和题目入口维护。"
+      eyebrow="Interview Question Sets"
+      :breadcrumbs="breadcrumbs"
     >
-      <el-form 
-        ref="formRef" 
-        :model="form" 
-        :rules="rules" 
-        label-width="100px"
+      <template #meta>
+        <CnStatusTag type="brand">面试题库</CnStatusTag>
+        <CnStatusTag type="neutral">共 {{ total }} 个题单</CnStatusTag>
+        <CnStatusTag type="success">已发布 {{ publishedCountInPage }} 个</CnStatusTag>
+        <CnStatusTag type="warning">草稿 {{ draftCountInPage }} 个</CnStatusTag>
+      </template>
+
+      <template #actions>
+        <el-button type="primary" :icon="Plus" @click="handleAdd">新增题单</el-button>
+      </template>
+    </CnPageHeader>
+
+    <div class="interview-stat-grid">
+      <CnStatCard title="题单总量" :value="total" description="当前筛选条件下的题单数量" tone="brand" />
+      <CnStatCard title="当前页题目" :value="questionCountInPage" description="当前页题单关联题目总数" tone="info" />
+      <CnStatCard title="浏览总量" :value="viewCountInPage" description="当前页题单累计浏览量" tone="success" />
+      <CnStatCard title="收藏总量" :value="favoriteCountInPage" description="当前页题单累计收藏量" tone="warning" />
+    </div>
+
+    <CnSection title="筛选条件" description="按题单标题、分类、状态和创建类型筛选面试题单。" divided>
+      <CnFilterForm
+        :model-value="queryForm"
+        :fields="filterFields"
+        :columns="4"
+        :loading="loading"
+        @update:model-value="handleFilterUpdate"
+        @search="handleSearch"
+        @reset="handleReset"
+      />
+    </CnSection>
+
+    <CnSection title="题单列表" :description="`共 ${total} 个题单`" divided>
+      <CnDataTable
+        :columns="tableColumns"
+        :data="questionSetList"
+        :loading="loading"
+        :pagination="tablePagination"
+        row-key="id"
+        @page-change="handleCurrentChange"
+        @page-size-change="handleSizeChange"
       >
+        <template #toolbar>
+          <CnToolbar title="题单数据" description="题单状态会影响用户端可见性，题目入口用于维护题单下的问题。" align="center">
+            <template #meta>
+              <CnStatusTag type="neutral" size="sm">每页 {{ queryForm.pageSize }} 条</CnStatusTag>
+              <CnStatusTag type="info" size="sm">题目 {{ questionCountInPage }} 道</CnStatusTag>
+            </template>
+            <el-button type="primary" :icon="Plus" @click="handleAdd">新增题单</el-button>
+          </CnToolbar>
+        </template>
+
+        <template #type="{ row }">
+          <CnStatusTag :type="row.type === 1 ? 'success' : 'info'" size="sm">
+            {{ row.type === 1 ? '官方' : '用户' }}
+          </CnStatusTag>
+        </template>
+
+        <template #questionCount="{ row }">
+          <CnStatusTag type="info" size="sm">{{ row.questionCount || 0 }}</CnStatusTag>
+        </template>
+
+        <template #status="{ row }">
+          <CnStatusTag :type="getStatusTone(row.status)" size="sm">{{ getStatusText(row.status) }}</CnStatusTag>
+        </template>
+
+        <template #actions="{ row }">
+          <div class="table-actions">
+            <el-button type="info" link size="small" :icon="View" @click="handleViewQuestions(row)">题目</el-button>
+            <el-button type="primary" link size="small" :icon="Edit" @click="handleEdit(row)">编辑</el-button>
+            <el-button type="danger" link size="small" :icon="Delete" @click="handleDelete(row)">删除</el-button>
+          </div>
+        </template>
+      </CnDataTable>
+    </CnSection>
+
+    <el-dialog :title="dialogTitle" v-model="dialogVisible" width="700px" @close="resetForm">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="题单标题" prop="title">
           <el-input v-model="form.title" placeholder="请输入题单标题" maxlength="200" />
         </el-form-item>
         <el-form-item label="题单描述" prop="description">
-          <el-input 
-            v-model="form.description" 
-            type="textarea" 
-            :rows="4" 
-            placeholder="请输入题单描述" 
-            maxlength="2000" 
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            :rows="4"
+            placeholder="请输入题单描述"
+            maxlength="2000"
             show-word-limit
           />
         </el-form-item>
         <el-form-item label="分类" prop="categoryId">
-          <el-select v-model="form.categoryId" placeholder="请选择分类" style="width: 100%">
-            <el-option 
-              v-for="category in categoryList.filter(c => c.status === 1)" 
-              :key="category.id" 
-              :label="category.name" 
-              :value="category.id" 
+          <el-select v-model="form.categoryId" placeholder="请选择分类" class="full-width-control">
+            <el-option
+              v-for="category in enabledCategories"
+              :key="category.id"
+              :label="category.name"
+              :value="category.id"
             />
           </el-select>
         </el-form-item>
@@ -193,102 +126,159 @@
           </el-radio-group>
         </el-form-item>
       </el-form>
-      
+
       <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmit" :loading="submitLoading">
-            确定
-          </el-button>
-        </span>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
-
-
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  Plus, Search, Refresh, Edit, Delete, View
-} from '@element-plus/icons-vue'
+import { Delete, Edit, Plus, View } from '@element-plus/icons-vue'
 import { interviewApi } from '@/api/interview'
+import {
+  CnDataTable,
+  CnFilterForm,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag,
+  CnToolbar
+} from '@/design-system'
+import type { CnBreadcrumbItem, CnFilterField, CnPagination, CnTableColumn, CnTone } from '@/design-system'
+
+interface InterviewCategory {
+  id: number
+  name: string
+  status: number
+  [key: string]: unknown
+}
+
+interface InterviewQuestionSet {
+  id: number
+  title: string
+  description?: string
+  categoryId?: number | null
+  categoryName?: string
+  type?: number
+  visibility?: number
+  questionCount?: number
+  viewCount?: number
+  favoriteCount?: number
+  status: number
+  creatorName?: string
+  createTime?: string
+  [key: string]: unknown
+}
 
 const router = useRouter()
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '面试题目管理' }, { label: '题单管理' }]
 
-// 响应式数据
 const loading = ref(false)
 const submitLoading = ref(false)
 const dialogVisible = ref(false)
-const questionSetList = ref([])
-const categoryList = ref([])
+const questionSetList = ref<InterviewQuestionSet[]>([])
+const categoryList = ref<InterviewCategory[]>([])
 const total = ref(0)
-const formRef = ref(null)
+const formRef = ref()
 
-// 查询表单
 const queryForm = reactive({
   title: '',
-  categoryId: null,
-  type: null,
-  status: null,
+  categoryId: null as number | null,
+  type: null as number | null,
+  status: null as number | null,
   pageNum: 1,
   pageSize: 10
 })
 
-// 编辑表单
 const form = reactive({
-  id: null,
+  id: null as number | null,
   title: '',
   description: '',
-  categoryId: null,
+  categoryId: null as number | null,
   type: 1,
   visibility: 1,
   status: 1
 })
 
-
-
-// 表单验证规则
 const rules = {
   title: [
     { required: true, message: '请输入题单标题', trigger: 'blur' },
     { max: 200, message: '题单标题长度不能超过200字符', trigger: 'blur' }
   ],
-  description: [
-    { max: 2000, message: '题单描述长度不能超过2000字符', trigger: 'blur' }
-  ],
-  categoryId: [
-    { required: true, message: '请选择分类', trigger: 'change' }
-  ],
-  type: [
-    { required: true, message: '请选择类型', trigger: 'change' }
-  ],
-  status: [
-    { required: true, message: '请选择状态', trigger: 'change' }
-  ]
+  description: [{ max: 2000, message: '题单描述长度不能超过2000字符', trigger: 'blur' }],
+  categoryId: [{ required: true, message: '请选择分类', trigger: 'change' }],
+  type: [{ required: true, message: '请选择类型', trigger: 'change' }],
+  status: [{ required: true, message: '请选择状态', trigger: 'change' }]
 }
 
+const categoryOptions = computed(() => categoryList.value.map((item) => ({ label: item.name, value: item.id })))
+const enabledCategories = computed(() => categoryList.value.filter((item) => item.status === 1))
 
-
-// 计算对话框标题
-const dialogTitle = computed(() => {
-  return form.id ? '编辑题单' : '新增题单'
-})
-
-// 获取状态文本
-const getStatusText = (status) => {
-  const statusMap = {
-    0: '草稿',
-    1: '发布',
-    2: '下线'
+const filterFields = computed<CnFilterField[]>(() => [
+  { prop: 'title', label: '题单标题', type: 'input', placeholder: '请输入题单标题' },
+  { prop: 'categoryId', label: '分类', type: 'select', placeholder: '请选择分类', options: categoryOptions.value },
+  {
+    prop: 'status',
+    label: '状态',
+    type: 'select',
+    placeholder: '请选择状态',
+    options: [
+      { label: '草稿', value: 0 },
+      { label: '发布', value: 1 },
+      { label: '下线', value: 2 }
+    ]
+  },
+  {
+    prop: 'type',
+    label: '类型',
+    type: 'select',
+    placeholder: '请选择类型',
+    options: [
+      { label: '官方', value: 1 },
+      { label: '用户创建', value: 2 }
+    ]
   }
-  return statusMap[status] || '未知'
-}
+])
 
-// 获取题单列表
+const tableColumns: CnTableColumn<InterviewQuestionSet>[] = [
+  { prop: 'id', label: 'ID', width: 80 },
+  { prop: 'title', label: '题单标题', minWidth: 200, showOverflowTooltip: true },
+  { prop: 'description', label: '描述', minWidth: 240, showOverflowTooltip: true },
+  { prop: 'categoryName', label: '分类', width: 120, showOverflowTooltip: true },
+  { prop: 'type', label: '类型', width: 100, align: 'center', slot: 'type' },
+  { prop: 'questionCount', label: '题目数', width: 100, align: 'center', slot: 'questionCount' },
+  { prop: 'viewCount', label: '浏览量', width: 100, align: 'center' },
+  { prop: 'favoriteCount', label: '收藏量', width: 100, align: 'center' },
+  { prop: 'status', label: '状态', width: 100, align: 'center', slot: 'status' },
+  { prop: 'creatorName', label: '创建者', width: 120, showOverflowTooltip: true },
+  { prop: 'createTime', label: '创建时间', width: 180, showOverflowTooltip: true },
+  { label: '操作', width: 190, fixed: 'right', slot: 'actions' }
+]
+
+const tablePagination = computed<CnPagination>(() => ({
+  page: queryForm.pageNum,
+  pageSize: queryForm.pageSize,
+  total: total.value,
+  pageSizes: [10, 20, 50, 100]
+}))
+
+const dialogTitle = computed(() => (form.id ? '编辑题单' : '新增题单'))
+const publishedCountInPage = computed(() => questionSetList.value.filter((item) => item.status === 1).length)
+const draftCountInPage = computed(() => questionSetList.value.filter((item) => item.status === 0).length)
+const questionCountInPage = computed(() => questionSetList.value.reduce((sum, item) => sum + (Number(item.questionCount) || 0), 0))
+const viewCountInPage = computed(() => questionSetList.value.reduce((sum, item) => sum + (Number(item.viewCount) || 0), 0))
+const favoriteCountInPage = computed(() => questionSetList.value.reduce((sum, item) => sum + (Number(item.favoriteCount) || 0), 0))
+
+const getStatusText = (status: number) => ({ 0: '草稿', 1: '发布', 2: '下线' })[status] || '未知'
+const getStatusTone = (status: number): CnTone => ({ 0: 'warning', 1: 'success', 2: 'danger' })[status] as CnTone || 'neutral'
+
 const fetchQuestionSets = async () => {
   loading.value = true
   try {
@@ -303,7 +293,6 @@ const fetchQuestionSets = async () => {
   }
 }
 
-// 获取分类列表
 const fetchCategories = async () => {
   try {
     const data = await interviewApi.getAllCategories()
@@ -314,66 +303,60 @@ const fetchCategories = async () => {
   }
 }
 
-// 搜索
+const handleFilterUpdate = (value: Record<string, unknown>) => {
+  Object.assign(queryForm, value)
+}
+
 const handleSearch = () => {
   queryForm.pageNum = 1
   fetchQuestionSets()
 }
 
-// 重置搜索
 const handleReset = () => {
-  queryForm.title = ''
-  queryForm.categoryId = null
-  queryForm.type = null
-  queryForm.status = null
-  queryForm.pageNum = 1
+  Object.assign(queryForm, {
+    title: '',
+    categoryId: null,
+    type: null,
+    status: null,
+    pageNum: 1
+  })
   fetchQuestionSets()
 }
 
-// 分页大小改变
-const handleSizeChange = (size) => {
+const handleSizeChange = (size: number) => {
   queryForm.pageSize = size
   queryForm.pageNum = 1
   fetchQuestionSets()
 }
 
-// 当前页改变
-const handleCurrentChange = (page) => {
+const handleCurrentChange = (page: number) => {
   queryForm.pageNum = page
   fetchQuestionSets()
 }
 
-// 新增题单
 const handleAdd = () => {
   resetForm()
   dialogVisible.value = true
 }
 
-// 编辑题单
-const handleEdit = (row) => {
+const handleEdit = (row: InterviewQuestionSet) => {
   form.id = row.id
   form.title = row.title
   form.description = row.description || ''
-  form.categoryId = row.categoryId
-  form.type = row.type
+  form.categoryId = row.categoryId || null
+  form.type = row.type || 1
   form.visibility = row.visibility || 1
   form.status = row.status
   dialogVisible.value = true
 }
 
-// 删除题单
-const handleDelete = async (row) => {
+const handleDelete = async (row: InterviewQuestionSet) => {
   try {
-    await ElMessageBox.confirm(
-      `确定要删除题单 "${row.title}" 吗？删除后将无法恢复！`,
-      '删除确认',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    
+    await ElMessageBox.confirm(`确定要删除题单 "${row.title}" 吗？删除后将无法恢复！`, '删除确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
     await interviewApi.deleteQuestionSet(row.id)
     ElMessage.success('删除成功')
     await fetchQuestionSets()
@@ -385,14 +368,10 @@ const handleDelete = async (row) => {
   }
 }
 
-// 查看题目
-const handleViewQuestions = (row) => {
+const handleViewQuestions = (row: InterviewQuestionSet) => {
   router.push(`/interview/questions?questionSetId=${row.id}&title=${encodeURIComponent(row.title)}`)
 }
 
-
-
-// 提交表单
 const handleSubmit = async () => {
   const formElement = formRef.value
   if (!formElement) return
@@ -400,7 +379,6 @@ const handleSubmit = async () => {
   try {
     await formElement.validate()
     submitLoading.value = true
-
     const data = {
       title: form.title,
       description: form.description,
@@ -409,17 +387,13 @@ const handleSubmit = async () => {
       visibility: form.type === 2 ? form.visibility : 1,
       status: form.status
     }
-
     if (form.id) {
-      // 编辑
       await interviewApi.updateQuestionSet(form.id, data)
       ElMessage.success('编辑成功')
     } else {
-      // 新增
       await interviewApi.createQuestionSet(data)
       ElMessage.success('新增成功')
     }
-
     dialogVisible.value = false
     await fetchQuestionSets()
   } catch (error) {
@@ -432,25 +406,19 @@ const handleSubmit = async () => {
   }
 }
 
-
-
-// 重置表单
 const resetForm = () => {
-  if (formRef.value) {
-    formRef.value.resetFields()
-  }
-  form.id = null
-  form.title = ''
-  form.description = ''
-  form.categoryId = null
-  form.type = 1
-  form.visibility = 1
-  form.status = 1
+  formRef.value?.resetFields()
+  Object.assign(form, {
+    id: null,
+    title: '',
+    description: '',
+    categoryId: null,
+    type: 1,
+    visibility: 1,
+    status: 1
+  })
 }
 
-
-
-// 页面挂载
 onMounted(() => {
   fetchCategories()
   fetchQuestionSets()
@@ -458,67 +426,35 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.questionset-management {
-  padding: 20px;
-  background-color: #f5f7fa;
-  min-height: 100vh;
+.interview-question-sets-page {
+  min-height: 100%;
 }
 
-.header-card {
-  margin-bottom: 20px;
+.interview-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.header-content {
+.table-actions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
 }
 
-.title-section h2 {
-  margin: 0 0 8px 0;
-  color: #303133;
-  font-size: 24px;
+.table-actions .el-button {
+  margin-left: 0;
 }
 
-.title-section p {
-  margin: 0;
-  color: #909399;
-  font-size: 14px;
-}
-
-.action-section {
-  display: flex;
-  gap: 10px;
-}
-
-.search-card {
-  margin-bottom: 20px;
-}
-
-.table-card {
-  margin-bottom: 20px;
-}
-
-.pagination-wrapper {
-  margin-top: 20px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.dialog-footer {
-  text-align: right;
-}
-
-@media (max-width: 768px) {
-  .header-content {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
-  }
-  
-  .action-section {
-    align-self: stretch;
-    justify-content: flex-end;
+@media (max-width: 1180px) {
+  .interview-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-</style> 
+
+@media (max-width: 680px) {
+  .interview-stat-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

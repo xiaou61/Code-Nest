@@ -121,14 +121,29 @@ public class NotificationUtil {
      * @param content 消息内容
      */
     public static void sendBatchMessage(List<Long> receiverIds, String title, String content) {
+        sendBatchMessage(receiverIds, title, content, NotificationTypeEnum.PERSONAL.getCode());
+    }
+
+    /**
+     * 批量发送消息
+     * @param receiverIds 接收者ID列表
+     * @param title 消息标题
+     * @param content 消息内容
+     * @param type 消息类型
+     */
+    public static void sendBatchMessage(List<Long> receiverIds, String title, String content, String type) {
         if (receiverIds == null || receiverIds.isEmpty()) {
             return;
+        }
+
+        if (!NotificationTypeEnum.isValidCode(type)) {
+            type = NotificationTypeEnum.PERSONAL.getCode();
         }
         
         List<Notification> notifications = new ArrayList<>();
         for (Long receiverId : receiverIds) {
             Notification notification = new Notification(
-                title, content, NotificationTypeEnum.PERSONAL.getCode(), 
+                title, content, type,
                 NotificationPriorityEnum.LOW.getCode(), 0L, receiverId, 
                 NotificationStatusEnum.UNREAD.getCode()
             );

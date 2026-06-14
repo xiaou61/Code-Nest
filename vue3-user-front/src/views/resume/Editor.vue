@@ -1,16 +1,29 @@
 <template>
-  <div class="resume-editor-page" v-loading="loading">
-    <el-page-header @back="router.back()" :content="pageTitle" class="page-header">
-      <template #extra>
+  <CnPage class="resume-editor-page" max-width="1200px" full-height v-loading="loading">
+    <CnPageHeader
+      :title="pageTitle"
+      description="编辑简历基础信息与内容模块，保存后可继续预览、导出或分享。"
+      eyebrow="RESUME EDITOR"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag :type="resumeId ? 'info' : 'success'" size="sm">
+          {{ resumeId ? '编辑现有简历' : '新建简历' }}
+        </CnStatusTag>
+        <CnStatusTag type="brand" size="sm">{{ form.sections.length }} 个模块</CnStatusTag>
+        <CnStatusTag v-if="currentTemplate" type="neutral" size="sm" subtle>
+          {{ currentTemplate.name }}
+        </CnStatusTag>
+      </template>
+
+      <template #actions>
         <el-button @click="router.push('/resume')">返回列表</el-button>
         <el-button type="primary" :loading="saving" @click="handleSubmit">保存</el-button>
       </template>
-    </el-page-header>
+    </CnPageHeader>
 
-    <el-row :gutter="16">
-      <el-col :xs="24" :md="8">
-        <el-card shadow="never">
-          <h3 class="card-title">基础信息</h3>
+    <div class="editor-layout">
+      <CnSection title="基础信息" description="设置简历名称、模板、可见性和个人概述。" divided>
           <el-form :model="form" label-width="90px" class="base-form">
             <el-form-item label="简历名称" required>
               <el-input v-model="form.resumeName" placeholder="如：张三-前端工程师" />
@@ -50,20 +63,17 @@
           <div class="template-info" v-if="currentTemplate">
             <div class="info-header">
               <h4>模板概览</h4>
-              <el-tag size="small">{{ currentTemplate.category || '通用' }}</el-tag>
+              <CnStatusTag type="info" size="sm">{{ currentTemplate.category || '通用' }}</CnStatusTag>
             </div>
             <p class="info-name">{{ currentTemplate.name }}</p>
             <p class="info-desc">{{ currentTemplate.description || '暂无描述' }}</p>
             <p class="info-meta">适用栈：{{ currentTemplate.techStack || '未标注' }}</p>
             <p class="info-meta">经验：{{ formatExperience(currentTemplate.experienceLevel) }}</p>
           </div>
-        </el-card>
-      </el-col>
+      </CnSection>
 
-      <el-col :xs="24" :md="16">
-        <el-card shadow="never">
-          <div class="section-header">
-            <h3 class="card-title">内容模块</h3>
+      <CnSection class="content-section" title="内容模块" description="按投递岗位组织模块，并调整展示顺序。" divided>
+        <template #actions>
             <el-dropdown trigger="click">
               <el-button type="primary">
                 <el-icon><Plus /></el-icon>
@@ -82,20 +92,25 @@
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
-          </div>
+        </template>
 
-          <el-empty description="还没有模块，先添加一个吧" v-if="!form.sections.length" />
+          <CnEmptyState
+            v-if="!form.sections.length"
+            title="还没有模块"
+            description="先添加一个内容模块，形成可投递的简历结构。"
+            icon="CV"
+            surface="transparent"
+          />
 
           <transition-group name="fade" tag="div">
-            <el-card
+            <article
               v-for="(section, index) in form.sections"
               :key="section.uid"
               class="section-card"
-              shadow="hover"
             >
               <div class="section-card-header">
                 <div>
-                  <el-tag size="small" effect="dark">{{ section.label }}</el-tag>
+                  <CnStatusTag type="brand" size="sm">{{ section.label }}</CnStatusTag>
                   <span class="section-title">{{ section.title || '未命名模块' }}</span>
                 </div>
                 <div class="section-actions">
@@ -133,19 +148,19 @@
                   />
                 </el-form-item>
               </el-form>
-            </el-card>
+            </article>
           </transition-group>
-        </el-card>
-      </el-col>
-    </el-row>
-  </div>
+      </CnSection>
+    </div>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Plus, ArrowDown, ArrowUp } from '@element-plus/icons-vue'
+import { CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatusTag } from '@/design-system'
 import { resumeApi } from '@/api/resume'
 
 const router = useRouter()
@@ -175,6 +190,10 @@ const sectionTypeOptions = [
 
 const resumeId = computed(() => route.params.id)
 const pageTitle = computed(() => (resumeId.value ? '编辑简历' : '新建简历'))
+const breadcrumbs = computed(() => [
+  { label: '简历工作台', to: '/resume' },
+  { label: pageTitle.value }
+])
 
 const currentTemplate = computed(() => {
   return templates.value.find((tpl) => tpl.id === form.templateId)
@@ -318,20 +337,18 @@ onMounted(async () => {
 
 <style scoped>
 .resume-editor-page {
-  padding: 24px;
-  max-width: 1200px;
-  margin: 0 auto;
+  min-height: calc(100vh - 68px);
 }
 
-.page-header {
-  margin-bottom: 16px;
+.editor-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: var(--cn-space-5);
+  align-items: start;
 }
 
-.card-title {
-  margin: 0 0 16px;
-  font-size: 18px;
-  font-weight: 600;
-  color: #1f2d3d;
+.content-section {
+  min-width: 0;
 }
 
 .base-form :deep(.el-form-item) {
@@ -339,69 +356,81 @@ onMounted(async () => {
 }
 
 .template-info {
-  margin-top: 24px;
-  padding: 16px;
-  background: #f5f7fa;
-  border-radius: 12px;
+  display: grid;
+  gap: var(--cn-space-2);
+  margin-top: var(--cn-space-5);
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .info-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--cn-space-3);
+}
+
+.info-header h4 {
+  margin: 0;
+  color: var(--cn-color-text-primary);
+  font-size: 15px;
 }
 
 .info-name {
-  margin: 12px 0 4px;
+  margin: 0;
+  color: var(--cn-color-text-primary);
   font-weight: 600;
 }
 
 .info-desc {
-  margin: 0 0 6px;
-  color: #606266;
+  margin: 0;
+  color: var(--cn-color-text-secondary);
   font-size: 13px;
+  line-height: 1.6;
 }
 
 .info-meta {
   margin: 0;
-  color: #909399;
+  color: var(--cn-color-text-tertiary);
   font-size: 13px;
 }
 
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
 .section-card {
-  margin-bottom: 16px;
+  min-width: 0;
+  margin-bottom: var(--cn-space-4);
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface);
+  box-shadow: var(--cn-shadow-card);
 }
 
 .section-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--cn-space-4);
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--cn-space-3);
 }
 
 .section-title {
-  margin-left: 8px;
+  margin-left: var(--cn-space-2);
+  color: var(--cn-color-text-primary);
   font-weight: 600;
 }
 
 .section-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cn-space-2);
 }
 
 .fade-enter-active,
 .fade-leave-active {
-  transition: all 0.2s ease;
+  transition: all var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .fade-enter-from,
@@ -411,10 +440,10 @@ onMounted(async () => {
 }
 
 @media (max-width: 768px) {
-  .resume-editor-page {
-    padding: 16px;
+  .editor-layout {
+    grid-template-columns: 1fr;
   }
-  
+
   .section-actions {
     width: 100%;
     justify-content: flex-start;

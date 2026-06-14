@@ -1,138 +1,150 @@
 <template>
-  <div class="hot-topics">
-    <!-- 头部标题区域 -->
-    <div class="page-header">
-      <div class="header-content">
-        <div class="title-section">
-          <h1 class="main-title">
-            <el-icon class="title-icon"><TrendCharts /></el-icon>
-            今日热榜
-          </h1>
-          <p class="subtitle">汇聚各大平台实时热点，一站式浏览全网热门话题</p>
-        </div>
-        <div class="header-actions">
-          <el-button 
-            type="primary" 
-            @click="refreshAllData" 
-            :loading="refreshing"
-            :icon="Refresh"
-          >
-            {{ refreshing ? '刷新中...' : '刷新数据' }}
-          </el-button>
-        </div>
-      </div>
-    </div>
+  <CnPage class="hot-topics-page" max-width="1440px" full-height>
+    <CnPageHeader
+      title="今日热榜"
+      description="汇聚各大平台实时热点，一站式浏览全网热门话题。"
+      eyebrow="MOYU TOOL"
+      :breadcrumbs="[{ label: '摸鱼工具箱', to: '/moyu-tools' }, { label: '今日热榜' }]"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">{{ selectedCategory }}</CnStatusTag>
+        <CnStatusTag type="info" size="sm" subtle>{{ platformCount }} 个平台</CnStatusTag>
+        <CnStatusTag v-if="lastUpdateTime" type="success" size="sm" subtle>
+          更新于 {{ formatTime(lastUpdateTime) }}
+        </CnStatusTag>
+      </template>
 
-    <!-- 分类筛选区域 -->
-    <div class="filter-section">
-      <div class="filter-content">
+      <template #actions>
+        <el-button type="primary" :icon="Refresh" :loading="refreshing" @click="refreshAllData">
+          {{ refreshing ? '刷新中...' : '刷新数据' }}
+        </el-button>
+      </template>
+    </CnPageHeader>
+
+    <CnSection title="分类筛选" description="按平台内容方向筛选热榜。" divided>
+      <div class="filter-bar">
         <div class="category-filters">
-          <el-button 
-            v-for="category in categories" 
+          <el-button
+            v-for="category in categories"
             :key="category.name"
             :type="selectedCategory === category.name ? 'primary' : 'default'"
             @click="selectCategory(category.name)"
-            class="category-btn"
           >
             {{ category.name }}
           </el-button>
         </div>
-        <div class="update-info" v-if="lastUpdateTime">
+        <span v-if="lastUpdateTime" class="update-info">
           <el-icon><Clock /></el-icon>
-          <span>最后更新：{{ formatTime(lastUpdateTime) }}</span>
-        </div>
+          最后更新：{{ formatTime(lastUpdateTime) }}
+        </span>
       </div>
-    </div>
+    </CnSection>
 
-    <!-- 热榜内容区域 -->
-    <div class="content-section">
-      <div class="content-container">
-        <!-- 加载状态 -->
-        <div v-if="loading" class="loading-container">
-          <el-skeleton :rows="10" animated />
-        </div>
+    <CnSection title="热榜内容" :description="contentDescription" divided>
+      <div v-if="loading" class="loading-container">
+        <el-skeleton :rows="10" animated />
+      </div>
 
-        <!-- 热榜列表 -->
-        <div v-else class="hot-topics-grid">
-          <div 
-            v-for="(platformData, platform) in filteredPlatforms" 
-            :key="platform"
-            class="platform-card"
-          >
-            <div class="platform-header">
-              <div class="platform-info">
-                <h3 class="platform-title">{{ platformData.title }}</h3>
-                <span class="platform-type">{{ platformData.type }}</span>
-              </div>
-              <div class="platform-meta">
-                <span class="update-time">{{ formatTime(platformData.updatedAt) }}</span>
-                <el-tag size="small" type="success" v-if="platformData.fromCache">缓存</el-tag>
-              </div>
+      <div v-else class="hot-topics-grid">
+        <article
+          v-for="(platformData, platform) in filteredPlatforms"
+          :key="platform"
+          class="platform-card"
+        >
+          <header class="platform-header">
+            <div class="platform-info">
+              <h3>{{ platformData.title }}</h3>
+              <CnStatusTag type="neutral" size="sm" subtle>{{ platformData.type || '热榜' }}</CnStatusTag>
             </div>
-
-            <div class="hot-list">
-              <div 
-                v-for="(item, index) in platformData.data?.slice(0, 10)" 
-                :key="item.id"
-                class="hot-item"
-                @click="openLink(item.url)"
-              >
-                <div class="item-rank">{{ index + 1 }}</div>
-                <div class="item-content">
-                  <h4 class="item-title">{{ item.title }}</h4>
-                  <div class="item-meta">
-                    <span v-if="item.hot" class="hot-value">
-                      <el-icon><TrendCharts /></el-icon>
-                      {{ formatHotValue(item.hot) }}
-                    </span>
-                    <span v-if="item.author" class="author">{{ item.author }}</span>
-                  </div>
-                </div>
-              </div>
+            <div class="platform-meta">
+              <span>{{ formatTime(platformData.updatedAt) }}</span>
+              <CnStatusTag v-if="platformData.fromCache" type="success" size="sm">缓存</CnStatusTag>
             </div>
+          </header>
 
-            <!-- 查看更多 -->
-            <div class="platform-footer">
-              <el-button 
-                text 
-                type="primary" 
-                @click="openLink(platformData.link)"
-                class="view-more-btn"
-              >
-                查看更多
-                <el-icon><ArrowRight /></el-icon>
-              </el-button>
-            </div>
+          <div class="hot-list">
+            <button
+              v-for="(item, index) in platformData.data?.slice(0, 10)"
+              :key="item.id || `${platform}-${index}`"
+              class="hot-item"
+              type="button"
+              @click="openLink(item.url)"
+            >
+              <span class="item-rank" :class="{ top: index < 3 }">{{ index + 1 }}</span>
+              <span class="item-content">
+                <span class="item-title">{{ item.title }}</span>
+                <span class="item-meta">
+                  <span v-if="item.hot" class="hot-value">
+                    <el-icon><TrendCharts /></el-icon>
+                    {{ formatHotValue(item.hot) }}
+                  </span>
+                  <span v-if="item.author">{{ item.author }}</span>
+                </span>
+              </span>
+            </button>
           </div>
-        </div>
 
-        <!-- 空状态 -->
-        <div v-if="!loading && Object.keys(filteredPlatforms).length === 0" class="empty-state">
-          <el-empty description="暂无热榜数据">
-            <el-button type="primary" @click="refreshAllData">重新加载</el-button>
-          </el-empty>
-        </div>
+          <footer class="platform-footer">
+            <el-button text type="primary" @click="openLink(platformData.link)">
+              查看更多
+              <el-icon><ArrowRight /></el-icon>
+            </el-button>
+          </footer>
+        </article>
       </div>
-    </div>
-  </div>
+
+      <CnEmptyState
+        v-if="!loading && platformCount === 0"
+        title="暂无热榜数据"
+        description="可以重新加载，或切换其他分类。"
+        icon="HOT"
+        surface="transparent"
+      >
+        <template #actions>
+          <el-button type="primary" :loading="refreshing" @click="refreshAllData">重新加载</el-button>
+        </template>
+      </CnEmptyState>
+    </CnSection>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, reactive, ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { 
-  TrendCharts, Refresh, Clock, ArrowRight
-} from '@element-plus/icons-vue'
+import { ArrowRight, Clock, Refresh, TrendCharts } from '@element-plus/icons-vue'
+import { CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatusTag } from '@/design-system'
 import { getAllHotTopicData, refreshHotTopicData } from '@/api/moyu'
 
-// 响应式数据
+interface CategoryItem {
+  name: string
+  description: string
+}
+
+interface HotItem {
+  id?: string | number
+  title: string
+  url?: string
+  hot?: number
+  author?: string
+}
+
+interface PlatformData {
+  title: string
+  type?: string
+  updatedAt?: string | Date
+  fromCache?: boolean
+  link?: string
+  data?: HotItem[]
+}
+
+type PlatformMap = Record<string, PlatformData>
+
 const loading = ref(true)
 const refreshing = ref(false)
 const selectedCategory = ref('全部')
-const lastUpdateTime = ref(null)
+const lastUpdateTime = ref<Date | null>(null)
 
-// 分类数据
-const categories = ref([
+const categories = ref<CategoryItem[]>([
   { name: '全部', description: '所有平台' },
   { name: '社交媒体', description: '社交平台热榜和趋势数据' },
   { name: '知识社区', description: '知识问答和技术社区热门内容' },
@@ -142,46 +154,43 @@ const categories = ref([
   { name: '实用信息', description: '天气、灾害等实用信息服务' }
 ])
 
-// 平台数据
-const platformsData = reactive({})
+const platformsData = reactive<PlatformMap>({})
 
-// 平台分类映射
-const platformCategoryMap = {
-  'douyin': '社交媒体',
-  'kuaishou': '社交媒体', 
-  'weibo': '社交媒体',
-  'hupu': '知识社区',
-  'linuxdo': '知识社区',
-  'newsmth': '知识社区',
-  'tieba': '知识社区',
-  'zhihu': '知识社区',
+const platformCategoryMap: Record<string, string> = {
+  douyin: '社交媒体',
+  kuaishou: '社交媒体',
+  weibo: '社交媒体',
+  hupu: '知识社区',
+  linuxdo: '知识社区',
+  newsmth: '知识社区',
+  tieba: '知识社区',
+  zhihu: '知识社区',
   'zhihu-daily': '知识社区',
-  'ifanr': '新闻资讯',
+  ifanr: '新闻资讯',
   'netease-news': '新闻资讯',
-  'toutiao': '新闻资讯',
-  'csdn': '科技数码',
-  'dgtle': '科技数码',
-  'geekpark': '科技数码',
-  'guokr': '科技数码',
-  'hellogithub': '科技数码',
-  'ithome': '科技数码',
-  'juejin': '科技数码',
+  toutiao: '新闻资讯',
+  csdn: '科技数码',
+  dgtle: '科技数码',
+  geekpark: '科技数码',
+  guokr: '科技数码',
+  hellogithub: '科技数码',
+  ithome: '科技数码',
+  juejin: '科技数码',
   'douban-movie': '娱乐生活',
-  'jianshu': '娱乐生活',
-  'weread': '娱乐生活',
-  'earthquake': '实用信息',
-  'history': '实用信息',
+  jianshu: '娱乐生活',
+  weread: '娱乐生活',
+  earthquake: '实用信息',
+  history: '实用信息',
   'weather-alarm': '实用信息'
 }
 
-// 计算属性：过滤后的平台数据
-const filteredPlatforms = computed(() => {
+const filteredPlatforms = computed<PlatformMap>(() => {
   if (selectedCategory.value === '全部') {
     return platformsData
   }
-  
-  const filtered = {}
-  Object.keys(platformsData).forEach(platform => {
+
+  const filtered: PlatformMap = {}
+  Object.keys(platformsData).forEach((platform) => {
     if (platformCategoryMap[platform] === selectedCategory.value) {
       filtered[platform] = platformsData[platform]
     }
@@ -189,19 +198,27 @@ const filteredPlatforms = computed(() => {
   return filtered
 })
 
-// 选择分类
-const selectCategory = (category) => {
+const platformCount = computed(() => Object.keys(filteredPlatforms.value).length)
+
+const contentDescription = computed(() => {
+  if (loading.value) return '正在加载各平台热榜数据。'
+  return `当前分类展示 ${platformCount.value} 个平台的前 10 条热门内容。`
+})
+
+const selectCategory = (category: string) => {
   selectedCategory.value = category
 }
 
-// 加载热榜数据
 const loadHotTopicsData = async () => {
   try {
     loading.value = true
-    const response = await getAllHotTopicData()
-    
+    const response = (await getAllHotTopicData()) as PlatformMap | null
+
     if (response) {
-      Object.keys(response).forEach(platform => {
+      Object.keys(platformsData).forEach((platform) => {
+        delete platformsData[platform]
+      })
+      Object.keys(response).forEach((platform) => {
         platformsData[platform] = response[platform]
       })
       lastUpdateTime.value = new Date()
@@ -214,13 +231,11 @@ const loadHotTopicsData = async () => {
   }
 }
 
-// 刷新所有数据
 const refreshAllData = async () => {
   try {
     refreshing.value = true
     await refreshHotTopicData()
     ElMessage.success('数据刷新成功')
-    // 刷新后重新加载数据
     await loadHotTopicsData()
   } catch (error) {
     console.error('刷新数据失败:', error)
@@ -230,218 +245,127 @@ const refreshAllData = async () => {
   }
 }
 
-// 打开链接
-const openLink = (url) => {
+const openLink = (url?: string) => {
   if (url) {
     window.open(url, '_blank')
   }
 }
 
-// 格式化时间
-const formatTime = (time) => {
+const formatTime = (time?: string | Date | null) => {
   if (!time) return ''
   const date = new Date(time)
   const now = new Date()
-  const diff = now - date
-  
-  if (diff < 60000) { // 1分钟内
+  const diff = now.getTime() - date.getTime()
+
+  if (diff < 60000) {
     return '刚刚'
-  } else if (diff < 3600000) { // 1小时内
-    return `${Math.floor(diff / 60000)}分钟前`
-  } else if (diff < 86400000) { // 24小时内
-    return `${Math.floor(diff / 3600000)}小时前`
-  } else {
-    return date.toLocaleString()
   }
+  if (diff < 3600000) {
+    return `${Math.floor(diff / 60000)}分钟前`
+  }
+  if (diff < 86400000) {
+    return `${Math.floor(diff / 3600000)}小时前`
+  }
+  return date.toLocaleString()
 }
 
-// 格式化热度值
-const formatHotValue = (hot) => {
+const formatHotValue = (hot?: number) => {
   if (!hot) return ''
   if (hot >= 100000000) {
     return `${(hot / 100000000).toFixed(1)}亿`
-  } else if (hot >= 10000) {
-    return `${(hot / 10000).toFixed(1)}万`
-  } else {
-    return hot.toString()
   }
+  if (hot >= 10000) {
+    return `${(hot / 10000).toFixed(1)}万`
+  }
+  return hot.toString()
 }
 
-// 组件挂载时加载数据
 onMounted(() => {
   loadHotTopicsData()
 })
 </script>
 
 <style scoped>
-.hot-topics {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  position: relative;
+.hot-topics-page {
+  min-width: 0;
 }
 
-/* 头部区域 */
-.page-header {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 40px 20px;
-}
-
-.header-content {
-  max-width: 1400px;
-  margin: 0 auto;
+.filter-bar {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-}
-
-.title-section {
-  color: white;
-}
-
-.main-title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  margin: 0 0 8px 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.title-icon {
-  font-size: 2.2rem;
-  color: #fbbf24;
-}
-
-.subtitle {
-  font-size: 1rem;
-  opacity: 0.9;
-  margin: 0;
-  font-weight: 300;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
-}
-
-/* 筛选区域 */
-.filter-section {
-  background: rgba(255, 255, 255, 0.95);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  padding: 20px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  backdrop-filter: blur(10px);
-}
-
-.filter-content {
-  max-width: 1400px;
-  margin: 0 auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  gap: var(--cn-space-4);
 }
 
 .category-filters {
   display: flex;
-  gap: 12px;
   flex-wrap: wrap;
-}
-
-.category-btn {
-  border-radius: 20px;
-  font-weight: 500;
+  gap: var(--cn-space-2);
 }
 
 .update-info {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #6b7280;
-  font-size: 0.875rem;
-}
-
-/* 内容区域 */
-.content-section {
-  padding: 30px 20px 60px;
-}
-
-.content-container {
-  max-width: 1400px;
-  margin: 0 auto;
+  color: var(--cn-color-text-tertiary);
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .loading-container {
-  background: white;
-  border-radius: 12px;
-  padding: 30px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  padding: var(--cn-space-4);
 }
 
 .hot-topics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--cn-space-4);
 }
 
-/* 平台卡片 */
 .platform-card {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  display: grid;
   overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-.platform-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  min-width: 0;
+  border: 1px solid var(--cn-card-border);
+  border-radius: var(--cn-card-radius);
+  background: var(--cn-card-bg);
+  box-shadow: var(--cn-card-shadow);
 }
 
 .platform-header {
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid #f1f5f9;
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cn-space-3);
+  padding: var(--cn-space-4);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
 }
 
 .platform-info {
-  flex: 1;
+  display: grid;
+  gap: var(--cn-space-2);
+  min-width: 0;
 }
 
-.platform-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1f2937;
-  margin: 0 0 4px 0;
-}
-
-.platform-type {
-  font-size: 0.875rem;
-  color: #6b7280;
-  background: #f1f5f9;
-  padding: 2px 8px;
-  border-radius: 12px;
+.platform-info h3 {
+  margin: 0;
+  color: var(--cn-color-text-primary);
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.4;
 }
 
 .platform-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
+  display: grid;
+  justify-items: end;
+  gap: var(--cn-space-2);
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
-.update-time {
-  font-size: 0.75rem;
-  color: #9ca3af;
-}
-
-/* 热榜列表 */
 .hot-list {
+  display: grid;
   max-height: 480px;
   overflow-y: auto;
 }
@@ -449,150 +373,100 @@ onMounted(() => {
 .hot-item {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 12px 24px;
+  gap: var(--cn-space-3);
+  width: 100%;
+  min-width: 0;
+  padding: var(--cn-space-3) var(--cn-space-4);
+  border: 0;
+  border-bottom: 1px solid var(--cn-color-border-subtle);
+  background: transparent;
+  color: inherit;
   cursor: pointer;
-  transition: all 0.2s ease;
-  border-bottom: 1px solid #f8fafc;
+  text-align: left;
+  transition:
+    background-color var(--cn-motion-fast) var(--cn-ease-out),
+    color var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .hot-item:hover {
-  background: #f8fafc;
-}
-
-.hot-item:last-child {
-  border-bottom: none;
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .item-rank {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #e5e7eb;
-  color: #6b7280;
-  font-size: 0.875rem;
-  font-weight: 600;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--cn-radius-pill);
+  background: var(--cn-color-bg-surface-muted);
+  color: var(--cn-color-text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+  flex-shrink: 0;
 }
 
-.hot-item:nth-child(-n+3) .item-rank {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  color: white;
+.item-rank.top {
+  background: var(--cn-color-danger-soft);
+  color: var(--cn-color-danger);
 }
 
 .item-content {
+  display: grid;
   flex: 1;
+  gap: var(--cn-space-1);
   min-width: 0;
 }
 
 .item-title {
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: #1f2937;
-  margin: 0 0 6px 0;
-  line-height: 1.4;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
   overflow: hidden;
+  color: var(--cn-color-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .item-meta {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 0.8rem;
-  color: #6b7280;
+  flex-wrap: wrap;
+  gap: var(--cn-space-3);
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
 }
 
 .hot-value {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #ef4444;
-  font-weight: 500;
+  color: var(--cn-color-danger);
+  font-weight: 700;
 }
 
-.author {
-  color: #6b7280;
-}
-
-/* 平台底部 */
 .platform-footer {
-  padding: 16px 24px;
-  border-top: 1px solid #f1f5f9;
+  padding: var(--cn-space-3) var(--cn-space-4);
   text-align: center;
 }
 
-.view-more-btn {
-  font-weight: 500;
-}
-
-/* 空状态 */
-.empty-state {
-  background: white;
-  border-radius: 16px;
-  padding: 60px 30px;
-  text-align: center;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-/* 响应式设计 */
 @media (max-width: 768px) {
-  .header-content {
+  .filter-bar {
+    align-items: flex-start;
     flex-direction: column;
-    gap: 20px;
-    text-align: center;
-  }
-
-  .main-title {
-    font-size: 2rem;
-    justify-content: center;
-  }
-
-  .filter-content {
-    flex-direction: column;
-    gap: 16px;
   }
 
   .hot-topics-grid {
-    grid-template-columns: 1fr;
-    gap: 20px;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .platform-header {
-    flex-direction: column;
-    gap: 12px;
     align-items: flex-start;
+    flex-direction: column;
   }
 
   .platform-meta {
-    align-items: flex-start;
-  }
-}
-
-@media (max-width: 480px) {
-  .page-header {
-    padding: 30px 15px;
-  }
-
-  .content-section {
-    padding: 20px 15px 40px;
-  }
-
-  .platform-card {
-    border-radius: 12px;
-  }
-
-  .hot-item {
-    padding: 10px 20px;
-  }
-
-  .category-filters {
-    justify-content: center;
+    justify-items: start;
   }
 }
 </style>

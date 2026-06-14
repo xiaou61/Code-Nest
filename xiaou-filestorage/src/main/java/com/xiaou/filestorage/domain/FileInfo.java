@@ -54,6 +54,11 @@ public class FileInfo {
     private String businessType;
 
     /**
+     * 当前主存储配置ID
+     */
+    private Long storageConfigId;
+
+    /**
      * 上传时间
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")

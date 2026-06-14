@@ -1,16 +1,30 @@
 <template>
-  <div class="problem-edit">
-    <el-card shadow="never" class="main-card">
-      <template #header>
-        <div class="card-header">
-          <el-button text @click="$router.push('/oj/problems')">
-            <el-icon><ArrowLeft /></el-icon>
-            返回列表
-          </el-button>
-          <h2>{{ isEdit ? '编辑题目' : '新增题目' }}</h2>
-        </div>
+  <CnPage class="problem-edit-page" surface="transparent" max-width="1180px">
+    <CnPageHeader
+      :title="isEdit ? '编辑题目' : '新增题目'"
+      description="维护 OJ 题目描述、限制、标签、测试用例和标准答案。"
+      eyebrow="OJ Problem"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag :type="form.status === 1 ? 'success' : 'neutral'">
+          {{ form.status === 1 ? '公开' : '隐藏' }}
+        </CnStatusTag>
+        <CnStatusTag :type="getDifficultyTone(form.difficulty)">
+          {{ getDifficultyLabel(form.difficulty) }}
+        </CnStatusTag>
+        <CnStatusTag v-if="isEdit" type="brand">用例 {{ testCases.length }} 条</CnStatusTag>
       </template>
 
+      <template #actions>
+        <el-button :icon="ArrowLeft" @click="router.push('/oj/problems')">返回列表</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmit">
+          {{ isEdit ? '保存修改' : '创建题目' }}
+        </el-button>
+      </template>
+    </CnPageHeader>
+
+    <CnSection title="题目信息" description="填写题目描述、输入输出、样例、限制和标签。" divided>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="120px">
         <el-row :gutter="20">
           <el-col :span="16">
@@ -20,7 +34,7 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="难度" prop="difficulty">
-              <el-select v-model="form.difficulty" placeholder="请选择难度" style="width: 100%">
+              <el-select v-model="form.difficulty" placeholder="请选择难度" class="full-width">
                 <el-option label="简单" value="easy" />
                 <el-option label="中等" value="medium" />
                 <el-option label="困难" value="hard" />
@@ -30,13 +44,7 @@
         </el-row>
 
         <el-form-item label="标签">
-          <el-select
-            v-model="selectedTagIds"
-            multiple
-            filterable
-            placeholder="选择标签"
-            style="width: 100%"
-          >
+          <el-select v-model="selectedTagIds" multiple filterable placeholder="选择标签" class="full-width">
             <el-option v-for="tag in allTags" :key="tag.id" :label="tag.name" :value="tag.id" />
           </el-select>
         </el-form-item>
@@ -44,12 +52,12 @@
         <el-row :gutter="20">
           <el-col :span="8">
             <el-form-item label="时间限制(ms)" prop="timeLimit">
-              <el-input-number v-model="form.timeLimit" :min="100" :max="30000" :step="100" style="width: 100%" />
+              <el-input-number v-model="form.timeLimit" :min="100" :max="30000" :step="100" class="full-width" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item label="内存限制(MB)" prop="memoryLimit">
-              <el-input-number v-model="form.memoryLimit" :min="16" :max="1024" :step="16" style="width: 100%" />
+              <el-input-number v-model="form.memoryLimit" :min="16" :max="1024" :step="16" class="full-width" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -93,87 +101,77 @@
         </el-row>
 
         <el-form-item>
-          <el-button type="primary" @click="handleSubmit" :loading="submitting">
+          <el-button type="primary" :loading="submitting" @click="handleSubmit">
             {{ isEdit ? '保存修改' : '创建题目' }}
           </el-button>
-          <el-button @click="$router.push('/oj/problems')">取消</el-button>
+          <el-button @click="router.push('/oj/problems')">取消</el-button>
         </el-form-item>
       </el-form>
-    </el-card>
+    </CnSection>
 
-    <!-- 测试用例管理 (仅编辑模式) -->
-    <el-card shadow="never" class="testcase-card" v-if="isEdit">
-      <template #header>
-        <div class="card-header">
-          <h3>测试用例管理</h3>
-          <el-button type="primary" size="small" @click="openTestCaseDialog(null)">
-            <el-icon><Plus /></el-icon>
-            添加用例
-          </el-button>
-        </div>
+    <CnSection v-if="isEdit" title="测试用例管理" description="维护该题目的输入输出用例。" divided>
+      <template #actions>
+        <el-button type="primary" size="small" :icon="Plus" @click="openTestCaseDialog(null)">添加用例</el-button>
       </template>
 
-      <el-table v-loading="testCasesLoading" :data="testCases" style="width: 100%">
-        <el-table-column type="index" label="#" width="60" />
-        <el-table-column label="输入数据" min-width="200">
-          <template #default="{ row }">
-            <el-text truncated>{{ row.input || '(空)' }}</el-text>
-          </template>
-        </el-table-column>
-        <el-table-column label="期望输出" min-width="200">
-          <template #default="{ row }">
-            <el-text truncated>{{ row.expectedOutput || '(空)' }}</el-text>
-          </template>
-        </el-table-column>
-        <el-table-column label="示例" width="80" align="center">
-          <template #default="{ row }">
-            <el-tag v-if="row.isSample" type="success" size="small">是</el-tag>
-            <el-tag v-else type="info" size="small">否</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="160" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" size="small" text @click="openTestCaseDialog(row)">编辑</el-button>
-            <el-button type="danger" size="small" text @click="handleDeleteTestCase(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+      <CnDataTable
+        :columns="testCaseColumns"
+        :data="testCases"
+        :loading="testCasesLoading"
+        :pagination="null"
+        row-key="id"
+        empty-title="暂无测试用例"
+        empty-description="还没有为该题目配置测试用例。"
+        empty-icon="TC"
+      >
+        <template #input="{ row }">
+          <el-text truncated>{{ row.input || '(空)' }}</el-text>
+        </template>
+        <template #expectedOutput="{ row }">
+          <el-text truncated>{{ row.expectedOutput || '(空)' }}</el-text>
+        </template>
+        <template #isSample="{ row }">
+          <CnStatusTag :type="row.isSample ? 'success' : 'info'" size="sm">{{ row.isSample ? '是' : '否' }}</CnStatusTag>
+        </template>
+        <template #actions="{ row }">
+          <div class="table-actions">
+            <el-button type="primary" size="small" link @click="openTestCaseDialog(row)">编辑</el-button>
+            <el-button type="danger" size="small" link @click="handleDeleteTestCase(row)">删除</el-button>
+          </div>
+        </template>
+      </CnDataTable>
+    </CnSection>
 
-    <!-- 标准答案管理 (仅编辑模式) -->
-    <el-card shadow="never" class="testcase-card" v-if="isEdit">
-      <template #header>
-        <div class="card-header">
-          <h3>标准答案管理</h3>
-          <el-button type="primary" size="small" @click="openSolutionDialog(null)">
-            <el-icon><Plus /></el-icon>
-            添加答案
-          </el-button>
-        </div>
+    <CnSection v-if="isEdit" title="标准答案管理" description="维护题目的参考答案和题解。" divided>
+      <template #actions>
+        <el-button type="primary" size="small" :icon="Plus" @click="openSolutionDialog(null)">添加答案</el-button>
       </template>
 
-      <el-table v-loading="solutionsLoading" :data="solutions" style="width: 100%">
-        <el-table-column type="index" label="#" width="60" />
-        <el-table-column label="标题" min-width="160" prop="title" />
-        <el-table-column label="语言" width="120" prop="language" />
-        <el-table-column label="代码预览" min-width="200">
-          <template #default="{ row }">
-            <el-text truncated>{{ row.code?.substring(0, 80) || '' }}...</el-text>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="160" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" size="small" text @click="openSolutionDialog(row)">编辑</el-button>
-            <el-button type="danger" size="small" text @click="handleDeleteSolution(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+      <CnDataTable
+        :columns="solutionColumns"
+        :data="solutions"
+        :loading="solutionsLoading"
+        :pagination="null"
+        row-key="id"
+        empty-title="暂无标准答案"
+        empty-description="还没有为该题目配置标准答案。"
+        empty-icon="SA"
+      >
+        <template #codePreview="{ row }">
+          <el-text truncated>{{ row.code?.substring(0, 80) || '' }}...</el-text>
+        </template>
+        <template #actions="{ row }">
+          <div class="table-actions">
+            <el-button type="primary" size="small" link @click="openSolutionDialog(row)">编辑</el-button>
+            <el-button type="danger" size="small" link @click="handleDeleteSolution(row)">删除</el-button>
+          </div>
+        </template>
+      </CnDataTable>
+    </CnSection>
 
-    <!-- 测试用例对话框 -->
     <el-dialog
-      :title="editingTestCase?.id ? '编辑测试用例' : '添加测试用例'"
       v-model="testCaseDialogVisible"
+      :title="editingTestCase?.id ? '编辑测试用例' : '添加测试用例'"
       width="600px"
       @close="resetTestCaseForm"
     >
@@ -193,14 +191,13 @@
       </el-form>
       <template #footer>
         <el-button @click="testCaseDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSaveTestCase" :loading="testCaseSaving">确定</el-button>
+        <el-button type="primary" :loading="testCaseSaving" @click="handleSaveTestCase">确定</el-button>
       </template>
     </el-dialog>
 
-    <!-- 标准答案对话框 -->
     <el-dialog
-      :title="editingSolution?.id ? '编辑标准答案' : '添加标准答案'"
       v-model="solutionDialogVisible"
+      :title="editingSolution?.id ? '编辑标准答案' : '添加标准答案'"
       width="700px"
       @close="resetSolutionForm"
     >
@@ -213,7 +210,7 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="语言">
-              <el-select v-model="solutionForm.language" style="width: 100%">
+              <el-select v-model="solutionForm.language" class="full-width">
                 <el-option label="Java" value="java" />
                 <el-option label="C++" value="cpp" />
                 <el-option label="C" value="c" />
@@ -236,29 +233,67 @@
       </el-form>
       <template #footer>
         <el-button @click="solutionDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSaveSolution" :loading="solutionSaving">确定</el-button>
+        <el-button type="primary" :loading="solutionSaving" @click="handleSaveSolution">确定</el-button>
       </template>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { ArrowLeft, Plus } from '@element-plus/icons-vue'
 import { ojApi } from '@/api/oj'
+import { CnDataTable, CnPage, CnPageHeader, CnSection, CnStatusTag } from '@/design-system'
+import type { CnBreadcrumbItem, CnTableColumn, CnTone } from '@/design-system'
+
+interface OjTag {
+  id: number
+  name: string
+}
+
+interface ProblemForm {
+  title: string
+  description: string
+  difficulty: string
+  timeLimit: number
+  memoryLimit: number
+  inputDescription: string
+  outputDescription: string
+  sampleInput: string
+  sampleOutput: string
+  status: number
+}
+
+interface TestCase extends Record<string, unknown> {
+  id?: number
+  input?: string
+  expectedOutput?: string
+  sortOrder?: number
+  isSample?: boolean
+}
+
+interface Solution extends Record<string, unknown> {
+  id?: number
+  title?: string
+  language?: string
+  code?: string
+  description?: string
+  sortOrder?: number
+}
 
 const route = useRoute()
 const router = useRouter()
-const formRef = ref(null)
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: 'OJ 管理' }, { label: '题目编辑' }]
+
+const formRef = ref<FormInstance>()
 const submitting = ref(false)
+const isEdit = computed(() => Boolean(route.params.id))
+const problemId = computed(() => route.params.id as string | undefined)
 
-const isEdit = computed(() => !!route.params.id)
-const problemId = computed(() => route.params.id)
-
-// ============ 题目表单 ============
-const form = reactive({
+const form = reactive<ProblemForm>({
   title: '',
   description: '',
   difficulty: 'easy',
@@ -271,21 +306,20 @@ const form = reactive({
   status: 0
 })
 
-const selectedTagIds = ref([])
-const allTags = ref([])
+const selectedTagIds = ref<number[]>([])
+const allTags = ref<OjTag[]>([])
 
-const rules = {
+const rules: FormRules<ProblemForm> = {
   title: [{ required: true, message: '请输入题目标题', trigger: 'blur' }],
   difficulty: [{ required: true, message: '请选择难度', trigger: 'change' }],
   description: [{ required: true, message: '请输入题目描述', trigger: 'blur' }]
 }
 
-// ============ 测试用例 ============
-const testCases = ref([])
+const testCases = ref<TestCase[]>([])
 const testCasesLoading = ref(false)
 const testCaseDialogVisible = ref(false)
 const testCaseSaving = ref(false)
-const editingTestCase = ref(null)
+const editingTestCase = ref<TestCase | null>(null)
 const testCaseForm = reactive({
   input: '',
   expectedOutput: '',
@@ -293,12 +327,11 @@ const testCaseForm = reactive({
   isSample: false
 })
 
-// ============ 标准答案 ============
-const solutions = ref([])
+const solutions = ref<Solution[]>([])
 const solutionsLoading = ref(false)
 const solutionDialogVisible = ref(false)
 const solutionSaving = ref(false)
-const editingSolution = ref(null)
+const editingSolution = ref<Solution | null>(null)
 const solutionForm = reactive({
   title: '',
   language: 'java',
@@ -307,7 +340,29 @@ const solutionForm = reactive({
   sortOrder: 0
 })
 
-// ============ 方法 ============
+const testCaseColumns: CnTableColumn<TestCase>[] = [
+  { type: 'index', label: '#', width: 60 },
+  { prop: 'input', label: '输入数据', minWidth: 220, slot: 'input' },
+  { prop: 'expectedOutput', label: '期望输出', minWidth: 220, slot: 'expectedOutput' },
+  { prop: 'isSample', label: '示例', width: 90, align: 'center', slot: 'isSample' },
+  { label: '操作', width: 160, fixed: 'right', slot: 'actions' }
+]
+
+const solutionColumns: CnTableColumn<Solution>[] = [
+  { type: 'index', label: '#', width: 60 },
+  { prop: 'title', label: '标题', minWidth: 160 },
+  { prop: 'language', label: '语言', width: 120 },
+  { label: '代码预览', minWidth: 240, slot: 'codePreview' },
+  { label: '操作', width: 160, fixed: 'right', slot: 'actions' }
+]
+
+const getDifficultyTone = (difficulty?: string): CnTone => {
+  return ({ easy: 'success', medium: 'warning', hard: 'danger' } as Record<string, CnTone>)[difficulty || ''] || 'info'
+}
+
+const getDifficultyLabel = (difficulty?: string) => {
+  return ({ easy: '简单', medium: '中等', hard: '困难' } as Record<string, string>)[difficulty || ''] || difficulty || '未知'
+}
 
 const loadProblem = async () => {
   if (!isEdit.value) return
@@ -325,7 +380,7 @@ const loadProblem = async () => {
       sampleOutput: data.sampleOutput || '',
       status: data.status
     })
-    selectedTagIds.value = (data.tags || []).map(t => t.id)
+    selectedTagIds.value = (data.tags || []).map((tag: OjTag) => tag.id)
   } catch {
     ElMessage.error('加载题目失败')
     router.push('/oj/problems')
@@ -334,7 +389,7 @@ const loadProblem = async () => {
 
 const loadTags = async () => {
   try {
-    allTags.value = await ojApi.getTags() || []
+    allTags.value = (await ojApi.getTags()) || []
   } catch {
     console.error('加载标签失败')
   }
@@ -344,7 +399,7 @@ const loadTestCases = async () => {
   if (!isEdit.value) return
   testCasesLoading.value = true
   try {
-    testCases.value = await ojApi.getTestCasesByProblem(problemId.value) || []
+    testCases.value = (await ojApi.getTestCasesByProblem(problemId.value)) || []
   } catch {
     console.error('加载测试用例失败')
   } finally {
@@ -353,6 +408,7 @@ const loadTestCases = async () => {
 }
 
 const handleSubmit = async () => {
+  if (!formRef.value) return
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
 
@@ -373,14 +429,14 @@ const handleSubmit = async () => {
   }
 }
 
-const openTestCaseDialog = (tc) => {
-  editingTestCase.value = tc
-  if (tc) {
+const openTestCaseDialog = (testCase: TestCase | null) => {
+  editingTestCase.value = testCase
+  if (testCase) {
     Object.assign(testCaseForm, {
-      input: tc.input || '',
-      expectedOutput: tc.expectedOutput || '',
-      sortOrder: tc.sortOrder || 0,
-      isSample: !!tc.isSample
+      input: testCase.input || '',
+      expectedOutput: testCase.expectedOutput || '',
+      sortOrder: testCase.sortOrder || 0,
+      isSample: Boolean(testCase.isSample)
     })
   } else {
     resetTestCaseForm()
@@ -415,25 +471,25 @@ const handleSaveTestCase = async () => {
   }
 }
 
-const handleDeleteTestCase = (tc) => {
+const handleDeleteTestCase = (testCase: TestCase) => {
   ElMessageBox.confirm('确定删除该测试用例吗？', '确认删除', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(async () => {
-    await ojApi.deleteTestCase(tc.id)
-    ElMessage.success('删除成功')
-    loadTestCases()
-  }).catch(() => {})
+  })
+    .then(async () => {
+      await ojApi.deleteTestCase(testCase.id)
+      ElMessage.success('删除成功')
+      loadTestCases()
+    })
+    .catch(() => {})
 }
-
-// ============ 标准答案方法 ============
 
 const loadSolutions = async () => {
   if (!isEdit.value) return
   solutionsLoading.value = true
   try {
-    solutions.value = await ojApi.getSolutionsByProblem(problemId.value) || []
+    solutions.value = (await ojApi.getSolutionsByProblem(problemId.value)) || []
   } catch {
     console.error('加载标准答案失败')
   } finally {
@@ -441,15 +497,15 @@ const loadSolutions = async () => {
   }
 }
 
-const openSolutionDialog = (sol) => {
-  editingSolution.value = sol
-  if (sol) {
+const openSolutionDialog = (solution: Solution | null) => {
+  editingSolution.value = solution
+  if (solution) {
     Object.assign(solutionForm, {
-      title: sol.title || '',
-      language: sol.language || 'java',
-      code: sol.code || '',
-      description: sol.description || '',
-      sortOrder: sol.sortOrder || 0
+      title: solution.title || '',
+      language: solution.language || 'java',
+      code: solution.code || '',
+      description: solution.description || '',
+      sortOrder: solution.sortOrder || 0
     })
   } else {
     resetSolutionForm()
@@ -485,16 +541,18 @@ const handleSaveSolution = async () => {
   }
 }
 
-const handleDeleteSolution = (sol) => {
+const handleDeleteSolution = (solution: Solution) => {
   ElMessageBox.confirm('确定删除该标准答案吗？', '确认删除', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(async () => {
-    await ojApi.deleteSolution(sol.id)
-    ElMessage.success('删除成功')
-    loadSolutions()
-  }).catch(() => {})
+  })
+    .then(async () => {
+      await ojApi.deleteSolution(solution.id)
+      ElMessage.success('删除成功')
+      loadSolutions()
+    })
+    .catch(() => {})
 }
 
 onMounted(() => {
@@ -508,25 +566,17 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.main-card,
-.testcase-card {
-  margin-bottom: 16px;
-  border-radius: 8px;
+.problem-edit-page {
+  min-height: 100%;
 }
 
-.card-header {
+.full-width {
+  width: 100%;
+}
+
+.table-actions {
   display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.card-header h2,
-.card-header h3 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.testcase-card .card-header {
-  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
 }
 </style>

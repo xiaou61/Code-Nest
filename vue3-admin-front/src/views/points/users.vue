@@ -1,186 +1,113 @@
 <template>
-  <div class="points-users">
-    <!-- 页面标题 -->
-    <div class="page-header">
-      <div class="header-title">
-        <h2>用户积分排行</h2>
-        <p>查看和管理用户积分排行数据</p>
-      </div>
-    </div>
+  <CnPage class="points-users-page" surface="transparent" max-width="1480px">
+    <CnPageHeader
+      title="用户积分排行"
+      description="查看和管理用户积分排行数据，支持积分范围筛选、排序和快速发放积分。"
+      eyebrow="Points Ranking"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand">用户 {{ pagination.total }} 人</CnStatusTag>
+        <CnStatusTag type="success">排序 {{ searchForm.orderDirection === 'desc' ? '降序' : '升序' }}</CnStatusTag>
+      </template>
+      <template #actions>
+        <el-button :icon="Refresh" :loading="loading" @click="loadData">刷新</el-button>
+      </template>
+    </CnPageHeader>
 
-    <!-- 搜索和操作区域 -->
-    <el-card class="search-card">
+    <CnSection title="筛选条件" description="按用户名、积分范围和排序方式筛选用户排行。" divided>
       <el-form :model="searchForm" inline class="search-form">
         <el-form-item label="用户名">
-          <el-input
-            v-model="searchForm.userName"
-            placeholder="输入用户名搜索"
-            clearable
-            style="width: 200px"
-          />
+          <el-input v-model="searchForm.userName" placeholder="输入用户名搜索" clearable class="filter-md" />
         </el-form-item>
         <el-form-item label="最小积分">
-          <el-input-number
-            v-model="searchForm.minPoints"
-            :min="0"
-            controls-position="right"
-            placeholder="最小积分"
-            style="width: 150px"
-          />
+          <el-input-number v-model="searchForm.minPoints" :min="0" controls-position="right" placeholder="最小积分" class="filter-number" />
         </el-form-item>
         <el-form-item label="最大积分">
-          <el-input-number
-            v-model="searchForm.maxPoints"
-            :min="0"
-            controls-position="right"
-            placeholder="最大积分"
-            style="width: 150px"
-          />
+          <el-input-number v-model="searchForm.maxPoints" :min="0" controls-position="right" placeholder="最大积分" class="filter-number" />
         </el-form-item>
         <el-form-item label="排序方式">
-          <el-select v-model="searchForm.orderBy" style="width: 120px">
+          <el-select v-model="searchForm.orderBy" class="filter-sm">
             <el-option label="按积分" value="points" />
             <el-option label="按时间" value="create_time" />
           </el-select>
         </el-form-item>
         <el-form-item label="排序">
-          <el-select v-model="searchForm.orderDirection" style="width: 100px">
+          <el-select v-model="searchForm.orderDirection" class="filter-xs">
             <el-option label="降序" value="desc" />
             <el-option label="升序" value="asc" />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">
-            <el-icon><Search /></el-icon>
-            搜索
-          </el-button>
-          <el-button @click="handleReset">
-            <el-icon><Refresh /></el-icon>
-            重置
-          </el-button>
+          <el-button type="primary" :icon="Search" @click="handleSearch">搜索</el-button>
+          <el-button :icon="Refresh" @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
-    </el-card>
+    </CnSection>
 
-    <!-- 数据表格 -->
-    <el-card class="table-card">
-      <el-table
+    <CnSection title="用户积分列表" :description="`共 ${pagination.total} 位用户`" divided>
+      <CnDataTable
+        :columns="tableColumns"
         :data="tableData"
-        v-loading="loading"
-        stripe
-        style="width: 100%"
-        :default-sort="{ prop: 'totalPoints', order: 'descending' }"
+        :loading="loading"
+        :pagination="tablePagination"
+        row-key="userId"
+        empty-title="暂无积分用户"
+        empty-description="当前筛选条件下没有匹配的用户积分数据。"
+        empty-icon="PU"
+        @page-change="handleCurrentChange"
+        @page-size-change="handleSizeChange"
       >
-        <el-table-column label="排名" width="80" align="center">
-          <template #default="{ $index }">
-            <div class="rank-cell">
-              <span 
-                class="rank-badge"
-                :class="{
-                  'rank-first': getRealRanking($index) === 1,
-                  'rank-second': getRealRanking($index) === 2,
-                  'rank-third': getRealRanking($index) === 3
-                }"
-              >
-                {{ getRealRanking($index) }}
-              </span>
+        <template #ranking="{ $index }">
+          <div class="rank-cell">
+            <span class="rank-badge" :class="rankClass(getRealRanking($index))">{{ getRealRanking($index) }}</span>
+          </div>
+        </template>
+
+        <template #user="{ row }">
+          <div class="user-cell">
+            <el-avatar :size="40" :src="row.avatar">
+              <el-icon><User /></el-icon>
+            </el-avatar>
+            <div class="user-info">
+              <div class="user-name">{{ row.userName }}</div>
+              <div class="user-nick">{{ row.nickName }}</div>
             </div>
-          </template>
-        </el-table-column>
-        
-        <el-table-column label="用户信息" min-width="150">
-          <template #default="{ row }">
-            <div class="user-cell">
-              <div class="user-avatar">
-                <el-avatar :size="40" :src="row.avatar">
-                  <el-icon><User /></el-icon>
-                </el-avatar>
-              </div>
-              <div class="user-info">
-                <div class="user-name">{{ row.userName }}</div>
-                <div class="user-nick">{{ row.nickName }}</div>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
+          </div>
+        </template>
 
-        <el-table-column label="总积分" prop="totalPoints" sortable width="120" align="right">
-          <template #default="{ row }">
-            <div class="points-cell">
-              <div class="points-value">{{ formatNumber(row.totalPoints) }}</div>
-              <div class="points-yuan">≈{{ row.balanceYuan }}元</div>
-            </div>
-          </template>
-        </el-table-column>
+        <template #totalPoints="{ row }">
+          <div class="points-cell">
+            <div class="points-value">{{ formatNumber(row.totalPoints) }}</div>
+            <div class="points-yuan">≈{{ row.balanceYuan }}元</div>
+          </div>
+        </template>
 
-        <el-table-column label="连续打卡" prop="continuousDays" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag 
-              :type="row.continuousDays > 7 ? 'success' : row.continuousDays > 0 ? 'warning' : 'info'"
-              effect="light"
-            >
-              {{ row.continuousDays }}天
-            </el-tag>
-          </template>
-        </el-table-column>
+        <template #continuousDays="{ row }">
+          <CnStatusTag :type="row.continuousDays > 7 ? 'success' : row.continuousDays > 0 ? 'warning' : 'info'" size="sm">
+            {{ row.continuousDays }}天
+          </CnStatusTag>
+        </template>
 
-        <el-table-column label="注册时间" prop="createTime" width="160" align="center">
-          <template #default="{ row }">
-            {{ formatDateTime(row.createTime) }}
-          </template>
-        </el-table-column>
+        <template #dateTime="{ row }">
+          {{ formatDateTime(row.createTime) }}
+        </template>
 
-        <el-table-column label="最后更新" prop="updateTime" width="160" align="center">
-          <template #default="{ row }">
-            {{ formatDateTime(row.updateTime) }}
-          </template>
-        </el-table-column>
+        <template #updateTime="{ row }">
+          {{ formatDateTime(row.updateTime) }}
+        </template>
 
-        <el-table-column label="操作" width="150" align="center" fixed="right">
-          <template #default="{ row }">
-            <el-button
-              type="primary"
-              size="small"
-              text
-              @click="handleGrantPoints(row)"
-            >
-              <el-icon><Plus /></el-icon>
-              发放积分
-            </el-button>
-            <el-button
-              type="info"
-              size="small"
-              text
-              @click="handleViewDetails(row)"
-            >
-              <el-icon><View /></el-icon>
-              查看明细
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+        <template #actions="{ row }">
+          <div class="table-actions">
+            <el-button type="primary" link size="small" :icon="Plus" @click="handleGrantPoints(row)">发放积分</el-button>
+            <el-button type="info" link size="small" :icon="View" @click="handleViewDetails(row)">查看明细</el-button>
+          </div>
+        </template>
+      </CnDataTable>
+    </CnSection>
 
-      <!-- 分页 -->
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="pagination.pageNum"
-          v-model:page-size="pagination.pageSize"
-          :total="pagination.total"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
-      </div>
-    </el-card>
-
-    <!-- 发放积分对话框 -->
-    <el-dialog
-      v-model="showGrantDialog"
-      title="发放积分"
-      width="500px"
-    >
-      <el-form :model="grantForm" :rules="grantRules" ref="grantFormRef" label-width="100px">
+    <el-dialog v-model="showGrantDialog" title="发放积分" width="500px">
+      <el-form ref="grantFormRef" :model="grantForm" :rules="grantRules" label-width="100px">
         <el-form-item label="用户">
           <div class="grant-user-info">
             <el-avatar :size="40" :src="grantForm.user?.avatar">
@@ -193,77 +120,73 @@
           </div>
         </el-form-item>
         <el-form-item label="积分数量" prop="points">
-          <el-input-number
-            v-model="grantForm.points"
-            :min="1"
-            :max="10000"
-            controls-position="right"
-            placeholder="请输入积分数量"
-          />
+          <el-input-number v-model="grantForm.points" :min="1" :max="10000" controls-position="right" placeholder="请输入积分数量" />
         </el-form-item>
         <el-form-item label="发放原因" prop="reason">
-          <el-input
-            v-model="grantForm.reason"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入发放原因"
-            maxlength="200"
-            show-word-limit
-          />
+          <el-input v-model="grantForm.reason" type="textarea" :rows="3" placeholder="请输入发放原因" maxlength="200" show-word-limit />
         </el-form-item>
       </el-form>
-      
+
       <template #footer>
-        <el-button @click="showGrantDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleConfirmGrant" :loading="grantLoading">
-          确认发放
-        </el-button>
+        <div class="dialog-footer">
+          <el-button @click="showGrantDialog = false">取消</el-button>
+          <el-button type="primary" :loading="grantLoading" @click="handleConfirmGrant">确认发放</el-button>
+        </div>
       </template>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, User, Plus, View } from '@element-plus/icons-vue'
+import { Plus, Refresh, Search, User, View } from '@element-plus/icons-vue'
 import { pointsApi } from '@/api/points'
+import { CnDataTable, CnPage, CnPageHeader, CnSection, CnStatusTag } from '@/design-system'
+import type { CnBreadcrumbItem, CnPagination, CnTableColumn } from '@/design-system'
+
+interface UserPoints extends Record<string, unknown> {
+  userId: number
+  userName?: string
+  nickName?: string
+  avatar?: string
+  totalPoints?: number
+  balanceYuan?: number | string
+  continuousDays?: number
+  createTime?: string
+  updateTime?: string
+}
 
 const router = useRouter()
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '积分管理' }, { label: '积分排行' }]
 
-// 响应式数据
 const loading = ref(false)
-const tableData = ref([])
+const tableData = ref<UserPoints[]>([])
 const showGrantDialog = ref(false)
 const grantLoading = ref(false)
+const grantFormRef = ref()
 
-// 搜索表单
 const searchForm = reactive({
   userName: '',
-  minPoints: null,
-  maxPoints: null,
+  minPoints: null as number | null,
+  maxPoints: null as number | null,
   orderBy: 'points',
   orderDirection: 'desc'
 })
 
-// 分页信息
 const pagination = reactive({
   pageNum: 1,
   pageSize: 20,
   total: 0
 })
 
-// 发放积分表单
 const grantForm = reactive({
-  user: null,
-  points: null,
+  user: null as UserPoints | null,
+  points: null as number | null,
   reason: ''
 })
 
-const grantFormRef = ref(null)
-
-// 表单验证规则
 const grantRules = {
   points: [
     { required: true, message: '请输入积分数量', trigger: 'blur' },
@@ -275,39 +198,56 @@ const grantRules = {
   ]
 }
 
-// 计算真实排名（考虑分页）
-const getRealRanking = (index) => {
+const tableColumns: CnTableColumn<UserPoints>[] = [
+  { label: '排名', width: 80, align: 'center', slot: 'ranking' },
+  { label: '用户信息', minWidth: 170, slot: 'user' },
+  { prop: 'totalPoints', label: '总积分', width: 130, align: 'right', slot: 'totalPoints', sortable: true },
+  { prop: 'continuousDays', label: '连续打卡', width: 110, align: 'center', slot: 'continuousDays' },
+  { prop: 'createTime', label: '注册时间', width: 170, align: 'center', slot: 'dateTime' },
+  { prop: 'updateTime', label: '最后更新', width: 170, align: 'center', slot: 'updateTime' },
+  { label: '操作', width: 180, align: 'center', fixed: 'right', slot: 'actions' }
+]
+
+const tablePagination = computed<CnPagination>(() => ({
+  page: pagination.pageNum,
+  pageSize: pagination.pageSize,
+  total: pagination.total,
+  pageSizes: [10, 20, 50, 100]
+}))
+
+const getRealRanking = (index: number) => {
   return (pagination.pageNum - 1) * pagination.pageSize + index + 1
 }
 
-// 格式化数字显示
-const formatNumber = (num) => {
+const rankClass = (rank: number) => ({
+  'rank-first': rank === 1,
+  'rank-second': rank === 2,
+  'rank-third': rank === 3
+})
+
+const formatNumber = (num?: number | string | null) => {
   if (!num) return '0'
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
-// 格式化日期时间
-const formatDateTime = (dateTime) => {
+const formatDateTime = (dateTime?: string) => {
   if (!dateTime) return '-'
   return new Date(dateTime).toLocaleString('zh-CN')
 }
 
-// 加载数据
 const loadData = async () => {
   loading.value = true
-  
+
   try {
     const params = {
       pageNum: pagination.pageNum,
       pageSize: pagination.pageSize,
       ...searchForm
     }
-    
+
     const result = await pointsApi.getUserPointsList(params)
-    
-    tableData.value = result.records || []
-    pagination.total = result.total || 0
-    
+    tableData.value = Array.isArray(result?.records) ? result.records : []
+    pagination.total = Number(result?.total) || 0
   } catch (error) {
     console.error('加载用户积分数据失败:', error)
     ElMessage.error('加载数据失败')
@@ -316,13 +256,11 @@ const loadData = async () => {
   }
 }
 
-// 搜索处理
 const handleSearch = () => {
   pagination.pageNum = 1
   loadData()
 }
 
-// 重置搜索
 const handleReset = () => {
   Object.assign(searchForm, {
     userName: '',
@@ -335,57 +273,44 @@ const handleReset = () => {
   loadData()
 }
 
-// 分页大小改变
-const handleSizeChange = (size) => {
+const handleSizeChange = (size: number) => {
   pagination.pageSize = size
   pagination.pageNum = 1
   loadData()
 }
 
-// 当前页改变
-const handleCurrentChange = (page) => {
+const handleCurrentChange = (page: number) => {
   pagination.pageNum = page
   loadData()
 }
 
-// 发放积分
-const handleGrantPoints = (user) => {
+const handleGrantPoints = (user: UserPoints) => {
   grantForm.user = user
   grantForm.points = null
   grantForm.reason = ''
   showGrantDialog.value = true
 }
 
-// 确认发放积分
 const handleConfirmGrant = async () => {
-  if (!grantFormRef.value) return
-  
+  if (!grantFormRef.value || !grantForm.user) return
+
   try {
     await grantFormRef.value.validate()
-    
-    await ElMessageBox.confirm(
-      `确认为用户 ${grantForm.user.userName} 发放 ${grantForm.points} 积分吗？`,
-      '确认发放',
-      {
-        confirmButtonText: '确认',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    
+
+    await ElMessageBox.confirm(`确认为用户 ${grantForm.user.userName} 发放 ${grantForm.points} 积分吗？`, '确认发放', {
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
     grantLoading.value = true
-    
-    const requestData = {
+    await pointsApi.grantPoints({
       userId: grantForm.user.userId,
       points: grantForm.points,
       reason: grantForm.reason
-    }
-    
-    await pointsApi.grantPoints(requestData)
-    
+    })
+
     ElMessage.success('积分发放成功')
-    
-    // 重置表单并关闭对话框
     grantFormRef.value.resetFields()
     Object.assign(grantForm, {
       user: null,
@@ -393,10 +318,7 @@ const handleConfirmGrant = async () => {
       reason: ''
     })
     showGrantDialog.value = false
-    
-    // 重新加载数据
     await loadData()
-    
   } catch (error) {
     if (error !== 'cancel') {
       console.error('发放积分失败:', error)
@@ -407,52 +329,43 @@ const handleConfirmGrant = async () => {
   }
 }
 
-// 查看用户积分明细
-const handleViewDetails = (user) => {
+const handleViewDetails = (user: UserPoints) => {
   router.push({
     path: '/points/details',
     query: { userId: user.userId, userName: user.userName }
   })
 }
 
-// 组件挂载时加载数据
 onMounted(() => {
   loadData()
 })
 </script>
 
 <style scoped>
-.points-users {
-  padding: 20px;
-}
-
-.page-header {
-  margin-bottom: 20px;
-}
-
-.header-title h2 {
-  margin: 0 0 8px 0;
-  font-size: 24px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.header-title p {
-  margin: 0;
-  color: #909399;
-  font-size: 14px;
-}
-
-.search-card {
-  margin-bottom: 20px;
+.points-users-page {
+  min-height: 100%;
 }
 
 .search-form {
-  margin-bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2) var(--cn-space-3);
 }
 
-.table-card {
-  margin-bottom: 20px;
+.filter-xs {
+  width: 100px;
+}
+
+.filter-sm {
+  width: 120px;
+}
+
+.filter-md {
+  width: 200px;
+}
+
+.filter-number {
+  width: 150px;
 }
 
 .rank-cell {
@@ -466,103 +379,78 @@ onMounted(() => {
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 50%;
-  font-weight: bold;
-  font-size: 14px;
-  background: #f0f0f0;
-  color: #606266;
+  border-radius: var(--cn-radius-pill);
+  background: var(--cn-color-bg-surface-muted);
+  color: var(--cn-color-text-secondary);
+  font-weight: 700;
 }
 
-.rank-badge.rank-first {
-  background: linear-gradient(135deg, #FFD700, #FFA500);
-  color: white;
-}
-
-.rank-badge.rank-second {
-  background: linear-gradient(135deg, #C0C0C0, #A8A8A8);
-  color: white;
-}
-
+.rank-badge.rank-first,
+.rank-badge.rank-second,
 .rank-badge.rank-third {
-  background: linear-gradient(135deg, #CD7F32, #B8860B);
-  color: white;
+  background: var(--cn-color-warning-soft);
+  color: var(--cn-color-warning);
 }
 
-.user-cell {
+.user-cell,
+.grant-user-info,
+.table-actions,
+.dialog-footer {
   display: flex;
   align-items: center;
+  gap: var(--cn-space-2);
 }
 
-.user-avatar {
-  margin-right: 12px;
+.user-info,
+.grant-user-detail {
+  min-width: 0;
 }
 
-.user-info {
-  flex: 1;
+.user-name,
+.points-value,
+.grant-user-name {
+  color: var(--cn-color-text-primary);
+  font-weight: 650;
 }
 
-.user-name {
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 4px;
-}
-
-.user-nick {
+.user-nick,
+.points-yuan,
+.grant-user-points {
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
-  color: #909399;
 }
 
 .points-cell {
   text-align: right;
 }
 
-.points-value {
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 4px;
-}
-
-.points-yuan {
-  font-size: 12px;
-  color: #67C23A;
-}
-
-.pagination-container {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
-}
-
 .grant-user-info {
-  display: flex;
-  align-items: center;
-  padding: 10px;
-  background: #f8f9fa;
-  border-radius: 6px;
+  width: 100%;
+  padding: var(--cn-space-3);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
 }
 
-.grant-user-detail {
-  margin-left: 12px;
-  flex: 1;
+.table-actions,
+.dialog-footer {
+  flex-wrap: wrap;
 }
 
-.grant-user-name {
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 4px;
+.dialog-footer {
+  justify-content: flex-end;
 }
 
-.grant-user-points {
-  font-size: 12px;
-  color: #67C23A;
-}
+@media (max-width: 720px) {
+  .filter-xs,
+  .filter-sm,
+  .filter-md,
+  .filter-number {
+    width: 100%;
+  }
 
-:deep(.el-card__body) {
-  padding: 20px;
-}
-
-:deep(.el-table .cell) {
-  padding-left: 8px;
-  padding-right: 8px;
+  .dialog-footer {
+    justify-content: flex-start;
+  }
 }
 </style>

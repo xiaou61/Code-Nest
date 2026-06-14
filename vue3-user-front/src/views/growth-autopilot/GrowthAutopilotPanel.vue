@@ -1,15 +1,22 @@
 <template>
   <div class="growth-autopilot-panel">
-      <section class="hero cn-learn-hero cn-wave-reveal">
-        <div class="hero-content">
-          <span class="hero-eyebrow">
-            <el-icon><MagicStick /></el-icon>
-            Growth Autopilot MVP
-          </span>
-          <h1>成长闭环自动驾驶</h1>
-          <p>把周目标自动拆解成今日任务包，实时纠偏，一键重排，持续推进学习闭环。</p>
-        </div>
-        <div class="hero-actions">
+      <CnPageHeader
+        title="成长闭环自动驾驶"
+        eyebrow="Growth Autopilot MVP"
+        description="把周目标自动拆解成今日任务包，实时纠偏，一键重排，持续推进学习闭环。"
+      >
+        <template #meta>
+          <CnStatusTag :type="hasPlan ? 'success' : 'warning'" size="sm">
+            {{ hasPlan ? '本周计划运行中' : '等待生成计划' }}
+          </CnStatusTag>
+          <CnStatusTag v-if="hasPlan" :type="riskTone(summary.riskLevel)" size="sm">
+            {{ riskText(summary.riskLevel) }}
+          </CnStatusTag>
+          <CnStatusTag v-if="dashboard.generatedAt" type="info" size="sm" subtle>
+            {{ dashboard.generatedAt }}
+          </CnStatusTag>
+        </template>
+        <template #actions>
           <el-button type="primary" :loading="loading.generate" @click="openGenerateDialog">
             <el-icon><Plus /></el-icon>
             {{ hasPlan ? '重新生成周计划' : '生成本周计划' }}
@@ -26,38 +33,46 @@
             <el-icon><Refresh /></el-icon>
             刷新
           </el-button>
-        </div>
-      </section>
+        </template>
+      </CnPageHeader>
 
       <section class="summary-grid">
-        <article class="summary-card">
-          <div class="summary-label">本周完成率</div>
-          <div class="summary-value">{{ summary.completionRate || 0 }}%</div>
-          <el-progress :percentage="summary.completionRate || 0" :show-text="false" :stroke-width="8" />
-        </article>
-        <article class="summary-card">
-          <div class="summary-label">任务完成</div>
-          <div class="summary-value">{{ summary.completedTasks || 0 }} / {{ summary.totalTasks || 0 }}</div>
-          <p class="summary-desc">今日完成 {{ summary.todayCompleted || 0 }} / {{ summary.todayTasks || 0 }}</p>
-        </article>
-        <article class="summary-card">
-          <div class="summary-label">逾期任务</div>
-          <div class="summary-value" :class="{ danger: (summary.overdueTasks || 0) > 0 }">{{ summary.overdueTasks || 0 }}</div>
-          <p class="summary-desc">建议优先处理逾期与 P1 任务</p>
-        </article>
-        <article class="summary-card">
-          <div class="summary-label">风险等级</div>
-          <div class="summary-value risk">
-            <el-tag :type="riskTagType(summary.riskLevel)" effect="light">{{ riskText(summary.riskLevel) }}</el-tag>
-          </div>
-          <p class="summary-desc">{{ summary.riskText || '执行节奏稳定' }}</p>
-        </article>
+        <CnStatCard
+          title="本周完成率"
+          :value="summary.completionRate || 0"
+          unit="%"
+          description="按自动驾驶任务完成情况计算"
+          tone="brand"
+          :loading="loading.dashboard"
+        />
+        <CnStatCard
+          title="任务完成"
+          :value="`${summary.completedTasks || 0} / ${summary.totalTasks || 0}`"
+          :description="`今日完成 ${summary.todayCompleted || 0} / ${summary.todayTasks || 0}`"
+          tone="success"
+          :loading="loading.dashboard"
+        />
+        <CnStatCard
+          title="逾期任务"
+          :value="summary.overdueTasks || 0"
+          description="建议优先处理逾期与 P1 任务"
+          :tone="(summary.overdueTasks || 0) > 0 ? 'danger' : 'neutral'"
+          :loading="loading.dashboard"
+        />
+        <CnStatCard
+          title="风险等级"
+          :value="riskText(summary.riskLevel)"
+          :description="summary.riskText || '执行节奏稳定'"
+          :tone="riskTone(summary.riskLevel)"
+          :loading="loading.dashboard"
+        />
       </section>
 
-      <section v-if="hasPlan" class="filter-wrap cn-learn-panel">
+      <CnSection v-if="hasPlan" class="filter-section" surface="plain" compact>
+        <div class="filter-wrap">
         <div class="filter-item">
           <span class="filter-label">模块</span>
-          <el-select v-model="filters.moduleKey" size="small" style="width: 150px">
+          <el-select v-model="filters.moduleKey" size="small" class="module-filter-select">
             <el-option label="全部模块" value="all" />
             <el-option
               v-for="item in moduleProgress"
@@ -69,7 +84,7 @@
         </div>
         <div class="filter-item">
           <span class="filter-label">状态</span>
-          <el-select v-model="filters.status" size="small" style="width: 140px">
+          <el-select v-model="filters.status" size="small" class="status-filter-select">
             <el-option label="全部状态" value="all" />
             <el-option label="待完成" value="todo" />
             <el-option label="已完成" value="done" />
@@ -82,21 +97,30 @@
         <div class="filter-item switch-item">
           <el-switch v-model="filters.onlyToday" inline-prompt active-text="仅看今日" inactive-text="全周" />
         </div>
-      </section>
+        </div>
+      </CnSection>
 
-      <section v-if="!hasPlan" class="empty-wrap cn-learn-panel">
-        <el-empty description="本周还没有自动驾驶计划">
+      <CnEmptyState
+        v-if="!hasPlan"
+        class="empty-wrap"
+        title="本周还没有自动驾驶计划"
+        description="生成后会自动拆解每日任务包，并根据完成情况给出重排建议。"
+        icon="GA"
+        surface="panel"
+      >
+        <template #actions>
           <el-button type="primary" @click="openGenerateDialog">立即生成</el-button>
-        </el-empty>
-      </section>
+        </template>
+      </CnEmptyState>
 
       <section v-else class="main-grid">
         <div class="main-left">
-          <article class="panel cn-learn-panel">
-            <header class="panel-head">
-              <h3>本周任务时间线</h3>
-              <span>{{ dashboard.weekStart }} 至 {{ dashboard.weekEnd }}</span>
-            </header>
+          <CnSection
+            class="timeline-section"
+            title="本周任务时间线"
+            :description="`${dashboard.weekStart || '--'} 至 ${dashboard.weekEnd || '--'}`"
+            divided
+          >
             <div class="day-grid" v-loading="loading.dashboard">
               <div
                 v-for="bucket in filteredDayBuckets"
@@ -112,8 +136,12 @@
                 <div v-else class="task-list">
                   <div v-for="task in bucket.tasks" :key="task.taskId" class="task-item">
                     <div class="task-top">
-                      <el-tag size="small" :type="moduleTagType(task.moduleKey)" effect="plain">{{ task.moduleName }}</el-tag>
-                      <el-tag size="small" :type="statusTagType(task.status)" effect="light">{{ task.statusText }}</el-tag>
+                      <CnStatusTag :type="moduleTone(task.moduleKey)" size="sm">
+                        {{ task.moduleName || '模块' }}
+                      </CnStatusTag>
+                      <CnStatusTag :type="statusTone(task.status)" size="sm">
+                        {{ task.statusText || '待完成' }}
+                      </CnStatusTag>
                     </div>
                     <h4>{{ task.title }}</h4>
                     <p>{{ task.description }}</p>
@@ -147,16 +175,19 @@
                 </div>
               </div>
             </div>
-          </article>
+          </CnSection>
         </div>
 
         <div class="main-right">
-          <article class="panel cn-learn-panel">
-            <header class="panel-head">
-              <h3>周进度趋势</h3>
-              <span>按天完成率</span>
-            </header>
-            <div v-if="!dailyProgress.length" class="empty-inline">暂无趋势数据</div>
+          <CnSection title="周进度趋势" description="按天完成率" compact divided>
+            <CnEmptyState
+              v-if="!dailyProgress.length"
+              title="暂无趋势数据"
+              description="完成任务后会生成每日进度趋势。"
+              icon="TR"
+              size="sm"
+              surface="transparent"
+            />
             <template v-else>
               <div class="trend-chart">
                 <div v-for="item in dailyProgress" :key="item.date" class="trend-bar-item">
@@ -168,22 +199,30 @@
                 </div>
               </div>
               <div class="status-row">
-                <el-tag effect="plain">待完成 {{ statusSummary.todoTasks || 0 }}</el-tag>
-                <el-tag type="success" effect="plain">已完成 {{ statusSummary.doneTasks || 0 }}</el-tag>
-                <el-tag type="danger" effect="plain">已错过 {{ statusSummary.missedTasks || 0 }}</el-tag>
+                <CnStatusTag type="info" size="sm">待完成 {{ statusSummary.todoTasks || 0 }}</CnStatusTag>
+                <CnStatusTag type="success" size="sm">已完成 {{ statusSummary.doneTasks || 0 }}</CnStatusTag>
+                <CnStatusTag type="danger" size="sm">已错过 {{ statusSummary.missedTasks || 0 }}</CnStatusTag>
               </div>
               <div class="score-row">
                 分值进度 {{ statusSummary.doneScore || 0 }} / {{ statusSummary.targetScore || 0 }}
               </div>
             </template>
-          </article>
+          </CnSection>
 
-          <article class="panel cn-learn-panel">
-            <header class="panel-head">
-              <h3>模块进度</h3>
-              <span>{{ dashboard.targetProfile?.targetRole || '通用' }} · {{ dashboard.targetProfile?.weeklyHours || 0 }}h</span>
-            </header>
-            <div v-if="!moduleProgress.length" class="empty-inline">暂无模块任务</div>
+          <CnSection
+            title="模块进度"
+            :description="`${dashboard.targetProfile?.targetRole || '通用'} · ${dashboard.targetProfile?.weeklyHours || 0}h`"
+            compact
+            divided
+          >
+            <CnEmptyState
+              v-if="!moduleProgress.length"
+              title="暂无模块任务"
+              description="生成计划后会按能力模块展示完成情况。"
+              icon="MO"
+              size="sm"
+              surface="transparent"
+            />
             <div v-else class="module-progress-list">
               <div v-for="item in moduleProgress" :key="item.moduleKey" class="module-progress-item">
                 <div class="module-row">
@@ -196,14 +235,17 @@
                 </div>
               </div>
             </div>
-          </article>
+          </CnSection>
 
-          <article class="panel cn-learn-panel">
-            <header class="panel-head">
-              <h3>推荐下一步</h3>
-              <span>系统建议</span>
-            </header>
-            <div v-if="!quickActions.length" class="empty-inline">暂无建议</div>
+          <CnSection title="推荐下一步" description="系统建议" compact divided>
+            <CnEmptyState
+              v-if="!quickActions.length"
+              title="暂无建议"
+              description="任务推进后会根据当前风险给出下一步。"
+              icon="NX"
+              size="sm"
+              surface="transparent"
+            />
             <div v-else class="action-list">
               <div v-for="(item, idx) in quickActions" :key="`${item.title}-${idx}`" class="action-item">
                 <div class="action-order">{{ idx + 1 }}</div>
@@ -214,22 +256,25 @@
                 </div>
               </div>
             </div>
-          </article>
+          </CnSection>
 
-          <article class="panel cn-learn-panel">
-            <header class="panel-head">
-              <h3>事件日志</h3>
-              <span>最近操作</span>
-            </header>
-            <div v-if="!events.length" class="empty-inline">暂无事件</div>
+          <CnSection title="事件日志" description="最近操作" compact divided>
+            <CnEmptyState
+              v-if="!events.length"
+              title="暂无事件"
+              description="生成、重排和完成动作会记录在这里。"
+              icon="EV"
+              size="sm"
+              surface="transparent"
+            />
             <ul v-else class="event-list">
               <li v-for="(event, index) in events" :key="`${event.createTime}-${index}`">
-                <span class="event-type">{{ event.eventLabel }}</span>
+                <CnStatusTag type="brand" size="sm">{{ event.eventLabel || '事件' }}</CnStatusTag>
                 <p>{{ event.detail }}</p>
                 <small>{{ event.createTime }}</small>
               </li>
             </ul>
-          </article>
+          </CnSection>
         </div>
       </section>
 
@@ -242,7 +287,7 @@
               allow-create
               default-first-option
               placeholder="选择或输入岗位"
-              style="width: 100%"
+              class="full-width-control"
             >
               <el-option v-for="item in roleOptions" :key="item" :label="item" :value="item" />
             </el-select>
@@ -259,7 +304,7 @@
               type="date"
               value-format="YYYY-MM-DD"
               placeholder="默认当前周"
-              style="width: 100%"
+              class="full-width-control"
             />
           </el-form-item>
           <el-alert
@@ -277,11 +322,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { MagicStick, Plus, RefreshRight, Refresh, Check } from '@element-plus/icons-vue'
+import { Plus, RefreshRight, Refresh, Check } from '@element-plus/icons-vue'
+import { CnEmptyState, CnPageHeader, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
 import { growthAutopilotApi } from '@/api/growthAutopilot'
 
 const router = useRouter()
@@ -354,25 +400,25 @@ const filteredDayBuckets = computed(() => {
     .filter((bucket) => !filters.onlyToday || bucket.today)
 })
 
-const moduleTagType = (moduleKey) => {
+const moduleTone = (moduleKey) => {
   const map = {
-    oj: 'primary',
+    oj: 'brand',
     interview: 'success',
     flashcard: 'warning',
     plan: 'info',
     mock: 'danger',
-    points: ''
+    points: 'neutral'
   }
   return map[moduleKey] || 'info'
 }
 
-const statusTagType = (status) => {
+const statusTone = (status) => {
   if (status === 'done') return 'success'
   if (status === 'missed') return 'danger'
   return 'info'
 }
 
-const riskTagType = (riskLevel) => {
+const riskTone = (riskLevel) => {
   if (riskLevel === 'high') return 'danger'
   if (riskLevel === 'medium') return 'warning'
   return 'success'
@@ -524,108 +570,51 @@ onMounted(() => {
 
 <style scoped>
 .growth-autopilot-panel {
+  display: grid;
+  gap: var(--cn-space-5);
   width: 100%;
-}
-
-.hero {
-  margin-bottom: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.hero-content h1 {
-  margin: 8px 0;
-  color: #1c3760;
-}
-
-.hero-content p {
-  margin: 0;
-  color: #5b7498;
-}
-
-.hero-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
-  border-radius: 999px;
-  background: rgba(31, 111, 235, 0.1);
-  color: #1f61c4;
-  font-size: 12px;
-}
-
-.hero-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.summary-card {
-  border: 1px solid #dbe8fb;
-  border-radius: 14px;
-  background: linear-gradient(165deg, #ffffff 0%, #f5faff 100%);
-  padding: 14px;
-  box-shadow: 0 12px 24px rgba(25, 66, 124, 0.08);
-}
-
-.summary-label {
-  color: #6f86a8;
-  font-size: 12px;
-}
-
-.summary-value {
-  margin: 6px 0 10px;
-  font-size: 26px;
-  color: #1f5fb4;
-  font-weight: 700;
-}
-
-.summary-value.risk {
-  font-size: 18px;
-}
-
-.summary-value.danger {
-  color: #d14b58;
-}
-
-.summary-desc {
-  margin: 0;
-  color: #637ea5;
-  font-size: 13px;
+  gap: var(--cn-space-3);
 }
 
 .empty-wrap {
-  padding: 20px 0;
+  min-height: 280px;
 }
 
 .filter-wrap {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
-  padding: 10px 12px;
+  gap: var(--cn-space-3);
   flex-wrap: wrap;
 }
 
 .filter-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--cn-space-2);
+}
+
+.module-filter-select {
+  width: 150px;
+}
+
+.status-filter-select {
+  width: 140px;
+}
+
+.full-width-control {
+  width: 100%;
 }
 
 .filter-label {
-  color: #6c83a6;
+  color: var(--cn-color-text-secondary);
   font-size: 12px;
+  font-weight: 700;
 }
 
 .keyword-item {
@@ -640,233 +629,220 @@ onMounted(() => {
 .main-grid {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 12px;
+  gap: var(--cn-space-4);
 }
 
 .main-left,
 .main-right {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-
-.panel {
-  padding: 14px;
-}
-
-.panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-.panel-head h3 {
-  margin: 0;
-  color: #1f3a63;
-}
-
-.panel-head span {
-  color: #7d8faa;
-  font-size: 12px;
+  gap: var(--cn-space-4);
 }
 
 .day-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--cn-space-3);
 }
 
 .day-card {
-  border-radius: 12px;
-  border: 1px solid #dce9fb;
-  background: #f8fbff;
-  padding: 10px;
+  min-width: 0;
   min-height: 180px;
+  padding: var(--cn-space-3);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .day-card.today {
-  border-color: #8bb8ff;
-  box-shadow: inset 0 0 0 1px #b9d4ff;
-  background: linear-gradient(180deg, #f7fbff 0%, #edf5ff 100%);
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 38%, var(--cn-color-border-subtle));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cn-color-brand-primary) 18%, transparent);
+  background: color-mix(in srgb, var(--cn-color-brand-soft) 52%, var(--cn-color-bg-surface));
 }
 
 .day-head {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
+  gap: var(--cn-space-2);
+  margin-bottom: var(--cn-space-3);
 }
 
 .day-head .date {
   font-weight: 700;
-  color: #214674;
+  color: var(--cn-color-text-primary);
 }
 
 .day-head .weekday {
-  color: #6986ad;
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
 }
 
 .day-empty,
 .empty-inline {
-  color: #86a0c2;
+  color: var(--cn-color-text-tertiary);
   font-size: 13px;
 }
 
 .task-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--cn-space-2);
 }
 
 .task-item {
-  border-radius: 10px;
-  background: #fff;
-  border: 1px solid #dce8f9;
-  padding: 8px;
+  min-width: 0;
+  padding: var(--cn-space-3);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-control);
+  background: var(--cn-color-bg-surface);
 }
 
 .task-top {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--cn-space-2);
+  min-width: 0;
 }
 
 .task-item h4 {
-  margin: 6px 0 4px;
+  margin: var(--cn-space-2) 0 var(--cn-space-1);
   font-size: 13px;
-  color: #203d66;
+  color: var(--cn-color-text-primary);
+  line-height: 1.5;
 }
 
 .task-item p {
   margin: 0;
-  color: #637fa4;
+  color: var(--cn-color-text-secondary);
   font-size: 12px;
   line-height: 1.5;
 }
 
 .task-meta {
-  margin-top: 6px;
+  margin-top: var(--cn-space-2);
   display: flex;
-  gap: 8px;
-  color: #6d86a9;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
 }
 
 .task-actions {
-  margin-top: 6px;
+  margin-top: var(--cn-space-2);
   display: flex;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
 }
 
 .module-progress-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--cn-space-3);
 }
 
 .module-progress-item {
-  border: 1px solid #dbe8fb;
-  border-radius: 10px;
-  background: #f8fbff;
-  padding: 10px;
+  padding: var(--cn-space-3);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-control);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .module-row {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
+  gap: var(--cn-space-3);
+  margin-bottom: var(--cn-space-2);
 }
 
 .module-row strong {
-  color: #234268;
+  color: var(--cn-color-text-primary);
 }
 
 .module-row span {
-  color: #6e88aa;
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
 }
 
 .module-action {
-  margin-top: 4px;
+  margin-top: var(--cn-space-1);
 }
 
 .trend-chart {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: var(--cn-space-2);
+  margin-bottom: var(--cn-space-3);
 }
 
 .trend-bar-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: var(--cn-space-1);
+  min-width: 0;
 }
 
 .trend-bar-bg {
   width: 100%;
   height: 90px;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #f4f9ff 0%, #e8f1ff 100%);
-  border: 1px solid #d9e7fb;
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-control);
+  background: var(--cn-color-bg-surface-muted);
   display: flex;
   align-items: flex-end;
-  padding: 4px;
+  padding: var(--cn-space-1);
 }
 
 .trend-bar-value {
   width: 100%;
-  border-radius: 7px;
-  background: linear-gradient(180deg, #2fa4f6 0%, #1f6feb 100%);
-  transition: height 0.3s ease;
+  border-radius: calc(var(--cn-radius-control) - 2px);
+  background: var(--cn-color-brand-primary);
+  transition: height var(--cn-motion-base) var(--cn-ease-out);
 }
 
 .trend-bar-item small {
-  color: #6884aa;
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
 }
 
 .trend-bar-item span {
-  color: #264a73;
+  color: var(--cn-color-text-secondary);
   font-size: 12px;
 }
 
 .status-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: var(--cn-space-2);
+  margin-bottom: var(--cn-space-2);
 }
 
 .score-row {
-  color: #6380a6;
+  color: var(--cn-color-text-secondary);
   font-size: 12px;
 }
 
 .action-list {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: var(--cn-space-3);
 }
 
 .action-item {
   display: flex;
-  gap: 10px;
-  border: 1px solid #dce8fb;
-  border-radius: 10px;
-  background: #f8fbff;
-  padding: 10px;
+  gap: var(--cn-space-3);
+  padding: var(--cn-space-3);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-control);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .action-order {
   width: 26px;
   height: 26px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #1f6feb, #22a0f0);
-  color: #fff;
+  border-radius: var(--cn-radius-control);
+  background: var(--cn-color-brand-primary);
+  color: var(--cn-button-primary-color);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -875,14 +851,14 @@ onMounted(() => {
 }
 
 .action-main h4 {
-  margin: 0 0 4px;
-  color: #204167;
+  margin: 0 0 var(--cn-space-1);
+  color: var(--cn-color-text-primary);
   font-size: 14px;
 }
 
 .action-main p {
   margin: 0;
-  color: #607b9f;
+  color: var(--cn-color-text-secondary);
   font-size: 13px;
   line-height: 1.6;
 }
@@ -893,33 +869,24 @@ onMounted(() => {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--cn-space-2);
 }
 
 .event-list li {
-  border: 1px solid #dce8fb;
-  border-radius: 10px;
-  background: #f8fbff;
-  padding: 10px;
-}
-
-.event-type {
-  display: inline-block;
-  font-size: 12px;
-  border-radius: 999px;
-  padding: 2px 8px;
-  color: #1f63c3;
-  background: #e9f2ff;
+  padding: var(--cn-space-3);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-control);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .event-list p {
-  margin: 6px 0 4px;
-  color: #26486f;
+  margin: var(--cn-space-2) 0 var(--cn-space-1);
+  color: var(--cn-color-text-secondary);
   font-size: 13px;
 }
 
 .event-list small {
-  color: #7a8faa;
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
 }
 
@@ -932,7 +899,7 @@ onMounted(() => {
 }
 
 .slider-wrap span {
-  color: #58779e;
+  color: var(--cn-color-text-secondary);
   font-size: 13px;
 }
 
@@ -951,11 +918,6 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
-  .hero {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
   .filter-wrap {
     flex-direction: column;
     align-items: stretch;

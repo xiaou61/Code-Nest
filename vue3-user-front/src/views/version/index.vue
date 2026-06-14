@@ -1,166 +1,151 @@
 <template>
-  <div class="version-history">
-    <!-- 版本时间轴 -->
-    <div class="timeline-section">
+  <CnPage max-width="1040px" full-height>
+    <CnPageHeader
+      title="版本历史"
+      description="跟踪 Code Nest 的产品更新、功能迭代和修复记录。"
+      eyebrow="CHANGELOG"
+    >
+      <template #meta>
+        <CnStatusTag type="brand" size="sm">已加载 {{ versionList.length }} 条</CnStatusTag>
+        <CnStatusTag type="info" size="sm" subtle>共 {{ pagination.total }} 条</CnStatusTag>
+      </template>
+    </CnPageHeader>
+
+    <CnSection title="更新时间轴" description="按发布时间倒序展示版本记录。" class="timeline-section">
       <div v-if="loading" class="loading-container">
         <el-skeleton :rows="5" animated />
       </div>
-      
-      <div v-else-if="versionList.length === 0" class="empty-container">
-        <el-empty description="暂无版本历史记录" />
-      </div>
-      
+
+      <CnEmptyState
+        v-else-if="versionList.length === 0"
+        title="暂无版本历史记录"
+        description="有公开版本更新后，这里会展示更新内容。"
+        icon="VER"
+      />
+
       <div v-else class="timeline-container">
-        <div 
-          v-for="(version, index) in versionList" 
+        <article
+          v-for="(version, index) in versionList"
           :key="version.id"
           class="timeline-item"
-          :class="{ 'featured': version.isFeatured === 1 }"
+          :class="{ 'is-featured': version.isFeatured === 1 }"
         >
-          <div class="timeline-marker">
-            <div 
-              class="marker-dot" 
-              :class="getUpdateTypeClass(version.updateType)"
-            >
-              <span class="marker-emoji">{{ getUpdateTypeIcon(version.updateType) }}</span>
-            </div>
+          <div class="timeline-marker" :class="`timeline-marker--${getUpdateTypeClass(version.updateType)}`">
+            {{ getUpdateTypeShort(version.updateType) }}
           </div>
-          
+
           <div class="timeline-content">
-            <el-card 
-              class="version-card" 
-              shadow="hover"
-              :body-style="{ padding: '24px' }"
-            >
-              <!-- 版本头部信息 -->
+            <div class="version-card">
               <div class="version-header">
                 <div class="version-info">
-                  <div class="version-number-line">
-                    <el-tag 
-                      type="primary" 
-                      size="large" 
-                      class="version-tag"
-                    >
+                  <div class="version-tags">
+                    <CnStatusTag type="brand" size="lg" :dot="false">
                       {{ version.versionNumber }}
-                    </el-tag>
-                    <el-tag 
-                      v-if="version.isFeatured === 1"
-                      type="warning" 
-                      size="small"
-                      class="featured-tag"
-                    >
-                      💎 重点推荐
-                    </el-tag>
+                    </CnStatusTag>
+                    <CnStatusTag v-if="version.isFeatured === 1" type="warning" size="sm">
+                      重点推荐
+                    </CnStatusTag>
+                    <CnStatusTag :type="getUpdateTypeTone(version.updateType)" size="sm">
+                      {{ version.updateTypeName || getUpdateTypeText(version.updateType) }}
+                    </CnStatusTag>
                   </div>
-                  <h3 class="version-title">{{ version.title }}</h3>
+
+                  <h2 class="version-title">{{ version.title }}</h2>
+
                   <div class="version-meta">
-                    <el-tag 
-                      :type="getUpdateTypeTagType(version.updateType)" 
-                      size="small"
-                      class="type-tag"
-                    >
-                      <span class="type-emoji">{{ getUpdateTypeIcon(version.updateType) }}</span> {{ version.updateTypeName }}
-                    </el-tag>
-                    <span class="release-time">
+                    <span>
                       <el-icon><Calendar /></el-icon>
                       {{ formatReleaseTime(version.releaseTime) }}
                     </span>
-                    <span class="view-count">
+                    <span>
                       <el-icon><View /></el-icon>
                       {{ version.viewCount || 0 }} 次查看
                     </span>
                   </div>
                 </div>
+
+                <span class="version-index">
+                  #{{ pagination.total - (pagination.pageNum - 1) * pagination.pageSize - index }}
+                </span>
               </div>
 
-              <!-- 版本描述 -->
-              <div v-if="version.description" class="version-description">
-                <p>{{ version.description }}</p>
-              </div>
+              <p v-if="version.description" class="version-description">
+                {{ version.description }}
+              </p>
 
-              <!-- 版本操作 -->
               <div class="version-actions">
-                <el-button 
-                  v-if="version.prdUrl" 
-                  type="primary" 
-                  @click="handleViewPrd(version)"
-                  class="action-button"
-                >
-                  <el-icon><Document /></el-icon>
-                  查看PRD详情
+                <el-button v-if="version.prdUrl" type="primary" :icon="Document" @click="handleViewPrd(version)">
+                  查看 PRD 详情
                 </el-button>
-                <el-button 
-                  type="info" 
-                  @click="handleShare(version)"
-                  class="action-button"
-                >
-                  <el-icon><Share /></el-icon>
-                  分享
-                </el-button>
+                <el-button type="info" :icon="Share" @click="handleShare(version)">分享</el-button>
               </div>
-
-              <!-- 版本索引指示器 -->
-              <div class="version-index">
-                #{{ pagination.total - (pagination.pageNum - 1) * pagination.pageSize - index }}
-              </div>
-            </el-card>
+            </div>
           </div>
-        </div>
+        </article>
       </div>
 
-      <!-- 加载更多 -->
       <div v-if="hasMore" class="load-more-container">
-        <el-button 
-          type="primary" 
-          size="large"
-          @click="loadMore"
-          :loading="loadingMore"
-          class="load-more-btn"
-        >
-          📄 加载更多版本
+        <el-button type="primary" size="large" :loading="loadingMore" @click="loadMore">
+          加载更多版本
         </el-button>
       </div>
+    </CnSection>
 
-      <!-- 回到顶部 -->
-      <el-backtop :right="40" :bottom="40" />
-    </div>
-  </div>
+    <el-backtop :right="40" :bottom="40" />
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { 
-  Calendar, View, Document, Share
-} from '@element-plus/icons-vue'
+import { Calendar, Document, Share, View } from '@element-plus/icons-vue'
+import {
+  CnEmptyState,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatusTag,
+  type CnTone
+} from '@/design-system'
 import { versionApi } from '@/api/version'
 
-// 响应式数据
+interface VersionItem {
+  id: number | string
+  versionNumber?: string
+  title?: string
+  updateType?: number
+  updateTypeName?: string
+  releaseTime?: string
+  viewCount?: number
+  description?: string
+  prdUrl?: string
+  isFeatured?: number
+}
+
+interface VersionResponse {
+  records?: VersionItem[]
+  total?: number
+}
+
 const loading = ref(false)
 const loadingMore = ref(false)
-const versionList = ref([])
+const versionList = ref<VersionItem[]>([])
 
-// 分页数据
 const pagination = reactive({
   pageNum: 1,
   pageSize: 10,
   total: 0
 })
 
-
-
-// 计算属性
 const hasMore = computed(() => {
   const totalPages = Math.ceil(pagination.total / pagination.pageSize)
   return pagination.pageNum < totalPages
 })
 
-// 生命周期
 onMounted(() => {
   loadVersionList()
 })
 
-// 加载版本列表
 const loadVersionList = async (isLoadMore = false) => {
   try {
     if (isLoadMore) {
@@ -170,20 +155,18 @@ const loadVersionList = async (isLoadMore = false) => {
       pagination.pageNum = 1
       versionList.value = []
     }
-    
-    const params = {
+
+    const data = (await versionApi.getVersionTimeline({
       pageNum: pagination.pageNum,
       pageSize: pagination.pageSize
-    }
+    })) as VersionResponse
 
-    const data = await versionApi.getVersionTimeline(params)
-    
     if (isLoadMore) {
       versionList.value.push(...(data.records || []))
     } else {
       versionList.value = data.records || []
     }
-    
+
     pagination.total = data.total || 0
   } catch (error) {
     console.error('加载版本列表失败:', error)
@@ -194,26 +177,19 @@ const loadVersionList = async (isLoadMore = false) => {
   }
 }
 
-
-
-// 加载更多
 const loadMore = () => {
-  pagination.pageNum++
+  pagination.pageNum += 1
   loadVersionList(true)
 }
 
-// 查看PRD详情
-const handleViewPrd = (version) => {
-  if (version.prdUrl) {
-    // 记录查看次数
-    versionApi.recordViewCount(version.id).catch(console.error)
-    // 打开PRD链接
-    window.open(version.prdUrl, '_blank')
-  }
+const handleViewPrd = (version: VersionItem) => {
+  if (!version.prdUrl) return
+
+  versionApi.recordViewCount(version.id).catch(console.error)
+  window.open(version.prdUrl, '_blank')
 }
 
-// 分享版本
-const handleShare = async (version) => {
+const handleShare = async (version: VersionItem) => {
   const shareData = {
     title: `${version.versionNumber} - ${version.title}`,
     text: version.description || '查看最新版本更新',
@@ -223,31 +199,29 @@ const handleShare = async (version) => {
   try {
     if (navigator.share) {
       await navigator.share(shareData)
-    } else {
-      // 降级到复制链接
-      await navigator.clipboard.writeText(window.location.href)
-      ElMessage.success('链接已复制到剪贴板')
+      return
     }
+
+    await navigator.clipboard.writeText(window.location.href)
+    ElMessage.success('链接已复制到剪贴板')
   } catch (error) {
     console.error('分享失败:', error)
-    // 尝试复制链接作为备选方案
     try {
       await navigator.clipboard.writeText(window.location.href)
       ElMessage.success('链接已复制到剪贴板')
     } catch (clipboardError) {
+      console.error('复制链接失败:', clipboardError)
       ElMessage.warning('分享功能暂时不可用')
     }
   }
 }
 
-// 格式化发布时间
-const formatReleaseTime = (time) => {
+const formatReleaseTime = (time?: string) => {
   if (!time) return ''
   const date = new Date(time)
   const now = new Date()
-  const diff = now - date
-  
-  // 如果是今天
+  const diff = now.getTime() - date.getTime()
+
   if (diff < 24 * 60 * 60 * 1000) {
     const hours = Math.floor(diff / (60 * 60 * 1000))
     if (hours < 1) {
@@ -256,14 +230,12 @@ const formatReleaseTime = (time) => {
     }
     return `${hours} 小时前`
   }
-  
-  // 如果是一周内
+
   if (diff < 7 * 24 * 60 * 60 * 1000) {
     const days = Math.floor(diff / (24 * 60 * 60 * 1000))
     return `${days} 天前`
   }
-  
-  // 其他情况显示完整日期
+
   return date.toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: 'long',
@@ -271,483 +243,231 @@ const formatReleaseTime = (time) => {
   })
 }
 
-// 获取更新类型图标
-const getUpdateTypeIcon = (type) => {
-  const iconMap = {
-    1: '🚀', // 重大更新
-    2: '✨', // 功能更新  
-    3: '🐛', // 修复更新
-    4: '📋'  // 其他
+const getUpdateTypeShort = (type?: number) => {
+  const map: Record<number, string> = {
+    1: 'MAJ',
+    2: 'FEA',
+    3: 'FIX',
+    4: 'OTH'
   }
-  return iconMap[type] || '📋'
+  return map[type || 4] || 'OTH'
 }
 
-// 获取更新类型CSS类
-const getUpdateTypeClass = (type) => {
-  const classMap = {
-    1: 'major-update',    // 重大更新
-    2: 'feature-update',  // 功能更新
-    3: 'fix-update',      // 修复更新
-    4: 'other-update'     // 其他
+const getUpdateTypeText = (type?: number) => {
+  const map: Record<number, string> = {
+    1: '重大更新',
+    2: '功能更新',
+    3: '修复更新',
+    4: '其他'
   }
-  return classMap[type] || 'other-update'
+  return map[type || 4] || '其他'
 }
 
-// 获取更新类型标签样式
-const getUpdateTypeTagType = (type) => {
-  const tagMap = {
-    1: 'danger',   // 重大更新
-    2: 'primary',  // 功能更新
-    3: 'warning',  // 修复更新
-    4: 'info'      // 其他
+const getUpdateTypeClass = (type?: number) => {
+  const classMap: Record<number, string> = {
+    1: 'major',
+    2: 'feature',
+    3: 'fix',
+    4: 'other'
   }
-  return tagMap[type] || 'info'
+  return classMap[type || 4] || 'other'
+}
+
+const getUpdateTypeTone = (type?: number): CnTone => {
+  if (type === 1) return 'danger'
+  if (type === 2) return 'brand'
+  if (type === 3) return 'warning'
+  return 'info'
 }
 </script>
 
 <style scoped>
-.version-history {
-  padding: 0;
-  background: linear-gradient(135deg, #f5f7fa 0%, #f0f2f5 100%);
-  min-height: 100vh;
-  position: relative;
+.timeline-section {
   overflow: hidden;
 }
 
-.version-history::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: 
-    radial-gradient(circle at 20% 30%, rgba(24, 144, 255, 0.03) 0%, transparent 50%),
-    radial-gradient(circle at 80% 70%, rgba(24, 144, 255, 0.03) 0%, transparent 50%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.version-history > * {
-  position: relative;
-  z-index: 1;
-}
-
-
-
-.timeline-section {
-  padding: 20px 0;
-}
-
-.loading-container,
-.empty-container {
-  padding: 60px 20px;
+.loading-container {
+  padding: var(--cn-space-6);
 }
 
 .timeline-container {
   position: relative;
-  padding: 60px 20px;
-  max-width: 1000px;
-  margin: 0 auto;
-  padding-left: 60px;
-  opacity: 1;
-  animation: container-fade-in 1.2s ease-out 0.3s both;
-}
-
-@keyframes container-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  display: grid;
+  gap: var(--cn-space-5);
+  padding-left: 54px;
 }
 
 .timeline-container::before {
   content: '';
   position: absolute;
-  left: 35px;
-  top: 60px;
-  bottom: 60px;
-  width: 4px;
-  background: linear-gradient(180deg, 
-    transparent 0%, 
-    #e6f7ff 8%, 
-    #1890ff 20%, 
-    #40a9ff 50%, 
-    #1890ff 80%, 
-    #e6f7ff 92%, 
-    transparent 100%
-  );
-  border-radius: 3px;
-  box-shadow: 
-    0 0 15px rgba(24, 144, 255, 0.4),
-    inset 0 0 3px rgba(255, 255, 255, 0.5);
+  top: var(--cn-space-2);
+  bottom: var(--cn-space-2);
+  left: 19px;
+  width: 2px;
+  border-radius: var(--cn-radius-pill);
+  background: var(--cn-color-border);
 }
 
 .timeline-item {
   position: relative;
-  margin-bottom: 40px;
-  display: flex;
-  align-items: flex-start;
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.timeline-item.featured .version-card {
-  border: 2px solid #faad14;
-  background: linear-gradient(145deg, #fff7e6 0%, #ffffff 100%);
+  min-width: 0;
 }
 
 .timeline-marker {
   position: absolute;
-  left: -52px;
-  z-index: 2;
-}
-
-.marker-dot {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
+  top: var(--cn-space-4);
+  left: -54px;
+  z-index: 1;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: 14px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
+  width: 38px;
+  height: 38px;
+  border: 2px solid var(--cn-color-bg-surface);
+  border-radius: var(--cn-radius-panel);
+  color: var(--cn-color-bg-surface);
+  font-size: 11px;
+  font-weight: 800;
+  box-shadow: var(--cn-shadow-sm);
 }
 
-.marker-dot::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
-  border-radius: 50%;
-  transform: scale(0);
-  transition: transform 0.3s ease;
+.timeline-marker--major {
+  background: var(--cn-color-danger);
 }
 
-.marker-dot:hover::before {
-  transform: scale(1);
+.timeline-marker--feature {
+  background: var(--cn-color-brand-primary);
 }
 
-.marker-emoji {
-  font-size: 16px;
-  line-height: 1;
+.timeline-marker--fix {
+  background: var(--cn-color-warning);
 }
 
-.marker-dot.major-update {
-  background: linear-gradient(135deg, #ff6b6b, #ee5a52);
-}
-
-.marker-dot.feature-update {
-  background: linear-gradient(135deg, #4ecdc4, #44a08d);
-}
-
-.marker-dot.fix-update {
-  background: linear-gradient(135deg, #feca57, #ff9ff3);
-}
-
-.marker-dot.other-update {
-  background: linear-gradient(135deg, #a8e6cf, #88d8c0);
-}
-
-.timeline-content {
-  flex: 1;
-  margin-left: 20px;
+.timeline-marker--other {
+  background: var(--cn-color-info);
 }
 
 .version-card {
   position: relative;
-  transition: all 0.3s ease;
-  border-radius: 16px;
-  overflow: hidden;
+  display: grid;
+  gap: var(--cn-space-4);
+  min-width: 0;
+  padding: var(--cn-space-5);
+  border: 1px solid var(--cn-card-border);
+  border-radius: var(--cn-radius-panel);
+  background: var(--cn-card-bg);
+  box-shadow: var(--cn-card-shadow);
+  transition:
+    transform var(--cn-motion-fast) var(--cn-ease-out),
+    border-color var(--cn-motion-fast) var(--cn-ease-out),
+    box-shadow var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .version-card:hover {
-  transform: translateY(-8px) scale(1.02);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-  z-index: 2;
+  transform: translateY(-2px);
+  box-shadow: var(--cn-shadow-sm);
 }
 
-.version-card:hover .marker-dot {
-  transform: scale(1.3);
-  animation: none;
-  box-shadow: 0 0 0 8px rgba(24, 144, 255, 0.2);
+.timeline-item.is-featured .version-card {
+  border-color: color-mix(in srgb, var(--cn-color-warning) 44%, var(--cn-card-border));
+  background: color-mix(in srgb, var(--cn-card-bg) 84%, var(--cn-color-warning-soft));
 }
 
 .version-header {
-  margin-bottom: 16px;
-}
-
-.version-number-line {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cn-space-4);
 }
 
-.version-tag {
-  font-size: 16px;
-  font-weight: 600;
-  padding: 8px 16px;
+.version-info {
+  min-width: 0;
 }
 
-.featured-tag {
-  animation: shimmer 2s infinite;
-}
-
-@keyframes shimmer {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+.version-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
 }
 
 .version-title {
-  font-size: 1.5rem;
-  margin: 0 0 12px 0;
-  font-weight: 600;
-  color: #2c3e50;
-  line-height: 1.4;
+  margin: var(--cn-space-3) 0 0;
+  color: var(--cn-color-text-primary);
+  font-size: 22px;
+  font-weight: 750;
+  line-height: 1.35;
 }
 
 .version-meta {
   display: flex;
-  align-items: center;
-  gap: 16px;
   flex-wrap: wrap;
+  gap: var(--cn-space-4);
+  margin-top: var(--cn-space-3);
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
 }
 
-.type-tag {
-  font-weight: 500;
-}
-
-.type-emoji {
-  font-size: 12px;
-  margin-right: 4px;
-}
-
-.release-time,
-.view-count {
-  display: flex;
+.version-meta span {
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  color: #666;
-  font-size: 14px;
+  gap: 5px;
+}
+
+.version-index {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border-radius: var(--cn-radius-pill);
+  background: var(--cn-color-bg-surface-muted);
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .version-description {
-  margin: 20px 0;
-  padding: 16px;
-  background: #f8fafc;
-  border-radius: 12px;
-  border-left: 4px solid #1890ff;
-}
-
-.version-description p {
   margin: 0;
-  color: #555;
-  line-height: 1.6;
-  font-size: 15px;
+  padding: var(--cn-space-4);
+  border-left: 3px solid var(--cn-color-brand-primary);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
+  color: var(--cn-color-text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
 }
 
 .version-actions {
   display: flex;
-  gap: 12px;
-  margin-top: 20px;
   flex-wrap: wrap;
-}
-
-.action-button {
-  border-radius: 8px;
-  font-weight: 500;
-}
-
-.version-index {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background: rgba(0, 0, 0, 0.05);
-  color: #666;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
+  gap: var(--cn-space-2);
 }
 
 .load-more-container {
-  text-align: center;
-  margin: 40px 0;
-  padding: 20px;
+  display: flex;
+  justify-content: center;
+  margin-top: var(--cn-space-6);
 }
 
-.load-more-btn {
-  padding: 16px 32px;
-  font-size: 16px;
-  border-radius: 50px;
-  box-shadow: 0 4px 15px rgba(24, 144, 255, 0.3);
-}
-
-/* 滚动动画效果 */
-@keyframes timeline-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(50px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes line-draw {
-  from {
-    height: 0;
-  }
-  to {
-    height: 100%;
-  }
-}
-
-@keyframes marker-pulse {
-  from {
-    transform: scale(0.8);
-    opacity: 0.8;
-  }
-  to {
-    transform: scale(1.1);
-    opacity: 1;
-  }
-}
-
-@keyframes card-float {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-5px);
-  }
-}
-
-/* 支持现代浏览器的动画 */
-@supports (animation-timeline: view()) {
-  @media (prefers-reduced-motion: no-preference) {
-    .timeline-item {
-      opacity: 1;
-      animation: timeline-fade-in linear;
-      animation-timeline: view();
-      animation-range: entry 0% entry 70%;
-    }
-    
-    .marker-dot {
-      animation: marker-pulse ease-in-out;
-      animation-timeline: view();
-      animation-range: entry 0% entry 50%;
-    }
-  }
-  
-  @media (prefers-reduced-motion: reduce) {
-    .timeline-item {
-      opacity: 1;
-      transform: none;
-      animation: none;
-    }
-    
-    .marker-dot {
-      animation: none;
-    }
-    
-    .timeline-container {
-      animation: none;
-      opacity: 1;
-    }
-  }
-}
-
-/* 降级方案：不支持view()的浏览器 */
-@supports not (animation-timeline: view()) {
-  .timeline-item {
-    opacity: 1;
-    transform: none;
-    animation: none;
-  }
-  
-  .timeline-item:nth-child(even) {
-    animation: timeline-fade-in 0.8s ease-out 0.1s both;
-  }
-  
-  .timeline-item:nth-child(odd) {
-    animation: timeline-fade-in 0.8s ease-out 0.3s both;
-  }
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .version-history {
-    padding: 0;
-  }
-  
+@media (max-width: 640px) {
   .timeline-container {
-    padding: 40px 15px;
-    padding-left: 45px;
+    padding-left: 42px;
   }
-  
-  .timeline-container::before {
-    left: 20px;
-    width: 3px;
-  }
-  
-  .timeline-marker {
-    left: -37px;
-  }
-  
-  .marker-dot {
-    width: 24px;
-    height: 24px;
-    font-size: 12px;
-  }
-  
-  .timeline-content {
-    margin-left: 15px;
-  }
-  
-  .version-meta {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  
-  .version-actions {
-    flex-direction: column;
-  }
-  
-  .action-button {
-    width: 100%;
-    justify-content: center;
-  }
-}
 
-@media (max-width: 480px) {
-  .version-number-line {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
+  .timeline-container::before {
+    left: 15px;
   }
-  
-  .timeline-item {
-    opacity: 1;
-    transform: none;
+
+  .timeline-marker {
+    left: -42px;
+    width: 30px;
+    height: 30px;
+    font-size: 10px;
   }
-  
-  .version-card:hover {
-    transform: translateY(-4px) scale(1.01);
+
+  .version-header {
+    display: grid;
+  }
+
+  .version-index {
+    width: fit-content;
   }
 }
-</style> 
+</style>

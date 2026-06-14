@@ -6,45 +6,10 @@
     </div>
     
     <div class="stats-grid">
-      <div class="stat-card today">
-        <div class="stat-icon">
-          <el-icon><Calendar /></el-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-value">{{ stats?.todayLearnedCount || 0 }}</div>
-          <div class="stat-label">今日已学</div>
-        </div>
-      </div>
-      
-      <div class="stat-card due">
-        <div class="stat-icon">
-          <el-icon><Clock /></el-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-value">{{ stats?.todayDueCount || 0 }}</div>
-          <div class="stat-label">待复习</div>
-        </div>
-      </div>
-      
-      <div class="stat-card new">
-        <div class="stat-icon">
-          <el-icon><Plus /></el-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-value">{{ stats?.todayNewCount || 0 }}</div>
-          <div class="stat-label">新卡片</div>
-        </div>
-      </div>
-      
-      <div class="stat-card streak">
-        <div class="stat-icon">
-          <el-icon><TrendCharts /></el-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-value">{{ stats?.streakDays || 0 }}</div>
-          <div class="stat-label">连续天数</div>
-        </div>
-      </div>
+      <CnStatCard title="今日已学" :value="stats?.todayLearnedCount || 0" tone="brand" />
+      <CnStatCard title="待复习" :value="stats?.todayDueCount || 0" tone="warning" />
+      <CnStatCard title="新卡片" :value="stats?.todayNewCount || 0" tone="success" />
+      <CnStatCard title="连续天数" :value="stats?.streakDays || 0" tone="danger" />
     </div>
     
     <div class="mastery-section" v-if="stats">
@@ -52,21 +17,21 @@
       <div class="mastery-bar">
         <div 
           class="mastery-segment mastered" 
-          :style="{ width: masteredPercent + '%' }"
+          :style="{ '--mastery-size': masteredPercent + '%' }"
           v-if="masteredPercent > 0"
         >
           <span v-if="masteredPercent > 15">{{ stats.masteredCount }}</span>
         </div>
         <div 
           class="mastery-segment learning" 
-          :style="{ width: learningPercent + '%' }"
+          :style="{ '--mastery-size': learningPercent + '%' }"
           v-if="learningPercent > 0"
         >
           <span v-if="learningPercent > 15">{{ stats.learningCount }}</span>
         </div>
         <div 
           class="mastery-segment new" 
-          :style="{ width: newPercent + '%' }"
+          :style="{ '--mastery-size': newPercent + '%' }"
           v-if="newPercent > 0"
         >
           <span v-if="newPercent > 15">{{ stats.newCount }}</span>
@@ -90,16 +55,24 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
-import { DataLine, Calendar, Clock, Plus, TrendCharts } from '@element-plus/icons-vue'
+import { DataLine } from '@element-plus/icons-vue'
+import { CnStatCard } from '@/design-system'
 
-const props = defineProps({
-  stats: {
-    type: Object,
-    default: null
-  }
-})
+interface StudyStatsData {
+  todayLearnedCount?: number
+  todayDueCount?: number
+  todayNewCount?: number
+  streakDays?: number
+  masteredCount?: number
+  learningCount?: number
+  newCount?: number
+}
+
+const props = defineProps<{
+  stats?: StudyStatsData | null
+}>()
 
 const total = computed(() => {
   if (!props.stats) return 0
@@ -126,139 +99,66 @@ const newPercent = computed(() => {
 
 <style lang="scss" scoped>
 .study-stats {
-  background: var(--el-bg-color);
-  border-radius: 12px;
-  padding: 20px;
-  border: 1px solid var(--el-border-color-light);
+  background: var(--cn-color-bg-surface);
+  border-radius: var(--cn-radius-panel);
+  padding: var(--cn-space-5);
+  border: 1px solid var(--cn-color-border-subtle);
+  box-shadow: var(--cn-shadow-card);
 }
 
 .stats-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cn-space-2);
   font-size: 16px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
-  margin-bottom: 16px;
+  color: var(--cn-color-text-primary);
+  margin-bottom: var(--cn-space-4);
 }
 
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  
-  .stat-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-  }
-  
-  .stat-content {
-    .stat-value {
-      font-size: 20px;
-      font-weight: 700;
-      line-height: 1.2;
-    }
-    
-    .stat-label {
-      font-size: 12px;
-      color: var(--el-text-color-secondary);
-    }
-  }
-  
-  &.today {
-    background: linear-gradient(135deg, rgba(64, 158, 255, 0.1) 0%, rgba(64, 158, 255, 0.05) 100%);
-    .stat-icon {
-      background: rgba(64, 158, 255, 0.2);
-      color: var(--el-color-primary);
-    }
-    .stat-value {
-      color: var(--el-color-primary);
-    }
-  }
-  
-  &.due {
-    background: linear-gradient(135deg, rgba(230, 162, 60, 0.1) 0%, rgba(230, 162, 60, 0.05) 100%);
-    .stat-icon {
-      background: rgba(230, 162, 60, 0.2);
-      color: var(--el-color-warning);
-    }
-    .stat-value {
-      color: var(--el-color-warning);
-    }
-  }
-  
-  &.new {
-    background: linear-gradient(135deg, rgba(103, 194, 58, 0.1) 0%, rgba(103, 194, 58, 0.05) 100%);
-    .stat-icon {
-      background: rgba(103, 194, 58, 0.2);
-      color: var(--el-color-success);
-    }
-    .stat-value {
-      color: var(--el-color-success);
-    }
-  }
-  
-  &.streak {
-    background: linear-gradient(135deg, rgba(245, 108, 108, 0.1) 0%, rgba(245, 108, 108, 0.05) 100%);
-    .stat-icon {
-      background: rgba(245, 108, 108, 0.2);
-      color: var(--el-color-danger);
-    }
-    .stat-value {
-      color: var(--el-color-danger);
-    }
-  }
+  gap: var(--cn-space-3);
+  margin-bottom: var(--cn-space-5);
 }
 
 .mastery-section {
   .section-title {
     font-size: 14px;
     font-weight: 500;
-    color: var(--el-text-color-primary);
-    margin-bottom: 12px;
+    color: var(--cn-color-text-primary);
+    margin-bottom: var(--cn-space-3);
   }
 }
 
 .mastery-bar {
   display: flex;
   height: 24px;
-  border-radius: 12px;
+  border-radius: var(--cn-radius-pill);
   overflow: hidden;
-  background: var(--el-fill-color-light);
+  background: var(--cn-color-bg-surface-muted);
   
   .mastery-segment {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
+    width: var(--mastery-size);
+    color: var(--cn-button-primary-color);
     font-size: 12px;
     font-weight: 500;
-    transition: width 0.3s ease;
+    transition: width var(--cn-motion-base) var(--cn-ease-out);
     
     &.mastered {
-      background: #67c23a;
+      background: var(--cn-color-success);
     }
     
     &.learning {
-      background: #e6a23c;
+      background: var(--cn-color-warning);
     }
     
     &.new {
-      background: #909399;
+      background: var(--cn-color-text-tertiary);
     }
   }
 }
@@ -266,15 +166,15 @@ const newPercent = computed(() => {
 .mastery-legend {
   display: flex;
   justify-content: center;
-  gap: 20px;
-  margin-top: 12px;
+  gap: var(--cn-space-5);
+  margin-top: var(--cn-space-3);
   
   .legend-item {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--cn-space-2);
     font-size: 12px;
-    color: var(--el-text-color-secondary);
+    color: var(--cn-color-text-secondary);
     
     .dot {
       width: 8px;
@@ -282,17 +182,35 @@ const newPercent = computed(() => {
       border-radius: 50%;
       
       &.mastered {
-        background: #67c23a;
+        background: var(--cn-color-success);
       }
       
       &.learning {
-        background: #e6a23c;
+        background: var(--cn-color-warning);
       }
       
       &.new {
-        background: #909399;
+        background: var(--cn-color-text-tertiary);
       }
     }
+  }
+}
+
+@media (max-width: 640px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mastery-legend {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: var(--cn-space-3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mastery-segment {
+    transition: none;
   }
 }
 </style>

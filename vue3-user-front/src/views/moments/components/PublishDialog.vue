@@ -30,7 +30,10 @@
       <!-- 图片上传 -->
       <el-form-item>
         <div class="upload-section">
-          <div class="upload-title">添加图片</div>
+          <div class="upload-title-row">
+            <div class="upload-title">添加图片</div>
+            <CnStatusTag type="info" size="sm">{{ form.images.length }} / 9</CnStatusTag>
+          </div>
           <div class="image-upload-grid">
             <!-- 已上传的图片 -->
             <div 
@@ -91,42 +94,56 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
+import { CnStatusTag } from '@/design-system'
 import { publishMoment } from '@/api/moment'
 import { uploadSingle } from '@/api/upload'
 import EmojiPicker from '@/components/EmojiPicker.vue'
 
-const props = defineProps({
-  modelValue: {
-    type: Boolean,
-    default: false
-  }
+interface DraftData {
+  content?: string
+  images?: string[]
+  timestamp: number
+}
+
+interface UploadResult {
+  accessUrl: string
+}
+
+const props = withDefaults(defineProps<{
+  modelValue?: boolean
+}>(), {
+  modelValue: false
 })
 
-const emit = defineEmits(['update:modelValue', 'published'])
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: boolean): void
+  (e: 'published'): void
+}>()
 
 // 响应式数据
-const formRef = ref(null)
-const fileInputRef = ref(null)
-const textareaRef = ref(null)
+const formRef = ref<FormInstance | null>(null)
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const textareaRef = ref()
 const publishing = ref(false)
 
 // 表单数据
 const form = reactive({
   content: '',
-  images: []
+  images: [] as string[]
 })
 
 // 草稿保存Key
 const DRAFT_KEY = 'moment_publish_draft'
 // 自动保存定时器
-let autoSaveTimer = null
+let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
 
 // 表单验证规则
-const rules = {
+const rules: FormRules = {
   content: [
     { required: true, message: '请输入动态内容', trigger: 'blur' },
     { min: 1, max: 100, message: '内容长度应在1-100字符之间', trigger: 'blur' }
@@ -185,19 +202,20 @@ const resetForm = () => {
 }
 
 // Element Plus的before-close处理函数
-const handleBeforeClose = (done) => {
+const handleBeforeClose = (done: () => void) => {
   publishing.value = false // 重置发布状态
   done() // 调用done()才能真正关闭弹窗
 }
 
 // 触发文件选择
 const triggerUpload = () => {
-  fileInputRef.value.click()
+  fileInputRef.value?.click()
 }
 
 // 处理文件选择
-const handleFileSelect = async (event) => {
-  const files = Array.from(event.target.files)
+const handleFileSelect = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const files = Array.from(target.files || [])
   if (!files.length) return
 
   // 检查文件数量限制
@@ -208,7 +226,7 @@ const handleFileSelect = async (event) => {
   }
 
   // 检查文件类型和大小
-  const validFiles = []
+  const validFiles: File[] = []
   for (const file of files) {
     if (!file.type.startsWith('image/')) {
       ElMessage.warning(`文件 ${file.name} 不是图片格式`)
@@ -230,7 +248,7 @@ const handleFileSelect = async (event) => {
     )
     
     ElMessage.info('正在上传图片...')
-    const results = await Promise.all(uploadPromises)
+    const results = await Promise.all(uploadPromises) as UploadResult[]
     
     // 添加到图片列表
     const newImages = results.map(result => result.accessUrl)
@@ -238,15 +256,15 @@ const handleFileSelect = async (event) => {
     
     ElMessage.success(`成功上传 ${validFiles.length} 张图片`)
   } catch (error) {
-    ElMessage.error('图片上传失败：' + error.message)
+    ElMessage.error('图片上传失败：' + (error instanceof Error ? error.message : '请稍后重试'))
   }
 
   // 清空文件选择器
-  event.target.value = ''
+  target.value = ''
 }
 
 // 删除图片
-const removeImage = (index) => {
+const removeImage = (index: number) => {
   form.images.splice(index, 1)
 }
 
@@ -272,14 +290,14 @@ const handlePublish = async () => {
     emit('published')
     visible.value = false
   } catch (error) {
-    ElMessage.error('发布失败：' + (error.message || '未知错误'))
+    ElMessage.error('发布失败：' + (error instanceof Error ? error.message : '未知错误'))
   } finally {
     publishing.value = false
   }
 }
 
 // 插入表情
-const insertEmoji = (emoji) => {
+const insertEmoji = (emoji: string) => {
   const textarea = textareaRef.value?.$refs?.textarea
   if (textarea) {
     const start = textarea.selectionStart
@@ -328,7 +346,7 @@ const saveDraft = () => {
 }
 
 // 加载草稿
-const loadDraft = () => {
+const loadDraft = (): DraftData | null => {
   try {
     const draftStr = localStorage.getItem(DRAFT_KEY)
     if (!draftStr) return null
@@ -354,85 +372,79 @@ const clearDraft = () => {
 </script>
 
 <style scoped>
-/* 对话框装饰 */
 :deep(.el-dialog) {
-  border-radius: 16px;
+  border-radius: var(--cn-radius-panel);
   overflow: hidden;
+  background: var(--cn-color-bg-surface);
 }
 
 :deep(.el-dialog__header) {
-  background: linear-gradient(135deg, #f0f4ff 0%, #f5f0ff 50%, #fff5f7 100%);
-  border-bottom: 1px solid #e3edfa;
-  padding: 16px 20px;
+  background: var(--cn-color-bg-surface-muted);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
+  padding: var(--cn-space-4) var(--cn-space-5);
   margin: 0;
 }
 
 :deep(.el-dialog__title) {
   font-weight: 700;
-  color: var(--cn-text-primary, #1a2233);
+  color: var(--cn-color-text-primary);
 }
 
 :deep(.el-dialog__body) {
-  padding: 16px 20px;
+  padding: var(--cn-space-4) var(--cn-space-5);
 }
 
 :deep(.el-dialog__footer) {
-  padding: 12px 20px 16px;
-  border-top: 1px solid #e8eef8;
+  padding: var(--cn-space-3) var(--cn-space-5) var(--cn-space-4);
+  border-top: 1px solid var(--cn-color-border-subtle);
 }
 
-/* textarea 美化 */
 :deep(.el-textarea__inner) {
-  border-radius: 10px;
-  border-color: #d7e4f8;
-  transition: all 0.25s;
+  border-radius: var(--cn-radius-control);
+  border-color: var(--cn-color-border);
+  transition:
+    border-color var(--cn-motion-fast) var(--cn-ease-out),
+    box-shadow var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 :deep(.el-textarea__inner:focus) {
-  border-color: #6c63ff;
-  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.1);
-}
-
-/* 发布按钮 */
-:deep(.el-button--primary) {
-  background: linear-gradient(135deg, #6c63ff 0%, #4f46e5 100%);
-  border: none;
-  border-radius: 10px;
-  font-weight: 600;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
-  transition: all 0.3s;
-}
-
-:deep(.el-button--primary:hover) {
-  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35);
-  transform: translateY(-1px);
+  border-color: var(--cn-color-brand-primary);
+  box-shadow: 0 0 0 3px var(--cn-color-focus-ring);
 }
 
 .upload-section {
-  margin-top: 10px;
+  margin-top: var(--cn-space-3);
+  width: 100%;
+}
+
+.upload-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cn-space-3);
+  margin-bottom: var(--cn-space-3);
 }
 
 .upload-title {
   font-size: 14px;
-  color: var(--cn-text-primary, #1a2233);
+  color: var(--cn-color-text-primary);
   font-weight: 600;
-  margin-bottom: 10px;
 }
 
 .image-upload-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, 100px);
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: var(--cn-space-3);
+  margin-bottom: var(--cn-space-3);
 }
 
 .image-item {
   position: relative;
   width: 100px;
   height: 100px;
-  border-radius: 10px;
+  border-radius: var(--cn-radius-card);
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(18, 38, 63, 0.08);
+  box-shadow: var(--cn-shadow-xs);
 }
 
 .uploaded-image {
@@ -446,13 +458,13 @@ const clearDraft = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: color-mix(in srgb, var(--cn-color-text-primary) 58%, transparent);
   backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.25s;
+  transition: opacity var(--cn-motion-fast) var(--cn-ease-out);
 }
 
 .image-item:hover .image-overlay {
@@ -462,41 +474,52 @@ const clearDraft = () => {
 .upload-item {
   width: 100px;
   height: 100px;
-  border: 2px dashed #c2d8f5;
-  border-radius: 10px;
+  border: 2px dashed var(--cn-color-border);
+  border-radius: var(--cn-radius-card);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.25s;
-  background: #f8fbff;
+  transition:
+    border-color var(--cn-motion-fast) var(--cn-ease-out),
+    background-color var(--cn-motion-fast) var(--cn-ease-out),
+    box-shadow var(--cn-motion-fast) var(--cn-ease-out);
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .upload-item:hover {
-  border-color: #6c63ff;
-  background: #f5f3ff;
-  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.08);
+  border-color: var(--cn-color-brand-primary);
+  background: var(--cn-color-brand-soft);
+  box-shadow: 0 0 0 3px var(--cn-color-focus-ring);
 }
 
 .upload-icon {
   font-size: 24px;
-  color: #6a82ae;
-  margin-bottom: 5px;
+  color: var(--cn-color-text-secondary);
+  margin-bottom: var(--cn-space-1);
 }
 
 .upload-text {
   font-size: 12px;
-  color: #6a82ae;
+  color: var(--cn-color-text-secondary);
 }
 
 .upload-tips {
   font-size: 12px;
-  color: #8ea0bd;
+  color: var(--cn-color-text-tertiary);
   line-height: 1.5;
 }
 
 .toolbar {
-  margin-bottom: 10px;
+  margin-bottom: var(--cn-space-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :deep(.el-textarea__inner),
+  .image-overlay,
+  .upload-item {
+    transition: none;
+  }
 }
 </style>

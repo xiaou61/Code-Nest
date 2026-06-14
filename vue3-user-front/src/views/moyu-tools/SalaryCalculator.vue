@@ -1,331 +1,355 @@
 <template>
-  <div class="salary-calculator">
-    <!-- 头部标题区域 -->
-    <div class="page-header">
-      <div class="header-content">
-        <div class="title-section">
-          <h1 class="main-title">
-            <el-icon class="title-icon"><Money /></el-icon>
-            打工人时薪计算器
-          </h1>
-          <p class="subtitle">实时计算工作收入，让每分钟的努力都有意义</p>
-        </div>
-      </div>
-    </div>
+  <CnPage class="salary-calculator-page" max-width="1280px" full-height>
+    <CnPageHeader
+      title="打工人时薪计算器"
+      description="配置薪资和工作节奏后，实时记录今日收入、工作时长和周期统计。"
+      eyebrow="MOYU TOOL"
+      :breadcrumbs="[{ label: '摸鱼工具箱', to: '/moyu-tools' }, { label: '时薪计算器' }]"
+    >
+      <template #meta>
+        <CnStatusTag :type="hasConfig ? getWorkStatusTone(calculatorData.workStatus) : 'info'" size="sm">
+          {{ hasConfig ? getWorkStatusText() : '未配置' }}
+        </CnStatusTag>
+        <CnStatusTag v-if="hasConfig" type="success" size="sm" subtle>
+          时薪 ¥{{ formatNumber(calculatorData.hourlyRate) }}
+        </CnStatusTag>
+        <CnStatusTag v-if="calculatorData.todayStartTime" type="neutral" size="sm" subtle>
+          {{ formatDateTime(calculatorData.todayStartTime) }} 开始
+        </CnStatusTag>
+      </template>
 
-    <!-- 主要内容区域 -->
-    <div class="content-section">
-      <div class="content-container">
-        <!-- 薪资配置提示 -->
-        <div v-if="!hasConfig" class="config-prompt">
-          <div class="prompt-card">
-            <div class="prompt-icon">
-              <el-icon><Setting /></el-icon>
+      <template #actions>
+        <el-button :icon="ArrowLeft" @click="goBack">返回工具箱</el-button>
+        <el-button v-if="hasConfig" type="primary" :icon="Edit" @click="openConfigDialog">
+          编辑薪资
+        </el-button>
+      </template>
+    </CnPageHeader>
+
+    <CnSection v-if="loading" title="正在加载" description="正在读取薪资配置和今日工作记录。" divided>
+      <el-skeleton :rows="8" animated />
+    </CnSection>
+
+    <CnSection v-else-if="!hasConfig" class="config-section" surface="panel">
+      <CnEmptyState
+        title="首次使用需要配置薪资信息"
+        description="请先配置月薪、每月工作天数和每日工作小时，以便准确计算实时收入。"
+        icon="PAY"
+        size="lg"
+        surface="transparent"
+      >
+        <template #actions>
+          <el-button type="primary" size="large" :icon="Plus" @click="openConfigDialog">
+            立即配置
+          </el-button>
+        </template>
+      </CnEmptyState>
+    </CnSection>
+
+    <template v-else>
+      <section class="stats-grid" aria-label="薪资概览">
+        <CnStatCard
+          title="月薪"
+          :value="`¥${formatNumber(calculatorData.monthlySalary)}`"
+          description="当前薪资配置"
+          tone="brand"
+          trend="flat"
+          trend-text="配置"
+        />
+        <CnStatCard
+          title="时薪"
+          :value="`¥${formatNumber(calculatorData.hourlyRate)}`"
+          description="按工作天数和小时折算"
+          tone="success"
+          trend="flat"
+          trend-text="实时"
+        />
+        <CnStatCard
+          title="今日收入"
+          :value="`¥${formatNumber(displayEarnings)}`"
+          :description="`已工作 ${formatNumber(displayWorkHours)} 小时`"
+          :tone="getWorkStatusTone(calculatorData.workStatus)"
+          trend="flat"
+          :trend-text="getWorkStatusText()"
+        />
+        <CnStatCard
+          title="今日进度"
+          :value="`${formatNumber(workProgress)}%`"
+          :description="`目标 ${formatNumber(calculatorData.workHoursPerDay)} 小时`"
+          tone="info"
+          trend="flat"
+          trend-text="工时"
+        />
+      </section>
+
+      <CnSection title="今日工作控制" description="开始、暂停、恢复或结束今日工作，收入会按时薪实时累计。" divided>
+        <div class="work-console">
+          <div class="work-live">
+            <div class="work-live__header">
+              <div class="work-live__title">
+                <el-icon><Timer /></el-icon>
+                <span>实时收入</span>
+              </div>
+              <CnStatusTag :type="getWorkStatusTone(calculatorData.workStatus)" size="sm">
+                {{ getWorkStatusText() }}
+              </CnStatusTag>
             </div>
-            <div class="prompt-content">
-              <h3>首次使用需要配置薪资信息</h3>
-              <p>请先配置您的月薪和工作时间，以便准确计算收入</p>
-              <el-button type="primary" size="large" @click="showConfigDialog = true">
-                <el-icon><Plus /></el-icon>
-                立即配置
+
+            <div class="live-earning" :class="{ 'is-running': calculatorData.workStatus === 1 }">
+              ¥{{ formatNumber(displayEarnings) }}
+            </div>
+            <div class="live-subtitle">
+              已工作 {{ formatNumber(displayWorkHours) }} 小时
+              <span v-if="calculatorData.todayStartTime"> · 开始于 {{ formatDateTime(calculatorData.todayStartTime) }}</span>
+            </div>
+
+            <div class="progress-track" aria-hidden="true">
+              <span class="progress-fill" :style="{ '--progress-size': `${workProgress}%` }" />
+            </div>
+
+            <div v-if="calculatorData.workStatus === 1" class="work-tip is-running">
+              <el-icon class="spinning"><Timer /></el-icon>
+              实时计算中...
+            </div>
+            <div v-else-if="calculatorData.workStatus === 2" class="work-tip is-paused">
+              <el-icon><VideoPause /></el-icon>
+              工作暂停中
+            </div>
+          </div>
+
+          <div class="work-actions">
+            <div class="work-actions__title">工作操作</div>
+
+            <el-button
+              v-if="calculatorData.workStatus === 0"
+              type="success"
+              size="large"
+              :icon="VideoPlay"
+              :loading="actionLoading"
+              @click="startWork"
+            >
+              开始工作
+            </el-button>
+
+            <div v-else-if="calculatorData.workStatus === 1" class="button-stack">
+              <el-button
+                type="warning"
+                size="large"
+                :icon="VideoPause"
+                :loading="actionLoading"
+                @click="pauseWork"
+              >
+                暂停工作
+              </el-button>
+              <el-button
+                type="danger"
+                size="large"
+                :icon="SwitchButton"
+                :loading="actionLoading"
+                @click="endWork"
+              >
+                结束工作
               </el-button>
             </div>
-          </div>
-        </div>
 
-        <!-- 计算器主界面 -->
-        <div v-else class="calculator-dashboard">
-          <!-- 顶部统计卡片 -->
-          <div class="stats-grid">
-            <!-- 基础薪资信息 -->
-            <div class="stat-card salary-info">
-              <div class="card-header">
-                <div class="card-title">
-                  <el-icon><CreditCard /></el-icon>
-                  薪资信息
-                </div>
-                <el-button text @click="showConfigDialog = true">
-                  <el-icon><Edit /></el-icon>
-                  编辑
-                </el-button>
-              </div>
-              <div class="card-content">
-                <div class="salary-display">
-                  <div class="salary-item">
-                    <span class="label">月薪</span>
-                    <span class="value">¥{{ formatNumber(calculatorData.monthlySalary) }}</span>
-                  </div>
-                  <div class="salary-item">
-                    <span class="label">时薪</span>
-                    <span class="value highlight">¥{{ formatNumber(calculatorData.hourlyRate) }}</span>
-                  </div>
-                </div>
-              </div>
+            <div v-else-if="calculatorData.workStatus === 2" class="button-stack">
+              <el-button
+                type="primary"
+                size="large"
+                :icon="VideoPlay"
+                :loading="actionLoading"
+                @click="resumeWork"
+              >
+                恢复工作
+              </el-button>
+              <el-button
+                type="danger"
+                size="large"
+                :icon="SwitchButton"
+                :loading="actionLoading"
+                @click="endWork"
+              >
+                结束工作
+              </el-button>
             </div>
 
-            <!-- 今日收入 -->
-            <div class="stat-card today-earnings">
-              <div class="card-header">
-                <div class="card-title">
-                  <el-icon><Calendar /></el-icon>
-                  今日收入
-                </div>
-                <div class="work-status" :class="getWorkStatusClass()">
-                  {{ getWorkStatusText() }}
-                </div>
-              </div>
-              <div class="card-content">
-                <div class="earnings-display">
-                  <div class="main-value realtime-earnings">
-                    ¥{{ formatNumber(displayEarnings) }}
-                  </div>
-                  <div class="sub-info">
-                    已工作 {{ formatNumber(displayWorkHours) }} 小时
-                  </div>
-                  <div v-if="calculatorData.workStatus === 1" class="realtime-tip">
-                    <el-icon class="spinning"><Timer /></el-icon>
-                    实时计算中...
-                  </div>
-                  <div v-else-if="calculatorData.workStatus === 2" class="paused-tip">
-                    <el-icon><VideoPause /></el-icon>
-                    工作暂停中
-                  </div>
-                </div>
-              </div>
-            </div>
+            <el-button v-else type="info" size="large" :icon="Select" disabled>
+              今日完成
+            </el-button>
 
-            <!-- 工作控制 -->
-            <div class="stat-card work-control">
-              <div class="card-header">
-                <div class="card-title">
-                  <el-icon><Timer /></el-icon>
-                  工作控制
-                </div>
-              </div>
-              <div class="card-content">
-                <div class="control-buttons">
-                  <!-- 未开始状态 -->
-                  <el-button 
-                    v-if="calculatorData.workStatus === 0"
-                    type="success" 
-                    size="large"
-                    @click="startWork"
-                    :loading="actionLoading"
-                  >
-                    <el-icon><VideoPlay /></el-icon>
-                    开始工作
-                  </el-button>
-                  
-                  <!-- 工作中状态 -->
-                  <div v-else-if="calculatorData.workStatus === 1" class="working-controls">
-                    <el-button 
-                      type="warning" 
-                      size="large"
-                      @click="pauseWork"
-                      :loading="actionLoading"
-                    >
-                      <el-icon><VideoPause /></el-icon>
-                      暂停工作
-                    </el-button>
-                    <el-button 
-                      type="danger" 
-                      size="large"
-                      @click="endWork"
-                      :loading="actionLoading"
-                    >
-                      <el-icon><SwitchButton /></el-icon>
-                      结束工作
-                    </el-button>
-                  </div>
-                  
-                  <!-- 暂停中状态 -->
-                  <div v-else-if="calculatorData.workStatus === 2" class="paused-controls">
-                    <el-button 
-                      type="primary" 
-                      size="large"
-                      @click="resumeWork"
-                      :loading="actionLoading"
-                    >
-                      <el-icon><VideoPlay /></el-icon>
-                      恢复工作
-                    </el-button>
-                    <el-button 
-                      type="danger" 
-                      size="large"
-                      @click="endWork"
-                      :loading="actionLoading"
-                    >
-                      <el-icon><SwitchButton /></el-icon>
-                      结束工作
-                    </el-button>
-                  </div>
-                  
-                  <!-- 已完成状态 -->
-                  <el-button 
-                    v-else
-                    type="info" 
-                    size="large"
-                    disabled
-                  >
-                    <el-icon><Select /></el-icon>
-                    今日完成
-                  </el-button>
-                </div>
-                <div v-if="calculatorData.todayStartTime" class="work-time-info">
-                  开始时间：{{ formatDateTime(calculatorData.todayStartTime) }}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 统计图表区域 -->
-          <div class="charts-section">
-            <div class="chart-grid">
-              <!-- 本周统计 -->
-              <div class="chart-card">
-                <div class="chart-header">
-                  <h3>本周统计</h3>
-                </div>
-                <div class="chart-content">
-                  <div class="stat-item">
-                    <div class="stat-label">工作时长</div>
-                    <div class="stat-value">{{ formatNumber(calculatorData.weekWorkHours) }} 小时</div>
-                  </div>
-                  <div class="stat-item">
-                    <div class="stat-label">收入金额</div>
-                    <div class="stat-value earnings">¥{{ formatNumber(calculatorData.weekEarnings) }}</div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 本月统计 -->
-              <div class="chart-card">
-                <div class="chart-header">
-                  <h3>本月统计</h3>
-                </div>
-                <div class="chart-content">
-                  <div class="stat-item">
-                    <div class="stat-label">工作时长</div>
-                    <div class="stat-value">{{ formatNumber(calculatorData.monthWorkHours) }} 小时</div>
-                  </div>
-                  <div class="stat-item">
-                    <div class="stat-label">收入金额</div>
-                    <div class="stat-value earnings">¥{{ formatNumber(calculatorData.monthEarnings) }}</div>
-                  </div>
-                </div>
-              </div>
+            <div class="work-actions__meta">
+              <span>工作日：{{ calculatorData.workDaysPerMonth }} 天/月</span>
+              <span>标准工时：{{ formatNumber(calculatorData.workHoursPerDay) }} 小时/天</span>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </CnSection>
 
-    <!-- 薪资配置对话框 -->
-    <el-dialog 
-      v-model="showConfigDialog" 
-      title="薪资配置" 
-      width="500px"
+      <CnSection title="周期统计" description="汇总本周和本月已记录的工作时长与收入。" divided>
+        <div class="period-grid">
+          <article class="period-metric">
+            <div class="period-metric__header">
+              <el-icon><Calendar /></el-icon>
+              <h3>本周统计</h3>
+            </div>
+            <dl class="metric-list">
+              <div>
+                <dt>工作时长</dt>
+                <dd>{{ formatNumber(calculatorData.weekWorkHours) }} 小时</dd>
+              </div>
+              <div>
+                <dt>收入金额</dt>
+                <dd class="is-earning">¥{{ formatNumber(calculatorData.weekEarnings) }}</dd>
+              </div>
+            </dl>
+          </article>
+
+          <article class="period-metric">
+            <div class="period-metric__header">
+              <el-icon><CreditCard /></el-icon>
+              <h3>本月统计</h3>
+            </div>
+            <dl class="metric-list">
+              <div>
+                <dt>工作时长</dt>
+                <dd>{{ formatNumber(calculatorData.monthWorkHours) }} 小时</dd>
+              </div>
+              <div>
+                <dt>收入金额</dt>
+                <dd class="is-earning">¥{{ formatNumber(calculatorData.monthEarnings) }}</dd>
+              </div>
+            </dl>
+          </article>
+        </div>
+      </CnSection>
+    </template>
+
+    <el-dialog
+      v-model="showConfigDialog"
+      title="薪资配置"
+      width="min(520px, 92vw)"
       :close-on-click-modal="false"
     >
-      <el-form 
-        ref="configFormRef"
-        :model="configForm" 
-        :rules="configRules" 
-        label-width="120px"
-      >
+      <el-form ref="configFormRef" :model="configForm" :rules="configRules" label-width="120px">
         <el-form-item label="月薪" prop="monthlySalary">
           <el-input-number
             v-model="configForm.monthlySalary"
+            class="number-input"
             :min="1000"
             :max="999999.99"
             :precision="2"
             :step="100"
             placeholder="请输入月薪"
-            style="width: 100%"
           />
           <div class="form-tip">单位：人民币元</div>
         </el-form-item>
-        
+
         <el-form-item label="每月工作天数" prop="workDaysPerMonth">
           <el-input-number
             v-model="configForm.workDaysPerMonth"
+            class="number-input"
             :min="1"
             :max="31"
             :step="1"
             placeholder="请输入每月工作天数"
-            style="width: 100%"
           />
           <div class="form-tip">一般为22天</div>
         </el-form-item>
-        
+
         <el-form-item label="每日工作小时" prop="workHoursPerDay">
           <el-input-number
             v-model="configForm.workHoursPerDay"
+            class="number-input"
             :min="0.5"
             :max="24"
             :precision="2"
             :step="0.5"
             placeholder="请输入每日工作小时数"
-            style="width: 100%"
           />
           <div class="form-tip">一般为8小时</div>
         </el-form-item>
 
-        <!-- 计算预览 -->
         <el-form-item v-if="configForm.monthlySalary && configForm.workDaysPerMonth && configForm.workHoursPerDay">
           <div class="preview-box">
             <div class="preview-title">预计时薪</div>
-            <div class="preview-value">
-              ¥{{ calculateHourlyRate() }}
-            </div>
+            <div class="preview-value">¥{{ calculateHourlyRate() }}</div>
           </div>
         </el-form-item>
       </el-form>
-      
+
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="showConfigDialog = false">取消</el-button>
-          <el-button 
-            type="primary" 
-            @click="saveConfig"
-            :loading="saveLoading"
-          >
-            保存
-          </el-button>
+          <el-button type="primary" :loading="saveLoading" @click="saveConfig">保存</el-button>
         </div>
       </template>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  Money, Setting, Plus, CreditCard, Edit, Calendar, Timer, 
-  VideoPlay, VideoPause, Select, SwitchButton
+import type { FormInstance, FormRules } from 'element-plus'
+import {
+  ArrowLeft,
+  Calendar,
+  CreditCard,
+  Edit,
+  Plus,
+  Select,
+  SwitchButton,
+  Timer,
+  VideoPause,
+  VideoPlay
 } from '@element-plus/icons-vue'
-import { 
-  getSalaryCalculatorData, 
-  getSalaryConfig, 
-  saveOrUpdateSalaryConfig, 
-  handleWorkTime 
+import { CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
+import type { CnTone } from '@/design-system'
+import {
+  getSalaryCalculatorData,
+  getSalaryConfig,
+  handleWorkTime,
+  saveOrUpdateSalaryConfig
 } from '@/api/moyu'
 
-// 响应式数据
+interface SalaryCalculatorData {
+  monthlySalary: number
+  workDaysPerMonth: number
+  workHoursPerDay: number
+  hourlyRate: number
+  todayWorkHours: number
+  todayEarnings: number
+  todayStartTime: string | Date | null
+  totalPauseMinutes?: number
+  workStatus: number
+  weekWorkHours: number
+  weekEarnings: number
+  monthWorkHours: number
+  monthEarnings: number
+}
+
+interface SalaryConfigForm {
+  monthlySalary: number | null
+  workDaysPerMonth: number
+  workHoursPerDay: number
+}
+
+type WorkAction = 'START' | 'PAUSE' | 'RESUME' | 'END'
+
+const router = useRouter()
+
 const loading = ref(true)
 const actionLoading = ref(false)
 const saveLoading = ref(false)
 const showConfigDialog = ref(false)
 const hasConfig = ref(false)
 
-// 实时计时器相关
-const realtimeTimer = ref(null)
+const realtimeTimer = ref<ReturnType<typeof setInterval> | null>(null)
 const realtimeWorkHours = ref(0)
 const realtimeEarnings = ref(0)
 
-// 计算器数据
-const calculatorData = reactive({
+const calculatorData = reactive<SalaryCalculatorData>({
   monthlySalary: 0,
   workDaysPerMonth: 22,
   workHoursPerDay: 8,
@@ -333,47 +357,42 @@ const calculatorData = reactive({
   todayWorkHours: 0,
   todayEarnings: 0,
   todayStartTime: null,
-  workStatus: 0, // 0-未开始，1-进行中，2-已完成
+  workStatus: 0,
   weekWorkHours: 0,
   weekEarnings: 0,
   monthWorkHours: 0,
   monthEarnings: 0
 })
 
-// 配置表单
-const configForm = reactive({
+const configForm = reactive<SalaryConfigForm>({
   monthlySalary: null,
   workDaysPerMonth: 22,
   workHoursPerDay: 8
 })
 
-// 表单引用
-const configFormRef = ref()
+const configFormRef = ref<FormInstance>()
 
-// 计算属性：显示的工作时长（实时或静态）
 const displayWorkHours = computed(() => {
   if (calculatorData.workStatus === 1) {
-    // 工作中状态显示实时计算的时长
     return realtimeWorkHours.value
-  } else {
-    // 其他状态显示静态数据
-    return calculatorData.todayWorkHours || 0
   }
+  return calculatorData.todayWorkHours || 0
 })
 
-// 计算属性：显示的收入（实时或静态）
 const displayEarnings = computed(() => {
   if (calculatorData.workStatus === 1) {
-    // 工作中状态显示实时计算的收入
     return realtimeEarnings.value
-  } else {
-    // 其他状态显示静态数据
-    return calculatorData.todayEarnings || 0
   }
+  return calculatorData.todayEarnings || 0
 })
 
-// 表单验证规则
-const configRules = {
+const workProgress = computed(() => {
+  const targetHours = Number(calculatorData.workHoursPerDay) || 0
+  if (!targetHours) return 0
+  return Math.min(100, Number(((displayWorkHours.value / targetHours) * 100).toFixed(2)))
+})
+
+const configRules: FormRules = {
   monthlySalary: [
     { required: true, message: '请输入月薪', trigger: 'blur' },
     { type: 'number', min: 1000, max: 999999.99, message: '月薪应在1000-999999.99之间', trigger: 'blur' }
@@ -388,7 +407,22 @@ const configRules = {
   ]
 }
 
-// 计算时薪预览
+const goBack = () => {
+  router.push('/moyu-tools')
+}
+
+const openConfigDialog = () => {
+  hydrateConfigFormFromCalculator()
+  showConfigDialog.value = true
+  loadConfigData()
+}
+
+const hydrateConfigFormFromCalculator = () => {
+  configForm.monthlySalary = calculatorData.monthlySalary || null
+  configForm.workDaysPerMonth = calculatorData.workDaysPerMonth || 22
+  configForm.workHoursPerDay = calculatorData.workHoursPerDay || 8
+}
+
 const calculateHourlyRate = () => {
   if (!configForm.monthlySalary || !configForm.workDaysPerMonth || !configForm.workHoursPerDay) {
     return '0.00'
@@ -397,62 +431,72 @@ const calculateHourlyRate = () => {
   return rate.toFixed(2)
 }
 
-// 获取工作状态样式类
-const getWorkStatusClass = () => {
-  switch (calculatorData.workStatus) {
-    case 0: return 'status-idle'
-    case 1: return 'status-working'
-    case 2: return 'status-paused'
-    case 3: return 'status-completed'
-    default: return 'status-idle'
-  }
-}
-
-// 获取工作状态文本
 const getWorkStatusText = () => {
   switch (calculatorData.workStatus) {
-    case 0: return '待开始'
-    case 1: return '工作中'
-    case 2: return '暂停中'
-    case 3: return '已完成'
-    default: return '待开始'
+    case 0:
+      return '待开始'
+    case 1:
+      return '工作中'
+    case 2:
+      return '暂停中'
+    case 3:
+      return '已完成'
+    default:
+      return '待开始'
   }
 }
 
-// 格式化数字显示
-const formatNumber = (value) => {
+const getWorkStatusTone = (status?: number): CnTone => {
+  switch (status) {
+    case 1:
+      return 'success'
+    case 2:
+      return 'warning'
+    case 3:
+      return 'info'
+    case 0:
+      return 'neutral'
+    default:
+      return 'neutral'
+  }
+}
+
+const formatNumber = (value?: number | string | null) => {
   if (!value && value !== 0) return '0.00'
   return Number(value).toFixed(2)
 }
 
-// 格式化日期时间
-const formatDateTime = (dateTime) => {
+const formatDateTime = (dateTime?: string | Date | null) => {
   if (!dateTime) return ''
   return new Date(dateTime).toLocaleString('zh-CN', {
     month: '2-digit',
-    day: '2-digit', 
+    day: '2-digit',
     hour: '2-digit',
     minute: '2-digit'
   })
 }
 
-// 加载计算器数据
+const syncRealtimeSnapshot = () => {
+  realtimeWorkHours.value = calculatorData.todayWorkHours || 0
+  realtimeEarnings.value = calculatorData.todayEarnings || 0
+}
+
 const loadCalculatorData = async () => {
   try {
     loading.value = true
-    const data = await getSalaryCalculatorData()
-    
+    const data = (await getSalaryCalculatorData()) as Partial<SalaryCalculatorData> | null
+
     if (data && data.monthlySalary) {
-      // 有配置数据
       Object.assign(calculatorData, data)
       hasConfig.value = true
+      syncRealtimeSnapshot()
     } else {
-      // 无配置数据
       hasConfig.value = false
+      syncRealtimeSnapshot()
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('加载计算器数据失败:', error)
-    if (error.response?.status === 401) {
+    if (error?.response?.status === 401) {
       ElMessage.error('请先登录')
     } else {
       ElMessage.error('加载数据失败')
@@ -462,10 +506,9 @@ const loadCalculatorData = async () => {
   }
 }
 
-// 加载配置数据
 const loadConfigData = async () => {
   try {
-    const data = await getSalaryConfig()
+    const data = (await getSalaryConfig()) as Partial<SalaryConfigForm> | null
     if (data) {
       Object.assign(configForm, data)
     }
@@ -474,22 +517,21 @@ const loadConfigData = async () => {
   }
 }
 
-// 保存配置
 const saveConfig = async () => {
   if (!configFormRef.value) return
-  
+
   try {
     await configFormRef.value.validate()
     saveLoading.value = true
-    
+
     await saveOrUpdateSalaryConfig(configForm)
     ElMessage.success('配置保存成功')
     showConfigDialog.value = false
-    
-    // 重新加载数据
+
     await loadCalculatorData()
+    hydrateConfigFormFromCalculator()
   } catch (error) {
-    if (error !== false) { // 不是表单验证错误
+    if (error !== false) {
       console.error('保存配置失败:', error)
       ElMessage.error('保存配置失败')
     }
@@ -498,19 +540,17 @@ const saveConfig = async () => {
   }
 }
 
-// 开始工作
+const handleWorkAction = async (action: WorkAction, remark: string) => {
+  actionLoading.value = true
+  const data = (await handleWorkTime({ action, remark })) as Partial<SalaryCalculatorData>
+  Object.assign(calculatorData, data)
+  syncRealtimeSnapshot()
+}
+
 const startWork = async () => {
   try {
-    actionLoading.value = true
-    const data = await handleWorkTime({
-      action: 'START',
-      remark: '开始今日工作'
-    })
-    
-    Object.assign(calculatorData, data)
+    await handleWorkAction('START', '开始今日工作')
     ElMessage.success('开始工作记录')
-    
-    // 开始实时计时
     startRealTimeTimer()
   } catch (error) {
     console.error('开始工作失败:', error)
@@ -520,19 +560,10 @@ const startWork = async () => {
   }
 }
 
-// 暂停工作
 const pauseWork = async () => {
   try {
-    actionLoading.value = true
-    const data = await handleWorkTime({
-      action: 'PAUSE',
-      remark: '暂停工作'
-    })
-    
-    Object.assign(calculatorData, data)
+    await handleWorkAction('PAUSE', '暂停工作')
     ElMessage.success('工作已暂停')
-    
-    // 停止实时计时
     stopRealTimeTimer()
   } catch (error) {
     console.error('暂停工作失败:', error)
@@ -542,19 +573,10 @@ const pauseWork = async () => {
   }
 }
 
-// 恢复工作
 const resumeWork = async () => {
   try {
-    actionLoading.value = true
-    const data = await handleWorkTime({
-      action: 'RESUME',
-      remark: '恢复工作'
-    })
-    
-    Object.assign(calculatorData, data)
+    await handleWorkAction('RESUME', '恢复工作')
     ElMessage.success('工作已恢复')
-    
-    // 恢复实时计时
     startRealTimeTimer()
   } catch (error) {
     console.error('恢复工作失败:', error)
@@ -564,29 +586,16 @@ const resumeWork = async () => {
   }
 }
 
-// 结束工作
 const endWork = async () => {
   try {
-    await ElMessageBox.confirm(
-      '确定结束今日工作吗？',
-      '确认操作',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    )
-    
-    actionLoading.value = true
-    const data = await handleWorkTime({
-      action: 'END',
-      remark: '结束今日工作'
+    await ElMessageBox.confirm('确定结束今日工作吗？', '确认操作', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
     })
-    
-    Object.assign(calculatorData, data)
+
+    await handleWorkAction('END', '结束今日工作')
     ElMessage.success('工作记录已完成')
-    
-    // 停止实时计时
     stopRealTimeTimer()
   } catch (error) {
     if (error === 'cancel') return
@@ -597,31 +606,23 @@ const endWork = async () => {
   }
 }
 
-// 实时计时器方法
 const startRealTimeTimer = () => {
-  if (realtimeTimer.value) return // 避免重复启动
-  
+  if (realtimeTimer.value) return
+
   realtimeTimer.value = setInterval(() => {
     if (!calculatorData.todayStartTime || !calculatorData.hourlyRate) return
-    
+
     const now = new Date()
     const startTime = new Date(calculatorData.todayStartTime)
-    
-    // 计算已工作的总分钟数
-    let totalMinutes = Math.floor((now - startTime) / (1000 * 60))
-    
-    // 减去已知的暂停时长（如果有的话）
+
+    let totalMinutes = Math.floor((now.getTime() - startTime.getTime()) / (1000 * 60))
     const pauseMinutes = calculatorData.totalPauseMinutes || 0
     totalMinutes = Math.max(0, totalMinutes - pauseMinutes)
-    
-    // 转换为小时数
+
     const workHours = totalMinutes / 60
     realtimeWorkHours.value = workHours
-    
-    // 计算实时收入
-    const earnings = workHours * calculatorData.hourlyRate
-    realtimeEarnings.value = earnings
-  }, 1000) // 每秒更新一次
+    realtimeEarnings.value = workHours * calculatorData.hourlyRate
+  }, 1000)
 }
 
 const stopRealTimeTimer = () => {
@@ -631,463 +632,327 @@ const stopRealTimeTimer = () => {
   }
 }
 
-// 组件挂载时加载数据
 onMounted(async () => {
   await loadCalculatorData()
   if (!hasConfig.value) {
     await loadConfigData()
+  } else {
+    hydrateConfigFormFromCalculator()
   }
-  
-  // 如果当前状态是工作中，启动实时计时器
+
   if (calculatorData.workStatus === 1) {
     startRealTimeTimer()
   }
 })
 
-// 组件卸载时清理计时器
 onUnmounted(() => {
   stopRealTimeTimer()
 })
 </script>
 
 <style scoped>
-.salary-calculator {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  position: relative;
+.salary-calculator-page {
+  min-width: 0;
 }
 
-/* 头部区域 */
-.page-header {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 40px 20px;
+.config-section :deep(.cn-section__body) {
+  padding: var(--cn-space-6);
 }
 
-.header-content {
-  max-width: 1400px;
-  margin: 0 auto;
-  text-align: center;
-}
-
-.title-section {
-  color: white;
-}
-
-.main-title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  margin: 0 0 8px 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-}
-
-.title-icon {
-  font-size: 2.2rem;
-  color: #fbbf24;
-}
-
-.subtitle {
-  font-size: 1rem;
-  opacity: 0.9;
-  margin: 0;
-  font-weight: 300;
-}
-
-/* 内容区域 */
-.content-section {
-  padding: 30px 20px 60px;
-}
-
-.content-container {
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-/* 配置提示 */
-.config-prompt {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 400px;
-}
-
-.prompt-card {
-  background: white;
-  border-radius: 20px;
-  padding: 60px 40px;
-  text-align: center;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  max-width: 500px;
-  width: 100%;
-}
-
-.prompt-icon {
-  font-size: 4rem;
-  color: #10b981;
-  margin-bottom: 24px;
-}
-
-.prompt-content h3 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #1f2937;
-  margin: 0 0 12px 0;
-}
-
-.prompt-content p {
-  color: #6b7280;
-  margin: 0 0 32px 0;
-  line-height: 1.6;
-}
-
-/* 计算器仪表板 */
-.calculator-dashboard {
-  animation: fadeInUp 0.6s ease;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* 统计卡片网格 */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 24px;
-  margin-bottom: 30px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.stat-card {
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
+.work-console {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: var(--cn-space-5);
+  min-width: 0;
 }
 
-.stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+.work-live {
+  display: grid;
+  gap: var(--cn-space-4);
+  min-width: 0;
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.card-title {
+.work-live__header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-.card-content {
-  flex: 1;
-}
-
-/* 薪资信息卡片 */
-.salary-display {
-  display: flex;
   justify-content: space-between;
-  gap: 20px;
+  gap: var(--cn-space-3);
 }
 
-.salary-item {
-  text-align: center;
-  flex: 1;
-}
-
-.salary-item .label {
-  display: block;
-  font-size: 0.9rem;
-  color: #6b7280;
-  margin-bottom: 8px;
-}
-
-.salary-item .value {
-  display: block;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-.salary-item .value.highlight {
-  color: #10b981;
-}
-
-/* 今日收入卡片 */
-.work-status {
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.status-idle {
-  background: #f3f4f6;
-  color: #6b7280;
-}
-
-.status-working {
-  background: #dcfdf7;
-  color: #059669;
-}
-
-.status-paused {
-  background: #fef3c7;
-  color: #d97706;
-}
-
-.status-completed {
-  background: #dbeafe;
-  color: #2563eb;
-}
-
-.earnings-display {
-  text-align: center;
-}
-
-.main-value {
-  font-size: 2.5rem;
+.work-live__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cn-space-2);
+  color: var(--cn-color-text-primary);
+  font-size: 15px;
   font-weight: 700;
-  color: #10b981;
-  margin-bottom: 8px;
-  transition: all 0.3s ease;
 }
 
-.realtime-earnings {
-  animation: pulse 2s ease-in-out infinite alternate;
+.work-live__title .el-icon {
+  color: var(--cn-color-success);
 }
 
-@keyframes pulse {
-  from {
-    color: #10b981;
-  }
-  to {
-    color: #059669;
-  }
+.live-earning {
+  min-width: 0;
+  color: var(--cn-color-success);
+  font-family: var(--cn-font-heading);
+  font-size: 42px;
+  font-weight: 800;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+  transition: color var(--cn-motion-base) var(--cn-ease-out);
 }
 
-.sub-info {
-  color: #6b7280;
-  font-size: 0.9rem;
+.live-earning.is-running {
+  animation: earning-pulse 2s var(--cn-ease-in-out) infinite alternate;
 }
 
-.realtime-tip {
-  display: flex;
+.live-subtitle {
+  color: var(--cn-color-text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.progress-track {
+  overflow: hidden;
+  height: 10px;
+  border-radius: var(--cn-radius-pill);
+  background: var(--cn-color-bg-surface-muted);
+}
+
+.progress-fill {
+  display: block;
+  width: var(--progress-size);
+  height: 100%;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--cn-color-success) 62%, var(--cn-color-brand-primary));
+  transition: width var(--cn-motion-base) var(--cn-ease-out);
+}
+
+.work-tip {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  margin-top: 8px;
-  color: #059669;
-  font-size: 0.8rem;
-  font-weight: 500;
+  gap: var(--cn-space-2);
+  width: fit-content;
+  min-height: 30px;
+  padding: 0 var(--cn-space-3);
+  border-radius: var(--cn-radius-pill);
+  font-size: 13px;
+  font-weight: 700;
 }
 
-.paused-tip {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  margin-top: 8px;
-  color: #d97706;
-  font-size: 0.8rem;
-  font-weight: 500;
+.work-tip.is-running {
+  background: var(--cn-color-success-soft);
+  color: var(--cn-color-success);
+}
+
+.work-tip.is-paused {
+  background: var(--cn-color-warning-soft);
+  color: var(--cn-color-warning);
 }
 
 .spinning {
   animation: spin 2s linear infinite;
 }
 
+.work-actions {
+  display: grid;
+  align-content: start;
+  gap: var(--cn-space-4);
+  min-width: 0;
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
+}
+
+.work-actions__title {
+  color: var(--cn-color-text-primary);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.button-stack {
+  display: grid;
+  gap: var(--cn-space-3);
+}
+
+.button-stack .el-button,
+.work-actions > .el-button {
+  width: 100%;
+  margin-left: 0;
+}
+
+.work-actions__meta {
+  display: grid;
+  gap: var(--cn-space-2);
+  color: var(--cn-color-text-tertiary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.period-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cn-space-4);
+}
+
+.period-metric {
+  display: grid;
+  gap: var(--cn-space-4);
+  min-width: 0;
+  padding: var(--cn-space-5);
+  border: 1px solid var(--cn-card-border);
+  border-radius: var(--cn-card-radius);
+  background: var(--cn-card-bg);
+  box-shadow: var(--cn-card-shadow);
+}
+
+.period-metric__header {
+  display: flex;
+  align-items: center;
+  gap: var(--cn-space-2);
+  color: var(--cn-color-text-primary);
+}
+
+.period-metric__header .el-icon {
+  color: var(--cn-color-brand-primary);
+  font-size: 18px;
+}
+
+.period-metric__header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.metric-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cn-space-4);
+  margin: 0;
+}
+
+.metric-list div {
+  min-width: 0;
+}
+
+.metric-list dt {
+  margin: 0 0 var(--cn-space-2);
+  color: var(--cn-color-text-tertiary);
+  font-size: 13px;
+}
+
+.metric-list dd {
+  margin: 0;
+  color: var(--cn-color-text-primary);
+  font-size: 22px;
+  font-weight: 750;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.metric-list dd.is-earning {
+  color: var(--cn-color-success);
+}
+
+.number-input {
+  width: 100%;
+}
+
+.form-tip {
+  margin-top: var(--cn-space-1);
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.preview-box {
+  width: 100%;
+  padding: var(--cn-space-4);
+  border: 1px solid color-mix(in srgb, var(--cn-color-success) 28%, var(--cn-color-border-subtle));
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-success-soft);
+  text-align: center;
+}
+
+.preview-title {
+  color: var(--cn-color-success);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.preview-value {
+  margin-top: var(--cn-space-2);
+  color: var(--cn-color-success);
+  font-family: var(--cn-font-heading);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--cn-space-2);
+}
+
+@keyframes earning-pulse {
+  from {
+    color: var(--cn-color-success);
+  }
+
+  to {
+    color: var(--cn-color-brand-primary);
+  }
+}
+
 @keyframes spin {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
 }
 
-/* 工作控制卡片 */
-.control-buttons {
-  text-align: center;
-  margin-bottom: 16px;
-}
-
-.control-buttons .el-button {
-  min-width: 140px;
-}
-
-.working-controls,
-.paused-controls {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.working-controls .el-button,
-.paused-controls .el-button {
-  flex: 1;
-  min-width: 120px;
-  max-width: 160px;
-}
-
-.work-time-info {
-  text-align: center;
-  color: #6b7280;
-  font-size: 0.85rem;
-}
-
-/* 图表区域 */
-.charts-section {
-  margin-top: 30px;
-}
-
-.chart-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 24px;
-}
-
-.chart-card {
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.chart-header {
-  margin-bottom: 20px;
-}
-
-.chart-header h3 {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #1f2937;
-  margin: 0;
-}
-
-.chart-content {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.stat-item {
-  text-align: center;
-  flex: 1;
-}
-
-.stat-label {
-  font-size: 0.9rem;
-  color: #6b7280;
-  margin-bottom: 8px;
-}
-
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-.stat-value.earnings {
-  color: #10b981;
-}
-
-/* 对话框样式 */
-.form-tip {
-  font-size: 0.75rem;
-  color: #6b7280;
-  margin-top: 4px;
-}
-
-.preview-box {
-  background: #f0fdf4;
-  border: 1px solid #10b981;
-  border-radius: 8px;
-  padding: 16px;
-  text-align: center;
-}
-
-.preview-title {
-  font-size: 0.9rem;
-  color: #059669;
-  margin-bottom: 8px;
-}
-
-.preview-value {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #10b981;
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .main-title {
-    font-size: 2rem;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .title-icon {
-    font-size: 1.8rem;
-  }
-
+@media (max-width: 1100px) {
   .stats-grid {
-    grid-template-columns: 1fr;
-    gap: 20px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .chart-grid {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-
-  .salary-display,
-  .chart-content {
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .prompt-card {
-    padding: 40px 24px;
-    margin: 0 15px;
+  .work-console {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
-@media (max-width: 480px) {
-  .page-header {
-    padding: 30px 15px;
+@media (max-width: 768px) {
+  .stats-grid,
+  .period-grid,
+  .metric-list {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .content-section {
-    padding: 20px 15px 40px;
+  .work-live__header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
-  .stat-card,
-  .chart-card {
-    padding: 20px;
+  .live-earning {
+    font-size: 34px;
   }
+}
 
-  .main-value {
-    font-size: 2rem;
+@media (prefers-reduced-motion: reduce) {
+  .live-earning.is-running,
+  .spinning {
+    animation: none;
   }
 }
 </style>

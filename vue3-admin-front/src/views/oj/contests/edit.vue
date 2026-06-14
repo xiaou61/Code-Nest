@@ -1,16 +1,27 @@
 <template>
-  <div class="contest-edit">
-    <el-card shadow="never" class="main-card">
-      <template #header>
-        <div class="card-header">
-          <el-button text @click="router.push('/oj/contests')">
-            <el-icon><ArrowLeft /></el-icon>
-            返回列表
-          </el-button>
-          <h2>{{ isEdit ? '编辑赛事' : '新增赛事' }}</h2>
-        </div>
+  <CnPage class="contest-edit-page" surface="transparent" max-width="1180px">
+    <CnPageHeader
+      :title="isEdit ? '编辑赛事' : '新增赛事'"
+      description="配置 OJ 赛事基础信息、开放时间、发布状态和题目编排。"
+      eyebrow="OJ Contest"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag :type="form.status === 1 ? 'success' : 'neutral'">
+          {{ form.status === 1 ? '发布' : '草稿' }}
+        </CnStatusTag>
+        <CnStatusTag type="brand">题目 {{ form.problemIds.length }} 道</CnStatusTag>
       </template>
 
+      <template #actions>
+        <el-button :icon="ArrowLeft" @click="router.push('/oj/contests')">返回列表</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmit">
+          {{ isEdit ? '保存修改' : '创建赛事' }}
+        </el-button>
+      </template>
+    </CnPageHeader>
+
+    <CnSection title="赛事信息" description="填写赛事标题、类型、时间和题目列表。" divided>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="120px">
         <el-row :gutter="20">
           <el-col :span="16">
@@ -20,7 +31,7 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="赛事类型" prop="contestType">
-              <el-select v-model="form.contestType" placeholder="请选择赛事类型" style="width: 100%">
+              <el-select v-model="form.contestType" placeholder="请选择赛事类型" class="full-width">
                 <el-option label="周赛" value="weekly" />
                 <el-option label="挑战赛" value="challenge" />
               </el-select>
@@ -36,7 +47,7 @@
                 type="datetime"
                 value-format="YYYY-MM-DD HH:mm:ss"
                 placeholder="请选择开始时间"
-                style="width: 100%"
+                class="full-width"
               />
             </el-form-item>
           </el-col>
@@ -47,7 +58,7 @@
                 type="datetime"
                 value-format="YYYY-MM-DD HH:mm:ss"
                 placeholder="请选择结束时间"
-                style="width: 100%"
+                class="full-width"
               />
             </el-form-item>
           </el-col>
@@ -88,19 +99,14 @@
             collapse-tags
             collapse-tags-tooltip
             placeholder="请选择赛事题目"
-            style="width: 100%"
+            class="full-width"
           >
-            <el-option
-              v-for="problem in problemOptions"
-              :key="problem.id"
-              :label="`${problem.id}. ${problem.title}`"
-              :value="problem.id"
-            >
+            <el-option v-for="problem in problemOptions" :key="problem.id" :label="`${problem.id}. ${problem.title}`" :value="problem.id">
               <div class="problem-option">
                 <span class="problem-title">{{ problem.id }}. {{ problem.title }}</span>
-                <el-tag size="small" :type="getDifficultyTag(problem.difficulty)">
+                <CnStatusTag :type="getDifficultyTone(problem.difficulty)" size="sm">
                   {{ getDifficultyLabel(problem.difficulty) }}
-                </el-tag>
+                </CnStatusTag>
               </div>
             </el-option>
           </el-select>
@@ -108,34 +114,54 @@
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" @click="handleSubmit" :loading="submitting">
+          <el-button type="primary" :loading="submitting" @click="handleSubmit">
             {{ isEdit ? '保存修改' : '创建赛事' }}
           </el-button>
           <el-button @click="router.push('/oj/contests')">取消</el-button>
         </el-form-item>
       </el-form>
-    </el-card>
-  </div>
+    </CnSection>
+  </CnPage>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import { ojApi } from '@/api/oj'
+import { CnPage, CnPageHeader, CnSection, CnStatusTag } from '@/design-system'
+import type { CnBreadcrumbItem, CnTone } from '@/design-system'
+
+interface ProblemOption {
+  id: number
+  title: string
+  difficulty: string
+}
+
+interface ContestForm {
+  title: string
+  contestType: string
+  startTime: string
+  endTime: string
+  status: number
+  description: string
+  problemIds: number[]
+}
 
 const route = useRoute()
 const router = useRouter()
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: 'OJ 管理' }, { label: '赛事编辑' }]
 
-const formRef = ref(null)
+const formRef = ref<FormInstance>()
 const submitting = ref(false)
-const problemOptions = ref([])
+const problemOptions = ref<ProblemOption[]>([])
 
-const contestId = computed(() => route.params.id)
-const isEdit = computed(() => !!contestId.value)
+const contestId = computed(() => route.params.id as string | undefined)
+const isEdit = computed(() => Boolean(contestId.value))
 
-const form = reactive({
+const form = reactive<ContestForm>({
   title: '',
   contestType: 'weekly',
   startTime: '',
@@ -145,7 +171,7 @@ const form = reactive({
   problemIds: []
 })
 
-const validateEndTime = (_rule, value, callback) => {
+const validateEndTime = (_rule: unknown, value: string, callback: (error?: Error) => void) => {
   if (!value || !form.startTime) {
     callback()
     return
@@ -159,7 +185,7 @@ const validateEndTime = (_rule, value, callback) => {
   callback()
 }
 
-const rules = {
+const rules: FormRules<ContestForm> = {
   title: [{ required: true, message: '请输入赛事标题', trigger: 'blur' }],
   contestType: [{ required: true, message: '请选择赛事类型', trigger: 'change' }],
   startTime: [{ required: true, message: '请选择开始时间', trigger: 'change' }],
@@ -170,22 +196,27 @@ const rules = {
   problemIds: [{ type: 'array', required: true, min: 1, message: '请至少选择 1 道题目', trigger: 'change' }]
 }
 
-const getDifficultyTag = (d) => ({ easy: 'success', medium: 'warning', hard: 'danger' }[d] || 'info')
-const getDifficultyLabel = (d) => ({ easy: '简单', medium: '中等', hard: '困难' }[d] || (d || '未知'))
+const getDifficultyTone = (difficulty?: string): CnTone => {
+  return ({ easy: 'success', medium: 'warning', hard: 'danger' } as Record<string, CnTone>)[difficulty || ''] || 'info'
+}
 
-const normalizeDateTime = (value) => {
+const getDifficultyLabel = (difficulty?: string) => {
+  return ({ easy: '简单', medium: '中等', hard: '困难' } as Record<string, string>)[difficulty || ''] || difficulty || '未知'
+}
+
+const normalizeDateTime = (value: unknown) => {
   if (!value) return ''
-  if (typeof value !== 'string') return value
+  if (typeof value !== 'string') return String(value)
   return value.replace('T', ' ').slice(0, 19)
 }
 
-const normalizeContestType = (value) => {
+const normalizeContestType = (value: unknown) => {
   if (value === 1 || value === '1' || value === 'weekly') return 'weekly'
   if (value === 2 || value === '2' || value === 'challenge') return 'challenge'
-  return value || 'weekly'
+  return (value as string) || 'weekly'
 }
 
-const resolveProblemListData = (data) => {
+const resolveProblemListData = (data: any) => {
   if (Array.isArray(data)) return data
   if (!data || typeof data !== 'object') return []
   return data.records || data.list || []
@@ -199,7 +230,7 @@ const loadProblemOptions = async () => {
       status: 1
     })
     const list = resolveProblemListData(data)
-    problemOptions.value = list.map((item) => ({
+    problemOptions.value = list.map((item: any) => ({
       id: item.id,
       title: item.title || '',
       difficulty: item.difficulty || ''
@@ -209,10 +240,10 @@ const loadProblemOptions = async () => {
   }
 }
 
-const resolveContestProblemIds = (data) => {
+const resolveContestProblemIds = (data: any): number[] => {
   if (Array.isArray(data.problemIds)) return data.problemIds
   if (Array.isArray(data.problemIdList)) return data.problemIdList
-  if (Array.isArray(data.problems)) return data.problems.map((item) => item.id).filter(Boolean)
+  if (Array.isArray(data.problems)) return data.problems.map((item: any) => item.id).filter(Boolean)
   return []
 }
 
@@ -234,19 +265,17 @@ const loadContestDetail = async () => {
   }
 }
 
-const buildPayload = () => {
-  return {
-    title: form.title,
-    contestType: form.contestType,
-    startTime: form.startTime,
-    endTime: form.endTime,
-    status: form.status,
-    description: form.description,
-    problemIds: [...form.problemIds]
-  }
-}
+const buildPayload = () => ({
+  title: form.title,
+  contestType: form.contestType,
+  startTime: form.startTime,
+  endTime: form.endTime,
+  status: form.status,
+  description: form.description,
+  problemIds: [...form.problemIds]
+})
 
-const extractCreatedContestId = (data) => {
+const extractCreatedContestId = (data: any) => {
   if (typeof data === 'number') return data
   if (typeof data === 'string' && /^\d+$/.test(data)) return Number(data)
   if (data && typeof data === 'object') {
@@ -257,6 +286,7 @@ const extractCreatedContestId = (data) => {
 }
 
 const handleSubmit = async () => {
+  if (!formRef.value) return
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
 
@@ -272,11 +302,7 @@ const handleSubmit = async () => {
     const created = await ojApi.createContest(payload)
     ElMessage.success('创建成功')
     const id = extractCreatedContestId(created)
-    if (id) {
-      router.push(`/oj/contests/${id}/edit`)
-      return
-    }
-    router.push('/oj/contests')
+    router.push(id ? `/oj/contests/${id}/edit` : '/oj/contests')
   } catch (error) {
     console.error('保存赛事失败:', error)
   } finally {
@@ -293,43 +319,32 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.contest-edit {
-  display: grid;
-  gap: 16px;
+.contest-edit-page {
+  min-height: 100%;
 }
 
-.main-card {
-  border-radius: 12px;
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.card-header h2 {
-  margin: 0;
-  font-size: 20px;
+.full-width {
+  width: 100%;
 }
 
 .problem-option {
-  width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--cn-space-2);
+  width: 100%;
 }
 
 .problem-title {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .tips {
-  margin-top: 8px;
+  margin-top: var(--cn-space-2);
+  color: var(--cn-color-text-tertiary);
   font-size: 12px;
-  color: var(--cn-text-tertiary);
 }
 </style>

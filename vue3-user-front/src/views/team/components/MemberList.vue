@@ -1,51 +1,48 @@
 <template>
   <div class="member-list">
-    <!-- 成员统计 -->
     <div class="member-stats">
-      <span class="stat-item">
+      <CnStatusTag type="brand" size="sm">
         <el-icon><User /></el-icon>
         共 {{ members.length }} 名成员
-      </span>
+      </CnStatusTag>
       <el-button v-if="isAdmin" size="small" @click="showApplications = true">
         <el-icon><Bell /></el-icon>
         申请列表
-        <span v-if="pendingCount > 0" class="pending-badge">{{ pendingCount }}</span>
+        <CnStatusTag v-if="pendingCount > 0" type="danger" size="sm">{{ pendingCount }}</CnStatusTag>
       </el-button>
     </div>
-    
-    <!-- 成员列表 -->
+
     <div v-loading="loading" class="members">
-      <div v-if="members.length === 0 && !loading" class="empty-state">
-        <el-empty description="暂无成员" :image-size="80" />
-      </div>
-      
-      <div 
-        v-for="member in members" 
-        :key="member.userId" 
-        class="member-item"
-      >
+      <CnEmptyState
+        v-if="members.length === 0 && !loading"
+        title="暂无成员"
+        description="小组成员加入后会显示在这里。"
+        icon="MB"
+        size="sm"
+        surface="transparent"
+      />
+
+      <article v-for="member in members" :key="member.userId" class="member-item">
         <div class="member-avatar">
-          <img v-if="member.userAvatar" :src="member.userAvatar" />
+          <img v-if="member.userAvatar" :src="member.userAvatar" :alt="member.userName || '成员头像'" />
           <span v-else>{{ member.userName?.charAt(0) || '用' }}</span>
         </div>
-        
+
         <div class="member-info">
           <div class="member-name">
-            {{ member.userName }}
-            <span v-if="member.userId === currentUserId" class="me-tag">我</span>
+            {{ member.userName || '匿名成员' }}
+            <CnStatusTag v-if="member.userId === currentUserId" type="info" size="sm" :dot="false" subtle>我</CnStatusTag>
           </div>
           <div class="member-role">
-            <span v-if="member.memberRole === 1" class="role-badge leader">
-              <el-icon><Trophy /></el-icon>组长
-            </span>
-            <span v-else-if="member.memberRole === 2" class="role-badge admin">
-              <el-icon><Star /></el-icon>管理员
-            </span>
-            <span v-else class="role-badge member">成员</span>
-            <span v-if="member.isMuted" class="role-badge muted">禁言中</span>
+            <CnStatusTag :type="getRoleTone(member.memberRole)" size="sm" :dot="false" subtle>
+              <el-icon v-if="Number(member.memberRole) === 1"><Trophy /></el-icon>
+              <el-icon v-else-if="Number(member.memberRole) === 2"><Star /></el-icon>
+              {{ getRoleText(member.memberRole) }}
+            </CnStatusTag>
+            <CnStatusTag v-if="member.isMuted" type="danger" size="sm" :dot="false">禁言中</CnStatusTag>
           </div>
         </div>
-        
+
         <div class="member-stats-info">
           <span class="stat">
             <span class="stat-num">{{ member.checkinCount || 0 }}</span>
@@ -56,124 +53,130 @@
             <span class="stat-label">连续</span>
           </span>
         </div>
-        
-        <div class="member-actions" v-if="canManage(member)">
+
+        <div v-if="canManage(member)" class="member-actions">
           <el-dropdown trigger="click">
-            <el-button text size="small">
+            <el-button text size="small" aria-label="成员操作">
               <el-icon><MoreFilled /></el-icon>
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <!-- 设为管理员 -->
-                <el-dropdown-item 
-                  v-if="isLeader && member.memberRole === 3"
-                  @click="setRole(member, 2)"
-                >
-                  <el-icon><Star /></el-icon>设为管理员
+                <el-dropdown-item v-if="isLeader && Number(member.memberRole) === 3" @click="setRole(member, 2)">
+                  <el-icon><Star /></el-icon>
+                  设为管理员
                 </el-dropdown-item>
-                <!-- 取消管理员 -->
-                <el-dropdown-item 
-                  v-if="isLeader && member.memberRole === 2"
-                  @click="setRole(member, 3)"
-                >
-                  <el-icon><Star /></el-icon>取消管理员
+                <el-dropdown-item v-if="isLeader && Number(member.memberRole) === 2" @click="setRole(member, 3)">
+                  <el-icon><Star /></el-icon>
+                  取消管理员
                 </el-dropdown-item>
-                <!-- 转让组长 -->
-                <el-dropdown-item 
-                  v-if="isLeader && member.memberRole !== 1"
-                  @click="transferLeader(member)"
-                >
-                <el-icon><Trophy /></el-icon>转让组长
+                <el-dropdown-item v-if="isLeader && Number(member.memberRole) !== 1" @click="transferLeader(member)">
+                  <el-icon><Trophy /></el-icon>
+                  转让组长
                 </el-dropdown-item>
-                <!-- 禁言/解禁 -->
-                <el-dropdown-item 
-                  v-if="canMute(member)"
-                  @click="toggleMute(member)"
-                >
+                <el-dropdown-item v-if="canMute(member)" @click="toggleMute(member)">
                   <el-icon><ChatDotRound /></el-icon>
                   {{ member.isMuted ? '解除禁言' : '禁言' }}
                 </el-dropdown-item>
-                <!-- 移出小组 -->
-                <el-dropdown-item 
-                  v-if="canRemove(member)"
-                  @click="removeMember(member)"
-                  divided
-                >
-                  <el-icon><Remove /></el-icon>移出小组
+                <el-dropdown-item v-if="canRemove(member)" @click="removeMember(member)" divided>
+                  <el-icon><Remove /></el-icon>
+                  移出小组
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
         </div>
-      </div>
+      </article>
     </div>
-    
-    <!-- 申请列表弹窗 -->
+
     <el-dialog v-model="showApplications" title="入组申请" width="500px">
-      <div class="application-list" v-loading="loadingApps">
-        <div v-if="applications.length === 0" class="empty-state">
-          <el-empty description="暂无申请" :image-size="60" />
-        </div>
-        
-        <div 
-          v-for="app in applications" 
-          :key="app.id" 
-          class="application-item"
-        >
+      <div v-loading="loadingApps" class="application-list">
+        <CnEmptyState
+          v-if="applications.length === 0"
+          title="暂无申请"
+          description="新的入组申请会显示在这里。"
+          icon="AP"
+          size="sm"
+          surface="transparent"
+        />
+
+        <article v-for="app in applications" :key="app.id" class="application-item">
           <div class="app-avatar">
-            <img v-if="app.userAvatar" :src="app.userAvatar" />
+            <img v-if="app.userAvatar" :src="app.userAvatar" :alt="app.userName || '申请人头像'" />
             <span v-else>{{ app.userName?.charAt(0) || '用' }}</span>
           </div>
-          
+
           <div class="app-info">
-            <div class="app-name">{{ app.userName }}</div>
-            <div class="app-reason" v-if="app.applyReason">{{ app.applyReason }}</div>
+            <div class="app-name">{{ app.userName || '匿名用户' }}</div>
+            <div v-if="app.applyReason" class="app-reason">{{ app.applyReason }}</div>
             <div class="app-time">{{ formatTime(app.createTime) }}</div>
           </div>
-          
-          <div class="app-actions" v-if="app.status === 0">
-            <el-button type="primary" size="small" @click="handleApprove(app)">
-              通过
-            </el-button>
-            <el-button size="small" @click="handleReject(app)">
-              拒绝
-            </el-button>
+
+          <div v-if="Number(app.status) === 0" class="app-actions">
+            <el-button type="primary" size="small" @click="handleApprove(app)">通过</el-button>
+            <el-button size="small" @click="handleReject(app)">拒绝</el-button>
           </div>
-          <div class="app-status" v-else>
-            <span v-if="app.status === 1" class="status approved">已通过</span>
-            <span v-else-if="app.status === 2" class="status rejected">已拒绝</span>
+          <div v-else class="app-status">
+            <CnStatusTag :type="Number(app.status) === 1 ? 'success' : 'danger'" size="sm">
+              {{ Number(app.status) === 1 ? '已通过' : '已拒绝' }}
+            </CnStatusTag>
           </div>
-        </div>
+        </article>
       </div>
     </el-dialog>
   </div>
 </template>
 
-<script setup>
-import { ref, watch, onMounted, computed } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { User, Bell, Trophy, Star, MoreFilled, ChatDotRound, Remove } from '@element-plus/icons-vue'
+import { Bell, ChatDotRound, MoreFilled, Remove, Star, Trophy, User } from '@element-plus/icons-vue'
+import { CnEmptyState, CnStatusTag, type CnTone } from '@/design-system'
 import teamApi from '@/api/team'
 
-const props = defineProps({
-  teamId: { type: [String, Number], required: true },
-  isAdmin: { type: Boolean, default: false },
-  isLeader: { type: Boolean, default: false },
-  currentUserId: { type: [String, Number], default: null }
-})
+interface MemberRecord {
+  userId: number | string
+  userAvatar?: string
+  userName?: string
+  memberRole?: number | string
+  isMuted?: boolean
+  checkinCount?: number
+  streakDays?: number
+}
 
-const emit = defineEmits(['refresh'])
+interface ApplicationRecord {
+  id: number | string
+  userAvatar?: string
+  userName?: string
+  applyReason?: string
+  createTime?: string
+  status?: number | string
+}
 
-const members = ref([])
+const props = withDefaults(
+  defineProps<{
+    teamId: string | number
+    isAdmin?: boolean
+    isLeader?: boolean
+    currentUserId?: string | number | null
+  }>(),
+  {
+    isAdmin: false,
+    isLeader: false,
+    currentUserId: null
+  }
+)
+
+const emit = defineEmits<{
+  refresh: []
+}>()
+
+const members = ref<MemberRecord[]>([])
 const loading = ref(false)
 
-// 申请列表
 const showApplications = ref(false)
-const applications = ref([])
+const applications = ref<ApplicationRecord[]>([])
 const loadingApps = ref(false)
-const pendingCount = computed(() => 
-  applications.value.filter(a => a.status === 0).length
-)
+const pendingCount = computed(() => applications.value.filter((app) => Number(app.status) === 0).length)
 
 onMounted(() => {
   loadMembers()
@@ -182,17 +185,20 @@ onMounted(() => {
   }
 })
 
-watch(() => props.teamId, () => {
-  loadMembers()
-  if (props.isAdmin) {
-    loadApplications()
+watch(
+  () => props.teamId,
+  () => {
+    loadMembers()
+    if (props.isAdmin) {
+      loadApplications()
+    }
   }
-})
+)
 
 const loadMembers = async () => {
   loading.value = true
   try {
-    const response = await teamApi.getMemberList(props.teamId)
+    const response = (await teamApi.getMemberList(props.teamId)) as MemberRecord[]
     members.value = response || []
   } catch (error) {
     console.error('加载成员列表失败:', error)
@@ -204,7 +210,7 @@ const loadMembers = async () => {
 const loadApplications = async () => {
   loadingApps.value = true
   try {
-    const response = await teamApi.getApplicationList(props.teamId)
+    const response = (await teamApi.getApplicationList(props.teamId)) as ApplicationRecord[]
     applications.value = response || []
   } catch (error) {
     console.error('加载申请列表失败:', error)
@@ -213,27 +219,19 @@ const loadApplications = async () => {
   }
 }
 
-// 判断是否可以管理该成员
-const canManage = (member) => {
+const canManage = (member: MemberRecord) => {
   if (!props.isAdmin) return false
   if (member.userId === props.currentUserId) return false
-  if (member.memberRole === 1) return false // 不能管理组长
-  if (!props.isLeader && member.memberRole === 2) return false // 管理员不能管理其他管理员
+  if (Number(member.memberRole) === 1) return false
+  if (!props.isLeader && Number(member.memberRole) === 2) return false
   return true
 }
 
-// 判断是否可以禁言
-const canMute = (member) => {
-  return canManage(member) && member.memberRole === 3
-}
+const canMute = (member: MemberRecord) => canManage(member) && Number(member.memberRole) === 3
 
-// 判断是否可以移出
-const canRemove = (member) => {
-  return canManage(member)
-}
+const canRemove = (member: MemberRecord) => canManage(member)
 
-// 设置角色
-const setRole = async (member, role) => {
+const setRole = async (member: MemberRecord, role: number) => {
   try {
     await teamApi.setMemberRole(props.teamId, member.userId, role)
     ElMessage.success('操作成功')
@@ -243,18 +241,13 @@ const setRole = async (member, role) => {
   }
 }
 
-// 转让组长
-const transferLeader = async (member) => {
+const transferLeader = async (member: MemberRecord) => {
   try {
-    await ElMessageBox.confirm(
-      `确定要将组长转让给 ${member.userName} 吗？转让后你将成为普通成员。`, 
-      '转让组长', 
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
+    await ElMessageBox.confirm(`确定要将组长转让给 ${member.userName} 吗？转让后你将成为普通成员。`, '转让组长', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
     await teamApi.transferLeader(props.teamId, member.userId)
     ElMessage.success('转让成功')
     emit('refresh')
@@ -265,8 +258,7 @@ const transferLeader = async (member) => {
   }
 }
 
-// 禁言/解禁
-const toggleMute = async (member) => {
+const toggleMute = async (member: MemberRecord) => {
   try {
     if (member.isMuted) {
       await teamApi.unmuteMember(props.teamId, member.userId)
@@ -285,19 +277,15 @@ const toggleMute = async (member) => {
   }
 }
 
-const promptMuteMinutes = async (member) => {
+const promptMuteMinutes = async (member: MemberRecord) => {
   try {
-    const { value } = await ElMessageBox.prompt(
-      `请输入对 ${member.userName} 的禁言时长（分钟）`,
-      '禁言成员',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        inputValue: '60',
-        inputPattern: /^(?:[1-9]\d{0,4})$/,
-        inputErrorMessage: '请输入 1-10080 之间的整数分钟'
-      }
-    )
+    const { value } = await ElMessageBox.prompt(`请输入对 ${member.userName} 的禁言时长（分钟）`, '禁言成员', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      inputValue: '60',
+      inputPattern: /^(?:[1-9]\d{0,4})$/,
+      inputErrorMessage: '请输入 1-10080 之间的整数分钟'
+    })
     const minutes = Number(value)
     if (!Number.isInteger(minutes) || minutes < 1 || minutes > 10080) {
       ElMessage.warning('禁言时长需为 1-10080 分钟')
@@ -312,18 +300,13 @@ const promptMuteMinutes = async (member) => {
   }
 }
 
-// 移出成员
-const removeMember = async (member) => {
+const removeMember = async (member: MemberRecord) => {
   try {
-    await ElMessageBox.confirm(
-      `确定要将 ${member.userName} 移出小组吗？`, 
-      '移出成员', 
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
+    await ElMessageBox.confirm(`确定要将 ${member.userName} 移出小组吗？`, '移出成员', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
     await teamApi.removeMember(props.teamId, member.userId)
     ElMessage.success('已移出')
     loadMembers()
@@ -334,8 +317,7 @@ const removeMember = async (member) => {
   }
 }
 
-// 通过申请
-const handleApprove = async (app) => {
+const handleApprove = async (app: ApplicationRecord) => {
   try {
     await teamApi.approveApplication(props.teamId, app.id)
     ElMessage.success('已通过')
@@ -346,8 +328,7 @@ const handleApprove = async (app) => {
   }
 }
 
-// 拒绝申请
-const handleReject = async (app) => {
+const handleReject = async (app: ApplicationRecord) => {
   try {
     await teamApi.rejectApplication(props.teamId, app.id)
     ElMessage.success('已拒绝')
@@ -357,7 +338,25 @@ const handleReject = async (app) => {
   }
 }
 
-const formatTime = (time) => {
+const getRoleText = (role: unknown) => {
+  const map: Record<string, string> = {
+    1: '组长',
+    2: '管理员',
+    3: '成员'
+  }
+  return map[String(role)] || '成员'
+}
+
+const getRoleTone = (role: unknown): CnTone => {
+  const map: Record<string, CnTone> = {
+    1: 'warning',
+    2: 'brand',
+    3: 'neutral'
+  }
+  return map[String(role)] || 'neutral'
+}
+
+const formatTime = (time?: string) => {
   if (!time) return ''
   const date = new Date(time)
   return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -366,262 +365,200 @@ const formatTime = (time) => {
 defineExpose({ loadMembers, loadApplications })
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .member-list {
-  .empty-state {
-    padding: 20px 0;
-  }
+  min-width: 0;
 }
 
 .member-stats {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #f0f0f0;
-  margin-bottom: 16px;
-  
-  .stat-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 14px;
-    color: #666;
-  }
-  
-  .pending-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 5px;
-    background: #f56c6c;
-    color: white;
-    font-size: 12px;
-    border-radius: 9px;
-    margin-left: 4px;
-  }
+  justify-content: space-between;
+  gap: var(--cn-space-3);
+  padding-bottom: var(--cn-space-4);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
+  margin-bottom: var(--cn-space-4);
+}
+
+.member-stats :deep(.cn-status-tag__label),
+.member-role :deep(.cn-status-tag__label) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cn-space-1);
+}
+
+.members {
+  display: grid;
+  min-height: 120px;
 }
 
 .member-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  transition: background 0.2s;
-  
-  &:hover {
-    background: #f8f9fc;
-  }
-  
-  & + .member-item {
-    border-top: 1px solid #f5f5f5;
-  }
+  gap: var(--cn-space-3);
+  min-width: 0;
+  padding: var(--cn-space-3);
+  border-radius: var(--cn-radius-card);
+  transition: background-color var(--cn-motion-base) var(--cn-ease-out);
+}
+
+.member-item:hover {
+  background: var(--cn-color-bg-surface-muted);
+}
+
+.member-item + .member-item {
+  border-top: 1px solid var(--cn-color-border-subtle);
+}
+
+.member-avatar,
+.app-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: var(--cn-radius-pill);
+  background: var(--cn-color-brand-soft);
+  color: var(--cn-color-brand-primary);
+  flex-shrink: 0;
+  font-weight: 800;
 }
 
 .member-avatar {
   width: 44px;
   height: 44px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  flex-shrink: 0;
-  
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  
-  span {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    color: white;
-    font-size: 18px;
-    font-weight: 500;
-  }
+  font-size: 18px;
 }
 
-.member-info {
+.app-avatar {
+  width: 40px;
+  height: 40px;
+  font-size: 16px;
+}
+
+.member-avatar img,
+.app-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.member-info,
+.app-info {
   flex: 1;
   min-width: 0;
-  
-  .member-name {
-    font-size: 14px;
-    font-weight: 500;
-    color: #333;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    
-    .me-tag {
-      padding: 1px 6px;
-      background: #e8f4fd;
-      color: #409eff;
-      font-size: 11px;
-      border-radius: 4px;
-      font-weight: normal;
-    }
-  }
-  
-  .member-role {
-    margin-top: 4px;
-    
-    .role-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-      padding: 2px 8px;
-      font-size: 12px;
-      border-radius: 4px;
-      
-      &.leader {
-        background: #fdf2e9;
-        color: #e6a23c;
-      }
-      
-      &.admin {
-        background: #e8f4fd;
-        color: #409eff;
-      }
-      
-      &.member {
-        background: #f5f7fa;
-        color: #909399;
-      }
+}
 
-      &.muted {
-        background: #fef0f0;
-        color: #f56c6c;
-      }
-    }
-  }
+.member-name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
+  color: var(--cn-color-text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.member-role {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
+  margin-top: var(--cn-space-2);
 }
 
 .member-stats-info {
   display: flex;
-  gap: 16px;
-  
-  .stat {
-    text-align: center;
-    
-    .stat-num {
-      display: block;
-      font-size: 16px;
-      font-weight: 600;
-      color: #333;
-    }
-    
-    .stat-label {
-      font-size: 12px;
-      color: #999;
-    }
-  }
+  gap: var(--cn-space-4);
+  flex-shrink: 0;
+}
+
+.stat {
+  display: grid;
+  justify-items: center;
+  gap: var(--cn-space-1);
+}
+
+.stat-num {
+  color: var(--cn-color-text-primary);
+  font-family: var(--cn-font-heading);
+  font-size: 17px;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.stat-label {
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .member-actions {
   flex-shrink: 0;
 }
 
-// 申请列表
 .application-list {
+  display: grid;
   max-height: 400px;
   overflow-y: auto;
-  
-  .empty-state {
-    padding: 30px 0;
-  }
 }
 
 .application-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  
-  & + .application-item {
-    border-top: 1px solid #f0f0f0;
+  gap: var(--cn-space-3);
+  min-width: 0;
+  padding: var(--cn-space-3);
+  border-radius: var(--cn-radius-card);
+}
+
+.application-item + .application-item {
+  border-top: 1px solid var(--cn-color-border-subtle);
+}
+
+.app-name {
+  color: var(--cn-color-text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.app-reason {
+  margin-top: var(--cn-space-1);
+  overflow: hidden;
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-time {
+  margin-top: var(--cn-space-1);
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+}
+
+.app-actions {
+  display: flex;
+  gap: var(--cn-space-2);
+  flex-shrink: 0;
+}
+
+.app-status {
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .member-stats,
+  .member-item,
+  .application-item {
+    align-items: flex-start;
   }
-  
-  .app-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    overflow: hidden;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    flex-shrink: 0;
-    
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    
-    span {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      height: 100%;
-      color: white;
-      font-size: 16px;
-    }
+
+  .member-stats,
+  .member-item {
+    display: grid;
   }
-  
-  .app-info {
-    flex: 1;
-    min-width: 0;
-    
-    .app-name {
-      font-size: 14px;
-      font-weight: 500;
-      color: #333;
-    }
-    
-    .app-reason {
-      font-size: 13px;
-      color: #666;
-      margin-top: 4px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    
-    .app-time {
-      font-size: 12px;
-      color: #999;
-      margin-top: 4px;
-    }
-  }
-  
-  .app-actions {
-    display: flex;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-  
-  .app-status {
-    .status {
-      padding: 4px 12px;
-      font-size: 12px;
-      border-radius: 4px;
-      
-      &.approved {
-        background: #f0f9eb;
-        color: #67c23a;
-      }
-      
-      &.rejected {
-        background: #fef0f0;
-        color: #f56c6c;
-      }
-    }
+
+  .member-stats-info {
+    justify-content: flex-start;
   }
 }
 </style>

@@ -23,7 +23,9 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
@@ -220,6 +222,31 @@ public class GlobalExceptionHandler {
         log.error("请求地址'{}',缺少必要的请求头'{}'", requestURI, e.getHeaderName());
         return Result.error(ResultCode.BAD_REQUEST.getCode(),
                 String.format("缺少必要的请求头[%s]", e.getHeaderName()));
+    }
+
+    /**
+     * 文件上传请求缺少必要分片异常处理
+     */
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleMissingServletRequestPart(MissingServletRequestPartException e,
+                                                        HttpServletRequest request) {
+        String requestURI = request.getRequestURI();
+        log.error("请求地址'{}',缺少必要的文件参数'{}'", requestURI, e.getRequestPartName());
+        return Result.error(ResultCode.BAD_REQUEST.getCode(),
+                String.format("缺少必要的文件参数[%s]", e.getRequestPartName()));
+    }
+
+    /**
+     * 非 multipart 文件上传请求异常处理
+     */
+    @ExceptionHandler(MultipartException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleMultipartException(MultipartException e,
+                                                 HttpServletRequest request) {
+        String requestURI = request.getRequestURI();
+        log.error("请求地址'{}',文件上传请求格式错误: {}", requestURI, e.getMessage());
+        return Result.error(ResultCode.BAD_REQUEST.getCode(), "文件上传请求格式错误，请使用multipart/form-data");
     }
 
     /**

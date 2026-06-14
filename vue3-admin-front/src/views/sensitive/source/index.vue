@@ -1,124 +1,117 @@
 <template>
-  <div class="sensitive-source-page">
-    <!-- 操作栏 -->
-    <div class="toolbar">
-      <el-card shadow="never">
-        <el-row :gutter="10">
-          <el-col :span="1.5">
-            <el-button type="primary" @click="handleAdd">
-              <el-icon><Plus /></el-icon>
-              新增
-            </el-button>
-          </el-col>
-        </el-row>
-      </el-card>
+  <CnPage class="sensitive-source-page" surface="transparent" max-width="1320px">
+    <CnPageHeader
+      title="词库来源"
+      description="管理本地词库、第三方 API 和 GitHub 词库来源，统一跟踪同步状态和词汇数量。"
+      eyebrow="Sensitive Sources"
+      :breadcrumbs="breadcrumbs"
+    >
+      <template #meta>
+        <CnStatusTag type="brand">内容安全</CnStatusTag>
+        <CnStatusTag type="neutral">共 {{ total }} 个来源</CnStatusTag>
+        <CnStatusTag type="success">启用 {{ enabledCountInPage }} 个</CnStatusTag>
+        <CnStatusTag type="warning">远程 {{ remoteCountInPage }} 个</CnStatusTag>
+      </template>
+
+      <template #actions>
+        <el-button :icon="Refresh" :loading="loading" @click="loadSources">刷新</el-button>
+        <el-button type="primary" :icon="Plus" @click="handleAdd">新增词库来源</el-button>
+      </template>
+    </CnPageHeader>
+
+    <div class="sensitive-stat-grid">
+      <CnStatCard title="来源总量" :value="total" description="当前筛选条件下的词库来源数量" tone="brand" />
+      <CnStatCard title="启用来源" :value="enabledCountInPage" description="当前页处于启用状态的来源" tone="success" />
+      <CnStatCard title="远程来源" :value="remoteCountInPage" description="当前页 API 和 GitHub 来源数量" tone="warning" />
+      <CnStatCard title="词汇总量" :value="wordCountInPage" description="当前页来源累计词汇数量" tone="info" />
     </div>
 
-    <!-- 数据表格 -->
-    <el-card shadow="never">
-      <el-table
-        v-loading="loading"
+    <CnSection title="词库来源列表" :description="`共 ${total} 个词库来源`" divided>
+      <CnDataTable
+        :columns="tableColumns"
         :data="tableData"
+        :loading="loading"
+        :pagination="tablePagination"
+        row-key="id"
+        @page-change="handlePageChange"
+        @page-size-change="handlePageSizeChange"
       >
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="sourceName" label="来源名称" min-width="150" />
-        <el-table-column label="来源类型" width="120">
-          <template #default="{ row }">
-            <el-tag :type="getSourceTypeTagType(row.sourceType)" size="small">
-              {{ getSourceTypeText(row.sourceType) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="wordCount" label="词汇数量" width="100" align="right" />
-        <el-table-column prop="syncInterval" label="同步间隔(小时)" width="140" />
-        <el-table-column label="同步状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="row.syncStatus === 1 ? 'success' : 'danger'" size="small">
-              {{ row.syncStatus === 1 ? '成功' : '失败' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="lastSyncTime" label="最后同步时间" width="180" />
-        <el-table-column label="状态" width="80">
-          <template #default="{ row }">
-            <el-tag
-              :type="row.status === 1 ? 'success' : 'danger'"
-              size="small"
-            >
-              {{ row.status === 1 ? '启用' : '禁用' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right">
-          <template #default="{ row }">
-            <el-button
-              type="primary"
-              size="small"
-              @click="handleEdit(row)"
-            >
-              编辑
-            </el-button>
-            <el-button
-              type="success"
-              size="small"
-              @click="handleSync(row)"
-            >
-              同步
-            </el-button>
-            <el-button
-              type="info"
-              size="small"
-              @click="handleTestConnection(row)"
-            >
-              测试
-            </el-button>
-            <el-button
-              type="danger"
-              size="small"
-              @click="handleDelete(row)"
-            >
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+        <template #toolbar>
+          <CnToolbar title="来源数据" description="同步和测试操作会调用外部来源，请避免在高峰期频繁触发。" align="center">
+            <template #meta>
+              <CnStatusTag type="neutral" size="sm">每页 {{ queryForm.pageSize }} 条</CnStatusTag>
+              <CnStatusTag type="info" size="sm">词汇 {{ wordCountInPage }} 条</CnStatusTag>
+            </template>
 
-      <!-- 分页 -->
-      <div class="pagination">
-        <el-pagination
-          v-model:current-page="queryForm.pageNum"
-          v-model:page-size="queryForm.pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleQuery"
-          @current-change="handleQuery"
-        />
-      </div>
-    </el-card>
+            <el-button type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
+          </CnToolbar>
+        </template>
 
-    <!-- 新增/编辑对话框 -->
+        <template #sourceName="{ row }">
+          <div class="source-cell">
+            <strong>{{ row.sourceName || '-' }}</strong>
+            <span>ID {{ row.id }}</span>
+          </div>
+        </template>
+
+        <template #sourceType="{ row }">
+          <CnStatusTag :type="getSourceTypeTone(row.sourceType)" size="sm">
+            {{ getSourceTypeText(row.sourceType) }}
+          </CnStatusTag>
+        </template>
+
+        <template #syncInterval="{ row }">
+          <span class="muted-text">{{ row.syncInterval || 0 }} 小时</span>
+        </template>
+
+        <template #syncStatus="{ row }">
+          <CnStatusTag :type="row.syncStatus === 1 ? 'success' : 'danger'" size="sm">
+            {{ row.syncStatus === 1 ? '成功' : '失败' }}
+          </CnStatusTag>
+        </template>
+
+        <template #status="{ row }">
+          <CnStatusTag :type="row.status === 1 ? 'success' : 'danger'" size="sm">
+            {{ row.status === 1 ? '启用' : '禁用' }}
+          </CnStatusTag>
+        </template>
+
+        <template #actions="{ row }">
+          <div class="table-actions">
+            <el-button type="primary" link size="small" :icon="Edit" @click="handleEdit(row)">编辑</el-button>
+            <el-button type="success" link size="small" :icon="Refresh" @click="handleSync(row)">同步</el-button>
+            <el-button type="info" link size="small" :icon="Connection" @click="handleTestConnection(row)">测试</el-button>
+            <el-button type="danger" link size="small" :icon="Delete" @click="handleDelete(row)">删除</el-button>
+          </div>
+        </template>
+
+        <template #empty>
+          <CnEmptyState
+            title="暂无词库来源"
+            description="当前没有可展示的词库来源，可以新增本地、API 或 GitHub 来源。"
+            icon="SC"
+            surface="transparent"
+          >
+            <template #actions>
+              <el-button type="primary" @click="handleAdd">新增词库来源</el-button>
+            </template>
+          </CnEmptyState>
+        </template>
+      </CnDataTable>
+    </CnSection>
+
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
       width="600px"
       @close="resetForm"
     >
-      <el-form
-        ref="formRef"
-        :model="form"
-        :rules="formRules"
-        label-width="120px"
-      >
+      <el-form ref="formRef" :model="form" :rules="formRules" label-width="120px">
         <el-form-item label="来源名称" prop="sourceName">
-          <el-input
-            v-model="form.sourceName"
-            placeholder="请输入来源名称"
-            maxlength="100"
-          />
+          <el-input v-model="form.sourceName" placeholder="请输入来源名称" maxlength="100" />
         </el-form-item>
         <el-form-item label="来源类型" prop="sourceType">
-          <el-select v-model="form.sourceType" placeholder="请选择类型" style="width: 100%">
+          <el-select v-model="form.sourceType" placeholder="请选择类型" class="full-width-control">
             <el-option label="本地词库" value="local" />
             <el-option label="API接口" value="api" />
             <el-option label="GitHub" value="github" />
@@ -149,12 +142,7 @@
           />
         </el-form-item>
         <el-form-item label="同步间隔(小时)" prop="syncInterval">
-          <el-input-number
-            v-model="form.syncInterval"
-            :min="1"
-            :max="720"
-            style="width: 100%"
-          />
+          <el-input-number v-model="form.syncInterval" :min="1" :max="720" class="full-width-control" />
         </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-radio-group v-model="form.status">
@@ -164,42 +152,86 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">确定</el-button>
+        <div class="dialog-footer">
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="handleSubmit">确定</el-button>
+        </div>
       </template>
     </el-dialog>
-  </div>
+  </CnPage>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
+import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Connection, Delete, Edit, Plus, Refresh } from '@element-plus/icons-vue'
+import { addSource, deleteSource, listSources, syncSource, testSourceConnection, updateSource } from '@/api/sensitive'
 import {
-  listSources,
-  addSource,
-  updateSource,
-  deleteSource,
-  testSourceConnection,
-  syncSource
-} from '@/api/sensitive'
+  CnDataTable,
+  CnEmptyState,
+  CnPage,
+  CnPageHeader,
+  CnSection,
+  CnStatCard,
+  CnStatusTag,
+  CnToolbar
+} from '@/design-system'
+import type { CnBreadcrumbItem, CnPagination, CnTableColumn, CnTone } from '@/design-system'
 
-// 响应式数据
+type SourceType = 'local' | 'api' | 'github' | string
+
+interface SourceRecord {
+  id: number
+  sourceName: string
+  sourceType: SourceType
+  apiUrl?: string
+  apiKey?: string
+  wordCount?: number
+  syncInterval?: number
+  syncStatus?: number
+  lastSyncTime?: string
+  status: number
+  [key: string]: unknown
+}
+
+interface SourceQuery {
+  pageNum: number
+  pageSize: number
+}
+
+interface SourceForm {
+  id: number | null
+  sourceName: string
+  sourceType: SourceType
+  apiUrl: string
+  apiKey: string
+  syncInterval: number
+  status: number
+}
+
+interface SyncResult {
+  message?: string
+  addedCount?: number
+  updatedCount?: number
+  failedCount?: number
+}
+
+const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '敏感词管理' }, { label: '词库来源' }]
+
 const loading = ref(false)
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
-const tableData = ref([])
+const tableData = ref<SourceRecord[]>([])
 const total = ref(0)
-const formRef = ref()
+const formRef = ref<FormInstance>()
 
-// 查询表单
-const queryForm = reactive({
+const queryForm = reactive<SourceQuery>({
   pageNum: 1,
   pageSize: 10
 })
 
-// 编辑表单
-const form = reactive({
+const form = reactive<SourceForm>({
   id: null,
   sourceName: '',
   sourceType: 'local',
@@ -209,124 +241,189 @@ const form = reactive({
   status: 1
 })
 
-// 表单验证规则
-const formRules = {
-  sourceName: [
-    { required: true, message: '请输入来源名称', trigger: 'blur' }
-  ],
-  sourceType: [
-    { required: true, message: '请选择来源类型', trigger: 'change' }
-  ],
+const formRules: FormRules<SourceForm> = {
+  sourceName: [{ required: true, message: '请输入来源名称', trigger: 'blur' }],
+  sourceType: [{ required: true, message: '请选择来源类型', trigger: 'change' }],
   apiUrl: [
-    { required: true, message: '请输入API地址', trigger: 'blur' }
+    {
+      validator: (_rule, value, callback) => {
+        if (form.sourceType !== 'local' && !value) {
+          callback(new Error(form.sourceType === 'github' ? '请输入GitHub地址' : '请输入API地址'))
+          return
+        }
+        callback()
+      },
+      trigger: 'blur'
+    }
   ],
-  syncInterval: [
-    { required: true, message: '请输入同步间隔', trigger: 'blur' }
-  ],
-  status: [
-    { required: true, message: '请选择状态', trigger: 'change' }
-  ]
+  syncInterval: [{ required: true, message: '请输入同步间隔', trigger: 'blur' }],
+  status: [{ required: true, message: '请选择状态', trigger: 'change' }]
 }
 
-// 方法
-const handleQuery = async () => {
+const tableColumns: CnTableColumn<SourceRecord>[] = [
+  { prop: 'id', label: 'ID', width: 80 },
+  { prop: 'sourceName', label: '来源名称', minWidth: 150, slot: 'sourceName', showOverflowTooltip: true },
+  { prop: 'sourceType', label: '来源类型', width: 110, slot: 'sourceType' },
+  { prop: 'wordCount', label: '词汇数量', width: 100, align: 'right' },
+  { prop: 'syncInterval', label: '同步间隔', width: 110, slot: 'syncInterval' },
+  { prop: 'syncStatus', label: '同步状态', width: 100, slot: 'syncStatus' },
+  { prop: 'lastSyncTime', label: '最后同步时间', width: 180, showOverflowTooltip: true },
+  { prop: 'status', label: '状态', width: 90, slot: 'status' },
+  { label: '操作', width: 210, fixed: 'right', slot: 'actions' }
+]
+
+const tablePagination = computed<CnPagination>(() => ({
+  page: queryForm.pageNum,
+  pageSize: queryForm.pageSize,
+  total: total.value,
+  pageSizes: [10, 20, 50, 100]
+}))
+
+const enabledCountInPage = computed(() => tableData.value.filter((item) => item.status === 1).length)
+const remoteCountInPage = computed(() => tableData.value.filter((item) => item.sourceType !== 'local').length)
+const wordCountInPage = computed(() => tableData.value.reduce((sum, item) => sum + (Number(item.wordCount) || 0), 0))
+
+onMounted(() => {
+  loadSources()
+})
+
+const loadSources = async () => {
   loading.value = true
   try {
-    const response = await listSources(queryForm)
-    tableData.value = response.records
-    total.value = response.total
+    const response = await listSources({ ...queryForm })
+    tableData.value = response?.records || []
+    total.value = response?.total || 0
   } catch (error) {
+    console.error('查询词库来源失败:', error)
     ElMessage.error('查询失败')
   } finally {
     loading.value = false
   }
 }
 
+const handlePageChange = (page: number) => {
+  queryForm.pageNum = page
+  loadSources()
+}
+
+const handlePageSizeChange = (size: number) => {
+  queryForm.pageSize = size
+  queryForm.pageNum = 1
+  loadSources()
+}
+
 const handleAdd = () => {
   dialogTitle.value = '新增词库来源'
+  resetForm()
   dialogVisible.value = true
 }
 
-const handleEdit = (row) => {
+const handleEdit = (row: SourceRecord) => {
   dialogTitle.value = '编辑词库来源'
-  Object.assign(form, row)
+  Object.assign(form, {
+    id: row.id,
+    sourceName: row.sourceName || '',
+    sourceType: row.sourceType || 'local',
+    apiUrl: row.apiUrl || '',
+    apiKey: row.apiKey || '',
+    syncInterval: Number(row.syncInterval) || 24,
+    status: Number(row.status) === 0 ? 0 : 1
+  })
   dialogVisible.value = true
 }
 
 const handleSubmit = async () => {
-  const valid = await formRef.value.validate()
+  if (!formRef.value) return
+
+  const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
 
   try {
+    const payload = {
+      ...form,
+      apiUrl: form.sourceType === 'local' ? '' : form.apiUrl,
+      apiKey: form.sourceType === 'local' ? '' : form.apiKey
+    }
+
     if (form.id) {
-      await updateSource(form)
+      await updateSource(payload)
       ElMessage.success('更新成功')
     } else {
-      await addSource(form)
+      await addSource(payload)
       ElMessage.success('新增成功')
     }
     dialogVisible.value = false
-    handleQuery()
+    loadSources()
   } catch (error) {
+    console.error(form.id ? '更新词库来源失败:' : '新增词库来源失败:', error)
     ElMessage.error(form.id ? '更新失败' : '新增失败')
   }
 }
 
-const handleDelete = async (row) => {
+const handleDelete = async (row: SourceRecord) => {
   try {
-    await ElMessageBox.confirm('确定要删除这个词库来源吗？', '提示', {
+    await ElMessageBox.confirm(`确定要删除词库来源 "${row.sourceName}" 吗？`, '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
       type: 'warning'
     })
     await deleteSource(row.id)
     ElMessage.success('删除成功')
-    handleQuery()
+    loadSources()
   } catch (error) {
     if (error !== 'cancel') {
+      console.error('删除词库来源失败:', error)
       ElMessage.error('删除失败')
     }
   }
 }
 
-const handleTestConnection = async (row) => {
+const handleTestConnection = async (row: SourceRecord) => {
   try {
     const message = await testSourceConnection(row.id)
-    ElMessage.success(message || '连接测试成功')
+    ElMessage.success(String(message || '连接测试成功'))
   } catch (error) {
+    console.error('连接测试失败:', error)
     ElMessage.error('连接测试失败')
   }
 }
 
-const handleSync = async (row) => {
-  try {
-    const syncLoading = ElMessage.loading('正在同步词库，请稍候...')
-    const result = await syncSource(row.id)
-    syncLoading.close()
+const handleSync = async (row: SourceRecord) => {
+  const syncMessage = ElMessage({
+    message: '正在同步词库，请稍候...',
+    type: 'info',
+    duration: 0
+  })
 
+  try {
+    const result: SyncResult = await syncSource(row.id)
+    syncMessage.close()
     ElMessage.success(
-      result.message || `同步完成：新增 ${result.addedCount || 0}，更新 ${result.updatedCount || 0}，失败 ${result.failedCount || 0}`
+      result?.message || `同步完成：新增 ${result?.addedCount || 0}，更新 ${result?.updatedCount || 0}，失败 ${result?.failedCount || 0}`
     )
-    handleQuery()
+    loadSources()
   } catch (error) {
+    syncMessage.close()
+    console.error('同步词库来源失败:', error)
     ElMessage.error('同步失败')
   }
 }
 
 const resetForm = () => {
-  form.id = null
-  form.sourceName = ''
-  form.sourceType = 'local'
-  form.apiUrl = ''
-  form.apiKey = ''
-  form.syncInterval = 24
-  form.status = 1
-  if (formRef.value) {
-    formRef.value.resetFields()
-  }
+  Object.assign(form, {
+    id: null,
+    sourceName: '',
+    sourceType: 'local',
+    apiUrl: '',
+    apiKey: '',
+    syncInterval: 24,
+    status: 1
+  })
+  formRef.value?.resetFields()
 }
 
-// 工具方法
-const getSourceTypeText = (type) => {
-  const typeMap = {
+const getSourceTypeText = (type: SourceType) => {
+  const typeMap: Record<string, string> = {
     local: '本地词库',
     api: 'API接口',
     github: 'GitHub'
@@ -334,32 +431,75 @@ const getSourceTypeText = (type) => {
   return typeMap[type] || '未知'
 }
 
-const getSourceTypeTagType = (type) => {
-  const typeMap = {
+const getSourceTypeTone = (type: SourceType): CnTone => {
+  const toneMap: Record<string, CnTone> = {
     local: 'info',
     api: 'success',
     github: 'warning'
   }
-  return typeMap[type] || 'info'
+  return toneMap[type] || 'info'
 }
-
-// 生命周期
-onMounted(() => {
-  handleQuery()
-})
 </script>
 
 <style scoped>
 .sensitive-source-page {
-  padding: 20px;
+  min-height: 100%;
 }
 
-.toolbar {
-  margin-bottom: 16px;
+.sensitive-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cn-space-4);
 }
 
-.pagination {
-  margin-top: 20px;
-  text-align: center;
+.source-cell {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.source-cell strong {
+  overflow: hidden;
+  color: var(--cn-color-text-primary);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-cell span,
+.muted-text {
+  color: var(--cn-color-text-secondary);
+  font-size: 12px;
+}
+
+.table-actions,
+.dialog-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
+}
+
+.table-actions .el-button {
+  margin-left: 0;
+}
+
+.dialog-footer {
+  justify-content: flex-end;
+}
+
+@media (max-width: 1180px) {
+  .sensitive-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .sensitive-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dialog-footer {
+    justify-content: flex-start;
+  }
 }
 </style>

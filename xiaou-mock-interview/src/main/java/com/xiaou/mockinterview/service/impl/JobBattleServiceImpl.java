@@ -11,6 +11,7 @@ import com.xiaou.ai.service.AiJobBattleService;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.exception.BusinessException;
 import com.xiaou.common.utils.PageHelper;
+import com.xiaou.common.utils.ThreadPoolUtils;
 import com.xiaou.mockinterview.domain.JobBattleMatchRecord;
 import com.xiaou.mockinterview.domain.JobBattlePlanRecord;
 import com.xiaou.mockinterview.dto.request.CareerLoopEventRequest;
@@ -29,6 +30,7 @@ import com.xiaou.mockinterview.service.CareerLoopService;
 import com.xiaou.mockinterview.service.JobBattleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -41,6 +43,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /**
  * 求职作战台服务实现
@@ -59,13 +64,20 @@ public class JobBattleServiceImpl implements JobBattleService {
     private final JobBattleMatchRecordMapper matchRecordMapper;
     private final CareerLoopService careerLoopService;
 
+    @Value("${job-battle.ai.timeout-seconds:4}")
+    private long aiTimeoutSeconds;
+
     @Override
     public JobBattleJdParseResult parseJd(Long userId, JobBattleParseJdRequest request) {
-        JobBattleJdParseResult result = aiJobBattleService.parseJd(
-                request.getJdText(),
-                request.getTargetRole(),
-                request.getTargetLevel(),
-                request.getCity()
+        JobBattleJdParseResult result = runAiWithFallback(
+                "JD解析",
+                () -> aiJobBattleService.parseJd(
+                        request.getJdText(),
+                        request.getTargetRole(),
+                        request.getTargetLevel(),
+                        request.getCity()
+                ),
+                () -> JobBattleJdParseResult.fallbackResult(request.getJdText())
         );
         pushLoopEvent(userId, CareerLoopStageEnum.JD_PARSED.name(), "job_battle", null, "完成JD解析");
         return result;
@@ -73,11 +85,15 @@ public class JobBattleServiceImpl implements JobBattleService {
 
     @Override
     public JobBattleResumeMatchResult matchResume(Long userId, JobBattleResumeMatchRequest request) {
-        JobBattleResumeMatchResult result = aiJobBattleService.matchResume(
-                request.getParsedJdJson(),
-                request.getResumeText(),
-                request.getProjectHighlights(),
-                request.getTargetCompanyType()
+        JobBattleResumeMatchResult result = runAiWithFallback(
+                "简历匹配评估",
+                () -> aiJobBattleService.matchResume(
+                        request.getParsedJdJson(),
+                        request.getResumeText(),
+                        request.getProjectHighlights(),
+                        request.getTargetCompanyType()
+                ),
+                () -> JobBattleResumeMatchResult.fallbackResult(request.getParsedJdJson(), request.getResumeText())
         );
         pushLoopEvent(userId, CareerLoopStageEnum.RESUME_MATCHED.name(), "job_battle", null, "完成简历匹配");
         return result;
@@ -85,12 +101,16 @@ public class JobBattleServiceImpl implements JobBattleService {
 
     @Override
     public JobBattlePlanResult generatePlan(Long userId, JobBattleGeneratePlanRequest request) {
-        JobBattlePlanResult result = aiJobBattleService.generatePlan(
-                request.getGapsJson(),
-                request.getTargetDays(),
-                request.getWeeklyHours(),
-                request.getPreferredLearningMode(),
-                request.getNextInterviewDate()
+        JobBattlePlanResult result = runAiWithFallback(
+                "生成补短板计划",
+                () -> aiJobBattleService.generatePlan(
+                        request.getGapsJson(),
+                        request.getTargetDays(),
+                        request.getWeeklyHours(),
+                        request.getPreferredLearningMode(),
+                        request.getNextInterviewDate()
+                ),
+                () -> JobBattlePlanResult.fallbackResult(request.getTargetDays(), request.getWeeklyHours())
         );
         Long recordId = savePlanRecord(userId, request, result);
         pushLoopEvent(userId, CareerLoopStageEnum.PLAN_READY.name(), "job_battle",
@@ -125,14 +145,18 @@ public class JobBattleServiceImpl implements JobBattleService {
 
         List<JobBattleMatchEngineResult.TargetScore> ranking = new ArrayList<>();
         for (JobBattleMatchEngineRunRequest.TargetJob target : request.getTargets()) {
-            JobBattleTargetAnalysisResult analysisResult = aiJobBattleService.analyzeTarget(
-                    target.getJdText(),
-                    target.getTargetRole(),
-                    target.getTargetLevel(),
-                    target.getCity(),
-                    request.getResumeText(),
-                    request.getProjectHighlights(),
-                    request.getTargetCompanyType()
+            JobBattleTargetAnalysisResult analysisResult = runAiWithFallback(
+                    "岗位匹配引擎分析",
+                    () -> aiJobBattleService.analyzeTarget(
+                            target.getJdText(),
+                            target.getTargetRole(),
+                            target.getTargetLevel(),
+                            target.getCity(),
+                            request.getResumeText(),
+                            request.getProjectHighlights(),
+                            request.getTargetCompanyType()
+                    ),
+                    () -> buildFallbackTargetAnalysis(target, request)
             );
             JobBattleJdParseResult jdResult = analysisResult == null ? null : analysisResult.getJdParse();
             JobBattleResumeMatchResult matchResult = analysisResult == null ? null : analysisResult.getResumeMatch();
@@ -217,15 +241,55 @@ public class JobBattleServiceImpl implements JobBattleService {
 
     @Override
     public JobBattleInterviewReviewResult reviewInterview(Long userId, JobBattleInterviewReviewRequest request) {
-        JobBattleInterviewReviewResult result = aiJobBattleService.reviewInterview(
-                request.getInterviewNotes(),
-                request.getQaTranscriptJson(),
-                request.getInterviewResult(),
-                request.getTargetRole(),
-                request.getNextInterviewDate()
+        JobBattleInterviewReviewResult result = runAiWithFallback(
+                "面试复盘总结",
+                () -> aiJobBattleService.reviewInterview(
+                        request.getInterviewNotes(),
+                        request.getQaTranscriptJson(),
+                        request.getInterviewResult(),
+                        request.getTargetRole(),
+                        request.getNextInterviewDate()
+                ),
+                () -> JobBattleInterviewReviewResult.fallbackResult(request.getInterviewResult())
         );
         pushLoopEvent(userId, CareerLoopStageEnum.REVIEWED.name(), "job_battle", null, "完成复盘总结");
         return result;
+    }
+
+    private <T> T runAiWithFallback(String operation, Supplier<T> aiSupplier, Supplier<T> fallbackSupplier) {
+        long timeoutSeconds = Math.max(1L, aiTimeoutSeconds);
+        try {
+            T result = CompletableFuture.supplyAsync(aiSupplier, ThreadPoolUtils.getIoExecutor())
+                    .completeOnTimeout(null, timeoutSeconds, TimeUnit.SECONDS)
+                    .exceptionally(ex -> {
+                        log.warn("求职作战台AI调用失败，operation={}, reason={}", operation, ex.getMessage());
+                        return null;
+                    })
+                    .join();
+            if (result != null) {
+                return result;
+            }
+            log.warn("求职作战台AI调用超时或返回空，operation={}, timeoutSeconds={}", operation, timeoutSeconds);
+        } catch (Exception e) {
+            log.warn("求职作战台AI调用异常，operation={}", operation, e);
+        }
+        return fallbackSupplier.get();
+    }
+
+    private JobBattleTargetAnalysisResult buildFallbackTargetAnalysis(
+            JobBattleMatchEngineRunRequest.TargetJob target,
+            JobBattleMatchEngineRunRequest request) {
+        JobBattleJdParseResult jdParse = JobBattleJdParseResult.fallbackResult(target.getJdText())
+                .setJobTitle(StrUtil.blankToDefault(target.getTargetRole(), "未识别岗位"))
+                .setLevel(StrUtil.blankToDefault(target.getTargetLevel(), "未知"));
+        JobBattleResumeMatchResult resumeMatch = JobBattleResumeMatchResult.fallbackResult(
+                JSONUtil.toJsonStr(jdParse),
+                request.getResumeText()
+        );
+        return new JobBattleTargetAnalysisResult()
+                .setJdParse(jdParse)
+                .setResumeMatch(resumeMatch)
+                .setFallback(true);
     }
 
     private JobBattleMatchEngineResult.TargetScore buildTargetScore(

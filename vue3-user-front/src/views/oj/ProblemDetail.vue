@@ -10,24 +10,27 @@
         <h3 class="problem-name" v-if="problem.title">
           {{ problem.id }}. {{ problem.title }}
         </h3>
-        <el-tag
+        <CnStatusTag
           v-if="problem.difficulty"
           :type="getDifficultyTag(problem.difficulty)"
-          size="small"
-          effect="dark"
+          size="sm"
+          :dot="false"
         >
           {{ getDifficultyLabel(problem.difficulty) }}
-        </el-tag>
+        </CnStatusTag>
       </div>
       <div class="top-right">
-        <el-tag
+        <CnStatusTag
           v-for="tag in (problem.tags || [])"
           :key="tag.id"
-          size="small"
+          type="neutral"
+          size="sm"
+          :dot="false"
+          subtle
           class="tag-chip"
         >
           {{ tag.name }}
-        </el-tag>
+        </CnStatusTag>
       </div>
     </div>
 
@@ -110,9 +113,9 @@
             </div>
 
             <!-- 加载中 -->
-            <div v-if="commentsLoading" style="text-align: center; padding: 40px 0;">
+            <div v-if="commentsLoading" class="inline-loading">
               <el-icon class="is-loading" :size="24"><Loading /></el-icon>
-              <p style="color: #9ca3af; margin-top: 8px;">加载中...</p>
+              <p>加载中...</p>
             </div>
 
             <!-- 空状态 -->
@@ -219,18 +222,18 @@
 
           <!-- 题解 -->
           <div class="problem-content" v-show="activeTab === 'solution'">
-            <div v-if="solutionsLoading" style="text-align: center; padding: 40px 0;">
+            <div v-if="solutionsLoading" class="inline-loading">
               <el-icon class="is-loading" :size="24"><Loading /></el-icon>
-              <p style="color: #9ca3af; margin-top: 8px;">加载中...</p>
+              <p>加载中...</p>
             </div>
-            <div v-else-if="solutions.length === 0" style="text-align: center; padding: 40px 0; color: #9ca3af;">
+            <div v-else-if="solutions.length === 0" class="inline-empty">
               暂无题解
             </div>
             <div v-else>
               <div v-for="sol in solutions" :key="sol.id" class="solution-item">
                 <div class="solution-header">
                   <span class="solution-title">{{ sol.title || '标准答案' }}</span>
-                  <el-tag size="small" type="info">{{ sol.language }}</el-tag>
+                  <CnStatusTag type="info" size="sm" :dot="false" subtle>{{ sol.language }}</CnStatusTag>
                 </div>
                 <div v-if="sol.description" class="markdown-body solution-desc" v-html="md.render(sol.description)"></div>
                 <div class="solution-code">
@@ -246,7 +249,7 @@
       <div class="right-panel">
         <!-- 编辑器工具栏 -->
         <div class="editor-toolbar">
-          <el-select v-model="selectedLanguage" style="width: 140px" size="small">
+          <el-select v-model="selectedLanguage" class="language-select" size="small">
             <el-option
               v-for="lang in languages"
               :key="lang.value"
@@ -321,9 +324,9 @@
         <!-- 自测结果区 -->
         <div class="result-panel self-test-panel" v-if="selfTestResult">
           <div class="result-header">
-            <span class="result-status" v-if="selfTestResult.compileError" style="color: #ef4444;">编译错误</span>
+            <span class="result-status is-error" v-if="selfTestResult.compileError">编译错误</span>
             <span class="result-status" v-else
-              :style="{ color: selfTestResult.passCount === selfTestResult.totalCount && selfTestResult.totalCount > 0 ? '#10b981' : '#ef4444' }">
+              :class="selfTestResult.passCount === selfTestResult.totalCount && selfTestResult.totalCount > 0 ? 'is-success' : 'is-error'">
               <span v-if="selfTestResult.passCount === selfTestResult.totalCount && selfTestResult.totalCount > 0" class="status-icon">✓</span>
               <span v-else class="status-icon">✗</span>
               自测结果：通过 {{ selfTestResult.passCount }}/{{ selfTestResult.totalCount }}
@@ -394,7 +397,7 @@
             <div class="pass-bar">
               <div class="pass-bar-fill"
                 :class="submissionResult.passCount === submissionResult.totalCount ? 'pass-bar-full' : 'pass-bar-partial'"
-                :style="{ width: (submissionResult.passCount / submissionResult.totalCount * 100) + '%' }"></div>
+                :style="{ '--pass-rate': (submissionResult.passCount / submissionResult.totalCount * 100) + '%' }"></div>
             </div>
           </div>
           <div class="result-error" v-if="submissionResult.errorMessage">
@@ -417,11 +420,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, CaretRight, Loading } from '@element-plus/icons-vue'
+import { CnStatusTag } from '@/design-system'
 import { ojApi } from '@/api/oj'
 import loader from '@monaco-editor/loader'
 import { registerCompletionProviders, disposeCompletionProviders } from '@/utils/monacoCompletions'
@@ -913,16 +917,26 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .problem-detail {
+  --oj-code-bg: color-mix(in srgb, black 88%, var(--cn-color-brand-primary));
+  --oj-code-bg-soft: color-mix(in srgb, black 82%, var(--cn-color-brand-primary));
+  --oj-code-bg-muted: color-mix(in srgb, black 72%, var(--cn-color-brand-primary));
+  --oj-code-border: color-mix(in srgb, white 12%, transparent);
+  --oj-code-text: color-mix(in srgb, white 84%, var(--cn-color-brand-soft));
+  --oj-code-muted: color-mix(in srgb, white 54%, transparent);
+  --oj-code-success: mediumseagreen;
+  --oj-code-danger: salmon;
+  --oj-on-accent: white;
+
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #f5f7fa;
+  background: var(--cn-color-bg-page);
 }
 
 .top-bar {
   height: 50px;
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--cn-color-bg-surface);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -940,7 +954,7 @@ onBeforeUnmount(() => {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--cn-color-text-primary);
 }
 
 .top-right {
@@ -960,8 +974,8 @@ onBeforeUnmount(() => {
 
 .left-panel {
   width: 45%;
-  background: #fff;
-  border-right: 1px solid #e5e7eb;
+  background: var(--cn-color-bg-surface);
+  border-right: 1px solid var(--cn-color-border-subtle);
   display: flex;
   flex-direction: column;
 }
@@ -979,7 +993,7 @@ onBeforeUnmount(() => {
 .solution-item {
   margin-bottom: 24px;
   padding-bottom: 24px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--cn-color-border-subtle);
 }
 
 .solution-item:last-child {
@@ -996,7 +1010,7 @@ onBeforeUnmount(() => {
 .solution-title {
   font-size: 16px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--cn-color-text-primary);
 }
 
 .solution-desc {
@@ -1004,7 +1018,7 @@ onBeforeUnmount(() => {
 }
 
 .solution-code {
-  background: #1e1e1e;
+  background: var(--oj-code-bg);
   border-radius: 8px;
   overflow: auto;
 }
@@ -1017,7 +1031,7 @@ onBeforeUnmount(() => {
 .solution-code code {
   font-family: 'Consolas', 'Monaco', monospace;
   font-size: 13px;
-  color: #d4d4d4;
+  color: var(--oj-code-text);
   white-space: pre;
 }
 
@@ -1038,15 +1052,15 @@ onBeforeUnmount(() => {
 .section h4 {
   font-size: 15px;
   font-weight: 600;
-  color: #374151;
+  color: var(--cn-color-text-primary);
   margin: 0 0 10px;
   padding-bottom: 6px;
-  border-bottom: 2px solid #e5e7eb;
+  border-bottom: 2px solid var(--cn-color-border-subtle);
 }
 
 .section p {
   font-size: 14px;
-  color: #4b5563;
+  color: var(--cn-color-text-secondary);
   line-height: 1.7;
   margin: 0;
   white-space: pre-wrap;
@@ -1054,12 +1068,12 @@ onBeforeUnmount(() => {
 
 .markdown-body {
   font-size: 14px;
-  color: #374151;
+  color: var(--cn-color-text-primary);
   line-height: 1.8;
 }
 
 .markdown-body :deep(pre) {
-  background: #f3f4f6;
+  background: var(--cn-color-bg-surface-muted);
   padding: 12px;
   border-radius: 6px;
   overflow-x: auto;
@@ -1077,12 +1091,12 @@ onBeforeUnmount(() => {
 .sample-label {
   font-size: 13px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--cn-color-text-tertiary);
   margin-bottom: 4px;
 }
 
 .sample-code {
-  background: #f3f4f6;
+  background: var(--cn-color-bg-surface-muted);
   padding: 12px 16px;
   border-radius: 6px;
   font-family: 'Consolas', 'Monaco', monospace;
@@ -1093,19 +1107,23 @@ onBeforeUnmount(() => {
 }
 
 .constraints {
-  color: #6b7280;
+  color: var(--cn-color-text-tertiary);
 }
 
 /* 编辑器工具栏 */
 .editor-toolbar {
   height: 44px;
-  background: #1e1e1e;
+  background: var(--oj-code-bg);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 12px;
   flex-shrink: 0;
-  border-bottom: 1px solid #2d2d2d;
+  border-bottom: 1px solid var(--oj-code-border);
+}
+
+.language-select {
+  width: 140px;
 }
 
 .toolbar-right {
@@ -1121,8 +1139,8 @@ onBeforeUnmount(() => {
 /* 自测面板 */
 .test-panel {
   flex-shrink: 0;
-  border-top: 1px solid #2d2d2d;
-  background: #1e1e1e;
+  border-top: 1px solid var(--oj-code-border);
+  background: var(--oj-code-bg);
   max-height: 240px;
   display: flex;
   flex-direction: column;
@@ -1133,14 +1151,14 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: #252526;
+  background: var(--oj-code-bg-soft);
   flex-shrink: 0;
 }
 
 .test-panel-title {
   font-size: 13px;
   font-weight: 600;
-  color: #cccccc;
+  color: var(--oj-code-text);
 }
 
 .test-panel-actions {
@@ -1150,7 +1168,7 @@ onBeforeUnmount(() => {
 }
 
 .close-btn {
-  color: #9ca3af !important;
+  color: var(--cn-color-text-tertiary) !important;
   font-size: 14px;
   padding: 2px 6px !important;
 }
@@ -1160,21 +1178,21 @@ onBeforeUnmount(() => {
   flex: 1;
   min-height: 0;
   gap: 1px;
-  background: #2d2d2d;
+  background: var(--oj-code-border);
 }
 
 .io-col {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #1e1e1e;
+  background: var(--oj-code-bg);
   min-width: 0;
 }
 
 .io-label {
   font-size: 11px;
   font-weight: 500;
-  color: #858585;
+  color: var(--oj-code-muted);
   padding: 6px 12px 4px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -1186,15 +1204,15 @@ onBeforeUnmount(() => {
 
 .io-metrics {
   font-size: 11px;
-  color: #6a9955;
+  color: var(--oj-code-success);
   text-transform: none;
   letter-spacing: 0;
 }
 
 .io-textarea {
   flex: 1;
-  background: #1e1e1e;
-  color: #d4d4d4;
+  background: var(--oj-code-bg);
+  color: var(--oj-code-text);
   border: none;
   outline: none;
   resize: none;
@@ -1205,14 +1223,14 @@ onBeforeUnmount(() => {
 }
 
 .io-textarea::placeholder {
-  color: #555;
+  color: var(--oj-code-muted);
 }
 
 .io-output {
   flex: 1;
   margin: 0;
   padding: 4px 12px 8px;
-  color: #d4d4d4;
+  color: var(--oj-code-text);
   font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
   font-size: 13px;
   line-height: 1.6;
@@ -1222,13 +1240,13 @@ onBeforeUnmount(() => {
 }
 
 .io-output.io-error {
-  color: #f48771;
+  color: var(--oj-code-danger);
 }
 
 /* 结果面板 */
 .result-panel {
-  background: #fff;
-  border-top: 1px solid #e5e7eb;
+  background: var(--cn-color-bg-surface);
+  border-top: 1px solid var(--cn-color-border-subtle);
   padding: 12px 16px;
   flex-shrink: 0;
   max-height: 240px;
@@ -1239,7 +1257,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #6b7280;
+  color: var(--cn-color-text-secondary);
   font-size: 14px;
 }
 
@@ -1259,19 +1277,27 @@ onBeforeUnmount(() => {
   margin-right: 4px;
 }
 
-.status-accepted .result-status { color: #10b981; }
-.status-wrong_answer .result-status { color: #ef4444; }
-.status-time_limit_exceeded .result-status { color: #f59e0b; }
-.status-memory_limit_exceeded .result-status { color: #f59e0b; }
-.status-runtime_error .result-status { color: #ef4444; }
-.status-compile_error .result-status { color: #ef4444; }
-.status-system_error .result-status { color: #6b7280; }
+.status-accepted .result-status { color: var(--cn-color-success); }
+.status-wrong_answer .result-status { color: var(--cn-color-danger); }
+.status-time_limit_exceeded .result-status { color: var(--cn-color-warning); }
+.status-memory_limit_exceeded .result-status { color: var(--cn-color-warning); }
+.status-runtime_error .result-status { color: var(--cn-color-danger); }
+.status-compile_error .result-status { color: var(--cn-color-danger); }
+.status-system_error .result-status { color: var(--cn-color-text-secondary); }
+
+.result-status.is-success {
+  color: var(--cn-color-success);
+}
+
+.result-status.is-error {
+  color: var(--cn-color-danger);
+}
 
 .result-metrics {
   display: flex;
   gap: 16px;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--cn-color-text-secondary);
   margin-bottom: 8px;
 }
 
@@ -1284,8 +1310,8 @@ onBeforeUnmount(() => {
 /* 积分奖励 */
 .points-reward {
   display: inline-block;
-  background: linear-gradient(135deg, #f59e0b, #f97316);
-  color: #fff;
+  background: var(--cn-color-warning);
+  color: var(--oj-on-accent);
   padding: 4px 12px;
   border-radius: 16px;
   font-size: 14px;
@@ -1307,39 +1333,40 @@ onBeforeUnmount(() => {
 
 .pass-rate-text {
   font-size: 13px;
-  color: #4b5563;
+  color: var(--cn-color-text-secondary);
   margin-bottom: 4px;
 }
 
 .pass-percent {
   font-weight: 600;
-  color: #1f2937;
+  color: var(--cn-color-text-primary);
 }
 
 .pass-bar {
   height: 6px;
-  background: #e5e7eb;
+  background: var(--cn-color-border-subtle);
   border-radius: 3px;
   overflow: hidden;
 }
 
 .pass-bar-fill {
+  width: var(--pass-rate);
   height: 100%;
   border-radius: 3px;
   transition: width 0.5s ease;
 }
 
 .pass-bar-full {
-  background: #10b981;
+  background: var(--cn-color-success);
 }
 
 .pass-bar-partial {
-  background: #ef4444;
+  background: var(--cn-color-danger);
 }
 
 .result-error pre {
-  background: #fef2f2;
-  color: #991b1b;
+  background: var(--cn-color-danger-soft);
+  color: var(--cn-color-danger);
   padding: 10px;
   border-radius: 6px;
   font-size: 12px;
@@ -1371,17 +1398,17 @@ onBeforeUnmount(() => {
 }
 
 .self-test-case {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--cn-color-border-subtle);
   border-radius: 8px;
   overflow: hidden;
 }
 
 .self-test-case.case-passed {
-  border-color: #a7f3d0;
+  border-color: var(--cn-color-success);
 }
 
 .self-test-case.case-failed {
-  border-color: #fca5a5;
+  border-color: var(--cn-color-danger);
 }
 
 .case-header {
@@ -1389,18 +1416,18 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  background: #f9fafb;
+  background: var(--cn-color-bg-surface-muted);
   font-size: 13px;
   font-weight: 600;
-  color: #374151;
+  color: var(--cn-color-text-primary);
 }
 
 .case-passed .case-header {
-  background: #ecfdf5;
+  background: var(--cn-color-success-soft);
 }
 
 .case-failed .case-header {
-  background: #fef2f2;
+  background: var(--cn-color-danger-soft);
 }
 
 .case-badge {
@@ -1412,22 +1439,22 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   font-size: 12px;
   font-weight: 700;
-  color: #fff;
+  color: var(--oj-on-accent);
 }
 
 .badge-pass {
-  background: #10b981;
+  background: var(--cn-color-success);
 }
 
 .badge-fail {
-  background: #ef4444;
+  background: var(--cn-color-danger);
 }
 
 .case-metrics {
   margin-left: auto;
   font-size: 11px;
   font-weight: 400;
-  color: #9ca3af;
+  color: var(--cn-color-text-tertiary);
 }
 
 .case-detail {
@@ -1446,26 +1473,26 @@ onBeforeUnmount(() => {
 .field-label {
   font-size: 11px;
   font-weight: 500;
-  color: #9ca3af;
+  color: var(--cn-color-text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .field-value {
-  background: #f3f4f6;
+  background: var(--cn-color-bg-surface-muted);
   padding: 6px 10px;
   border-radius: 4px;
   font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
   font-size: 12px;
-  color: #374151;
+  color: var(--cn-color-text-primary);
   margin: 0;
   white-space: pre-wrap;
   word-break: break-all;
 }
 
 .field-value.field-error {
-  background: #fef2f2;
-  color: #991b1b;
+  background: var(--cn-color-danger-soft);
+  color: var(--cn-color-danger);
 }
 
 /* ============ 评论区样式 ============ */
@@ -1476,8 +1503,8 @@ onBeforeUnmount(() => {
   justify-content: center;
   min-width: 18px;
   height: 18px;
-  background: #409eff;
-  color: #fff;
+  background: var(--cn-color-brand-primary);
+  color: var(--oj-on-accent);
   border-radius: 9px;
   font-size: 11px;
   font-weight: 600;
@@ -1490,7 +1517,7 @@ onBeforeUnmount(() => {
 }
 
 .comment-input-box {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--cn-color-border-subtle);
   border-radius: 8px;
   overflow: hidden;
   margin-bottom: 16px;
@@ -1498,7 +1525,7 @@ onBeforeUnmount(() => {
 }
 
 .comment-input-box:focus-within {
-  border-color: #409eff;
+  border-color: var(--cn-color-brand-primary);
 }
 
 .comment-textarea {
@@ -1509,13 +1536,13 @@ onBeforeUnmount(() => {
   padding: 12px;
   font-size: 14px;
   line-height: 1.6;
-  color: #374151;
+  color: var(--cn-color-text-primary);
   font-family: inherit;
   box-sizing: border-box;
 }
 
 .comment-textarea::placeholder {
-  color: #9ca3af;
+  color: var(--cn-color-text-tertiary);
 }
 
 .comment-input-footer {
@@ -1523,13 +1550,13 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: #f9fafb;
-  border-top: 1px solid #f3f4f6;
+  background: var(--cn-color-bg-surface-muted);
+  border-top: 1px solid var(--cn-color-border-subtle);
 }
 
 .char-count {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--cn-color-text-tertiary);
 }
 
 .comment-sort-bar {
@@ -1538,13 +1565,13 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   margin-bottom: 16px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--cn-color-border-subtle);
 }
 
 .comment-total {
   font-size: 14px;
   font-weight: 600;
-  color: #374151;
+  color: var(--cn-color-text-primary);
 }
 
 .sort-tabs {
@@ -1554,25 +1581,25 @@ onBeforeUnmount(() => {
 
 .sort-tab {
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--cn-color-text-tertiary);
   cursor: pointer;
   padding: 2px 0;
   transition: color 0.2s;
 }
 
 .sort-tab.active {
-  color: #409eff;
+  color: var(--cn-color-brand-primary);
   font-weight: 600;
 }
 
 .sort-tab:hover {
-  color: #409eff;
+  color: var(--cn-color-brand-primary);
 }
 
 .comment-empty {
   text-align: center;
   padding: 40px 0;
-  color: #9ca3af;
+  color: var(--cn-color-text-tertiary);
   font-size: 14px;
 }
 
@@ -1584,7 +1611,7 @@ onBeforeUnmount(() => {
 
 .comment-item {
   padding: 16px 0;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--cn-color-border-subtle);
 }
 
 .comment-item:last-child {
@@ -1600,8 +1627,8 @@ onBeforeUnmount(() => {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: #fff;
+  background: var(--cn-color-brand-primary);
+  color: var(--oj-on-accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1632,27 +1659,27 @@ onBeforeUnmount(() => {
 .comment-author {
   font-size: 13px;
   font-weight: 600;
-  color: #374151;
+  color: var(--cn-color-text-primary);
 }
 
 .comment-time {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--cn-color-text-tertiary);
 }
 
 .reply-to {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--cn-color-text-tertiary);
 }
 
 .reply-to-name {
-  color: #409eff;
+  color: var(--cn-color-brand-primary);
   font-weight: 500;
 }
 
 .comment-text {
   font-size: 14px;
-  color: #4b5563;
+  color: var(--cn-color-text-secondary);
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
@@ -1666,24 +1693,24 @@ onBeforeUnmount(() => {
 
 .action-btn {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--cn-color-text-tertiary);
   cursor: pointer;
   transition: color 0.2s;
   user-select: none;
 }
 
 .action-btn:hover {
-  color: #6b7280;
+  color: var(--cn-color-text-secondary);
 }
 
 .action-btn.liked {
-  color: #409eff;
+  color: var(--cn-color-brand-primary);
 }
 
 .reply-list {
   margin-top: 12px;
   padding-left: 4px;
-  border-left: 2px solid #f3f4f6;
+  border-left: 2px solid var(--cn-color-border-subtle);
 }
 
 .reply-item {
@@ -1694,13 +1721,13 @@ onBeforeUnmount(() => {
 
 .reply-input-box {
   margin-top: 10px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--cn-color-border-subtle);
   border-radius: 6px;
   overflow: hidden;
 }
 
 .reply-input-box:focus-within {
-  border-color: #409eff;
+  border-color: var(--cn-color-brand-primary);
 }
 
 .reply-textarea {
@@ -1711,13 +1738,13 @@ onBeforeUnmount(() => {
   padding: 8px 12px;
   font-size: 13px;
   line-height: 1.5;
-  color: #374151;
+  color: var(--cn-color-text-primary);
   font-family: inherit;
   box-sizing: border-box;
 }
 
 .reply-textarea::placeholder {
-  color: #9ca3af;
+  color: var(--cn-color-text-tertiary);
 }
 
 .reply-input-footer {
@@ -1726,19 +1753,19 @@ onBeforeUnmount(() => {
   justify-content: flex-end;
   gap: 6px;
   padding: 6px 8px;
-  background: #f9fafb;
+  background: var(--cn-color-bg-surface-muted);
 }
 
 .load-more-replies {
   font-size: 13px;
-  color: #409eff;
+  color: var(--cn-color-brand-primary);
   cursor: pointer;
   padding: 8px 0 8px 12px;
   transition: color 0.2s;
 }
 
 .load-more-replies:hover {
-  color: #337ecc;
+  color: var(--cn-color-brand-hover);
 }
 
 .load-more-comments {
@@ -1754,7 +1781,7 @@ onBeforeUnmount(() => {
     width: 100%;
     height: 50%;
     border-right: none;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--cn-color-border-subtle);
   }
 }
 </style>

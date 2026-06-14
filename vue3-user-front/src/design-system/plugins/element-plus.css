@@ -1,0 +1,41 @@
+:root,
+[data-theme] {
+  --el-color-primary: var(--cn-color-brand-primary);
+  --el-color-primary-dark-2: var(--cn-color-brand-hover);
+  --el-color-primary-light-3: color-mix(in srgb, var(--cn-color-brand-primary) 70%, white);
+  --el-color-primary-light-5: color-mix(in srgb, var(--cn-color-brand-primary) 50%, white);
+  --el-color-primary-light-7: color-mix(in srgb, var(--cn-color-brand-primary) 30%, white);
+  --el-color-primary-light-8: color-mix(in srgb, var(--cn-color-brand-primary) 20%, white);
+  --el-color-primary-light-9: color-mix(in srgb, var(--cn-color-brand-primary) 12%, white);
+  --el-color-success: var(--cn-color-success);
+  --el-color-warning: var(--cn-color-warning);
+  --el-color-danger: var(--cn-color-danger);
+
+  --el-bg-color: var(--cn-color-bg-surface);
+  --el-bg-color-page: var(--cn-color-bg-page);
+  --el-bg-color-overlay: var(--cn-color-bg-elevated);
+  --el-text-color-primary: var(--cn-color-text-primary);
+  --el-text-color-regular: var(--cn-color-text-secondary);
+  --el-text-color-secondary: var(--cn-color-text-tertiary);
+  --el-border-color: var(--cn-color-border);
+  --el-border-color-light: var(--cn-color-border-subtle);
+  --el-border-color-lighter: var(--cn-color-border-subtle);
+  --el-border-radius-base: var(--cn-radius-control);
+  --el-box-shadow-light: var(--cn-shadow-card);
+  --el-fill-color-blank: var(--cn-color-bg-surface);
+  --el-fill-color-light: var(--cn-color-bg-surface-muted);
+  --el-mask-color: color-mix(in srgb, var(--cn-color-text-primary) 42%, transparent);
+}
+
+[data-theme='dark'] {
+  --el-color-primary-light-3: var(--cn-color-brand-hover);
+  --el-color-primary-light-5: var(--cn-color-brand-primary);
+  --el-color-primary-light-7: color-mix(in srgb, var(--cn-color-brand-primary) 28%, transparent);
+  --el-color-primary-light-8: color-mix(in srgb, var(--cn-color-brand-primary) 20%, transparent);
+  --el-color-primary-light-9: color-mix(in srgb, var(--cn-color-brand-primary) 14%, transparent);
+  --el-fill-color: var(--cn-color-bg-surface-muted);
+  --el-fill-color-light: var(--cn-color-bg-elevated);
+  --el-fill-color-lighter: var(--cn-color-border-subtle);
+  --el-fill-color-extra-light: var(--cn-color-bg-surface);
+  --el-mask-color: color-mix(in srgb, black 62%, transparent);
+}
