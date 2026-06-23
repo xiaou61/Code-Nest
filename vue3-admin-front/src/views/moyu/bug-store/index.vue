@@ -264,7 +264,7 @@
         </el-alert>
 
         <div class="upload-section">
-          <el-upload ref="uploadRef" class="upload-demo" :auto-upload="false" :limit="1" accept=".xlsx,.xls" :on-change="handleFileChange">
+          <el-upload ref="uploadRef" class="upload-demo" :auto-upload="false" :limit="1" accept=".xlsx,.xls">
             <el-button type="primary" :icon="Upload">选择文件</el-button>
             <template #tip>
               <div class="upload-tip">只能上传 xlsx/xls 文件</div>
@@ -285,7 +285,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { FormInstance, FormRules, UploadFile } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Delete, Plus, Search, Upload } from '@element-plus/icons-vue'
 import { moyuApi } from '@/api/moyu'
 import { CnDataTable, CnPage, CnPageHeader, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
@@ -566,10 +566,6 @@ const handleSubmit = async () => {
 
 const handleBatchImport = () => {
   importDialogVisible.value = true
-}
-
-const handleFileChange = (file: UploadFile) => {
-  console.log('Selected file:', file)
 }
 
 const handleImportSubmit = async () => {

@@ -60,6 +60,17 @@ public class AdminCommunityTagController {
         communityTagService.deleteTag(id);
         return Result.success();
     }
+
+    /**
+     * 启用/禁用标签
+     */
+    @RequireAdmin
+    @Log(module = "社区管理", type = Log.OperationType.UPDATE, description = "切换标签状态")
+    @PatchMapping("/{id}/status")
+    public Result<Void> toggleTagStatus(@PathVariable Long id) {
+        communityTagService.toggleTagStatus(id);
+        return Result.success();
+    }
     
     /**
      * 获取标签详情

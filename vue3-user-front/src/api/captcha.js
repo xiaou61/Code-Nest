@@ -8,6 +8,6 @@ export const captchaApi = {
   
   // 验证验证码
   verifyCaptcha(data) {
-    return request.post('/captcha/verify', data)
+    return request.post('/captcha/verify', null, data)
   }
-} 
+}

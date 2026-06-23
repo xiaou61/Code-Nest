@@ -745,6 +745,7 @@ CREATE TABLE `file_info`  (
   `md5_hash` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '文件MD5校验值',
   `module_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '所属模块名称',
   `business_type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '业务类型',
+  `storage_config_id` bigint NULL DEFAULT NULL COMMENT '当前主存储配置ID',
   `upload_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '上传时间',
   `access_url` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '访问URL',
   `status` tinyint NOT NULL DEFAULT 1 COMMENT '文件状态: 0=已删除, 1=正常',
@@ -755,6 +756,7 @@ CREATE TABLE `file_info`  (
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_md5`(`md5_hash` ASC) USING BTREE,
   INDEX `idx_module_business`(`module_name` ASC, `business_type` ASC) USING BTREE,
+  INDEX `idx_storage_config_id`(`storage_config_id` ASC) USING BTREE,
   INDEX `idx_upload_time`(`upload_time` ASC) USING BTREE,
   INDEX `idx_status`(`status` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '文件信息表' ROW_FORMAT = Dynamic;
@@ -1951,6 +1953,13 @@ CREATE TABLE `sensitive_category`  (
   `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 6 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '敏感词分类表' ROW_FORMAT = Dynamic;
+
+INSERT IGNORE INTO `sensitive_category` (`id`, `name`, `description`, `sort_order`, `status`) VALUES
+(1, '政治敏感', '涉及政治敏感内容的词汇', 1, 1),
+(2, '色情低俗', '涉及色情、低俗内容的词汇', 2, 1),
+(3, '人身攻击', '涉及人身攻击、辱骂的词汇', 3, 1),
+(4, '广告推广', '涉及广告推广、营销的词汇', 4, 1),
+(5, '其他违规', '其他违规内容的词汇', 5, 1);
 
 -- ----------------------------
 -- Table structure for sensitive_hit_statistics

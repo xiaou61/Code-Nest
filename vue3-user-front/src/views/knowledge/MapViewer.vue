@@ -335,8 +335,6 @@ const initMindMap = () => {
 }
 
 const handleNodeClick = (nodeData) => {
-  console.log('节点点击事件触发:', nodeData) // 添加调试日志
-
   // 如果直接传入了完整节点数据，就直接使用
   let fullNode = nodeData
 
@@ -352,7 +350,6 @@ const handleNodeClick = (nodeData) => {
     // 延迟一帧确保在移动端正确显示
     nextTick(() => {
       showNodeDetail.value = true
-      console.log('弹框应该显示了:', showNodeDetail.value) // 添加调试日志
     })
 
     // 处理图片加载

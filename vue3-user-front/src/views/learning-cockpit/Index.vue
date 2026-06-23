@@ -620,6 +620,7 @@ watch(
 <style scoped>
 .learning-cockpit-page {
   min-height: calc(100vh - 68px);
+  overflow-x: clip;
   --cockpit-panel-border: var(--cn-color-border-subtle);
   --cockpit-panel-bg: var(--cn-color-bg-surface-muted);
   --cockpit-panel-bg-strong: color-mix(in srgb, var(--cn-color-brand-soft) 26%, var(--cn-color-bg-surface));
@@ -633,6 +634,13 @@ watch(
 
 .cockpit-tabs {
   padding: 10px 14px 14px;
+  min-width: 0;
+}
+
+:deep(.cockpit-tabs-inner),
+:deep(.cockpit-tabs-inner > .el-tabs__content),
+:deep(.cockpit-tabs-inner > .el-tabs__content > .el-tab-pane) {
+  min-width: 0;
 }
 
 :deep(.cockpit-tabs-inner > .el-tabs__header) {
@@ -660,9 +668,21 @@ watch(
 
 .intelligence-grid {
   display: grid;
-  grid-template-columns: minmax(260px, 0.95fr) minmax(300px, 1.15fr) minmax(320px, 1.25fr);
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.15fr) minmax(0, 1.25fr);
   gap: 12px;
   margin-bottom: 12px;
+}
+
+.intelligence-grid,
+.diagnosis-grid,
+.summary-grid,
+.main-grid,
+.main-left,
+.main-right,
+.panel-block,
+.summary-card,
+.cn-learn-panel {
+  min-width: 0;
 }
 
 .growth-score-card {
@@ -956,7 +976,7 @@ watch(
 
 .main-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
   gap: 12px;
 }
 
@@ -969,6 +989,7 @@ watch(
 
 .panel-block {
   padding: 14px;
+  overflow: hidden;
 }
 
 .panel-head {
@@ -1005,6 +1026,19 @@ watch(
   text-align: right;
   font-size: 12px;
   color: var(--cockpit-text-body);
+}
+
+.goal-table {
+  width: 100%;
+}
+
+:deep(.goal-table .el-table__inner-wrapper),
+:deep(.goal-table .el-scrollbar__wrap) {
+  min-width: 0;
+}
+
+:deep(.goal-table .el-scrollbar__view) {
+  min-width: 900px;
 }
 
 .timeline-wrap {

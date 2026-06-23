@@ -49,7 +49,6 @@
             :src="baiduUrl"
             frameborder="0"
             class="translation-iframe"
-            @load="onFrameLoad('baidu')"
           />
         </div>
       </div>
@@ -106,10 +105,6 @@ const onInputChange = () => {
 const openBaiduTranslation = () => {
   window.open(baiduUrl.value, '_blank')
   ElMessage.success('已在新窗口打开百度翻译')
-}
-
-const onFrameLoad = (platform: string) => {
-  console.log(`${platform} iframe loaded`)
 }
 
 const pasteFromClipboard = async () => {

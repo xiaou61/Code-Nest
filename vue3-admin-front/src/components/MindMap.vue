@@ -221,8 +221,6 @@ const createGraph = () => {
 }
 
 const initGraph = () => {
-  console.log('🚀 初始化图表')
-  
   // 销毁之前的图实例
   if (graph.value) {
     try {
@@ -240,7 +238,6 @@ const initGraph = () => {
 
   const formattedData = formatData(props.data)
   if (!formattedData.nodes || formattedData.nodes.length === 0) {
-    console.log('无节点数据')
     return
   }
 
@@ -276,8 +273,6 @@ const initGraph = () => {
         }, 500)
       }
     }, 100)
-    
-    console.log('✅ 图表初始化完成')
     
   } catch (error) {
     console.error('创建图表失败:', error)
@@ -516,7 +511,6 @@ const getDataHash = (data) => {
 
 watch(() => props.data, (newData) => {
   if (!watchEnabled.value) {
-    console.log('📊 MindMap watch已禁用，跳过更新')
     return
   }
   
@@ -524,18 +518,12 @@ watch(() => props.data, (newData) => {
   
   // 只有数据实际变化时才更新
   if (newHash !== lastDataHash.value) {
-    console.log('📊 MindMap数据真正变化，准备更新')
-    console.log('📊 节点数:', newData?.nodes?.length || 0)
-    
     lastDataHash.value = newHash
     
     if (updateTimer) clearTimeout(updateTimer)
     updateTimer = setTimeout(() => {
-      console.log('📊 执行MindMap更新')
       initGraph()
     }, 300)
-  } else {
-    console.log('📊 MindMap数据无变化，跳过更新')
   }
 }, { immediate: false }) // 移除deep监听，提高性能
 

@@ -852,7 +852,6 @@ const connectWebSocket = async () => {
 
     ws = new WebSocket(`${getWebSocketBaseUrl()}/ws/chat?ticket=${encodeURIComponent(ticket)}`)
     ws.onopen = () => {
-      console.log('WebSocket连接成功')
       connectionStatus.value = 'connected'
       reconnectConfig.retryCount = 0
       ElMessage.success('进入聊天室')
@@ -871,7 +870,6 @@ const connectWebSocket = async () => {
       console.error('WebSocket错误', error)
     }
     ws.onclose = (event) => {
-      console.log('WebSocket连接关闭', event.code)
       connectionStatus.value = 'disconnected'
       stopHeartbeat()
       if (event.code !== 1000) {
@@ -897,7 +895,6 @@ const scheduleReconnect = () => {
   const jitter = Math.random() * 1000
   reconnectConfig.retryCount++
   connectionStatus.value = 'reconnecting'
-  console.log(`${delay + jitter}ms 后进行第 ${reconnectConfig.retryCount} 次重连`)
   reconnectTimer = setTimeout(() => {
     connectWebSocket()
   }, delay + jitter)
@@ -919,7 +916,6 @@ const handleWebSocketMessage = (data) => {
   const { type, data: messageData } = data
   switch (type) {
     case 'CONNECT':
-      console.log('连接成功', messageData)
       break
     case 'MESSAGE':
       handleNewMessage(messageData)
@@ -1215,7 +1211,6 @@ const adjustHeartbeatInterval = () => {
   if (Math.abs(newInterval - heartbeatConfig.currentInterval) > 5000) {
     heartbeatConfig.currentInterval = newInterval
     restartHeartbeat()
-    console.log(`心跳间隔调整为: ${newInterval}ms (平均延迟: ${Math.round(avgLatency)}ms)`)
   }
 }
 
@@ -1223,7 +1218,6 @@ const startHeartbeat = () => {
   const sendHeartbeat = () => {
     if (!ws || ws.readyState !== WebSocket.OPEN) return
     if (heartbeatConfig.missedCount >= heartbeatConfig.maxMissed) {
-      console.log('心跳超时，重新连接')
       stopHeartbeat()
       ws.close()
       scheduleReconnect()
@@ -1232,7 +1226,6 @@ const startHeartbeat = () => {
     heartbeatConfig.missedCount++
     heartbeatConfig.lastPongTime = Date.now()
     ws.send(JSON.stringify({ type: 'HEARTBEAT', timestamp: Date.now() }))
-    pongTimer = setTimeout(() => { console.log('Pong超时') }, 5000)
   }
   
   // 立即发送第一个心跳
@@ -1246,7 +1239,6 @@ const restartHeartbeat = () => {
     heartbeatTimer = setInterval(() => {
       if (!ws || ws.readyState !== WebSocket.OPEN) return
       if (heartbeatConfig.missedCount >= heartbeatConfig.maxMissed) {
-        console.log('心跳超时，重新连接')
         stopHeartbeat()
         ws.close()
         scheduleReconnect()
@@ -1255,7 +1247,6 @@ const restartHeartbeat = () => {
       heartbeatConfig.missedCount++
       heartbeatConfig.lastPongTime = Date.now()
       ws.send(JSON.stringify({ type: 'HEARTBEAT', timestamp: Date.now() }))
-      pongTimer = setTimeout(() => { console.log('Pong超时') }, 5000)
     }, heartbeatConfig.currentInterval)
   }
 }

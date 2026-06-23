@@ -41,12 +41,7 @@ export function deleteKnowledgeMap(id) {
 
 // 批量删除知识图谱
 export function deleteBatchKnowledgeMaps(ids) {
-  return request.post('/admin/knowledge/maps/batch-delete', ids)
-}
-
-// 复制知识图谱
-export function copyKnowledgeMap(id, title) {
-  return request.post(`/admin/knowledge/maps/${id}/copy`, { title })
+  return request.delete('/admin/knowledge/maps/batch', { data: ids })
 }
 
 /**
@@ -86,4 +81,4 @@ export function deleteKnowledgeNode(id) {
 // 搜索节点
 export function searchKnowledgeNodes(mapId, keyword) {
   return request.get(`/admin/knowledge/maps/${mapId}/nodes/search`, { keyword })
-} 
+}

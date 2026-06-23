@@ -32,7 +32,7 @@ export const logApi = {
   
   // 批量删除操作日志
   deleteOperationLogs(ids) {
-    return request.delete('/log/operation', ids)
+    return request.delete('/log/operation', { data: ids })
   },
   
   // 清空操作日志
@@ -44,4 +44,4 @@ export const logApi = {
   cleanOperationLogs(days) {
     return request.delete(`/log/operation/clean/${days}`)
   },
-} 
+}

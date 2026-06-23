@@ -67,7 +67,7 @@ export function banUser(id, data) {
 
 // 解封用户
 export function unbanUser(id) {
-  return request.put(`/admin/community/users/${id}/unban`)
+  return request.delete(`/admin/community/users/${id}/ban`)
 }
 
 // 获取用户发帖记录
@@ -109,7 +109,7 @@ export function deleteCategory(id) {
 
 // 切换分类状态
 export function toggleCategoryStatus(id) {
-  return request.put(`/admin/community/categories/${id}/status`)
+  return request.patch(`/admin/community/categories/${id}/status`)
 }
 
 // ============ 标签管理接口（v1.1.0 新增）============
@@ -141,7 +141,7 @@ export function deleteTag(id) {
 
 // 切换标签状态
 export function toggleTagStatus(id) {
-  return request.put(`/admin/community/tags/${id}/status`)
+  return request.patch(`/admin/community/tags/${id}/status`)
 }
 
 export const communityApi = {

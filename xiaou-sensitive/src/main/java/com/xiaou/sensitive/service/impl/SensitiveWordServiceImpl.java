@@ -85,6 +85,9 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
             if (word.getStatus() == null) {
                 word.setStatus(DEFAULT_STATUS);
             }
+            if (!isCategoryAvailable(word.getCategoryId())) {
+                return false;
+            }
 
             int result = sensitiveWordMapper.insertWord(word);
             if (result <= 0) {
@@ -245,6 +248,10 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
                 }
                 return new ImportResult(prepareResult.total, 0, prepareResult.duplicateInFileCount, errors);
             }
+            if (!isCategoryAvailable(DEFAULT_CATEGORY_ID)) {
+                errors.add("默认敏感词分类不存在或已禁用，请先初始化敏感词分类数据");
+                return new ImportResult(prepareResult.total, 0, prepareResult.duplicateInFileCount, errors);
+            }
 
             Set<String> dbDuplicates = loadExistingWordSet(prepareResult.validWords);
             List<SensitiveWord> toInsert = new ArrayList<>();
@@ -372,6 +379,19 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
                 invalidSamples,
                 duplicateInFileSamples
         );
+    }
+
+    private boolean isCategoryAvailable(Integer categoryId) {
+        SensitiveCategory category = sensitiveCategoryMapper.selectCategoryById(categoryId);
+        if (category == null) {
+            log.warn("敏感词分类不存在：categoryId={}", categoryId);
+            return false;
+        }
+        if (!Integer.valueOf(DEFAULT_STATUS).equals(category.getStatus())) {
+            log.warn("敏感词分类已禁用：categoryId={}", categoryId);
+            return false;
+        }
+        return true;
     }
 
     private Set<String> loadExistingWordSet(List<String> words) {

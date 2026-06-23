@@ -212,7 +212,6 @@ export const useUserStore = defineStore('user', () => {
     try {
       // 如果token即将过期，尝试刷新
       if (isTokenExpiringSoon.value) {
-        console.log('Token即将过期，尝试刷新...')
         await refreshToken()
         return true
       }

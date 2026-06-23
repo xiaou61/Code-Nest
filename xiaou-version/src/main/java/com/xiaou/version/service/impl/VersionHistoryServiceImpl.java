@@ -7,7 +7,6 @@ import cn.hutool.core.util.StrUtil;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.exception.BusinessException;
 import com.xiaou.common.satoken.StpAdminUtil;
-import com.xiaou.common.utils.PageHelper;
 import com.xiaou.version.domain.VersionHistory;
 import com.xiaou.version.dto.VersionHistoryCreateRequest;
 import com.xiaou.version.dto.VersionHistoryQueryRequest;
@@ -20,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
@@ -139,22 +139,44 @@ public class VersionHistoryServiceImpl implements VersionHistoryService {
     
     @Override
     public PageResult<VersionHistoryResponse> getAdminVersionList(VersionHistoryQueryRequest request) {
-        return PageHelper.doPage(request.getPageNum(), request.getPageSize(), () -> {
+        int pageNum = normalizePageNum(request.getPageNum());
+        int pageSize = normalizePageSize(request.getPageSize());
+
+        Long total = versionHistoryMapper.countByCondition(request);
+        if (total == null || total <= 0) {
+            return PageResult.of(pageNum, pageSize, 0L, Collections.emptyList());
+        }
+
+        try {
+            com.github.pagehelper.PageHelper.startPage(pageNum, pageSize, false);
             List<VersionHistory> versionHistories = versionHistoryMapper.selectByPage(request);
-            return versionHistories.stream()
+            return PageResult.of(pageNum, pageSize, total, versionHistories.stream()
                     .map(this::convertToResponse)
-                    .collect(Collectors.toList());
-        });
+                    .collect(Collectors.toList()));
+        } finally {
+            com.github.pagehelper.PageHelper.clearPage();
+        }
     }
     
     @Override
     public PageResult<VersionHistoryResponse> getPublishedVersionList(VersionHistoryQueryRequest request) {
-        return PageHelper.doPage(request.getPageNum(), request.getPageSize(), () -> {
+        int pageNum = normalizePageNum(request.getPageNum());
+        int pageSize = normalizePageSize(request.getPageSize());
+
+        Long total = versionHistoryMapper.countPublishedByCondition(request);
+        if (total == null || total <= 0) {
+            return PageResult.of(pageNum, pageSize, 0L, Collections.emptyList());
+        }
+
+        try {
+            com.github.pagehelper.PageHelper.startPage(pageNum, pageSize, false);
             List<VersionHistory> versionHistories = versionHistoryMapper.selectPublishedByPage(request);
-            return versionHistories.stream()
+            return PageResult.of(pageNum, pageSize, total, versionHistories.stream()
                     .map(this::convertToResponse)
-                    .collect(Collectors.toList());
-        });
+                    .collect(Collectors.toList()));
+        } finally {
+            com.github.pagehelper.PageHelper.clearPage();
+        }
     }
     
     @Override
@@ -324,4 +346,15 @@ public class VersionHistoryServiceImpl implements VersionHistoryService {
                 return "未知";
         }
     }
-} 
+
+    private int normalizePageNum(Integer pageNum) {
+        return pageNum == null || pageNum < 1 ? 1 : pageNum;
+    }
+
+    private int normalizePageSize(Integer pageSize) {
+        if (pageSize == null || pageSize < 1) {
+            return 10;
+        }
+        return Math.min(pageSize, 100);
+    }
+}

@@ -244,8 +244,8 @@ const demoSidebarItems: CnSidebarItem[] = [
     index: '/content',
     icon: Document,
     children: [
-      { label: '文章审核', path: '/content/articles', icon: Document },
-      { label: '评论审核', path: '/content/comments', icon: Document }
+      { label: '文章管理', path: '/blog/articles', icon: Document },
+      { label: '评论管理', path: '/community/comments', icon: Document }
     ]
   }
 ]
@@ -254,7 +254,7 @@ const demoTopNavMobileOpen = ref(false)
 
 const demoTopNavItems: CnTopNavItem[] = [
   { label: '仪表板', path: '/dashboard', icon: Odometer, matchPrefixes: ['/dashboard'] },
-  { label: '用户', path: '/users', icon: User, matchPrefixes: ['/users'] }
+  { label: '用户', path: '/user', icon: User, matchPrefixes: ['/user'] }
 ]
 
 const demoTopNavDropdowns: CnTopNavDropdown[] = [
@@ -266,8 +266,8 @@ const demoTopNavDropdowns: CnTopNavDropdown[] = [
       {
         title: '审核',
         items: [
-          { label: '文章审核', path: '/content/articles', desc: '内容发布前审核', icon: Document },
-          { label: '评论审核', path: '/content/comments', desc: '社区互动内容治理', icon: Document }
+          { label: '文章管理', path: '/blog/articles', desc: '管理博客内容与发布状态', icon: Document },
+          { label: '评论管理', path: '/community/comments', desc: '社区互动内容治理', icon: Document }
         ]
       }
     ]

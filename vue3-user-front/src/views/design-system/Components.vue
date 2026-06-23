@@ -30,8 +30,8 @@
           :primary-items="demoTopNavItems"
           :dropdowns="demoTopNavDropdowns"
           :mobile-sections="demoTopNavMobileSections"
-          active-path="/dashboard"
-          active-full-path="/dashboard"
+          active-path="/"
+          active-full-path="/"
           :user="demoTopNavUser"
           :user-actions="demoTopNavUserActions"
           :unread-count="3"
@@ -48,7 +48,7 @@
       <div class="demo-sidebar-preview">
         <CnSidebar
           :items="demoSidebarItems"
-          active-path="/dashboard"
+          active-path="/"
           :searchable="false"
           brand="Code-Nest"
         />
@@ -237,15 +237,15 @@ const breadcrumbs: CnBreadcrumbItem[] = [
 const themeDrawerVisible = ref(false)
 
 const demoSidebarItems: CnSidebarItem[] = [
-  { label: '仪表板', path: '/dashboard', icon: Odometer },
-  { label: '用户管理', path: '/user', icon: User },
+  { label: '首页', path: '/', icon: Odometer },
+  { label: '个人中心', path: '/profile', icon: User },
   {
-    label: '内容管理',
-    index: '/content',
+    label: '学习内容',
+    index: '/learning',
     icon: Document,
     children: [
-      { label: '文章审核', path: '/content/articles', icon: Document },
-      { label: '评论审核', path: '/content/comments', icon: Document }
+      { label: '学习资产', path: '/learning-assets', icon: Document },
+      { label: '面试题库', path: '/interview', icon: Document }
     ]
   }
 ]
@@ -253,21 +253,21 @@ const demoSidebarItems: CnSidebarItem[] = [
 const demoTopNavMobileOpen = ref(false)
 
 const demoTopNavItems: CnTopNavItem[] = [
-  { label: '仪表板', path: '/dashboard', icon: Odometer, matchPrefixes: ['/dashboard'] },
-  { label: '用户', path: '/users', icon: User, matchPrefixes: ['/users'] }
+  { label: '首页', path: '/', icon: Odometer },
+  { label: '社区', path: '/community', icon: User, matchPrefixes: ['/community'] }
 ]
 
 const demoTopNavDropdowns: CnTopNavDropdown[] = [
   {
-    key: 'content',
-    label: '内容',
+    key: 'learning',
+    label: '学习',
     icon: Document,
     groups: [
       {
-        title: '审核',
+        title: '成长',
         items: [
-          { label: '文章审核', path: '/content/articles', desc: '内容发布前审核', icon: Document },
-          { label: '评论审核', path: '/content/comments', desc: '社区互动内容治理', icon: Document }
+          { label: '学习资产', path: '/learning-assets', desc: '沉淀题单、笔记与目标', icon: Document },
+          { label: '面试题库', path: '/interview', desc: '按题单推进面试复习', icon: Document }
         ]
       }
     ]

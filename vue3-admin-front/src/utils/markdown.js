@@ -63,7 +63,9 @@ const md = new MarkdownIt({
       try {
         const result = hljs.highlight(str, { language: normalizedLang }).value
         return `<pre class="hljs"><code class="language-${normalizedLang}">${result}</code></pre>`
-      } catch (__) {}
+      } catch (error) {
+        console.warn('代码高亮失败，已回退为纯文本:', error)
+      }
     }
 
     const escaped = md.utils.escapeHtml(str)

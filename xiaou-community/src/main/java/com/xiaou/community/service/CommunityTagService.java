@@ -29,6 +29,11 @@ public interface CommunityTagService {
      * 删除标签
      */
     void deleteTag(Long id);
+
+    /**
+     * 启用/禁用标签
+     */
+    void toggleTagStatus(Long id);
     
     /**
      * 根据ID查询标签

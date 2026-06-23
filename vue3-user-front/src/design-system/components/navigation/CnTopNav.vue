@@ -225,9 +225,7 @@ import CnThemeSwitch from '../theme/CnThemeSwitch.vue'
 import type {
   CnTopNavDropdown,
   CnTopNavItem,
-  CnTopNavMobileSection,
-  CnTopNavProps,
-  CnTopNavUserAction
+  CnTopNavProps
 } from '../../types/components'
 
 const props = withDefaults(defineProps<CnTopNavProps>(), {

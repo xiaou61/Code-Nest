@@ -1,6 +1,6 @@
 {
   "name": "code-nest-admin-desktop",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
@@ -9,7 +9,7 @@
     "build": "vite build",
     "build:electron": "electron-vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext .vue,.js,.jsx --fix --ignore-path .gitignore",
+    "lint": "eslint . --ext .vue,.js,.jsx --fix --ignore-path ../.gitignore",
     "pack": "electron-builder --dir",
     "dist": "electron-vite build && electron-builder",
     "dist:win": "electron-vite build && electron-builder --win"
@@ -34,6 +34,8 @@
   },
   "devDependencies": {
     "@electron-toolkit/utils": "^2.0.1",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
     "@vitejs/plugin-vue": "^4.5.2",
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
@@ -41,6 +43,7 @@
     "eslint": "^8.55.0",
     "eslint-plugin-vue": "^9.19.2",
     "sass": "^1.69.5",
+    "typescript": "^5.9.3",
     "vite": "^5.0.8"
   }
 }

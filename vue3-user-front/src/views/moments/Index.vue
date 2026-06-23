@@ -269,13 +269,13 @@
                 <el-icon><ChatLineSquare /></el-icon>
                 <span>社区讨论</span>
               </div>
-              <div class="link-item" @click="$router.push('/resources')">
+              <div class="link-item" @click="$router.push('/learning-assets')">
                 <el-icon><Folder /></el-icon>
-                <span>资源中心</span>
+                <span>学习资产</span>
               </div>
-              <div class="link-item" @click="$router.push('/practice')">
+              <div class="link-item" @click="$router.push('/oj')">
                 <el-icon><Edit /></el-icon>
-                <span>在线练习</span>
+                <span>在线判题</span>
               </div>
             </div>
           </div>

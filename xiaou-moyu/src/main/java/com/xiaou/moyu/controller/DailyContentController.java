@@ -114,6 +114,22 @@ public class DailyContentController {
         
         return Result.success(contentDtos);
     }
+
+    /**
+     * 获取内容详情
+     */
+    @Log(module = "摸鱼工具", type = Log.OperationType.SELECT, description = "获取内容详情")
+    @GetMapping("/{contentId}")
+    public Result<DailyContentDto> getContentDetail(@PathVariable Long contentId) {
+        Long userId = getCurrentUserId();
+
+        DailyContent content = dailyContentService.getContentById(contentId);
+        if (content == null || content.getStatus() == null || content.getStatus() != 1) {
+            throw new BusinessException("内容不存在");
+        }
+
+        return Result.success(convertToContentDto(content, userId));
+    }
     
     /**
      * 查看内容详情（增加查看次数）

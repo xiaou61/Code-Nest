@@ -4,7 +4,7 @@ import request from '@/utils/request'
 export const developerCalendarApi = {
   // 获取日历事件列表（分页）
   getEventList(params) {
-    return request.get('/admin/moyu/developer-calendar/events/list', params)
+    return request.get('/admin/moyu/developer-calendar/events', params)
   },
   
   // 获取事件详情
@@ -29,17 +29,12 @@ export const developerCalendarApi = {
   
   // 批量删除事件
   batchDeleteEvents(ids) {
-    return request.post('/admin/moyu/developer-calendar/events/batch-delete', { ids })
+    return request.post('/admin/moyu/developer-calendar/events/batch-delete', ids)
   },
   
   // 获取事件统计
   getEventStatistics() {
     return request.get('/admin/moyu/developer-calendar/events/statistics')
-  },
-  
-  // 用户端获取日历事件
-  getUserCalendarEvents(params) {
-    return request.get('/moyu/developer-calendar/events', params)
   },
   
   // 用户端获取今日事件
@@ -82,7 +77,7 @@ export const dailyContentApi = {
   
   // 批量删除内容
   batchDeleteContents(ids) {
-    return request.post('/admin/moyu/daily-content/batch-delete', { ids })
+    return request.post('/admin/moyu/daily-content/batch-delete', ids)
   },
   
   // 获取内容统计
@@ -107,7 +102,7 @@ export const dailyContentApi = {
   
   // 用户端获取每日内容
   getUserDailyContent(params) {
-    return request.get('/moyu/daily-content', params)
+    return request.get('/moyu/daily-content/recommend', params)
   },
   
   // 用户端获取今日推荐
@@ -122,7 +117,7 @@ export const dailyContentApi = {
   
   // 用户端收藏内容
   collectContent(id) {
-    return request.post(`/moyu/daily-content/${id}/collect`)
+    return request.post(`/moyu/daily-content/${id}/toggle-collection`)
   },
   
   // 用户端获取收藏列表
@@ -153,15 +148,6 @@ export const statisticsApi = {
     return request.get('/admin/moyu/daily-content/popular-ranking', params)
   },
   
-  // 获取用户行为统计
-  getUserBehaviorStats(params) {
-    return request.get('/admin/moyu/statistics/user-behavior', params)
-  },
-  
-  // 获取趋势数据
-  getTrendData(type, params) {
-    return request.get(`/admin/moyu/statistics/trend/${type}`, params)
-  }
 }
 
 // ============ Bug商店相关API ============

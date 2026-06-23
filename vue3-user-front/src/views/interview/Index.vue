@@ -280,6 +280,7 @@ import {
 } from '@/design-system'
 import { useInterviewStore } from '@/stores/interview'
 import { useRevealMotion } from '@/utils/reveal-motion'
+import { buildInterviewQuestionSetRoute } from '@/utils/interview-navigation'
 import ReviewReminderCard from './components/ReviewReminderCard.vue'
 import LearningHeatmap from './components/LearningHeatmap.vue'
 
@@ -303,6 +304,8 @@ interface InterviewQuestionSet {
   createTime?: string
   originalQuestion?: {
     id: number | string
+    questionSetId?: number | string
+    setId?: number | string
   }
 }
 
@@ -429,16 +432,7 @@ const resetFilters = () => {
 }
 
 const goToQuestionSet = (questionSet: InterviewQuestionSet) => {
-  if (
-    typeof questionSet.id === 'string' &&
-    questionSet.id.startsWith('q-') &&
-    questionSet.originalQuestion
-  ) {
-    router.push(`/interview/questions/${questionSet.originalQuestion.id}`)
-    return
-  }
-
-  router.push(`/interview/question-sets/${questionSet.id}`)
+  router.push(buildInterviewQuestionSetRoute(questionSet))
 }
 
 const goToFavorites = () => {
