@@ -9,7 +9,7 @@ const STAGE_ORDER = {
   OFFER_TRACKING: 7
 }
 
-const MAX_STAGE_ORDER = Math.max(...Object.values(STAGE_ORDER))
+const MAX_PROGRESS_STAGE_ORDER = STAGE_ORDER.REVIEWED
 
 const STAGE_LABEL = {
   INIT: '初始化',
@@ -49,7 +49,7 @@ export function mapStageOrder(stage) {
 
 export function mapStagePercent(stage) {
   const order = mapStageOrder(stage)
-  return Math.min(100, Math.round((order / MAX_STAGE_ORDER) * 100))
+  return Math.min(100, Math.round((order / MAX_PROGRESS_STAGE_ORDER) * 100))
 }
 
 export function mapActionStatusTag(status) {

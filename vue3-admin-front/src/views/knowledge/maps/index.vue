@@ -98,7 +98,6 @@
                 <el-dropdown-menu>
                   <el-dropdown-item v-if="row.status !== 1" command="publish" :icon="Upload">发布</el-dropdown-item>
                   <el-dropdown-item v-if="row.status === 1" command="hide" :icon="Hide">隐藏</el-dropdown-item>
-                  <el-dropdown-item command="copy" :icon="CopyDocument">复制</el-dropdown-item>
                   <el-dropdown-item command="delete" :icon="Delete" class="danger-dropdown">删除</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -164,7 +163,6 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  CopyDocument,
   Delete,
   Edit,
   Hide,
@@ -176,7 +174,6 @@ import {
   UploadFilled
 } from '@element-plus/icons-vue'
 import {
-  copyKnowledgeMap,
   createKnowledgeMap,
   deleteBatchKnowledgeMaps,
   deleteKnowledgeMap,
@@ -381,9 +378,6 @@ const handleDropdownCommand = async (command: string, row: KnowledgeMap) => {
     case 'hide':
       await handleHide(row)
       break
-    case 'copy':
-      await handleCopy(row)
-      break
     case 'delete':
       await handleDelete(row)
       break
@@ -420,29 +414,6 @@ const handleHide = async (row: KnowledgeMap) => {
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error('隐藏失败')
-    }
-  }
-}
-
-const handleCopy = async (row: KnowledgeMap) => {
-  try {
-    const { value: title } = await ElMessageBox.prompt('请输入复制后的图谱名称', '复制知识图谱', {
-      confirmButtonText: '确认复制',
-      cancelButtonText: '取消',
-      inputValue: `${row.title} - 副本`,
-      inputPlaceholder: '图谱名称',
-      inputValidator: (value) => {
-        if (!value || !value.trim()) return '请输入图谱名称'
-        if (value.length > 200) return '名称长度不能超过200个字符'
-        return true
-      }
-    })
-    await copyKnowledgeMap(row.id, title.trim())
-    ElMessage.success('图谱复制成功')
-    handleSearch()
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('复制失败')
     }
   }
 }

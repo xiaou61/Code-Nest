@@ -146,7 +146,6 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   Aim,
-  Calendar,
   Check,
   Clock,
   Connection,
@@ -156,8 +155,6 @@ import {
   InfoFilled,
   Monitor,
   Setting,
-  Timer,
-  TrophyBase,
   VideoPlay
 } from '@element-plus/icons-vue'
 import {

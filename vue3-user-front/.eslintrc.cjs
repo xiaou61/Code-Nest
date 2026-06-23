@@ -7,12 +7,17 @@ module.exports = {
   },
   extends: [
     'eslint:recommended',
-    'plugin:vue/vue3-essential'
+    'plugin:vue/vue3-essential',
+    'plugin:@typescript-eslint/recommended'
   ],
+  parser: 'vue-eslint-parser',
   parserOptions: {
+    parser: '@typescript-eslint/parser',
     ecmaVersion: 'latest',
-    sourceType: 'module'
+    sourceType: 'module',
+    extraFileExtensions: ['.vue']
   },
+  plugins: ['@typescript-eslint'],
   ignorePatterns: [
     'dist/',
     'out/',
@@ -22,7 +27,9 @@ module.exports = {
   rules: {
     'no-console': 'off',
     'no-debugger': 'warn',
-    'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+    'no-unused-vars': 'off',
+    '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+    '@typescript-eslint/no-explicit-any': 'off',
     'vue/multi-word-component-names': 'off'
   }
 }

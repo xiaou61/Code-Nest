@@ -555,6 +555,42 @@ def redis_get_raw(db: int, key: str) -> bytes | None:
         sock.close()
 
 
+def decode_kryo_ascii_string(raw: bytes, start: int = 0) -> str | None:
+    chars: list[int] = []
+    for byte in raw[start:]:
+        if byte & 0x80:
+            chars.append(byte & 0x7F)
+            try:
+                return bytes(chars).decode("ascii")
+            except UnicodeDecodeError:
+                return None
+        if byte < 0x20 or byte > 0x7E:
+            return None
+        chars.append(byte)
+    return None
+
+
+def captcha_candidates_from_redis_raw(raw: bytes) -> list[str]:
+    candidates: list[str] = []
+
+    def add(text: str | None) -> None:
+        if text and re.fullmatch(r"[A-Za-z0-9]{4,6}", text) and text not in candidates:
+            candidates.append(text)
+
+    for payload in (raw, raw[-4:], raw[1:] if len(raw) > 1 else b""):
+        if not payload:
+            continue
+        try:
+            add(payload.decode("ascii"))
+        except UnicodeDecodeError:
+            pass
+
+    for start in range(min(3, len(raw))):
+        add(decode_kryo_ascii_string(raw, start))
+
+    return candidates
+
+
 def captcha_code_from_redis(captcha_key: str) -> str | None:
     # Redisson business data is configured on DB 3 in application-dev.yml.
     for db in (3, 0, 1, 2, 4, 5, 6, 7):
@@ -564,18 +600,8 @@ def captcha_code_from_redis(captcha_key: str) -> str | None:
             continue
         if not raw:
             continue
-        candidates = []
-        if len(raw) >= 4:
-            candidates.append(raw[-4:])
-        if len(raw) > 1 and raw[0] in {3, 4, 5}:
-            candidates.append(raw[1:])
-        for candidate in candidates:
-            try:
-                text = candidate.decode("ascii")
-            except Exception:
-                continue
-            if re.fullmatch(r"[A-Za-z0-9]{4,6}", text):
-                return text
+        for candidate in captcha_candidates_from_redis_raw(raw):
+            return candidate
     return None
 
 

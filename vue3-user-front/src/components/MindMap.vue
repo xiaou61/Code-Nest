@@ -146,8 +146,6 @@ const initGraph = () => {
   const container = document.getElementById(containerId.value)
   if (!container) return
 
-  console.log('初始化G6图实例，是否为移动设备:', isMobileDevice()) // 调试日志
-
   // 创建G6图实例 - G6 v4 API
   try {
     const theme = getMindMapTheme()
@@ -253,7 +251,6 @@ const initGraph = () => {
       }
       graph.value.setItemState(item, 'selected', true)
 
-      console.log('G6节点交互事件:', nodeData) // 调试日志
       emit('node-click', nodeData)
     } catch (error) {
       console.warn('节点交互事件处理错误:', error)
@@ -270,7 +267,6 @@ const initGraph = () => {
     try {
       const { item } = event
       const nodeData = item.getModel()
-      console.log('G6节点双击/双触摸事件:', nodeData) // 调试日志
       emit('node-dblclick', nodeData)
     } catch (error) {
       console.warn('节点双击事件处理错误:', error)
@@ -295,17 +291,14 @@ const initGraph = () => {
 
   // 移动端备选事件监听 - 直接在DOM上监听
   if (isMobileDevice()) {
-    console.log('添加移动端DOM事件监听') // 调试日志
     const canvas = container.querySelector('canvas')
     if (canvas) {
       // 触摸事件处理
       canvas.addEventListener('touchstart', (e) => {
-        console.log('Canvas touchstart事件触发') // 调试日志
         handleCanvasTouchStart(e)
       }, { passive: false })
 
       canvas.addEventListener('click', (e) => {
-        console.log('Canvas click事件触发') // 调试日志
         handleCanvasClick(e)
       })
     }
@@ -322,7 +315,6 @@ const handleCanvasTouchStart = (e) => {
   const item = graph.value.getItemAt(point.x, point.y)
 
   if (item && item.getType() === 'node') {
-    console.log('通过Canvas触摸找到节点:', item.getModel()) // 调试日志
     const nodeData = item.getModel()
     emit('node-click', nodeData)
   }
@@ -334,7 +326,6 @@ const handleCanvasClick = (e) => {
   const item = graph.value.getItemAt(point.x, point.y)
 
   if (item && item.getType() === 'node') {
-    console.log('通过Canvas点击找到节点:', item.getModel()) // 调试日志
     const nodeData = item.getModel()
     emit('node-click', nodeData)
   }

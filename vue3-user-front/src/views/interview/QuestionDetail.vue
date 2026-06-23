@@ -102,7 +102,6 @@
           :question-id="questionId"
           :question-set-id="setId"
           :visible="!isStudyMode && showAnswer"
-          @marked="handleMasteryMarked"
         />
       </div>
     </CnSection>
@@ -321,10 +320,6 @@ const markAsLearned = async () => {
   } catch (error) {
     console.debug('记录学习进度失败:', error)
   }
-}
-
-const handleMasteryMarked = (masteryData: unknown) => {
-  console.log('掌握度已标记:', masteryData)
 }
 
 watch(() => route.params.questionId, (newQuestionId) => {

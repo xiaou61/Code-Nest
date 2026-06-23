@@ -176,9 +176,6 @@ import {
   CopyDocument,
   Delete,
   Download,
-  Edit,
-  Minus,
-  Plus,
   Search,
   Upload
 } from '@element-plus/icons-vue'

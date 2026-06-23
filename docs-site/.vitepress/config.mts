@@ -124,6 +124,7 @@ const operations = [
   { text: 'Docker 与服务部署', link: '/operations/docker' },
   { text: '环境变量总表', link: '/operations/env-vars' },
   { text: '监控与观测', link: '/operations/monitoring' },
+  { text: '线上接口业务正确性测试（2026-06-18）', link: '/operations/online-api-business-correctness-2026-06-18' },
   { text: '告警 Runbook', link: '/operations/alert-runbooks' },
   { text: '事故响应', link: '/operations/incident-response' },
   { text: '问题定位流程', link: '/operations/diagnosis-flow' },

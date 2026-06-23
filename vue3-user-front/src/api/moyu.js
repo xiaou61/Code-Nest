@@ -172,7 +172,7 @@ export const likeContent = (id) => {
  * @param {number} id - 内容ID
  */
 export const collectContent = (id) => {
-  return request.post(`/moyu/daily-content/${id}/collect`)
+  return request.post(`/moyu/daily-content/${id}/toggle-collection`)
 }
 
 /**

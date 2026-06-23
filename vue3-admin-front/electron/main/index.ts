@@ -1,5 +1,4 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
-import { join } from 'path'
 import { createWindow, getMainWindow } from './window'
 import { createTray } from './tray'
 import { initStore, getStore } from './store'

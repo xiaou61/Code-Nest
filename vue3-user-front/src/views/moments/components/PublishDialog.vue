@@ -340,9 +340,8 @@ const saveDraft = () => {
     images: form.images,
     timestamp: Date.now()
   }
-  
+
   localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
-  console.log('草稿已自动保存')
 }
 
 // 加载草稿

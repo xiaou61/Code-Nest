@@ -3,6 +3,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import router from '@/router'
 import NProgress from 'nprogress'
+import { normalizeBodyRequestConfig, normalizeQueryRequestConfig } from '@/utils/request-options'
 
 // 创建axios实例
 const service = axios.create({
@@ -175,8 +176,7 @@ const request = {
     return service({
       method: 'GET',
       url,
-      params,
-      ...config,
+      ...normalizeQueryRequestConfig(params, config),
     })
   },
   
@@ -185,7 +185,7 @@ const request = {
       method: 'POST',
       url,
       data,
-      ...config,
+      ...normalizeBodyRequestConfig(config),
     })
   },
   
@@ -194,7 +194,16 @@ const request = {
       method: 'PUT',
       url,
       data,
-      ...config,
+      ...normalizeBodyRequestConfig(config),
+    })
+  },
+
+  patch(url, data = {}, config = {}) {
+    return service({
+      method: 'PATCH',
+      url,
+      data,
+      ...normalizeBodyRequestConfig(config),
     })
   },
   
@@ -202,10 +211,9 @@ const request = {
     return service({
       method: 'DELETE',
       url,
-      params,
-      ...config,
+      ...normalizeQueryRequestConfig(params, config),
     })
   },
 }
 
-export default request 
+export default request

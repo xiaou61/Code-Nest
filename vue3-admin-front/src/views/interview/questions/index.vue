@@ -189,7 +189,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Collection, Delete, Edit, Plus, Upload, View } from '@element-plus/icons-vue'
+import { Delete, Edit, Plus, Upload, View } from '@element-plus/icons-vue'
 import { interviewApi } from '@/api/interview'
 import { renderMarkdown as renderSafeMarkdown } from '@/utils/markdown'
 import {

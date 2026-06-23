@@ -122,7 +122,6 @@ import {
   Warning,
   EditPen,
   Share,
-  Search,
   Coin,
   Trophy,
   Plus,
@@ -377,15 +376,7 @@ const sidebarItems: CnSidebarItem[] = [
     children: [
       { label: '版本管理', path: '/system/version', icon: Document },
       { label: 'AI质量治理', path: '/system/ai-governance', icon: DataAnalysis },
-      { label: 'AI 配置与观测', path: '/system/ai-config', icon: SetUp },
-      {
-        label: '系统监控',
-        index: '/system/monitor',
-        icon: Monitor,
-        children: [
-          { label: 'SQL监控', path: '/system/monitor/sql', icon: DataAnalysis }
-        ]
-      }
+      { label: 'AI 配置与观测', path: '/system/ai-config', icon: SetUp }
     ]
   }
 ]
@@ -399,8 +390,7 @@ const getIconByPath = (path, title = '') => {
     '/notification': 'Bell',
     '/system/version': 'Document',
     '/system/ai-governance': 'DataAnalysis',
-    '/system/ai-config': 'SetUp',
-    '/system/monitor/sql': 'DataAnalysis'
+    '/system/ai-config': 'SetUp'
   }
   
   if (exactIconMap[path]) {
@@ -735,8 +725,8 @@ const handleUserCommand = async (command) => {
         
         await userStore.logout()
         router.push('/login')
-      } catch (error) {
-        console.log('取消退出:', error)
+      } catch {
+        // 用户取消退出时保持当前页面。
       }
       break
   }

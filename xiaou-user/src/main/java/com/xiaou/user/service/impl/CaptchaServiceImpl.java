@@ -85,7 +85,7 @@ public class CaptchaServiceImpl implements CaptchaService {
             result.put("captchaImage", "data:image/png;base64," + captchaImage);
             result.put("expiresIn", CAPTCHA_EXPIRE_MINUTES * 60); // 转换为秒
 
-            log.info("生成验证码成功，key: {}, code: {}", captchaKey, captchaCode);
+            log.info("生成验证码成功，key: {}", captchaKey);
             return result;
 
         } catch (Exception e) {
@@ -118,7 +118,7 @@ public class CaptchaServiceImpl implements CaptchaService {
                 // 验证成功后删除验证码，防止重复使用
                 deleteCaptcha(captchaKey);
             } else {
-                log.warn("验证码验证失败，key: {}, 输入: {}, 期望: {}", captchaKey, captcha, storedCaptcha);
+                log.warn("验证码验证失败，key: {}", captchaKey);
             }
 
             return isValid;
@@ -137,4 +137,4 @@ public class CaptchaServiceImpl implements CaptchaService {
             log.debug("删除验证码成功，key: {}", captchaKey);
         }
     }
-} 
+}

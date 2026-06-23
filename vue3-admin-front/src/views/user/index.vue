@@ -214,7 +214,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowDown, Delete, Edit, Plus, Refresh, Search, User, View } from '@element-plus/icons-vue'
+import { ArrowDown, Delete, Edit, Plus, Refresh, User, View } from '@element-plus/icons-vue'
 import { userApi } from '@/api/user'
 import {
   CnDataTable,

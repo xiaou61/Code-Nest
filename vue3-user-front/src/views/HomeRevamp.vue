@@ -395,7 +395,6 @@ import {
   DataAnalysis,
   Document,
   Edit,
-  Mic,
   Monitor,
   Reading,
   Share,

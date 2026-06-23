@@ -345,11 +345,9 @@ const mindMapData = computed(() => {
   const currentHash = JSON.stringify(nodeTree.value.map(n => ({ id: n.id, title: n.title, children: n.children?.length || 0 })))
 
   if (currentHash === lastNodeTreeHash && cachedMindMapData) {
-    console.log('📊 使用缓存的mindMapData')
     return cachedMindMapData
   }
 
-  console.log('📊 重新计算mindMapData')
   lastNodeTreeHash = currentHash
 
   const nodes = []
@@ -379,7 +377,6 @@ const mindMapData = computed(() => {
   try {
     nodeTree.value.forEach(rootNode => processNode(rootNode))
     cachedMindMapData = { nodes, edges }
-    console.log('📊 mindMapData计算完成', { nodes: nodes.length, edges: edges.length })
     return cachedMindMapData
   } catch (error) {
     console.error('📊 mindMapData计算出错:', error)
@@ -412,8 +409,6 @@ const fetchNodeTree = async () => {
     cachedMindMapData = null
     lastNodeTreeHash = ''
 
-    console.log('🔄 nodeTree更新完成', data.length)
-
     // 更新节点Map缓存
     refreshNodeMap()
 
@@ -427,7 +422,6 @@ const fetchNodeTree = async () => {
 // 优化节点查找性能 - 使用Map缓存
 const nodeMap = new Map()
 const updateNodeMap = () => {
-  console.log('🗺️ 更新nodeMap缓存')
   nodeMap.clear()
   const buildMap = (nodes) => {
     for (const node of nodes) {
@@ -443,13 +437,10 @@ const updateNodeMap = () => {
 
 // 手动更新缓存，移除深度监听避免性能问题
 const refreshNodeMap = () => {
-  console.log('🔄 手动刷新nodeMap')
   updateNodeMap()
 }
 
 const handleNodeClick = (data) => {
-  console.log('🖱️ 左侧树节点点击:', data.id)
-
   selectedNodeId.value = data.id
   selectedNode.value = { ...data } // 使用副本避免引用问题
 
@@ -469,8 +460,6 @@ const handleNodeClick = (data) => {
 
 // 专门处理MindMap组件中节点点击的方法
 const handleMindMapNodeClick = (nodeData) => {
-  console.log('🎯 MindMap节点点击:', nodeData.id || nodeData.title)
-
   // 简化处理，只更新选中状态，避免复杂操作
   if (nodeData.id) {
     selectedNodeId.value = nodeData.id.toString()
@@ -650,32 +639,21 @@ const handleDeleteNode = async (data) => {
 }
 
 const handleSaveNode = async () => {
-  console.log('💾 handleSaveNode开始执行')
-
   if (!selectedNode.value) {
-    console.log('❌ selectedNode.value为空，退出')
     return
   }
 
-  console.log('💾 开始保存节点:', selectedNode.value.id)
-  console.log('💾 表单数据:', nodeForm)
-
   try {
     // 临时禁用MindMap的watch监听
-    console.log('🔒 禁用MindMap监听')
     mindMapRef.value?.disableWatch()
 
     // 临时跳过表单验证，直接保存
-    console.log('💾 调用API保存节点...')
     await updateKnowledgeNode(selectedNode.value.id, nodeForm)
 
-    console.log('✅ API调用成功')
     ElMessage.success('节点保存成功')
-    console.log('✅ 节点保存完成，方法即将退出')
 
     // 重新启用MindMap监听
     setTimeout(() => {
-      console.log('🔓 重新启用MindMap监听')
       mindMapRef.value?.enableWatch()
     }, 1000)
 
@@ -686,8 +664,6 @@ const handleSaveNode = async () => {
     // 确保在错误情况下也重新启用监听
     mindMapRef.value?.enableWatch()
   }
-
-  console.log('💾 handleSaveNode方法执行完毕')
 }
 
 const handleCancelEdit = () => {
@@ -751,31 +727,25 @@ const handleResetZoom = () => {
 }
 
 const goBack = () => {
-  console.log('🔙 准备返回列表，开始清理资源')
-
   try {
     // 主动清理定时器
     if (refreshTimer) {
       clearTimeout(refreshTimer)
       refreshTimer = null
-      console.log('🧹 提前清理refreshTimer')
     }
 
     // 禁用MindMap监听
     if (mindMapRef.value) {
       mindMapRef.value.disableWatch?.()
-      console.log('🧹 提前禁用MindMap监听')
     }
 
     // 清理缓存
     nodeMap.clear()
     cachedMindMapData = null
     lastNodeTreeHash = ''
-    console.log('🧹 提前清理缓存')
 
     // 延迟跳转，确保清理完成
     setTimeout(() => {
-      console.log('🔙 执行路由跳转')
       router.push('/knowledge/maps')
     }, 100)
 
@@ -884,20 +854,16 @@ onMounted(async () => {
 
 // 组件销毁时清理资源
 onUnmounted(() => {
-  console.log('🧹 组件卸载，清理所有资源')
-
   // 清理定时器
   if (refreshTimer) {
     clearTimeout(refreshTimer)
     refreshTimer = null
-    console.log('🧹 清理refreshTimer')
   }
 
   // 清理MindMap相关资源
   if (mindMapRef.value) {
     try {
       mindMapRef.value.disableWatch?.()
-      console.log('🧹 禁用MindMap监听')
     } catch (e) {
       console.warn('清理MindMap时出错:', e)
     }
@@ -912,8 +878,6 @@ onUnmounted(() => {
   selectedNodeId.value = null
   selectedNode.value = null
   nodeTree.value = []
-
-  console.log('✅ 资源清理完成')
 })
 
 // 监听路由变化

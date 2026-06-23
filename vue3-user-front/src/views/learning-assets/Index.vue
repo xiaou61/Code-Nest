@@ -668,7 +668,7 @@ const handleSizeChange = (size: number) => {
 }
 
 const toggleCandidate = (candidateId: number, checked: string | number | boolean) => {
-  if (Boolean(checked)) {
+  if (checked) {
     if (!selectedCandidateIds.value.includes(candidateId)) {
       selectedCandidateIds.value = [...selectedCandidateIds.value, candidateId]
     }

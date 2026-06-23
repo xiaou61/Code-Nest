@@ -1,6 +1,6 @@
-import { Tray, Menu, app, nativeImage } from 'electron'
+import { Tray, Menu, app, nativeImage, dialog } from 'electron'
 import { join } from 'path'
-import { showWindow, getMainWindow } from './window'
+import { showWindow } from './window'
 
 let tray: Tray | null = null
 
@@ -24,7 +24,6 @@ export function createTray(): void {
     {
       label: '关于',
       click: () => {
-        const { dialog } = require('electron')
         dialog.showMessageBox({
           type: 'info',
           title: '关于 Code-Nest',

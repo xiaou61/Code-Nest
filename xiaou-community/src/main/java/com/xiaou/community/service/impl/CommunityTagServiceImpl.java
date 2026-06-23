@@ -116,6 +116,25 @@ public class CommunityTagServiceImpl implements CommunityTagService {
         
         log.info("删除标签成功，标签ID: {}", id);
     }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void toggleTagStatus(Long id) {
+        CommunityTag tag = getById(id);
+
+        CommunityTag updateTag = new CommunityTag();
+        updateTag.setId(id);
+        updateTag.setStatus(tag.getStatus() == 1 ? 0 : 1);
+
+        int result = communityTagMapper.update(updateTag);
+        if (result <= 0) {
+            throw new BusinessException("更新标签状态失败");
+        }
+
+        communityCacheService.evictTags();
+
+        log.info("更新标签状态成功，标签ID: {}, 新状态: {}", id, updateTag.getStatus());
+    }
     
     @Override
     public CommunityTag getById(Long id) {
