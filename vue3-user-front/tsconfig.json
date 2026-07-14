@@ -18,6 +18,8 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
+      "@/design-system": ["../code-nest-design-system/src/index.ts"],
+      "@/design-system/*": ["../code-nest-design-system/src/*"],
       "@/*": ["src/*"]
     }
   },
@@ -26,6 +28,8 @@
     "src/**/*.d.ts",
     "src/**/*.tsx",
     "src/**/*.vue",
+    "../code-nest-design-system/src/**/*.ts",
+    "../code-nest-design-system/src/**/*.vue",
     "electron/**/*.ts"
   ],
   "references": [{ "path": "./tsconfig.node.json" }]

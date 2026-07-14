@@ -16,6 +16,13 @@ public interface MomentLikeMapper {
      * 插入点赞
      */
     int insert(MomentLike momentLike);
+
+    /**
+     * Insert a like unless the user already liked the moment.
+     *
+     * @return 1 when inserted, 0 when the unique key already exists
+     */
+    int insertIfAbsent(MomentLike momentLike);
     
     /**
      * 根据ID删除点赞
@@ -44,4 +51,4 @@ public interface MomentLikeMapper {
      * @return 用户已点赞的动态ID列表
      */
     List<Long> selectLikedMomentIds(@Param("momentIds") List<Long> momentIds, @Param("userId") Long userId);
-} 
+}

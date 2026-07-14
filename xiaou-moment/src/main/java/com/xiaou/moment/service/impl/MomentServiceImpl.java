@@ -145,15 +145,20 @@ public class MomentServiceImpl implements MomentService {
         
         if (existingLike != null) {
             // 取消点赞
-            momentLikeMapper.deleteByMomentIdAndUserId(momentId, currentUserId);
-            momentMapper.decrementLikeCount(momentId);
+            int deleted = momentLikeMapper.deleteByMomentIdAndUserId(momentId, currentUserId);
+            if (deleted > 0) {
+                momentMapper.decrementLikeCount(momentId);
+            }
             return false;
         } else {
             // 点赞
             MomentLike momentLike = new MomentLike();
             momentLike.setMomentId(momentId);
             momentLike.setUserId(currentUserId);
-            momentLikeMapper.insert(momentLike);
+            int inserted = momentLikeMapper.insertIfAbsent(momentLike);
+            if (inserted == 0) {
+                return true;
+            }
             momentMapper.incrementLikeCount(momentId);
             
             // 发送消息通知：通知动态作者
@@ -702,15 +707,20 @@ public class MomentServiceImpl implements MomentService {
         
         if (existingFavorite != null) {
             // 取消收藏
-            momentFavoriteMapper.delete(momentId, currentUserId);
-            momentMapper.decrementFavoriteCount(momentId);
+            int deleted = momentFavoriteMapper.delete(momentId, currentUserId);
+            if (deleted > 0) {
+                momentMapper.decrementFavoriteCount(momentId);
+            }
             return false;
         } else {
             // 收藏
             MomentFavorite favorite = new MomentFavorite();
             favorite.setMomentId(momentId);
             favorite.setUserId(currentUserId);
-            momentFavoriteMapper.insert(favorite);
+            int inserted = momentFavoriteMapper.insertIfAbsent(favorite);
+            if (inserted == 0) {
+                return true;
+            }
             momentMapper.incrementFavoriteCount(momentId);
             
             // 发送消息通知：通知动态作者
@@ -897,4 +907,4 @@ public class MomentServiceImpl implements MomentService {
         
         return response;
     }
-} 
+}

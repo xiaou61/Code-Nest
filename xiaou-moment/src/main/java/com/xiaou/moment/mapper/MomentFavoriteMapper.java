@@ -16,6 +16,13 @@ public interface MomentFavoriteMapper {
      * 插入收藏记录
      */
     int insert(MomentFavorite favorite);
+
+    /**
+     * Insert a favorite unless the user already favorited the moment.
+     *
+     * @return 1 when inserted, 0 when the unique key already exists
+     */
+    int insertIfAbsent(MomentFavorite favorite);
     
     /**
      * 删除收藏记录

@@ -4,15 +4,16 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import com.xiaou.common.utils.RedisUtil;
+import com.xiaou.common.cache.RedisValueStore;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.slf4j.LoggerFactory;
 
 import java.util.stream.Collectors;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -21,16 +22,15 @@ class CaptchaServiceImplTest {
 
     @Test
     void generateCaptchaShouldNotLogPlainTextCaptchaCode() {
-        RedisUtil redisUtil = mock(RedisUtil.class);
-        when(redisUtil.set(anyString(), anyString(), anyLong())).thenReturn(true);
-        CaptchaServiceImpl service = new CaptchaServiceImpl(redisUtil);
+        RedisValueStore redisValueStore = mock(RedisValueStore.class);
+        CaptchaServiceImpl service = new CaptchaServiceImpl(redisValueStore);
 
         ListAppender<ILoggingEvent> appender = attachListAppender();
         try {
             service.generateCaptcha();
 
             ArgumentCaptor<Object> captchaCaptor = ArgumentCaptor.forClass(Object.class);
-            org.mockito.Mockito.verify(redisUtil).set(anyString(), captchaCaptor.capture(), anyLong());
+            org.mockito.Mockito.verify(redisValueStore).put(anyString(), captchaCaptor.capture(), any());
             String captchaCode = String.valueOf(captchaCaptor.getValue());
             String logs = renderedLogs(appender);
 
@@ -44,9 +44,9 @@ class CaptchaServiceImplTest {
 
     @Test
     void failedVerificationShouldNotLogInputOrStoredCaptchaCode() {
-        RedisUtil redisUtil = mock(RedisUtil.class);
-        when(redisUtil.get("user:captcha:captcha-key")).thenReturn("ABCD");
-        CaptchaServiceImpl service = new CaptchaServiceImpl(redisUtil);
+        RedisValueStore redisValueStore = mock(RedisValueStore.class);
+        when(redisValueStore.find("user:captcha:captcha-key", String.class)).thenReturn(Optional.of("ABCD"));
+        CaptchaServiceImpl service = new CaptchaServiceImpl(redisValueStore);
 
         ListAppender<ILoggingEvent> appender = attachListAppender();
         try {

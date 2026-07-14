@@ -1,14 +1,16 @@
 # 工具类详解
 
-公共底座（`xiaou-common`）提供了 14 个工具类，覆盖并发控制、线程池管理、Redis 操作、JSON 处理、敏感词检测、通知发送、分页查询等基础能力。本文档详细解析每个工具类的功能、核心方法、使用示例和注意事项。
+公共底座（`xiaou-common`）提供统一响应、缓存、通知、分页和通用数据处理能力。v2.4.1 将线程资源改为 Spring 托管的有界执行器，并将 Redis 能力收敛为类型化值存储；集合、排序集合和分布式锁由所属业务模块直接管理。
 
 ## 工具类总览
 
 | 工具类 | 行数 | 职责 | 核心能力 |
 |--------|------|------|---------|
-| `ConcurrentUtils` | 1043 | 并发工具集 | 限流器、熔断器、分段锁、计数器、同步屏障 |
-| `ThreadPoolUtils` | 1206 | 线程池工具 | 线程池管理、异步任务、批量并行、超时控制、重试机制 |
-| `RedisUtil` | 872 | Redis 工具 | String、Hash、List、Set、Sorted Set、分布式锁 |
+| `RedisValueStore` | 112 | 类型化 Redis 值存储 | `Optional` 查询、原子获取并删除、计数器、TTL |
+| `ApplicationTaskExecutorConfig` | 30 | 应用 I/O 执行器 | Spring 生命周期、有界队列、统一拒绝和关闭策略 |
+| `ConcurrentUtils` | 1043 | 历史实现，v2.4.1 已移除 | 旧版限流、熔断和进程内并发原语 |
+| `ThreadPoolUtils` | 1206 | 历史实现，v2.4.1 已移除 | 旧版静态线程池和异步封装 |
+| `RedisUtil` | 872 | 历史实现，v2.4.1 已移除 | 旧版全功能 Redis 门面 |
 | `NotificationUtil` | 378 | 通知工具 | 系统公告、个人消息、模板消息、批量发送 |
 | `SensitiveWordUtils` | 374 | 敏感词工具 | 敏感词检测、替换、批量检测、缓存 |
 | `JsonUtils` | 280 | JSON 工具 | 对象序列化、反序列化、类型转换 |
@@ -23,9 +25,11 @@
 
 ---
 
-## 一、ConcurrentUtils（并发工具集）
+## 一、ConcurrentUtils（历史 API，v2.4.1 已移除）
 
-**源码**：`ConcurrentUtils.java`（1043 行）
+**历史源码**：`ConcurrentUtils.java`（1043 行）
+
+> 本节保留用于理解迁移前设计，示例不能用于当前代码。限流、熔断和锁现在由实际业务模块按自身语义实现，不再通过公共静态门面共享状态。
 
 全站最大的工具类，提供限流、熔断、锁、计数器、延迟值等并发原语。
 
@@ -212,9 +216,11 @@ once.run(() -> {
 
 ---
 
-## 二、ThreadPoolUtils（线程池工具）
+## 二、ThreadPoolUtils（历史 API，v2.4.1 已移除）
 
-**源码**：`ThreadPoolUtils.java`（1206 行）
+**历史源码**：`ThreadPoolUtils.java`（1206 行）
+
+> 当前代码通过构造器注入 `@Qualifier("applicationIoExecutor") Executor`。摸鱼热榜等具有独立容量模型的任务继续使用模块自有执行器。
 
 线程池管理工具，提供多种预配置线程池、异步任务执行、批量并行处理、超时控制、重试机制等功能。
 
@@ -412,9 +418,11 @@ String result = ThreadPoolUtils.asyncChain(() -> fetchData())
 
 ---
 
-## 三、RedisUtil（Redis 工具）
+## 三、RedisUtil（历史 API，v2.4.1 已移除）
 
-**源码**：`RedisUtil.java`（872 行）
+**历史源码**：`RedisUtil.java`（872 行）
+
+> 当前标量值、票据和计数器使用 `RedisValueStore`；Set、Sorted Set 和分布式锁由业务模块直接使用 Redisson API，以保留清晰的领域语义和失败策略。
 
 基于 Redisson 客户端的 Redis 工具类，封装了 String、Hash、List、Set、Sorted Set、分布式锁等操作。
 
@@ -1084,12 +1092,12 @@ notificationCacheUtil.decrementUnreadCount(userId);
 
 | 场景 | 推荐工具类 |
 |------|-----------|
-| 限流 | `ConcurrentUtils.RateLimiter` 或 `SlidingWindowRateLimiter` |
-| 熔断 | `ConcurrentUtils.CircuitBreaker` |
-| 分布式锁 | `RedisUtil.getLock()` 或 `ConcurrentUtils.StripedLock` |
-| 异步任务 | `ThreadPoolUtils.supplyAsync()` |
-| 批量并行 | `ThreadPoolUtils.parallelMap()` |
-| Redis 操作 | `RedisUtil` |
+| Redis 标量值、票据、计数器 | `RedisValueStore` |
+| Redis Set、Sorted Set、分布式锁 | 所属模块直接使用 `RedissonClient` |
+| 通用 I/O 异步任务 | 注入 `applicationIoExecutor` |
+| 模块专用异步任务 | 使用模块自有执行器，例如 `hotTopicExecutor` |
+| 超时与降级 | 在调用服务内使用 `CompletableFuture` 明确声明时间预算 |
+| 限流和熔断 | 在业务服务内按实际状态模型实现 |
 | 敏感词检测 | `SensitiveWordUtils.checkText()` |
 | 发送通知 | `NotificationUtil.sendXxx()` |
 | 分页查询 | `PageHelper.doPage()` |
@@ -1097,18 +1105,19 @@ notificationCacheUtil.decrementUnreadCount(userId);
 
 ### 2. 注意事项
 
-- **ConcurrentUtils.RateLimiter**：`acquire()` 方法使用忙等待，高并发时可能浪费 CPU
-- **RedisUtil**：所有操作都捕获异常并返回默认值，不会抛出异常
-- **ThreadPoolUtils**：所有线程池在 JVM 关闭时自动清理
+- **RedisValueStore**：缓存未命中返回空值，类型不匹配和 Redis 故障显式抛出
+- **可选缓存**：需要降级的调用方必须在自身边界捕获 Redis 异常并记录日志
+- **applicationIoExecutor**：队列和线程数有界，队列满时使用 `CallerRunsPolicy` 施加反压
+- **超时任务**：`CompletableFuture` 超时不会自动中断底层调用，调用方仍需为网络客户端配置超时
 - **SensitiveWordUtils**：检测结果会缓存 5 分钟，避免重复检测
 - **NotificationUtil**：发送失败只记录日志，不抛出异常
 
 ### 3. 性能优化
 
-- 使用 `ThreadPoolUtils.parallelMap()` 替代循环中的串行调用
-- 使用 `RedisUtil` 的批量操作替代循环中的单个操作
+- 仅对彼此独立的 I/O 调用使用 `CompletableFuture` 并行聚合，并设置整体时间预算
+- 对一次性票据使用 `RedisValueStore.take()`，避免读取和删除之间的竞争窗口
+- 对 Set、Sorted Set 和锁保留 Redisson 原生语义，避免通用门面掩盖原子性要求
 - 使用 `SensitiveWordUtils.checkTextBatch()` 替代循环中的单个检测
-- 使用 `ConcurrentUtils.StripedLock` 替代全局锁，减少锁竞争
 
 ---
 
@@ -1120,4 +1129,4 @@ notificationCacheUtil.decrementUnreadCount(userId);
 | [鉴权与用户体系](/modules/auth) | 被依赖 | 密码工具、IP 工具被鉴权模块使用 |
 | [敏感词风控](/modules/sensitive) | 被依赖 | 敏感词工具被多个内容模块使用 |
 | [通知中心](/modules/notification) | 被依赖 | 通知工具被多个模块使用 |
-| [积分与抽奖](/modules/points) | 被依赖 | Redis 工具、并发工具被积分模块使用 |
+| [积分与抽奖](/modules/points) | 被依赖 | 积分模块直接管理库存计数和分布式锁语义 |

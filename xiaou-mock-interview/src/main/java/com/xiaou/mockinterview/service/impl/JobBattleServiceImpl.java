@@ -11,7 +11,6 @@ import com.xiaou.ai.service.AiJobBattleService;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.exception.BusinessException;
 import com.xiaou.common.utils.PageHelper;
-import com.xiaou.common.utils.ThreadPoolUtils;
 import com.xiaou.mockinterview.domain.JobBattleMatchRecord;
 import com.xiaou.mockinterview.domain.JobBattlePlanRecord;
 import com.xiaou.mockinterview.dto.request.CareerLoopEventRequest;
@@ -28,8 +27,8 @@ import com.xiaou.mockinterview.mapper.JobBattleMatchRecordMapper;
 import com.xiaou.mockinterview.mapper.JobBattlePlanRecordMapper;
 import com.xiaou.mockinterview.service.CareerLoopService;
 import com.xiaou.mockinterview.service.JobBattleService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -44,6 +43,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -54,7 +54,6 @@ import java.util.function.Supplier;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class JobBattleServiceImpl implements JobBattleService {
 
     private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -63,6 +62,21 @@ public class JobBattleServiceImpl implements JobBattleService {
     private final JobBattlePlanRecordMapper planRecordMapper;
     private final JobBattleMatchRecordMapper matchRecordMapper;
     private final CareerLoopService careerLoopService;
+    private final Executor applicationIoExecutor;
+
+    public JobBattleServiceImpl(
+            AiJobBattleService aiJobBattleService,
+            JobBattlePlanRecordMapper planRecordMapper,
+            JobBattleMatchRecordMapper matchRecordMapper,
+            CareerLoopService careerLoopService,
+            @Qualifier("applicationIoExecutor") Executor applicationIoExecutor
+    ) {
+        this.aiJobBattleService = aiJobBattleService;
+        this.planRecordMapper = planRecordMapper;
+        this.matchRecordMapper = matchRecordMapper;
+        this.careerLoopService = careerLoopService;
+        this.applicationIoExecutor = applicationIoExecutor;
+    }
 
     @Value("${job-battle.ai.timeout-seconds:4}")
     private long aiTimeoutSeconds;
@@ -259,7 +273,7 @@ public class JobBattleServiceImpl implements JobBattleService {
     private <T> T runAiWithFallback(String operation, Supplier<T> aiSupplier, Supplier<T> fallbackSupplier) {
         long timeoutSeconds = Math.max(1L, aiTimeoutSeconds);
         try {
-            T result = CompletableFuture.supplyAsync(aiSupplier, ThreadPoolUtils.getIoExecutor())
+            T result = CompletableFuture.supplyAsync(aiSupplier, applicationIoExecutor)
                     .completeOnTimeout(null, timeoutSeconds, TimeUnit.SECONDS)
                     .exceptionally(ex -> {
                         log.warn("求职作战台AI调用失败，operation={}, reason={}", operation, ex.getMessage());

@@ -1,10 +1,13 @@
 package com.xiaou.chat.service;
 
-import com.xiaou.common.utils.RedisUtil;
+import com.xiaou.common.cache.RedisValueStore;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
+import java.time.Duration;
 
 /**
  * 聊天室轻量限流服务，防止短时间刷屏和输入中事件风暴。
@@ -13,11 +16,12 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ChatRateLimitService {
 
     private static final String KEY_PREFIX = "xiaou:chat:rate-limit:";
 
-    private final RedisUtil redisUtil;
+    private final RedisValueStore redisValueStore;
 
     @Value("${xiaou.chat.rate-limit.enabled:true}")
     private boolean enabled;
@@ -48,12 +52,12 @@ public class ChatRateLimitService {
         }
 
         String key = KEY_PREFIX + bucket + ":" + userId;
-        long count = redisUtil.incr(key, 1);
-        if (count <= 0) {
+        long count;
+        try {
+            count = redisValueStore.increment(key, 1, Duration.ofSeconds(windowSeconds));
+        } catch (RuntimeException error) {
+            log.warn("聊天室限流缓存不可用，按可用性策略放行: bucket={}, userId={}", bucket, userId, error);
             return RateLimitResult.allowed(limit);
-        }
-        if (count == 1) {
-            redisUtil.expire(key, windowSeconds);
         }
         if (count > limit) {
             return RateLimitResult.rejected(rejectMessage, windowSeconds);

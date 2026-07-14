@@ -1,6 +1,6 @@
 # 公共底座（xiaou-common）
 
-公共底座是全站所有业务模块的共享层。它不是面向用户的功能模块，而是把鉴权、统一响应、分页、异常、并发工具、Redis 操作、IP 解析、密码哈希、常量定义这些"每个模块都会用但不想重复写"的东西收拢到一起。
+公共底座是全站所有业务模块的共享层。它不是面向用户的功能模块，而是把鉴权、统一响应、分页、异常、受控 I/O 执行器、类型化 Redis 值访问、IP 解析、密码哈希和常量定义等通用能力收拢到一起。
 
 读这篇时建议带着一个问题：**业务模块依赖了公共底座的哪些能力？如果要改底座行为，影响面有多大？**
 
@@ -13,8 +13,8 @@
 | 管理端权限 | `@RequireAdmin`、`AdminAuthAspect` | 管理端接口 → 详见 [权限注解与角色边界索引](/reference/permission-boundaries) |
 | 操作日志 | `@Log`、`LogAspect` | 管理端增删改接口 |
 | 异常体系 | `BusinessException`、`GlobalExceptionHandler`、AI 异常族 | 所有 Service |
-| 并发工具 | `ConcurrentUtils`、`ThreadPoolUtils` | 敏感词、通知、迁移等异步场景 |
-| 缓存工具 | `RedisUtil`、`NotificationCacheUtil` | 通知未读数、系统设置 |
+| I/O 执行器 | `ApplicationTaskExecutorConfig`、`applicationIoExecutor` | 有明确时间预算的异步 I/O 聚合 |
+| 缓存能力 | `RedisValueStore`、`NotificationCacheUtil` | 票据、计数器、通知未读数和可选缓存 |
 | 分页 | `PageRequest`、`PageResult`、`ManualPageHelper` | 所有列表接口 |
 | 常量 | `Constants` | 全局配置默认值 |
 | 密码 | `PasswordUtil` | 用户注册、管理员登录 |
@@ -33,7 +33,7 @@
 1. 先看 `Result` + `ResultCode` + `GlobalExceptionHandler`，理解全站 API 响应格式和异常如何变成错误码。
 2. 再看 `StpUserUtil` + `StpAdminUtil` + `SaTokenConfig`，理解双端鉴权的分仓设计（配合 [鉴权与用户体系](/modules/auth)）。
 3. 接着看 `@RequireAdmin` + `AdminAuthAspect`，理解管理端权限是怎么切面拦截的（配合 [权限注解与角色边界索引](/reference/permission-boundaries)）。
-4. 然后看 `ConcurrentUtils` 和 `ThreadPoolUtils`，理解全站并发工具的设计与边界。
+4. 然后看 `ApplicationTaskExecutorConfig` 和 `RedisValueStore`，理解线程资源、Redis 类型和失败策略的边界。
 5. 最后看 `Constants`、`PasswordUtil`、`IPUtil`、`DateHelper` 等小工具，补齐全局认知。
 
 ## 源码地图
@@ -55,9 +55,9 @@
 | `xiaou-common/src/main/java/com/xiaou/common/annotation/RequireAdmin.java` | 管理端权限注解 |
 | `xiaou-common/src/main/java/com/xiaou/common/aspect/AdminAuthAspect.java` | 管理端权限切面 |
 | `xiaou-common/src/main/java/com/xiaou/common/annotation/Log.java` | 操作日志注解 |
-| `xiaou-common/src/main/java/com/xiaou/common/utils/ConcurrentUtils.java` | 并发工具集 |
-| `xiaou-common/src/main/java/com/xiaou/common/utils/ThreadPoolUtils.java` | 线程池工具 |
-| `xiaou-common/src/main/java/com/xiaou/common/utils/RedisUtil.java` | Redis 操作工具 |
+| `xiaou-common/src/main/java/com/xiaou/common/config/ApplicationTaskExecutorConfig.java` | Spring 托管的有界 I/O 执行器 |
+| `xiaou-common/src/main/java/com/xiaou/common/cache/RedisValueStore.java` | 类型化 Redis 值、票据和计数器操作 |
+| `xiaou-common/src/main/java/com/xiaou/common/utils/NotificationCacheUtil.java` | 可降级的通知未读数缓存 |
 | `xiaou-common/src/main/java/com/xiaou/common/utils/IPUtil.java` | IP 地址解析 |
 | `xiaou-common/src/main/java/com/xiaou/common/utils/PasswordUtil.java` | 密码工具 |
 | `xiaou-common/src/main/java/com/xiaou/common/utils/DateHelper.java` | 日期工具 |
@@ -214,19 +214,19 @@ RuntimeException
 | --- | --- | --- |
 | [鉴权与用户体系](/modules/auth) | 强依赖 | 公共底座提供 Sa-Token 双端鉴权基础设施 |
 | [用户账户与个人中心](/modules/user-account) | 被依赖 | 用户上下文查询依赖用户账户数据 |
-| [敏感词风控](/modules/sensitive) | 被依赖 | 敏感词检测使用公共底座的并发工具 |
-| [通知中心](/modules/notification) | 被依赖 | 通知未读数缓存使用 RedisUtil |
+| [敏感词风控](/modules/sensitive) | 被依赖 | 敏感词检测使用公共底座的响应、异常和通用工具 |
+| [通知中心](/modules/notification) | 被依赖 | 通知未读数缓存使用 `RedisValueStore` |
 | [系统运营后台](/modules/system-ops) | 被依赖 | 操作日志和权限注解由公共底座提供 |
 
 ---
 
 ## 公共底座模块深度拆解
 
-> 以下内容基于 `xiaou-common` 全部源码逐行拆解，覆盖 2 个并发工具类、6 个核心域对象、7 个异常类、2 个注解 + 2 个切面、4 个 Sa-Token 相关类、3 个配置类、8 个工具类、1 个常量类。
+> 以下内容包含 v2.4.1 之前的并发工具历史分析。当前实现以 Spring 托管执行器、类型化 Redis 值访问和业务模块自有并发语义为准。
 
-### 一、并发工具集 ConcurrentUtils 深度分析
+### 一、历史并发工具集 ConcurrentUtils 深度分析
 
-**源码**：`ConcurrentUtils.java`（1043 行）
+**状态**：v2.4.1 已删除；以下内容仅用于迁移前设计复盘。
 
 这是全站最大的工具类，提供限流、熔断、锁、计数器、延迟值等并发原语。
 
@@ -348,9 +348,9 @@ tryLock(key, timeout, unit):
 | `Once` | `AtomicInteger` + `CountDownLatch` | 只执行一次保证 |
 | `computeIfAbsent` | `ConcurrentMap` 安全计算 | Null-safe 的 putIfAbsent |
 
-### 二、线程池工具 ThreadPoolUtils 深度分析
+### 二、历史线程池工具 ThreadPoolUtils 深度分析
 
-**源码**：`ThreadPoolUtils.java`（1206 行）
+**状态**：v2.4.1 已删除；当前注入 Spring 管理的 `applicationIoExecutor` 或模块专用执行器。
 
 #### 2.1 预配置线程池
 
@@ -530,14 +530,14 @@ getIpAddress(request):
 
 | 编号 | 问题 | 位置 | 影响 |
 | --- | --- | --- | --- |
-| BUG-1 | RateLimiter.acquire() 使用 busy-wait | `ConcurrentUtils.RateLimiter.acquire` | CPU 空转，高并发时浪费 |
-| BUG-2 | CircuitBreaker 状态切换非原子 | `ConcurrentUtils.CircuitBreaker.onFailure` | 允许少量额外请求通过 |
-| BUG-3 | POOL_CACHE 无清理机制 | `ThreadPoolUtils.POOL_CACHE` | 自定义池永不释放 |
+| BUG-1 | 旧限流器使用 busy-wait | 历史 `ConcurrentUtils` | v2.4.1 删除旧实现后已消除 |
+| BUG-2 | 旧熔断器状态切换非原子 | 历史 `ConcurrentUtils` | v2.4.1 删除旧实现后已消除 |
+| BUG-3 | 旧自定义线程池缓存无清理机制 | 历史 `ThreadPoolUtils` | v2.4.1 改为 Spring 托管执行器后已消除 |
 | BUG-4 | SaTokenUserUtil 跨端查询是 TODO 桩 | `SaTokenUserUtil.getUsernameById` 等 | 返回硬编码值而非真实数据 |
 | BUG-5 | Constants.SYSTEM_VERSION 过时 | `Constants.SYSTEM_VERSION = "1.0.0"` | 与实际版本不符 |
 | BUG-6 | IPUtil 与 SysAdminServiceImpl 代码重复 | 两处 `getIpAddress()` | 维护时可能改一处忘另一处 |
 | BUG-7 | 用户端权限始终返回空 | `StpInterfaceImpl.getPermissionList` | 用户端无法使用 RBAC |
-| BUG-8 | AsyncChain timeout 不强制停止任务 | `ThreadPoolUtils.AsyncChain.timeout` | 超时后任务仍在后台运行 |
+| BUG-8 | 异步超时不强制停止底层任务 | `CompletableFuture` 调用点 | 仍需同时配置网络客户端超时 |
 
 #### 8.2 设计层面的潜在风险
 
@@ -547,9 +547,6 @@ getIpAddress(request):
 | RISK-2 | DEFAULT_PASSWORD = "123456" | 如果有批量创建账号场景，弱密码风险 |
 | RISK-3 | 管理端角色/权限无缓存 | 每次请求查数据库，高频访问时有压力 |
 | RISK-4 | 日志异步写入无兜底 | DB 异常时操作日志丢失，无本地文件或 MQ 备份 |
-| RISK-5 | 虚拟线程反射检测 | JVM 版本或模块系统变化可能导致检测失败 |
-| RISK-6 | RateLimiter synchronized 全局锁 | 高并发下单限流器实例的吞吐受限 |
-| RISK-7 | HALF_OPEN 直接全量恢复 | 熔断恢复无慢启动，可能立即再次熔断 |
 | RISK-8 | 敏感字段过滤硬编码 | 新增敏感参数需改切面代码，不可配置 |
 
 #### 8.3 架构设计亮点
@@ -557,12 +554,12 @@ getIpAddress(request):
 | 编号 | 亮点 | 说明 |
 | --- | --- | --- |
 | H-1 | 双端鉴权分仓 | 用户端和管理端 Token 完全隔离，互不影响 |
-| H-2 | StripedLock 分段锁 | 不同 key 分散到不同锁，减少锁竞争 |
-| H-3 | 指数退避 + 抖动 | 防止重试惊群，分布式最佳实践 |
-| H-4 | 预配置多类型线程池 | COMMON/IO/CPU/SCHEDULER 按场景选用 |
-| H-5 | 虚拟线程兼容检测 | Java 17 正常运行，Java 21+ 自动启用虚拟线程 |
-| H-6 | CallerRunsPolicy | 拒绝策略保证任务不丢失 |
-| H-7 | parallelMapFailFast | 快速失败模式避免浪费资源 |
+| H-2 | Redis 类型显式 | 缓存未命中、类型错误和基础设施故障具有不同语义 |
+| H-3 | 原子票据消费 | `RedisValueStore.take()` 合并读取与删除，避免竞争窗口 |
+| H-4 | 有界 I/O 执行器 | Spring 统一管理线程数、队列和关闭生命周期 |
+| H-5 | 模块执行器自治 | 独立负载可使用命名执行器，不挤占通用 I/O 容量 |
+| H-6 | CallerRunsPolicy | 队列饱和时向调用方施加反压，避免静默丢任务 |
+| H-7 | 显式时间预算 | 聚合服务在调用点声明超时和降级结果 |
 | H-8 | 操作日志敏感参数过滤 | 密码类字段自动替换为星号 |
 | H-9 | AI 异常细分 | 5 种异常区分配置、调用、检索、图执行、输出解析 |
 | H-10 | Result 统一响应 | 所有 API 响应格式一致，前端处理逻辑统一 |
@@ -571,10 +568,10 @@ getIpAddress(request):
 
 | 想了解 | 读什么 |
 | --- | --- |
-| 限流 | `ConcurrentUtils.java` — RateLimiter + SlidingWindowRateLimiter |
-| 熔断 | `ConcurrentUtils.java` — CircuitBreaker 三状态转换 |
-| 线程池 | `ThreadPoolUtils.java` — 4 个预配置池 + 自定义池 + 并行执行 |
-| 重试 | `ThreadPoolUtils.java` — 指数退避 + 条件重试 |
+| Redis 标量值和计数器 | `RedisValueStore.java` — 类型检查、TTL、原子获取并删除 |
+| 通用 I/O 执行器 | `ApplicationTaskExecutorConfig.java` — 有界线程池和关闭策略 |
+| 模块专用并发 | 对应模块配置类，例如 `MoyuConfig.hotTopicExecutor` |
+| 分布式集合和锁 | 业务服务直接使用 Redisson API，保留领域语义 |
 | 双端鉴权 | `StpUserUtil.java` + `StpAdminUtil.java` + `SaTokenConfig.java` → 详见 [鉴权与用户体系](/modules/auth) |
 | 权限加载 | `StpInterfaceImpl.java` — 管理端 RBAC + 用户端空列表 → 详见 [权限注解与角色边界索引](/reference/permission-boundaries) |
 | 管理端拦截 | `RequireAdmin.java` + `AdminAuthAspect.java` → 详见 [权限注解与角色边界索引](/reference/permission-boundaries) |

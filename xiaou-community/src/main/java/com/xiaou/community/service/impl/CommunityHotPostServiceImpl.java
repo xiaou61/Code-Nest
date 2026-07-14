@@ -1,6 +1,5 @@
 package com.xiaou.community.service.impl;
 
-import com.xiaou.common.utils.RedisUtil;
 import com.xiaou.community.config.CommunityProperties;
 import com.xiaou.community.domain.CommunityPost;
 import com.xiaou.community.dto.CommunityPostResponse;
@@ -8,8 +7,11 @@ import com.xiaou.community.mapper.CommunityPostMapper;
 import com.xiaou.community.service.CommunityHotPostService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RScoredSortedSet;
+import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -25,7 +27,7 @@ public class CommunityHotPostServiceImpl implements CommunityHotPostService {
     
     private final CommunityPostMapper communityPostMapper;
     private final CommunityProperties communityProperties;
-    private final RedisUtil redisUtil;
+    private final RedissonClient redissonClient;
     
     private static final String HOT_POSTS_KEY = "community:hot:posts";
     
@@ -37,14 +39,14 @@ public class CommunityHotPostServiceImpl implements CommunityHotPostService {
         
         try {
             // 从Redis获取热门帖子ID列表（带分数）
-            Map<Object, Double> hotPostMap = redisUtil.zRevRangeWithScores(HOT_POSTS_KEY, 0, limit - 1);
+            Map<Object, Double> hotPostMap = getHotPostScores(limit);
             
             if (hotPostMap == null || hotPostMap.isEmpty()) {
                 // 缓存为空，刷新缓存
                 log.info("热门帖子缓存为空，开始刷新");
                 refreshHotPosts();
                 // 重新获取
-                hotPostMap = redisUtil.zRevRangeWithScores(HOT_POSTS_KEY, 0, limit - 1);
+                hotPostMap = getHotPostScores(limit);
             }
             
             if (hotPostMap == null || hotPostMap.isEmpty()) {
@@ -102,26 +104,27 @@ public class CommunityHotPostServiceImpl implements CommunityHotPostService {
             }
             
             // 清空旧缓存
-            redisUtil.del(HOT_POSTS_KEY);
+            RScoredSortedSet<Object> hotPosts = redissonClient.getScoredSortedSet(HOT_POSTS_KEY);
+            hotPosts.clear();
             
             // 计算热度分数并存入Redis
             for (CommunityPost post : posts) {
                 Double hotScore = calculateHotScoreInternal(post);
                 if (hotScore >= communityProperties.getHot().getMinScore()) {
-                    redisUtil.zAdd(HOT_POSTS_KEY, post.getId(), hotScore);
+                    hotPosts.add(hotScore, post.getId());
                 }
             }
             
             // 保留TOP N
-            long size = redisUtil.zSize(HOT_POSTS_KEY);
+            long size = hotPosts.size();
             if (size > communityProperties.getHot().getLimit()) {
-                redisUtil.zRemoveRange(HOT_POSTS_KEY, 0, (int)(size - communityProperties.getHot().getLimit() - 1));
+                hotPosts.removeRangeByRank(0, (int) (size - communityProperties.getHot().getLimit() - 1));
             }
             
             // 设置过期时间
-            redisUtil.expire(HOT_POSTS_KEY, communityProperties.getCache().getHotPostsTtl());
+            hotPosts.expire(Duration.ofSeconds(communityProperties.getCache().getHotPostsTtl()));
             
-            log.info("热门帖子缓存刷新完成，共{}个帖子", redisUtil.zSize(HOT_POSTS_KEY));
+            log.info("热门帖子缓存刷新完成，共{}个帖子", hotPosts.size());
             
         } catch (Exception e) {
             log.error("刷新热门帖子缓存失败", e);
@@ -158,6 +161,15 @@ public class CommunityHotPostServiceImpl implements CommunityHotPostService {
         // 最终分数
         double finalScore = score - timeDecay;
         return Math.max(finalScore, 0.0);
+    }
+
+    private Map<Object, Double> getHotPostScores(int limit) {
+        RScoredSortedSet<Object> hotPosts = redissonClient.getScoredSortedSet(HOT_POSTS_KEY);
+        Map<Object, Double> result = new LinkedHashMap<>();
+        for (Object value : hotPosts.valueRangeReversed(0, limit - 1)) {
+            result.put(value, hotPosts.getScore(value));
+        }
+        return result;
     }
     
     /**

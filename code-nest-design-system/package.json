@@ -1,0 +1,19 @@
+{
+  "name": "@code-nest/design-system",
+  "version": "2.4.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "src"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*"
+  },
+  "peerDependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "element-plus": "^2.4.4",
+    "vue": "^3.4.0",
+    "vue-router": "^4.2.5"
+  }
+}

@@ -2,15 +2,14 @@ package com.xiaou.moyu.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
-import com.xiaou.common.utils.RedisUtil;
-import com.xiaou.common.utils.ThreadPoolUtils;
+import com.xiaou.common.cache.RedisValueStore;
 import com.xiaou.moyu.domain.HotTopicData;
 import com.xiaou.moyu.domain.HotTopicCategory;
 import com.xiaou.moyu.domain.HotTopicResponse;
 import com.xiaou.moyu.enums.HotTopicEnum;
 import com.xiaou.moyu.service.HotTopicService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -21,8 +20,12 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -32,12 +35,22 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class HotTopicServiceImpl implements HotTopicService {
     
-    private final RedisUtil redisUtil;
+    private final RedisValueStore redisValueStore;
     private final RestTemplate restTemplate;
+    private final Executor hotTopicExecutor;
     private final AtomicBoolean refreshing = new AtomicBoolean(false);
+
+    public HotTopicServiceImpl(
+            RedisValueStore redisValueStore,
+            RestTemplate restTemplate,
+            @Qualifier("hotTopicExecutor") Executor hotTopicExecutor
+    ) {
+        this.redisValueStore = redisValueStore;
+        this.restTemplate = restTemplate;
+        this.hotTopicExecutor = hotTopicExecutor;
+    }
     
     /**
      * 热榜API基础URL
@@ -108,10 +121,9 @@ public class HotTopicServiceImpl implements HotTopicService {
     
     @Override
     public Map<String, HotTopicData> getAllHotTopicData() {
-        // 使用ThreadPoolUtils并行获取所有平台数据
         List<HotTopicEnum> platforms = Arrays.asList(HotTopicEnum.values());
         
-        List<Map.Entry<String, HotTopicData>> results = ThreadPoolUtils.parallelMapWithTimeout(
+        List<Map.Entry<String, HotTopicData>> results = parallelMapWithTimeout(
                 platforms,
                 platform -> {
                     try {
@@ -141,10 +153,9 @@ public class HotTopicServiceImpl implements HotTopicService {
         int totalCount = HotTopicEnum.values().length;
         
         try {
-            // 使用ThreadPoolUtils并行刷新所有平台数据，支持超时控制
             List<HotTopicEnum> platforms = Arrays.asList(HotTopicEnum.values());
             
-            List<Boolean> results = ThreadPoolUtils.parallelMapWithTimeout(
+            List<Boolean> results = parallelMapWithTimeout(
                     platforms,
                     platform -> {
                         try {
@@ -191,7 +202,7 @@ public class HotTopicServiceImpl implements HotTopicService {
             String[] checkPlatforms = {"weibo", "zhihu", "douyin", "kuaishou"};
             for (String platform : checkPlatforms) {
                 String cacheKey = CACHE_KEY_PREFIX + "data:" + platform;
-                if (redisUtil.hasKey(cacheKey)) {
+                if (redisValueStore.exists(cacheKey)) {
                     hasCache = true;
                     break;
                 }
@@ -213,7 +224,7 @@ public class HotTopicServiceImpl implements HotTopicService {
                 try {
                     String cacheKey = CACHE_KEY_PREFIX + "data:" + platform.getCode();
                     // 再次检查单个平台缓存，防止在循环过程中其他地方设置了缓存
-                    if (!redisUtil.hasKey(cacheKey)) {
+                    if (!redisValueStore.exists(cacheKey)) {
                         String url = baseUrl + "/" + platform.getCode();
                         HotTopicData data = restTemplate.getForObject(url, HotTopicData.class);
                         
@@ -241,13 +252,12 @@ public class HotTopicServiceImpl implements HotTopicService {
     }
 
     private String getCachedData(String cacheKey) {
-        Object cachedData = redisUtil.get(cacheKey);
-        return cachedData instanceof String ? (String) cachedData : null;
+        return redisValueStore.find(cacheKey, String.class).orElse(null);
     }
 
     private void cacheHotTopicData(String cacheKey, String jsonData) {
-        redisUtil.set(cacheKey, jsonData, cacheExpireSeconds());
-        redisUtil.set(toStaleCacheKey(cacheKey), jsonData, staleCacheExpireSeconds());
+        redisValueStore.put(cacheKey, jsonData, Duration.ofSeconds(cacheExpireSeconds()));
+        redisValueStore.put(toStaleCacheKey(cacheKey), jsonData, Duration.ofSeconds(staleCacheExpireSeconds()));
     }
 
     private <T> T getStaleData(String cacheKey, Class<T> clazz) {
@@ -272,6 +282,23 @@ public class HotTopicServiceImpl implements HotTopicService {
 
     private long staleCacheExpireSeconds() {
         return Math.max(cacheExpireMinutes, staleCacheExpireMinutes) * 60;
+    }
+
+    private <T, R> List<R> parallelMapWithTimeout(
+            List<T> items,
+            Function<T, R> processor,
+            long timeout,
+            TimeUnit unit
+    ) {
+        List<CompletableFuture<R>> futures = items.stream()
+                .map(item -> CompletableFuture.supplyAsync(() -> processor.apply(item), hotTopicExecutor)
+                        .orTimeout(timeout, unit)
+                        .exceptionally(error -> {
+                            log.warn("热榜并行任务超时或失败: {}", error.getMessage());
+                            return null;
+                        }))
+                .toList();
+        return futures.stream().map(CompletableFuture::join).toList();
     }
 
     private HotTopicResponse buildLocalCategories() {

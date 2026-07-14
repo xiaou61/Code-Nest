@@ -16,6 +16,7 @@
     "dist:win": "electron-vite build && electron-builder --win"
   },
   "dependencies": {
+    "@code-nest/design-system": "file:../code-nest-design-system",
     "@antv/g6": "^4.8.24",
     "@element-plus/icons-vue": "^2.3.1",
     "axios": "^1.6.2",

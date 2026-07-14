@@ -405,7 +405,7 @@ private String baseUrl;
 | 应用启动 1 分钟后 | `initializeHotTopicDataIfNeeded` | 串行请求，100ms 间隔，只补缺失缓存 |
 | 每 15 分钟 | `refreshHotTopicData` | 并行请求，30s 超时，覆盖式更新 |
 
-**关键发现**：初始化使用**串行请求**（避免启动并发压力），刷新使用**并行请求**（ThreadPoolUtils + 超时控制）。设计合理，但初始化在平台数量多时可能需要较长时间。
+**关键发现**：初始化使用**串行请求**（避免启动并发压力），刷新使用模块自有的 `hotTopicExecutor` 并行请求并配合超时控制。设计合理，但初始化在平台数量多时可能需要较长时间。
 
 #### 4.4 `HotTopicEnum` 平台枚举
 

@@ -18,6 +18,11 @@
         VALUES (#{momentId}, #{userId})
     </insert>
 
+    <insert id="insertIfAbsent" parameterType="com.xiaou.moment.domain.MomentLike" useGeneratedKeys="true" keyProperty="id">
+        INSERT IGNORE INTO moment_likes (moment_id, user_id)
+        VALUES (#{momentId}, #{userId})
+    </insert>
+
     <delete id="deleteById" parameterType="long">
         DELETE FROM moment_likes WHERE id = #{id}
     </delete>
@@ -50,4 +55,4 @@
         </foreach>
     </select>
 
-</mapper> 
+</mapper>
