@@ -5,11 +5,11 @@
   <parent>
     <groupId>com.xiaou</groupId>
     <artifactId>Code-Nest</artifactId>
-    <version>v2.3.2</version>
+    <version>v2.4.0</version>
   </parent>
   <groupId>com.xiaou</groupId>
   <artifactId>xiaou-moyu</artifactId>
-  <version>v2.3.2</version>
+  <version>v2.4.0</version>
   <name>xiaou-moyu</name>
   <description>摸鱼工具模块</description>
   <properties>
@@ -22,6 +22,11 @@
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-common</artifactId>
       <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 </project>

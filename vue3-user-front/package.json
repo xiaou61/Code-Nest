@@ -1,12 +1,13 @@
 {
   "name": "code-nest-user-desktop",
-  "version": "2.3.2",
+  "version": "2.4.0",
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
     "dev2": "vite",
     "dev2:electron": "electron-vite dev",
     "build": "vite build",
+    "test:contracts": "node --test tests/*.test.js",
     "build:electron": "electron-vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.jsx --fix --ignore-path ../.gitignore",

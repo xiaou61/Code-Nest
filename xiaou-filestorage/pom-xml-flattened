@@ -5,11 +5,11 @@
   <parent>
     <groupId>com.xiaou</groupId>
     <artifactId>Code-Nest</artifactId>
-    <version>v2.3.2</version>
+    <version>v2.4.0</version>
   </parent>
   <groupId>com.xiaou</groupId>
   <artifactId>xiaou-filestorage</artifactId>
-  <version>v2.3.2</version>
+  <version>v2.4.0</version>
   <name>xiaou-filestorage</name>
   <description>文件存储模块</description>
   <properties>
@@ -47,6 +47,11 @@
       <groupId>org.apache.tika</groupId>
       <artifactId>tika-core</artifactId>
       <version>2.9.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 </project>

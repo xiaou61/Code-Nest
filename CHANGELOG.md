@@ -6,6 +6,53 @@
 
 ## [Unreleased]
 
+## [v2.4.0] - 2026-07-14
+
+### Added
+
+- 新增管理员端统一自然语言入口 `POST /admin/agent/chat`，由后端完成 LLM 规划、工具注册、权限策略、预览、强确认、执行和审计。
+- 新增通用 `AgentTool` 注册机制；当前 26 个生产工具均通过同一 Registry 和 Orchestrator 运行，无需在前端维护动作目录或业务分组路由。
+- 新增 Agent 审计、会话上下文、幂等控制、工具指标、readiness、dry-run、恢复分析和访问预检能力。
+- 新增分层全站评测脚本和 CI 门禁，覆盖后端、双前端、AI、RAG、仓库卫生与发布构建。
+
+### Changed
+
+- 管理员 Agent planner 改为根据统一工具 definition/schema 生成候选调用，deterministic resolver 仅作为模型不可用或无有效计划时的兜底。
+- AI completion 增加全局预算和场景级覆盖能力，管理员 planner 使用独立输出预算。
+- 管理端只保留聊天抽屉、结果展示和确认交互，规划、策略、权限与执行职责全部收口到后端。
+- 后端 Maven、管理端前端、用户端前端、文档站和部署示例统一升级到 `v2.4.0`。
+
+### Fixed
+
+- 修复本地文件存储可通过相对路径、绝对路径或符号链接越过配置目录的问题。
+- 修复聊天消息写入回读、跨房间回复、图片 URL 长度、重复撤回和空批量删除等契约问题。
+- 修复抽奖风控短路、空积分/次数、响应字段不一致和库存补偿边界。
+- 修复 OJ 判题错误信息回退和答案前导空白被错误忽略的问题。
+
+### Security
+
+- 所有 Agent 写入和破坏性操作必须经过后端权限策略、预览、精确确认文本、审计状态机与幂等校验。
+- 会话上下文存储键按管理员 ID 隔离；统一聊天 DTO 增加长度上限，无操作者归属的历史审计不能继续确认。
+- 真实 AI API Key 仅通过测试进程环境变量注入，未写入源码、配置、测试报告或提交历史。
+
+### Migration
+
+- 新部署可直接使用 `sql/MySql/code_nest.sql` 与 `sql/MySql/code_nest_data.sql`。
+- 已部署环境按顺序执行 `sql/v2.4.0/admin_agent_audit.sql`、`admin_agent_audit_idempotency.sql`、`admin_agent_session_context.sql` 和 `admin_agent_permissions.sql`。
+- 配置 `XIAOU_AI_MAX_COMPLETION_TOKENS` 可调整全局 completion 上限；未配置时使用默认值 `2048`。
+
+## [v2.3.2] - 2026-06-14
+
+### Fixed
+
+- 修复版本时间轴与管理端版本列表分页总数不准确的问题。
+- 修复用户端首页首屏因 reveal 状态未解除而大面积空白的问题。
+
+### Changed
+
+- 根据 Git 提交和版本分支重建线上版本历史。
+- 后端 Maven、管理端前端、用户端前端、文档站和部署示例统一升级到 `v2.3.2`。
+
 ## [v2.3.1] - 2026-06-14
 
 ### Added
