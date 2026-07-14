@@ -200,24 +200,25 @@ function Invoke-Hygiene {
     }
 
     Invoke-Step "secret scan" {
-        $secretHits = & rg -n "sk-[A-Za-z0-9]{20,}|api[_-]?key\s*[:=]\s*['""][^'""]+['""]" . `
-            --glob "!target/**" `
-            --glob "!node_modules/**" `
-            --glob "!.git/**" `
-            --glob "!.codegraph/**" `
-            --glob "!.codex-mihomo-geo/**"
-        $rgExitCode = $LASTEXITCODE
-        if ($rgExitCode -eq 0) {
+        $secretPattern = 'sk-[A-Za-z0-9]{20,}|api[_-]?key[[:space:]]*[:=][[:space:]]*[''"][^''"]+[''"]'
+        $secretHits = & git grep -n -I -E -e $secretPattern -- . `
+            ":(exclude)target/**" `
+            ":(exclude)node_modules/**" `
+            ":(exclude).git/**" `
+            ":(exclude).codegraph/**" `
+            ":(exclude).codex-mihomo-geo/**"
+        $grepExitCode = $LASTEXITCODE
+        if ($grepExitCode -eq 0) {
             $realSecretHits = @($secretHits | Where-Object { -not (Test-AllowedSecretPlaceholder $_) })
             if ($realSecretHits.Count -gt 0) {
                 $realSecretHits | ForEach-Object { Write-Error $_ }
                 throw "secret scan found possible secrets"
             }
             Write-Host "[code-nest-eval] secret scan passed with placeholder-only hits" -ForegroundColor Green
-        } elseif ($rgExitCode -eq 1) {
+        } elseif ($grepExitCode -eq 1) {
             Write-Host "[code-nest-eval] secret scan passed" -ForegroundColor Green
         } else {
-            throw "secret scan failed with exit code $rgExitCode"
+            throw "secret scan failed with exit code $grepExitCode"
         }
     }
 
