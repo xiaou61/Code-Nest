@@ -24,6 +24,11 @@ export function getAdminOnlineUsers() {
   return request.post('/admin/chat/users/online')
 }
 
+// 获取用户当前生效禁言记录（管理端）
+export function getActiveChatUserBan(userId) {
+  return request.post('/admin/chat/users/ban/active', userId)
+}
+
 // 踢出用户
 export function kickUser(userId) {
   return request.post('/admin/chat/users/kick', userId)

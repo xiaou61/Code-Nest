@@ -1,5 +1,6 @@
 package com.xiaou.ai.prompt;
 
+import com.xiaou.ai.prompt.admin.AdminAgentPromptSpecs;
 import com.xiaou.ai.prompt.community.CommunityPromptSpecs;
 import com.xiaou.ai.prompt.interview.InterviewPromptSpecs;
 import com.xiaou.ai.prompt.jobbattle.JobBattlePromptSpecs;
@@ -17,6 +18,7 @@ import java.util.List;
 public final class AiPromptCatalog {
 
     private static final List<Class<?>> HOLDERS = List.of(
+            AdminAgentPromptSpecs.class,
             CommunityPromptSpecs.class,
             InterviewPromptSpecs.class,
             JobBattlePromptSpecs.class,

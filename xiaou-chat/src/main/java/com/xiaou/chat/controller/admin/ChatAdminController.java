@@ -1,6 +1,7 @@
 package com.xiaou.chat.controller.admin;
 
 import com.xiaou.chat.domain.ChatMessage;
+import com.xiaou.chat.domain.ChatUserBan;
 import com.xiaou.chat.dto.*;
 import com.xiaou.chat.service.ChatMessageService;
 import com.xiaou.chat.service.ChatOnlineUserService;
@@ -121,6 +122,17 @@ public class ChatAdminController {
             request.getUserId(), request.getBanDuration(), request.getBanReason());
         return Result.success();
     }
+
+    /**
+     * 查询用户当前生效禁言记录
+     */
+    @RequireAdmin
+    @Log(module = "聊天室管理", type = Log.OperationType.SELECT, description = "查询用户禁言状态")
+    @PostMapping("/users/ban/active")
+    public Result<ChatUserBanResponse> getActiveUserBan(@RequestBody Long userId) {
+        ChatUserBan ban = chatUserBanService.getActiveBan(userId);
+        return Result.success(toUserBanResponse(ban));
+    }
     
     /**
      * 解除禁言
@@ -150,5 +162,19 @@ public class ChatAdminController {
         
         log.info("管理员发送系统公告，内容: {}", request.getContent());
         return Result.success();
+    }
+
+    private ChatUserBanResponse toUserBanResponse(ChatUserBan ban) {
+        if (ban == null) {
+            return null;
+        }
+        ChatUserBanResponse response = new ChatUserBanResponse();
+        response.setId(ban.getId());
+        response.setUserId(ban.getUserId());
+        response.setBanReason(ban.getBanReason());
+        response.setBanStartTime(ban.getBanStartTime());
+        response.setBanEndTime(ban.getBanEndTime());
+        response.setStatus(ban.getStatus());
+        return response;
     }
 }

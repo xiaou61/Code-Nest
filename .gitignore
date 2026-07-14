@@ -63,3 +63,8 @@ dump.rdb
 /_write_*.cjs
 /nul
 /docs-site/build_output.txt
+/.codegraph/
+/.codex-mihomo-geo/
+/findings.md
+/progress.md
+/task_plan.md

@@ -16,7 +16,8 @@ import java.util.Set;
 public record AiPromptSpec(String key,
                            String version,
                            String systemPrompt,
-                           String userTemplate) {
+                           String userTemplate,
+                           Integer maxCompletionTokens) {
 
     public AiPromptSpec {
         Assert.hasText(key, "prompt key 不能为空");
@@ -28,12 +29,22 @@ public record AiPromptSpec(String key,
         version = version.trim();
         systemPrompt = systemPrompt.trim();
         userTemplate = userTemplate.trim();
+        Assert.isTrue(maxCompletionTokens == null || maxCompletionTokens > 0,
+                "maxCompletionTokens 必须大于 0");
 
         AiPromptGovernance.validatePromptSpec(key, version, systemPrompt, userTemplate);
     }
 
     public static AiPromptSpec of(String key, String version, String systemPrompt, String userTemplate) {
-        return new AiPromptSpec(key, version, systemPrompt, userTemplate);
+        return new AiPromptSpec(key, version, systemPrompt, userTemplate, null);
+    }
+
+    public static AiPromptSpec of(String key,
+                                  String version,
+                                  String systemPrompt,
+                                  String userTemplate,
+                                  Integer maxCompletionTokens) {
+        return new AiPromptSpec(key, version, systemPrompt, userTemplate, maxCompletionTokens);
     }
 
     public String promptId() {

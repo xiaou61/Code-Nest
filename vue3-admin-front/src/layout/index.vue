@@ -85,6 +85,8 @@
         </el-main>
       </el-container>
     </el-container>
+
+    <AdminAgentDrawer />
   </div>
 </template>
 
@@ -135,6 +137,7 @@ import {
 import { useUserStore } from '@/stores/user'
 import { CnSidebar, CnThemeSwitch } from '@/design-system'
 import type { CnSidebarItem, CnSidebarSearchResult } from '@/design-system'
+import AdminAgentDrawer from '@/components/agent/AdminAgentDrawer.vue'
 
 const route = useRoute()
 const router = useRouter()

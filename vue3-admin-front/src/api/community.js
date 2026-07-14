@@ -60,6 +60,11 @@ export function getUserStatusList(params) {
   return request.post('/admin/community/users/list', params)
 }
 
+// 获取用户社区状态详情
+export function getUserStatus(userId) {
+  return request.get(`/admin/community/users/${userId}`)
+}
+
 // 封禁用户
 export function banUser(id, data) {
   return request.put(`/admin/community/users/${id}/ban`, data)
@@ -162,6 +167,7 @@ export const communityApi = {
   
   // 用户相关
   getUserStatusList,
+  getUserStatus,
   banUser,
   unbanUser,
   getUserPosts,

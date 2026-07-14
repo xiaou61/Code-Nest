@@ -1,5 +1,6 @@
 package com.xiaou.chat.service;
 
+import com.xiaou.chat.domain.ChatUserBan;
 import com.xiaou.chat.dto.ChatBanUserRequest;
 
 /**
@@ -18,6 +19,11 @@ public interface ChatUserBanService {
      * 解除禁言
      */
     void unbanUser(Long userId);
+
+    /**
+     * 查询用户当前生效禁言记录
+     */
+    ChatUserBan getActiveBan(Long userId);
     
     /**
      * 检查用户是否被禁言

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.system.mapper.SysAgentSessionContextMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.system.domain.SysAgentSessionContext">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="session_id" property="sessionId" jdbcType="VARCHAR"/>
+        <result column="turns_json" property="turnsJson" jdbcType="LONGVARCHAR"/>
+        <result column="created_time" property="createdTime" jdbcType="TIMESTAMP"/>
+        <result column="updated_time" property="updatedTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <select id="selectBySessionId" parameterType="java.lang.String" resultMap="BaseResultMap">
+        SELECT id, session_id, turns_json, created_time, updated_time
+        FROM sys_agent_session_context
+        WHERE session_id = #{sessionId}
+    </select>
+
+    <insert id="upsert" parameterType="com.xiaou.system.domain.SysAgentSessionContext" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_agent_session_context (
+            session_id, turns_json, created_time, updated_time
+        ) VALUES (
+            #{sessionId}, #{turnsJson}, #{createdTime}, #{updatedTime}
+        )
+        ON DUPLICATE KEY UPDATE
+            turns_json = VALUES(turns_json),
+            updated_time = VALUES(updated_time)
+    </insert>
+</mapper>

@@ -85,6 +85,16 @@ final class AiStructuredJsonSchemaBuilder {
         }
 
         @Override
+        public AiStructuredObjectContract requireNumberRange(String key, double min, double max) {
+            Map<String, Object> schema = new LinkedHashMap<>();
+            schema.put("type", "number");
+            schema.put("minimum", min);
+            schema.put("maximum", max);
+            addProperty(key, schema);
+            return this;
+        }
+
+        @Override
         public AiStructuredObjectContract requirePositiveInt(String key) {
             Map<String, Object> schema = new LinkedHashMap<>();
             schema.put("type", "integer");
@@ -113,6 +123,12 @@ final class AiStructuredJsonSchemaBuilder {
                     )
             ));
             addProperty(key, schema);
+            return this;
+        }
+
+        @Override
+        public AiStructuredObjectContract requireObject(String key) {
+            addProperty(key, Map.of("type", "object"));
             return this;
         }
 

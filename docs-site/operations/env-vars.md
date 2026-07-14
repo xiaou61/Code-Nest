@@ -78,6 +78,7 @@ Sa-Token 公共配置（`application.yml`）：
 | `XIAOU_AI_BASE_URL` | 空 | `application.yml` | AI API Base URL，必填 |
 | `XIAOU_AI_API_KEY` | 空 | `application.yml` | AI API Key，必填 |
 | `XIAOU_AI_CHAT_MODEL` | `gpt-5.4` | `application.yml` | 聊天模型名称 |
+| `XIAOU_AI_MAX_COMPLETION_TOKENS` | `2048` | `application.yml` | 单次 completion 上限，推理模型同时约束推理与最终输出 |
 | `XIAOU_AI_EMBEDDING_MODEL` | `text-embedding-3-small` | `application.yml` | Embedding 模型名称 |
 | `XIAOU_AI_TIMEOUT_CONNECT_MS` | `10000` | `application.yml` | 连接超时 ms |
 | `XIAOU_AI_TIMEOUT_READ_MS` | `60000` | `application.yml` | 读取超时 ms |
@@ -194,6 +195,7 @@ XIAOU_AI_PROVIDER=openai-compatible
 XIAOU_AI_BASE_URL=https://your-openai-proxy.example.com/v1
 XIAOU_AI_API_KEY=sk-your-api-key
 XIAOU_AI_CHAT_MODEL=gpt-4o
+XIAOU_AI_MAX_COMPLETION_TOKENS=2048
 XIAOU_AI_EMBEDDING_MODEL=text-embedding-3-small
 
 # ---- RAG ----

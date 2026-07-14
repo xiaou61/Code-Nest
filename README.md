@@ -1,6 +1,6 @@
 # Code Nest
 
-![Version](https://img.shields.io/badge/version-v2.3.2-blue.svg)
+![Version](https://img.shields.io/badge/version-v2.4.0-blue.svg)
 ![Java](https://img.shields.io/badge/java-17-orange.svg)
 ![Spring Boot](https://img.shields.io/badge/spring%20boot-3.4.4-brightgreen.svg)
 ![Vue](https://img.shields.io/badge/vue-3.x-4fc08d.svg)
@@ -15,6 +15,21 @@ Code Nest 是一个面向开发者的成长型社区与知识运营平台，采�
 - **vue3-admin-front**：面向运营/管理员的后台，覆盖菜单/角色、内容审核、题库管理、版本追踪、任务配置、观测看板等能力。
 - **vue3-user-front**：面向开发者的用户端，提供刷题、简历制作、动态广场、博客阅读、代码分享、学习资产沉淀、通知消息等场景。
 - **xiaou-application**：多模块聚合的 Spring Boot API，整合 `xiaou-*` 业务模块，对外暴露统一的 `/api` 网关、鉴权、日志与监控。
+
+## v2.4.0 Unified Backend Agent Runtime
+
+`v2.4.0` 将管理员自然语言操作收口为后端统一 Agent 运行时。管理端只调用 `POST /admin/agent/chat`，后端负责 LLM 规划、工具注册、权限与策略、预览、强确认、执行和审计。
+
+### 本次版本完成
+
+- **单一聊天入口**：自然语言请求、会话续接和写操作确认统一经过 `/admin/agent/chat`。
+- **通用工具扩展**：新增能力只需注册带 definition/schema 的 `AgentTool` Bean，不在前端维护动作目录、关键词路由或业务分组。
+- **后端安全边界**：候选计划必须重新经过 Registry、Schema、权限、风险策略和审计状态机，LLM 不直接执行写入。
+- **管理员数据隔离**：会话上下文存储键按管理员 ID 命名空间隔离，超长请求在进入 LLM 前被拒绝，无归属审计不能继续确认。
+- **可观测与可恢复**：统一输出 trace、artifact、metrics、readiness、dry-run 和审计结果，并支持幂等确认与恢复分析。
+- **真实模型验收**：当前 26 个生产工具全部通过真实 `gpt-5.5` 规划与执行验收；两个写工具完成隔离数据库、强确认和结果回查。
+- **全站测试门禁**：新增后端、双前端、AI、RAG、仓库卫生和 release 分层评测脚本，并接入主 CI。
+- **版本基线统一**：后端 Maven、管理端前端、用户端前端、文档站、Jar 命令与 Docker 镜像标签统一升级到 `v2.4.0`。
 
 ## 🧯 v2.3.2 Production Patch
 
@@ -344,7 +359,7 @@ mvn clean package -DskipTests
 mvn -pl xiaou-application -am spring-boot:run
 
 # 或直接运行打包后的 jar
-java -jar xiaou-application/target/xiaou-application-v2.3.2.jar --spring.profiles.active=prod
+java -jar xiaou-application/target/xiaou-application-v2.4.0.jar --spring.profiles.active=prod
 ```
 
 - API 根地址：`http://localhost:9999/api`
@@ -512,7 +527,7 @@ management:
 
 ```bash
 # 构建镜像
-docker build -t code-nest:v2.3.2 -f docker/Dockerfile .
+docker build -t code-nest:v2.4.0 -f docker/Dockerfile .
 
 # 运行容器
 docker run -d \
@@ -520,7 +535,7 @@ docker run -d \
   -p 9999:9999 \
   -e SPRING_PROFILES_ACTIVE=prod \
   --env-file docker/env/example.env \
-  code-nest:v2.3.2
+  code-nest:v2.4.0
 ```
 
 如果要把 MySQL / Redis / Java 主服务 / `llamaindex-service` 一起编排起来，推荐使用：
@@ -581,13 +596,24 @@ server {
 - `AI-DOCS/Deployment/监控告警/Prometheus监控部署指南.md`：Prometheus + Grafana 安装、指标、告警策略。
 - `sql/MySql/code_nest.sql`：最新完整结构脚本。
 - `sql/MySql/code_nest_data.sql`：汇总初始化数据脚本（可重复执行）。
-- `sql/v1.8.0~v1.8.4/`：近期增量脚本（OJ、求职作战台、闭环中台、学习资产转化引擎等）。
+- `sql/v2.4.0/`：管理员统一 Agent 运行时的审计、会话上下文、幂等和权限增量脚本。
+- `sql/v1.8.0~v1.8.4/`：历史增量脚本（OJ、求职作战台、闭环中台、学习资产转化引擎等）。
 - `pom.xml`：多模块管理、版本统一、Flatten 插件配置。
 - `docker/`：容器化部署示例。
 
 ## 📝 更新日志
 
 仅列出最近版本，更多历史可查看 `git log`。
+
+### v2.4.0 Unified Backend Agent Runtime
+
+- **统一后端编排**：单一聊天接口完成 LLM 规划、工具注册、策略、执行和审计，前端保持薄边界。
+- **通用扩展契约**：新增工具通过 definition/schema 注册，不增加前端分组或逐工具硬编码路由。
+- **高风险动作保护**：写工具必须经过预览、精确确认、权限、幂等和审计状态机。
+- **会话与输入防护**：同名会话按管理员隔离，统一聊天请求在进入 planner 前执行长度校验。
+- **真实 AI 验收**：当前 26/26 个生产工具通过真实 `gpt-5.5` 测试，两个写工具完成数据库结果回查。
+- **测试与 CI 收口**：后端、双前端、AI、RAG、仓库卫生和发布构建进入统一评测入口。
+- **版本基线升级**：Maven、双前端、文档站、Jar 与 Docker 示例统一升级到 `v2.4.0`。
 
 ### v2.3.2 🧯 Production Patch
 

@@ -14,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
@@ -156,10 +155,7 @@ public class AdminDeveloperCalendarController {
     private DeveloperCalendarEvent convertToEntity(AdminCalendarEventRequest request) {
         DeveloperCalendarEvent event = new DeveloperCalendarEvent();
         event.setId(request.getId());
-        // 将LocalDate转换为MM-dd格式的String
-        if (request.getEventDate() != null) {
-            event.setEventDate(request.getEventDate().format(DateTimeFormatter.ofPattern("MM-dd")));
-        }
+        event.setEventDate(request.getEventDate());
         event.setEventName(request.getEventName());
         event.setEventType(request.getEventType());
         event.setDescription(request.getDescription());

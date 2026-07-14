@@ -62,6 +62,7 @@ java -jar app.jar --spring.profiles.active=prod,sec
 | `XIAOU_AI_BASE_URL` | `xiaou.ai.base-url` | 空 | AI API 基础 URL |
 | `XIAOU_AI_API_KEY` | `xiaou.ai.api-key` | 空 | **生产环境必须覆盖** |
 | `XIAOU_AI_CHAT_MODEL` | `xiaou.ai.model.chat` | `gpt-5.4` | Chat 模型名 |
+| `XIAOU_AI_MAX_COMPLETION_TOKENS` | `xiaou.ai.model.max-completion-tokens` | `2048` | 单次 completion 上限 |
 | `XIAOU_AI_EMBEDDING_MODEL` | `xiaou.ai.model.embedding` | `text-embedding-3-small` | Embedding 模型名 |
 | `XIAOU_AI_PRICING_CURRENCY` | `xiaou.ai.pricing.currency` | `USD` | 定价货币 |
 | `XIAOU_AI_INPUT_PRICE_PER_MILLION` | `xiaou.ai.pricing.input-per-million` | `0` | 输入单价（每百万 token） |
@@ -136,6 +137,7 @@ xiaou:
     api-key: sk-your-real-key
     model:
       chat: gpt-5.4
+      max-completion-tokens: 2048
 ```
 
 > **不要把真实密钥写在 `application-dev.yml` 或 `application-docker.yml` 中**。这些文件会进入 Git 仓库。

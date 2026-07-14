@@ -5,8 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 
-import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -25,8 +25,9 @@ public class AdminCalendarEventRequest {
     /**
      * 事件日期
      */
-    @NotNull(message = "事件日期不能为空")
-    private LocalDate eventDate;
+    @NotBlank(message = "事件日期不能为空")
+    @Pattern(regexp = "^(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$", message = "事件日期格式应为MM-dd")
+    private String eventDate;
     
     /**
      * 事件名称

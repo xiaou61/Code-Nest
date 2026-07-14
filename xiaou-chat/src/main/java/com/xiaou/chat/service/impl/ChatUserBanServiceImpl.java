@@ -81,6 +81,12 @@ public class ChatUserBanServiceImpl implements ChatUserBanService {
         
         log.info("解除禁言成功，用户ID: {}", userId);
     }
+
+    @Override
+    public ChatUserBan getActiveBan(Long userId) {
+        Long roomId = chatRoomService.getOfficialRoom().getId();
+        return chatUserBanMapper.selectActiveByUserId(userId, roomId);
+    }
     
     @Override
     public boolean isUserBanned(Long userId, Long roomId) {

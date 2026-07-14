@@ -222,6 +222,18 @@ public class FileSystemSettingServiceImpl implements FileSystemSettingService {
         }
     }
 
+    @Override
+    public String getDefaultAccessLevel() {
+        try {
+            String accessLevel = getSettingValue("DEFAULT_ACCESS_LEVEL",
+                    getSettingValue("defaultAccessLevel", "private"));
+            return "public".equalsIgnoreCase(accessLevel) ? "public" : "private";
+        } catch (Exception e) {
+            log.error("获取默认访问权限失败: {}", e.getMessage(), e);
+            return "private";
+        }
+    }
+
     /**
      * 刷新缓存（如果需要）
      */
@@ -258,4 +270,4 @@ public class FileSystemSettingServiceImpl implements FileSystemSettingService {
     private void clearCache() {
         this.lastCacheTime = 0;
     }
-} 
+}

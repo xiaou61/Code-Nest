@@ -29,12 +29,14 @@ public abstract class AbstractFileStorageStrategy implements FileStorageStrategy
 
     @Override
     public boolean initialize(Map<String, Object> configParams) {
+        this.initialized = false;
         try {
             this.configParams = configParams;
             boolean result = doInitialize(configParams);
             this.initialized = result;
             return result;
         } catch (Exception e) {
+            this.initialized = false;
             log.error("初始化存储策略失败: {}", e.getMessage(), e);
             return false;
         }
@@ -136,4 +138,4 @@ public abstract class AbstractFileStorageStrategy implements FileStorageStrategy
      * @return 连接是否正常
      */
     protected abstract boolean doTestConnection();
-} 
+}

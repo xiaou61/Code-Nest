@@ -1,5 +1,43 @@
 # 发布流程
 
+## v2.4.0
+
+`v2.4.0` 发布管理员端统一后端 Agent 运行时。本版本的范围是单一聊天入口和当前 26 个已注册生产工具，不表示尚未注册的所有业务接口都已支持自然语言操作。
+
+### Highlights
+
+- `POST /admin/agent/chat` 统一承载自然语言请求、上下文续接和高风险动作确认。
+- 后端通过 `LLM Planner -> AgentToolRegistry -> AgentPolicyEngine -> AgentTool -> Audit` 完成规划和执行，前端不维护动作目录或业务分组。
+- 新工具通过新增带 definition/schema 的 `AgentTool` Bean 扩展，不需要修改前端编排逻辑。
+- 写入和破坏性工具统一执行 `PREVIEW -> CONFIRMED -> EXECUTED`，并具备权限、审计、幂等与失败记录。
+- 会话上下文按管理员 ID 隔离，HTTP 请求长度在进入 LLM 和编排器前完成校验。
+
+### Migration
+
+已部署数据库按顺序执行：
+
+```text
+sql/v2.4.0/admin_agent_audit.sql
+sql/v2.4.0/admin_agent_audit_idempotency.sql
+sql/v2.4.0/admin_agent_session_context.sql
+sql/v2.4.0/admin_agent_permissions.sql
+```
+
+生产环境继续通过 `XIAOU_AI_BASE_URL`、`XIAOU_AI_API_KEY` 和 `XIAOU_AI_CHAT_MODEL` 注入模型配置；可通过 `XIAOU_AI_MAX_COMPLETION_TOKENS` 调整全局 completion 上限。密钥不得写入仓库配置。
+
+### Verification
+
+- `scripts/code-nest-eval.ps1 -Tier release`：后端 package、双前端 build、文档站 build 与脚本语法检查。
+- 后端离线统一回归：215 个 Agent 测试通过，3 个 opt-in live 用例默认跳过。
+- 真实 `gpt-5.5` 验收：当前 26/26 个注册工具通过；两个写工具完成隔离 MySQL、强确认、业务回查和审计终态验证。
+- 完整证据见 `AI-DOCS/Technical/13-Code-Nest-full-site-test-results.md`。
+
+### Risks And Rollback
+
+- 外部 OpenAI 兼容网关可能出现超时或 `502/524`；运行时保留传输重试和 deterministic fallback，live 验收则关闭 fallback 以避免伪成功。
+- 回滚应用前先停止 Agent 写入流量；数据库新增表和权限种子均向后兼容，可保留，不需要破坏性回滚。
+- 如需撤销 Agent 能力，回滚到上一版本应用和双前端构建产物，并按既有发布脚本恢复备份。
+
 ## v2.3.1
 
 - 新增统一 CI 工作流，覆盖后端、双前端、文档站和脚本语法检查。
