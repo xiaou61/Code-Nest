@@ -18,11 +18,15 @@ public interface AiStructuredObjectContract {
 
     AiStructuredObjectContract requireIntRange(String key, int min, int max);
 
+    AiStructuredObjectContract requireNumberRange(String key, double min, double max);
+
     AiStructuredObjectContract requirePositiveInt(String key);
 
     AiStructuredObjectContract requireStringArray(String key);
 
     AiStructuredObjectContract requireStringOrStringArray(String key);
+
+    AiStructuredObjectContract requireObject(String key);
 
     AiStructuredObjectContract requireObject(String key, Consumer<AiStructuredObjectContract> nestedValidator);
 

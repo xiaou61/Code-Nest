@@ -54,6 +54,12 @@ final class AiStructuredValidationContracts {
         }
 
         @Override
+        public AiStructuredObjectContract requireNumberRange(String key, double min, double max) {
+            delegate.requireNumberRange(key, min, max);
+            return this;
+        }
+
+        @Override
         public AiStructuredObjectContract requirePositiveInt(String key) {
             delegate.requirePositiveInt(key);
             return this;
@@ -68,6 +74,12 @@ final class AiStructuredValidationContracts {
         @Override
         public AiStructuredObjectContract requireStringOrStringArray(String key) {
             delegate.requireStringOrStringArray(key);
+            return this;
+        }
+
+        @Override
+        public AiStructuredObjectContract requireObject(String key) {
+            delegate.requireObject(key);
             return this;
         }
 

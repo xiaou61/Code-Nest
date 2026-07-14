@@ -1,5 +1,6 @@
 package com.xiaou.oj.judge;
 
+import cn.hutool.core.util.StrUtil;
 import com.xiaou.oj.domain.OjProblem;
 import com.xiaou.oj.domain.OjSubmission;
 import com.xiaou.oj.domain.OjTestCase;
@@ -91,7 +92,7 @@ public class JudgeService {
                         null, strategy.getCompiledFileNames());
 
                 if (!compileResult.isAccepted() || compileResult.getExitStatus() != 0) {
-                    String errorMsg = compileResult.getStderr() != null ? compileResult.getStderr() : compileResult.getError();
+                    String errorMsg = getErrorMessage(compileResult);
                     log.info("[Judge] 编译失败: submissionId={}, error={}", submissionId, errorMsg);
                     updateSubmission(submission, SubmissionStatus.COMPILE_ERROR, 0, 0, 0, testCases.size(), errorMsg);
                     return;
@@ -133,7 +134,7 @@ public class JudgeService {
                     }
 
                     if (!runResult.isAccepted() || runResult.getExitStatus() != 0) {
-                        String errorMsg = runResult.getStderr() != null ? runResult.getStderr() : runResult.getError();
+                        String errorMsg = getErrorMessage(runResult);
                         log.info("[Judge] 运行错误: submissionId={}, case={}, error={}", submissionId, i + 1, errorMsg);
                         updateSubmission(submission, SubmissionStatus.RUNTIME_ERROR,
                                 maxTime, maxMemory, passCount, testCases.size(), errorMsg);
@@ -158,18 +159,7 @@ public class JudgeService {
                 boolean firstAc = !submissionMapper.existsAccepted(submission.getUserId(), submission.getProblemId());
                 updateSubmission(submission, SubmissionStatus.ACCEPTED, maxTime, maxMemory, passCount, testCases.size(), null);
                 if (firstAc) {
-                    problemMapper.increaseAcceptedCount(submission.getProblemId());
-                    // 发放积分奖励
-                    try {
-                        int points = getAcPoints(problem.getDifficulty());
-                        pointsService.grantSystemPoints(submission.getUserId(), points,
-                                PointsType.OJ_AC.getCode(),
-                                "首次通过题目「" + problem.getTitle() + "」");
-                        log.info("[Judge] 发放积分: userId={}, points={}, problem={}",
-                                submission.getUserId(), points, problem.getTitle());
-                    } catch (Exception e) {
-                        log.error("[Judge] 发放积分失败: submissionId={}", submissionId, e);
-                    }
+                    handleFirstAccepted(submission, problem);
                 }
             } finally {
                 // 清理 go-judge 缓存文件
@@ -206,13 +196,36 @@ public class JudgeService {
         return 100; // easy 或其他
     }
 
+    private void handleFirstAccepted(OjSubmission submission, OjProblem problem) {
+        try {
+            problemMapper.increaseAcceptedCount(submission.getProblemId());
+        } catch (Exception e) {
+            log.error("[Judge] 更新题目AC数失败: submissionId={}", submission.getId(), e);
+        }
+
+        try {
+            int points = getAcPoints(problem.getDifficulty());
+            pointsService.grantSystemPoints(submission.getUserId(), points,
+                    PointsType.OJ_AC.getCode(),
+                    "首次通过题目「" + problem.getTitle() + "」");
+            log.info("[Judge] 发放积分: userId={}, points={}, problem={}",
+                    submission.getUserId(), points, problem.getTitle());
+        } catch (Exception e) {
+            log.error("[Judge] 发放积分失败: submissionId={}", submission.getId(), e);
+        }
+    }
+
     /**
      * 比较用户输出与期望输出 (忽略末尾空白)
      */
     private boolean compareOutput(String actual, String expected) {
         if (actual == null) actual = "";
         if (expected == null) expected = "";
-        return actual.strip().equals(expected.strip());
+        return actual.stripTrailing().equals(expected.stripTrailing());
+    }
+
+    private String getErrorMessage(ExecuteResult result) {
+        return StrUtil.isNotBlank(result.getStderr()) ? result.getStderr() : result.getError();
     }
 
     private void updateSubmission(OjSubmission submission, SubmissionStatus status,

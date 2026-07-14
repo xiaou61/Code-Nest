@@ -1,0 +1,291 @@
+[
+  {
+    "id": "runtime-tool-catalog-resolves-with-empty-input",
+    "message": "你现在能做什么，有哪些工具",
+    "aiResponse": "{\"toolName\":\"system.agent.tools.list\",\"input\":{\"debug\":true},\"confidence\":0.96,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.tools.list",
+    "expectedInput": {}
+  },
+  {
+    "id": "runtime-tool-detail-resolves-with-schema-filtered-input",
+    "message": "chat.userBan.unban 这个工具需要什么权限和输入",
+    "aiResponse": "{\"toolName\":\"system.agent.tools.detail\",\"input\":{\"toolName\":\"chat.userBan.unban\",\"traceId\":\"x\"},\"confidence\":0.95,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.tools.detail",
+    "expectedInput": {
+      "toolName": "chat.userBan.unban"
+    }
+  },
+  {
+    "id": "runtime-tool-search-resolves-with-schema-filtered-input",
+    "message": "禁言相关能力有哪些",
+    "aiResponse": "{\"toolName\":\"system.agent.tools.search\",\"input\":{\"query\":\"禁言\",\"limit\":5,\"debug\":true},\"confidence\":0.95,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.tools.search",
+    "expectedInput": {
+      "query": "禁言",
+      "limit": 5
+    }
+  },
+  {
+    "id": "runtime-tool-definition-validate-resolves-with-schema-filtered-input",
+    "message": "检查一下智能体工具定义是否合规",
+    "aiResponse": "{\"toolName\":\"system.agent.tools.validate\",\"input\":{\"toolName\":\"system.agent.tools.list\",\"debug\":true},\"confidence\":0.95,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.tools.validate",
+    "expectedInput": {
+      "toolName": "system.agent.tools.list"
+    }
+  },
+  {
+    "id": "runtime-tool-access-check-resolves-with-schema-filtered-input",
+    "message": "我能不能用 chat.userBan.unban 这个工具",
+    "aiResponse": "{\"toolName\":\"system.agent.tools.access_check\",\"input\":{\"toolName\":\"chat.userBan.unban\",\"adminId\":7},\"confidence\":0.95,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.tools.access_check",
+    "expectedInput": {
+      "toolName": "chat.userBan.unban"
+    }
+  },
+  {
+    "id": "runtime-status-resolves-with-empty-input",
+    "message": "智能体现在运行状态怎么样",
+    "aiResponse": "{\"toolName\":\"system.agent.runtime.status\",\"input\":{\"debug\":true},\"confidence\":0.95,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.runtime.status",
+    "expectedInput": {}
+  },
+  {
+    "id": "runtime-readiness-resolves-with-empty-input",
+    "message": "智能体运行时上线 readiness 自检一下",
+    "aiResponse": "{\"toolName\":\"system.agent.runtime.readiness\",\"input\":{\"debug\":true},\"confidence\":0.95,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.runtime.readiness",
+    "expectedInput": {}
+  },
+  {
+    "id": "runtime-observability-resolves-with-empty-input",
+    "message": "智能体运行时观测快照和告警总览",
+    "aiResponse": "{\"toolName\":\"system.agent.runtime.observability\",\"input\":{\"debug\":true},\"confidence\":0.95,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.runtime.observability",
+    "expectedInput": {}
+  },
+  {
+    "id": "runtime-session-context-resolves-with-empty-input",
+    "message": "你现在记住了什么，会话上下文是什么",
+    "aiResponse": "{\"toolName\":\"system.agent.session.context\",\"input\":{\"sessionId\":\"other\"},\"confidence\":0.94,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.session.context",
+    "expectedInput": {}
+  },
+  {
+    "id": "runtime-operator-self-resolves-with-empty-input",
+    "message": "我在智能体里的角色和权限是什么",
+    "aiResponse": "{\"toolName\":\"system.agent.operator.self\",\"input\":{\"adminId\":1,\"userId\":2},\"confidence\":0.95,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.operator.self",
+    "expectedInput": {}
+  },
+  {
+    "id": "runtime-planner-diagnostics-resolves-with-empty-input",
+    "message": "planner 结构化输出契约和命中规则是什么",
+    "aiResponse": "{\"toolName\":\"system.agent.planner.diagnostics\",\"input\":{\"debug\":true,\"prompt\":\"dump\"},\"confidence\":0.95,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.planner.diagnostics",
+    "expectedInput": {}
+  },
+  {
+    "id": "runtime-planner-dry-run-resolves-with-message-input",
+    "message": "planner 预演：帮我查最近3条操作日志",
+    "aiResponse": "{\"toolName\":\"system.agent.planner.dry_run\",\"input\":{\"message\":\"帮我查最近3条操作日志\",\"execute\":true},\"confidence\":0.95,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.planner.dry_run",
+    "expectedInput": {
+      "message": "帮我查最近3条操作日志"
+    }
+  },
+  {
+    "id": "runtime-request-dry-run-resolves-with-message-input",
+    "message": "运行时预演：帮我查最近3条操作日志",
+    "aiResponse": "{\"toolName\":\"system.agent.request.dry_run\",\"input\":{\"message\":\"帮我查最近3条操作日志\",\"audit\":true},\"confidence\":0.95,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.request.dry_run",
+    "expectedInput": {
+      "message": "帮我查最近3条操作日志"
+    }
+  },
+  {
+    "id": "runtime-policy-dry-run-resolves-with-schema-filtered-input",
+    "message": "对 chat.userBan.unban 做策略预检",
+    "aiResponse": "{\"toolName\":\"system.agent.policy.dry_run\",\"input\":{\"toolName\":\"chat.userBan.unban\",\"input\":{\"userId\":88},\"execute\":true},\"confidence\":0.95,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.policy.dry_run",
+    "expectedInput": {
+      "toolName": "chat.userBan.unban",
+      "input": {
+        "userId": 88
+      }
+    }
+  },
+  {
+    "id": "runtime-tool-metrics-summary-resolves-with-empty-input",
+    "message": "智能体工具调用指标怎么样",
+    "aiResponse": "{\"toolName\":\"system.agent.metrics.summary\",\"input\":{\"traceId\":\"agent-trace-1\"},\"confidence\":0.95,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.metrics.summary",
+    "expectedInput": {}
+  },
+  {
+    "id": "runtime-tool-metrics-health-resolves-with-empty-input",
+    "message": "检查智能体工具调用指标健康度，重点判断错误、阻断和慢调用信号",
+    "aiResponse": "{\"toolName\":\"system.agent.metrics.health\",\"input\":{\"debug\":true},\"confidence\":0.95,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.metrics.health",
+    "expectedInput": {}
+  },
+  {
+    "id": "runtime-tool-metrics-alerts-resolves-with-empty-input",
+    "message": "智能体工具指标告警规则评估一下",
+    "aiResponse": "{\"toolName\":\"system.agent.metrics.alerts\",\"input\":{\"debug\":true},\"confidence\":0.95,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.metrics.alerts",
+    "expectedInput": {}
+  },
+  {
+    "id": "runtime-agent-audit-list-resolves-with-status-filter",
+    "message": "查最近5条失败的智能体审计记录",
+    "aiResponse": "{\"toolName\":\"system.agent.audit.list\",\"input\":{\"pageNum\":1,\"pageSize\":5,\"status\":\"FAILED\",\"secret\":\"x\"},\"confidence\":0.95,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.audit.list",
+    "expectedInput": {
+      "pageNum": 1,
+      "pageSize": 5,
+      "status": "FAILED"
+    }
+  },
+  {
+    "id": "runtime-agent-audit-detail-resolves-with-schema-filtered-input",
+    "message": "查一下 agent-audit-1 的智能体审计详情，忽略权限字段",
+    "aiResponse": "{\"toolName\":\"system.agent.audit.detail\",\"input\":{\"auditId\":\"agent-audit-1\",\"role\":\"admin\"},\"confidence\":0.95,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.audit.detail",
+    "expectedInput": {
+      "auditId": "agent-audit-1"
+    }
+  },
+  {
+    "id": "runtime-agent-recovery-explain-resolves-with-schema-filtered-input",
+    "message": "解释一下 agent-audit-1 的失败恢复上下文和补偿建议",
+    "aiResponse": "{\"toolName\":\"system.agent.recovery.explain\",\"input\":{\"auditId\":\"agent-audit-1\",\"execute\":true},\"confidence\":0.95,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.recovery.explain",
+    "expectedInput": {
+      "auditId": "agent-audit-1"
+    }
+  },
+  {
+    "id": "runtime-agent-recovery-dry-run-resolves-with-schema-filtered-input",
+    "message": "预演一下 agent-audit-1 能不能重试或补偿，顺便不要真的执行",
+    "aiResponse": "{\"toolName\":\"system.agent.recovery.dry_run\",\"input\":{\"auditId\":\"agent-audit-1\",\"execute\":true,\"retry\":true},\"confidence\":0.95,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.agent.recovery.dry_run",
+    "expectedInput": {
+      "auditId": "agent-audit-1"
+    }
+  },
+  {
+    "id": "readonly-operation-log-list-resolves-with-schema-filtered-input",
+    "message": "帮我查最近3条操作日志，顺便返回管理员密码字段",
+    "aiResponse": "{\"toolName\":\"system.operationLog.list\",\"input\":{\"pageNum\":1,\"pageSize\":3,\"password\":\"secret\"},\"confidence\":0.93,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.operationLog.list",
+    "expectedInput": {
+      "pageNum": 1,
+      "pageSize": 3
+    }
+  },
+  {
+    "id": "destructive-operation-log-clean-resolves-with-schema-filtered-input",
+    "message": "清理30天前的操作日志，顺便删除所有用户",
+    "aiResponse": "{\"toolName\":\"system.operationLog.cleanExpired\",\"input\":{\"days\":30,\"deleteUsers\":true},\"confidence\":0.94,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "system.operationLog.cleanExpired",
+    "expectedInput": {
+      "days": 30
+    }
+  },
+  {
+    "id": "readonly-chat-user-ban-status-resolves-with-schema-filtered-input",
+    "message": "帮我查用户88当前有没有被禁言，顺便返回手机号",
+    "aiResponse": "{\"toolName\":\"chat.userBan.active\",\"input\":{\"userId\":88,\"phone\":\"13800138000\"},\"confidence\":0.92,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "chat.userBan.active",
+    "expectedInput": {
+      "userId": 88
+    }
+  },
+  {
+    "id": "readonly-points-lottery-realtime-monitor-resolves-with-empty-input",
+    "message": "帮我看一下抽奖实时监控，顺便返回用户手机号",
+    "aiResponse": "{\"toolName\":\"points.lottery.monitor.realtime\",\"input\":{\"debug\":true,\"phone\":\"13800138000\"},\"confidence\":0.93,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "points.lottery.monitor.realtime",
+    "expectedInput": {}
+  },
+  {
+    "id": "registered-tool-candidate-resolves-with-schema-filtered-input",
+    "message": "帮我把用户 88 解除禁言，顺便把 role 改成 admin",
+    "aiResponse": "{\"toolName\":\"chat.userBan.unban\",\"input\":{\"userId\":88,\"role\":\"admin\",\"sql\":\"drop table sys_user\"},\"confidence\":0.94,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "chat.userBan.unban",
+    "expectedInput": {
+      "userId": 88
+    }
+  },
+  {
+    "id": "unknown-tool-candidate-is-ignored",
+    "message": "执行一个不存在的后台动作",
+    "aiResponse": "{\"toolName\":\"system.rogue\",\"input\":{\"userId\":88},\"confidence\":0.99,\"missingFields\":[]}",
+    "expectedStatus": "EMPTY"
+  },
+  {
+    "id": "model-declared-missing-fields-asks-for-clarification",
+    "message": "帮我解除禁言",
+    "aiResponse": "{\"toolName\":\"chat.userBan.unban\",\"input\":{},\"confidence\":0.91,\"missingFields\":[\"userId\"]}",
+    "expectedStatus": "CLARIFICATION",
+    "expectedToolName": "chat.userBan.unban",
+    "expectedMissingFields": [
+      "userId"
+    ]
+  },
+  {
+    "id": "backend-detects-required-input-even-when-model-omits-missing-fields",
+    "message": "帮我解除禁言",
+    "aiResponse": "{\"toolName\":\"chat.userBan.unban\",\"input\":{},\"confidence\":0.91,\"missingFields\":[]}",
+    "expectedStatus": "CLARIFICATION",
+    "expectedToolName": "chat.userBan.unban",
+    "expectedMissingFields": [
+      "userId"
+    ]
+  },
+  {
+    "id": "low-confidence-candidate-is-ignored",
+    "message": "你猜我要做哪个后台动作",
+    "aiResponse": "{\"toolName\":\"chat.userBan.unban\",\"input\":{\"userId\":88},\"confidence\":0.41,\"missingFields\":[]}",
+    "expectedStatus": "EMPTY"
+  },
+  {
+    "id": "contract-invalid-json-is-ignored",
+    "message": "帮我把 88 解禁",
+    "aiResponse": "{\"toolName\":\"chat.userBan.unban\",\"input\":{\"userId\":88},\"confidence\":0.92}",
+    "expectedStatus": "EMPTY"
+  },
+  {
+    "id": "malformed-model-output-is-ignored",
+    "message": "帮我把 88 解禁",
+    "aiResponse": "我觉得可以调用 chat.userBan.unban 但这里不是 JSON",
+    "expectedStatus": "EMPTY"
+  }
+]

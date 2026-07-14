@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.system.mapper.SysAgentAuditMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.system.domain.SysAgentAudit">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="audit_id" property="auditId" jdbcType="VARCHAR"/>
+        <result column="confirmation_id" property="confirmationId" jdbcType="VARCHAR"/>
+        <result column="idempotency_key" property="idempotencyKey" jdbcType="VARCHAR"/>
+        <result column="user_message" property="userMessage" jdbcType="VARCHAR"/>
+        <result column="intent" property="intent" jdbcType="VARCHAR"/>
+        <result column="action_id" property="actionId" jdbcType="VARCHAR"/>
+        <result column="route" property="route" jdbcType="VARCHAR"/>
+        <result column="risk_level" property="riskLevel" jdbcType="VARCHAR"/>
+        <result column="risk_category" property="riskCategory" jdbcType="VARCHAR"/>
+        <result column="status" property="status" jdbcType="VARCHAR"/>
+        <result column="summary" property="summary" jdbcType="VARCHAR"/>
+        <result column="payload_json" property="payloadJson" jdbcType="LONGVARCHAR"/>
+        <result column="diff_json" property="diffJson" jdbcType="LONGVARCHAR"/>
+        <result column="plan_json" property="planJson" jdbcType="LONGVARCHAR"/>
+        <result column="result_json" property="resultJson" jdbcType="LONGVARCHAR"/>
+        <result column="error_message" property="errorMessage" jdbcType="VARCHAR"/>
+        <result column="operator_id" property="operatorId" jdbcType="BIGINT"/>
+        <result column="operator_name" property="operatorName" jdbcType="VARCHAR"/>
+        <result column="confirmed_time" property="confirmedTime" jdbcType="TIMESTAMP"/>
+        <result column="executed_time" property="executedTime" jdbcType="TIMESTAMP"/>
+        <result column="created_time" property="createdTime" jdbcType="TIMESTAMP"/>
+        <result column="updated_time" property="updatedTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, audit_id, confirmation_id, idempotency_key, user_message, intent, action_id, route,
+        risk_level, risk_category, status, summary, payload_json, diff_json,
+        plan_json, result_json, error_message, operator_id, operator_name,
+        confirmed_time, executed_time, created_time, updated_time
+    </sql>
+
+    <sql id="Query_Where_Clause">
+        <where>
+            <if test="intent != null and intent != ''">
+                AND intent = #{intent}
+            </if>
+            <if test="actionId != null and actionId != ''">
+                AND action_id = #{actionId}
+            </if>
+            <if test="riskCategory != null and riskCategory != ''">
+                AND risk_category = #{riskCategory}
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="operatorName != null and operatorName != ''">
+                AND operator_name LIKE CONCAT('%', #{operatorName}, '%')
+            </if>
+            <if test="startTime != null">
+                AND created_time &gt;= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND created_time &lt;= #{endTime}
+            </if>
+        </where>
+    </sql>
+
+    <insert id="insert" parameterType="com.xiaou.system.domain.SysAgentAudit" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_agent_audit (
+            audit_id, confirmation_id, idempotency_key, user_message, intent, action_id, route,
+            risk_level, risk_category, status, summary, payload_json, diff_json,
+            plan_json, result_json, error_message, operator_id, operator_name,
+            confirmed_time, executed_time, created_time, updated_time
+        ) VALUES (
+            #{auditId}, #{confirmationId}, #{idempotencyKey}, #{userMessage}, #{intent}, #{actionId}, #{route},
+            #{riskLevel}, #{riskCategory}, #{status}, #{summary}, #{payloadJson}, #{diffJson},
+            #{planJson}, #{resultJson}, #{errorMessage}, #{operatorId}, #{operatorName},
+            #{confirmedTime}, #{executedTime}, #{createdTime}, #{updatedTime}
+        )
+    </insert>
+
+    <update id="updateByAuditId" parameterType="com.xiaou.system.domain.SysAgentAudit">
+        UPDATE sys_agent_audit
+        <set>
+            <if test="status != null">status = #{status},</if>
+            <if test="resultJson != null">result_json = #{resultJson},</if>
+            <if test="errorMessage != null">error_message = #{errorMessage},</if>
+            <if test="confirmedTime != null">confirmed_time = #{confirmedTime},</if>
+            <if test="executedTime != null">executed_time = #{executedTime},</if>
+            updated_time = #{updatedTime}
+        </set>
+        WHERE audit_id = #{auditId}
+        <if test="expectedStatus != null and expectedStatus != ''">
+            AND status = #{expectedStatus}
+        </if>
+    </update>
+
+    <select id="selectByAuditId" parameterType="java.lang.String" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM sys_agent_audit
+        WHERE audit_id = #{auditId}
+    </select>
+
+    <select id="selectList" parameterType="com.xiaou.system.dto.AgentAuditQueryRequest" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM sys_agent_audit
+        <include refid="Query_Where_Clause"/>
+        ORDER BY created_time DESC
+    </select>
+</mapper>

@@ -22,6 +22,11 @@ final class AiStructuredOutputFixtures {
     private static Map<String, String> buildFixtures() {
         Map<String, String> fixtures = new LinkedHashMap<>();
 
+        fixtures.put("admin_agent.plan:v1",
+                """
+                        {"toolName":"chat.userBan.unban","input":{"userId":88},"confidence":0.92,"missingFields":[]}
+                        """);
+
         fixtures.put("community.post_summary:v1",
                 """
                         {"summary":"帖子复盘了 Redis 缓存一致性问题，并给出补偿方案。","keywords":["Redis","缓存一致性","补偿机制"]}

@@ -5,8 +5,10 @@ import com.xiaou.common.exception.ai.AiConfigurationException;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.model.openai.OpenAiChatRequestParameters;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -59,10 +61,22 @@ public class AiModelFactory {
     }
 
     public AiChatResult chat(String systemPrompt, String userPrompt) {
-        ChatResponse response = getChatModel().chat(List.of(
-                SystemMessage.from(defaultText(systemPrompt)),
-                UserMessage.from(defaultText(userPrompt))
-        ));
+        return chat(systemPrompt, userPrompt, null);
+    }
+
+    public AiChatResult chat(String systemPrompt, String userPrompt, Integer maxCompletionTokens) {
+        ChatRequest.Builder request = ChatRequest.builder()
+                .messages(List.of(
+                        SystemMessage.from(defaultText(systemPrompt)),
+                        UserMessage.from(defaultText(userPrompt))
+                ));
+        if (maxCompletionTokens != null && maxCompletionTokens > 0) {
+            request.parameters(OpenAiChatRequestParameters.builder()
+                    .maxCompletionTokens(maxCompletionTokens)
+                    .build());
+        }
+
+        ChatResponse response = getChatModel().chat(request.build());
         return new AiChatResult()
                 .setContent(response == null || response.aiMessage() == null ? null : response.aiMessage().text())
                 .setModelName(response == null ? null : response.modelName())
@@ -84,6 +98,7 @@ public class AiModelFactory {
                 .baseUrl(aiProperties.getBaseUrl())
                 .apiKey(aiProperties.getApiKey())
                 .modelName(aiProperties.getModel().getChat())
+                .maxCompletionTokens(aiProperties.getModel().getMaxCompletionTokens())
                 .timeout(Duration.ofMillis(aiProperties.getTimeout().getReadMs()))
                 .maxRetries(aiProperties.getRetry().getMaxAttempts())
                 .logRequests(false)

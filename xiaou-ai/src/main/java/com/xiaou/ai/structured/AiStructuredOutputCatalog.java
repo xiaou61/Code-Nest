@@ -1,5 +1,6 @@
 package com.xiaou.ai.structured;
 
+import com.xiaou.ai.structured.admin.AdminAgentStructuredOutputSpecs;
 import com.xiaou.ai.structured.community.CommunityStructuredOutputSpecs;
 import com.xiaou.ai.structured.interview.InterviewStructuredOutputSpecs;
 import com.xiaou.ai.structured.jobbattle.JobBattleStructuredOutputSpecs;
@@ -15,6 +16,7 @@ import java.util.List;
 public final class AiStructuredOutputCatalog {
 
     private static final List<AiStructuredOutputSpec> SPECS = List.of(
+            AdminAgentStructuredOutputSpecs.PLAN,
             CommunityStructuredOutputSpecs.POST_SUMMARY,
             InterviewStructuredOutputSpecs.EVALUATE_ANSWER,
             InterviewStructuredOutputSpecs.GENERATE_SUMMARY,

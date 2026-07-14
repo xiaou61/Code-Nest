@@ -14,12 +14,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -34,6 +36,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     
     private static final int MESSAGE_TYPE_TEXT = 1;
     private static final int MESSAGE_TYPE_IMAGE = 2;
+    private static final int IMAGE_URL_COLUMN_LENGTH = 500;
     private static final int RECALL_TIME_LIMIT = 120; // 撤回时间限制：2分钟
 
     private final ChatMessageMapper chatMessageMapper;
@@ -43,10 +46,11 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     @Value("${xiaou.chat.message.max-text-length:1000}")
     private int maxTextLength;
 
-    @Value("${xiaou.chat.message.max-image-url-length:1024}")
+    @Value("${xiaou.chat.message.max-image-url-length:500}")
     private int maxImageUrlLength;
     
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public ChatMessage sendMessage(ChatMessageRequest request, Long userId, String ipAddress, String deviceInfo) {
         validateMessageRequest(request);
 
@@ -73,7 +77,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         // 处理回复消息
         if (request.getReplyToId() != null && request.getReplyToId() > 0) {
             ChatMessage replyToMsg = chatMessageMapper.selectById(request.getReplyToId());
-            if (replyToMsg != null) {
+            if (isReplyVisibleInRoom(replyToMsg, roomId)) {
                 message.setReplyToId(request.getReplyToId());
                 message.setReplyToUser(replyToMsg.getUserNickname());
                 // 截取回复内容摘要，最多50字
@@ -81,7 +85,10 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 if (content != null && content.length() > 50) {
                     content = content.substring(0, 50) + "...";
                 }
-                message.setReplyToContent(replyToMsg.getMessageType() == 2 ? "[图片]" : content);
+                message.setReplyToContent(
+                        Integer.valueOf(MESSAGE_TYPE_IMAGE).equals(replyToMsg.getMessageType())
+                                ? "[图片]"
+                                : content);
             }
         }
         
@@ -90,10 +97,14 @@ public class ChatMessageServiceImpl implements ChatMessageService {
             throw new BusinessException("发送消息失败");
         }
         
-        log.info("用户发送消息，用户ID: {}, 消息ID: {}, 类型: {}", userId, message.getId(), request.getMessageType());
-        
         // 查询完整消息信息（包含用户信息）
-        return chatMessageMapper.selectById(message.getId());
+        ChatMessage persisted = chatMessageMapper.selectById(message.getId());
+        if (persisted == null) {
+            throw new BusinessException("发送消息失败");
+        }
+
+        log.info("用户发送消息，用户ID: {}, 消息ID: {}, 类型: {}", userId, message.getId(), request.getMessageType());
+        return persisted;
     }
 
     private void validateMessageRequest(ChatMessageRequest request) {
@@ -121,7 +132,8 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         if (imageUrl == null || imageUrl.isBlank()) {
             throw new BusinessException("图片消息地址不能为空");
         }
-        if (imageUrl.length() > maxImageUrlLength) {
+        int effectiveMaxLength = Math.min(maxImageUrlLength, IMAGE_URL_COLUMN_LENGTH);
+        if (imageUrl.length() > effectiveMaxLength) {
             throw new BusinessException("图片地址过长");
         }
         if (!isAllowedImageUrl(imageUrl)) {
@@ -154,6 +166,12 @@ public class ChatMessageServiceImpl implements ChatMessageService {
             || normalized.startsWith("/api/files/")
             || normalized.startsWith("api/files/");
     }
+
+    private boolean isReplyVisibleInRoom(ChatMessage message, Long roomId) {
+        return message != null
+                && Objects.equals(roomId, message.getRoomId())
+                && !Integer.valueOf(1).equals(message.getIsDeleted());
+    }
     
     @Override
     public ChatHistoryResponse getHistory(ChatHistoryRequest request) {
@@ -184,7 +202,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     public void recallMessage(Long messageId, Long userId) {
         ChatMessage message = chatMessageMapper.selectById(messageId);
         
-        if (message == null) {
+        if (message == null || Integer.valueOf(1).equals(message.getIsDeleted())) {
             throw new BusinessException("消息不存在");
         }
         
@@ -223,6 +241,9 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         }
         
         int result = chatMessageMapper.deleteBatch(ids);
+        if (result <= 0) {
+            throw new BusinessException("批量删除消息失败");
+        }
         log.info("批量删除消息，数量: {}", result);
     }
     

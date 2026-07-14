@@ -20,6 +20,7 @@ cp .env.example .env
 - `XIAOU_AI_BASE_URL`
 - `XIAOU_AI_API_KEY`
 - `XIAOU_AI_CHAT_MODEL`
+- `XIAOU_AI_MAX_COMPLETION_TOKENS`（可选，默认 `2048`）
 - `XIAOU_AI_RAG_API_KEY`
 
 3. 在仓库根目录执行：

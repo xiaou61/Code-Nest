@@ -84,6 +84,14 @@ public class AiProperties {
         private String chat = "gpt-4o-mini";
 
         /**
+         * 单次对话允许消耗的最大 completion token 数。
+         *
+         * <p>对支持推理的模型，这个上限同时约束推理和最终输出，
+         * 防止复杂 Prompt 在没有边界时持续占用请求连接。</p>
+         */
+        private Integer maxCompletionTokens = 2048;
+
+        /**
          * 向量模型名称。
          */
         private String embedding = "text-embedding-3-small";

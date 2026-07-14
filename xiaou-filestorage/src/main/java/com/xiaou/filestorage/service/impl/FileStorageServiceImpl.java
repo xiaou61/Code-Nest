@@ -151,7 +151,7 @@ public class FileStorageServiceImpl implements FileStorageService {
             fileInfo.setUploadTime(new Date());
             fileInfo.setAccessUrl(uploadResult.getAccessUrl());
             fileInfo.setStatus(1);
-            fileInfo.setIsPublic(0);
+            fileInfo.setIsPublic("public".equalsIgnoreCase(fileSystemSettingService.getDefaultAccessLevel()) ? 1 : 0);
             fileInfo.setCreateTime(new Date());
             fileInfo.setUpdateTime(new Date());
 
@@ -165,7 +165,9 @@ public class FileStorageServiceImpl implements FileStorageService {
                 eventPublisher.publishUploadEvent(fileInfo.getId(), originalName, moduleName, businessType, fileSize);
                 
                 // 异步创建本地备份
-                fileBackupService.createLocalBackupAsync(fileInfo);
+                if (fileSystemSettingService.isAutoBackupEnabled()) {
+                    fileBackupService.createLocalBackupAsync(fileInfo);
+                }
                 
                 return uploadResult;
             } else {

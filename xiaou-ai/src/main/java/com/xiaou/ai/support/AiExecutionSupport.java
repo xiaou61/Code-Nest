@@ -52,7 +52,11 @@ public class AiExecutionSupport {
         String outcome = "success";
         AiChatResult result = null;
         try {
-            result = aiModelFactory.chat(systemPrompt, userPrompt);
+            result = aiModelFactory.chat(
+                    systemPrompt,
+                    userPrompt,
+                    promptSpec == null ? null : promptSpec.maxCompletionTokens()
+            );
             return result;
         } catch (Exception e) {
             outcome = "error";

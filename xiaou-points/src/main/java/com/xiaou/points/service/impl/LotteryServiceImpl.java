@@ -12,6 +12,7 @@ import com.xiaou.points.dto.lottery.*;
 import com.xiaou.points.enums.LotteryStatusEnum;
 import com.xiaou.points.enums.LotteryStrategyEnum;
 import com.xiaou.points.enums.PointsType;
+import com.xiaou.points.enums.PrizeLevelEnum;
 import com.xiaou.points.event.LotteryEvent;
 import com.xiaou.points.event.LotteryEventPublisher;
 import com.xiaou.points.factory.LotteryStrategyFactory;
@@ -86,7 +87,9 @@ public class LotteryServiceImpl implements LotteryService {
             
             // 3. 执行风控检查链
             RiskCheckHandler checkChain = chainBuilder.buildChain();
-            checkChain.check(userId, context);
+            if (!checkChain.check(userId, context)) {
+                throw new BusinessException("抽奖风险校验未通过");
+            }
             
             // 4. 扣除积分
             deductPoints(userId, LotteryConstants.DRAW_COST_POINTS);
@@ -183,7 +186,8 @@ public class LotteryServiceImpl implements LotteryService {
         if (limit == null) {
             return LotteryConstants.MAX_DRAW_PER_DAY;
         }
-        return Math.max(0, LotteryConstants.MAX_DRAW_PER_DAY - limit.getTodayDrawCount());
+        int todayDrawCount = Objects.requireNonNullElse(limit.getTodayDrawCount(), 0);
+        return Math.max(0, LotteryConstants.MAX_DRAW_PER_DAY - todayDrawCount);
     }
     
     /**
@@ -267,7 +271,7 @@ public class LotteryServiceImpl implements LotteryService {
         
         userLimitMapper.incrementDrawCount(userId);
         
-        if (prize.getPrizeLevel() < 8) {
+        if (isWinningPrize(prize)) {
             userLimitMapper.incrementWinCount(userId);
             userLimitMapper.updateContinuousNoWin(userId, 0);
         } else {
@@ -310,20 +314,7 @@ public class LotteryServiceImpl implements LotteryService {
      * 构建响应
      */
     private LotteryDrawResponse buildResponse(LotteryPrizeConfig prize, LotteryDrawRecord record) {
-        LotteryDrawResponse response = new LotteryDrawResponse();
-        response.setId(record.getId());
-        response.setRecordId(record.getId());
-        response.setUserId(record.getUserId());
-        response.setPrizeId(prize.getId());
-        response.setPrizeName(prize.getPrizeName());
-        response.setPrizeLevel(prize.getPrizeLevel());
-        response.setPrizePoints(prize.getPrizePoints());
-        response.setPrizeIcon(prize.getPrizeIcon());
-        response.setStrategyType(record.getDrawStrategy());
-        response.setIp(record.getDrawIp());
-        response.setDevice(record.getDrawDevice());
-        response.setDrawTime(record.getCreateTime());
-        return response;
+        return convertToDrawResponse(record, prize);
     }
 
     private void rollbackStockIfNeeded(boolean stockDeducted, LotteryPrizeConfig prize) {
@@ -334,6 +325,14 @@ public class LotteryServiceImpl implements LotteryService {
 
     private boolean isLimitedStock(LotteryPrizeConfig prize) {
         return prize.getTotalStock() != null && prize.getTotalStock() >= 0;
+    }
+
+    private boolean isWinningPrize(LotteryPrizeConfig prize) {
+        return isWinningPrizeLevel(prize.getPrizeLevel());
+    }
+
+    private boolean isWinningPrizeLevel(Integer prizeLevel) {
+        return prizeLevel != null && prizeLevel < PrizeLevelEnum.NO_PRIZE.getCode();
     }
     
     /**
@@ -393,7 +392,17 @@ public class LotteryServiceImpl implements LotteryService {
         LotteryDrawResponse response = new LotteryDrawResponse();
         BeanUtil.copyProperties(record, response);
         response.setRecordId(record.getId());
+        response.setStrategyType(record.getDrawStrategy());
+        response.setIp(record.getDrawIp());
+        response.setDevice(record.getDrawDevice());
         response.setDrawTime(record.getCreateTime());
+
+        int costPoints = Objects.requireNonNullElse(
+                record.getCostPoints(), LotteryConstants.DRAW_COST_POINTS);
+        int prizePoints = Objects.requireNonNullElse(record.getPrizePoints(), 0);
+        response.setCostPoints(costPoints);
+        response.setNetProfit(prizePoints - costPoints);
+        response.setIsWin(isWinningPrizeLevel(record.getPrizeLevel()));
         
         if (prize != null) {
             response.setPrizeName(prize.getPrizeName());

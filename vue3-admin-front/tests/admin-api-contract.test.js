@@ -9,6 +9,10 @@ const knowledgeApiSource = readFileSync(resolve(projectRoot, 'src/api/knowledge.
 const knowledgeMapsViewSource = readFileSync(resolve(projectRoot, 'src/views/knowledge/maps/index.vue'), 'utf8')
 const logApiSource = readFileSync(resolve(projectRoot, 'src/api/log.js'), 'utf8')
 const moyuApiSource = readFileSync(resolve(projectRoot, 'src/api/moyu.js'), 'utf8')
+const chatApiSource = readFileSync(resolve(projectRoot, 'src/api/chat.js'), 'utf8')
+const chatAdminControllerSource = readFileSync(resolve(projectRoot, '..', 'xiaou-chat/src/main/java/com/xiaou/chat/controller/admin/ChatAdminController.java'), 'utf8')
+const agentChatApiSource = readFileSync(resolve(projectRoot, 'src/api/agentChat.js'), 'utf8')
+const agentChatControllerSource = readFileSync(resolve(projectRoot, '..', 'xiaou-system/src/main/java/com/xiaou/system/controller/AgentChatController.java'), 'utf8')
 const requestSource = readFileSync(resolve(projectRoot, 'src/utils/request.js'), 'utf8')
 
 test('community admin actions should match backend HTTP method contracts', () => {
@@ -79,4 +83,27 @@ test('moyu admin API should not expose stale or missing backend contracts', () =
   assert.doesNotMatch(moyuApiSource, /\/moyu\/daily-content\/\$\{id\}\/collect/)
   assert.doesNotMatch(moyuApiSource, /\/admin\/moyu\/statistics\/user-behavior/)
   assert.doesNotMatch(moyuApiSource, /\/admin\/moyu\/statistics\/trend\/\$\{type\}/)
+})
+
+test('chat admin API should expose guarded active-ban current-state contract', () => {
+  assert.match(
+    chatApiSource,
+    /export function getActiveChatUserBan\(userId\) \{\s*return request\.post\('\/admin\/chat\/users\/ban\/active', userId\)\s*\}/
+  )
+  assert.match(
+    chatApiSource,
+    /export function unbanUser\(userId\) \{\s*return request\.post\('\/admin\/chat\/users\/unban', userId\)\s*\}/
+  )
+  assert.match(chatAdminControllerSource, /@PostMapping\("\/users\/ban\/active"\)/)
+  assert.match(chatAdminControllerSource, /public Result<ChatUserBanResponse> getActiveUserBan\(@RequestBody Long userId\)/)
+})
+
+test('admin agent chat API should use the unified backend chat endpoint', () => {
+  assert.match(
+    agentChatApiSource,
+    /sendMessage\(data\) \{\s*return request\.post\('\/admin\/agent\/chat', data\)\s*\}/
+  )
+  assert.match(agentChatControllerSource, /@RequestMapping\("\/admin\/agent"\)/)
+  assert.match(agentChatControllerSource, /@PostMapping\("\/chat"\)/)
+  assert.doesNotMatch(agentChatApiSource, /\/admin\/agent\/planner|\/admin\/agent\/policy|\/admin\/agent\/audit/)
 })

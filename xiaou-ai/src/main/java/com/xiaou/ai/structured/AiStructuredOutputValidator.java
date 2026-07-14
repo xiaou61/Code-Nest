@@ -97,6 +97,22 @@ public final class AiStructuredOutputValidator {
             return this;
         }
 
+        public ObjectValidator requireNumberRange(String key, double min, double max) {
+            if (failureReason != null) {
+                return this;
+            }
+            Object value = getValue(key);
+            if (!(value instanceof Number number)) {
+                failureReason = key + "_missing_or_not_number";
+                return this;
+            }
+            double doubleValue = number.doubleValue();
+            if (doubleValue < min || doubleValue > max) {
+                failureReason = key + "_out_of_range";
+            }
+            return this;
+        }
+
         public ObjectValidator requirePositiveInt(String key) {
             if (failureReason != null) {
                 return this;
@@ -150,6 +166,17 @@ public final class AiStructuredOutputValidator {
                     failureReason = key + "_item_not_string";
                     return this;
                 }
+            }
+            return this;
+        }
+
+        public ObjectValidator requireObject(String key) {
+            if (failureReason != null) {
+                return this;
+            }
+            JSONObject object = json == null ? null : json.getJSONObject(key);
+            if (object == null) {
+                failureReason = key + "_missing_or_not_object";
             }
             return this;
         }

@@ -25,11 +25,14 @@ public class PointsCheckHandler extends RiskCheckHandler {
     @Override
     public boolean check(Long userId, LotteryContext context) {
         UserPointsBalance balance = pointsBalanceMapper.selectByUserId(userId);
-        
-        if (balance == null || balance.getTotalPoints() < LotteryConstants.LOTTERY_COST) {
+
+        int currentPoints = balance == null || balance.getTotalPoints() == null
+                ? 0
+                : balance.getTotalPoints();
+        if (currentPoints < LotteryConstants.LOTTERY_COST) {
             log.warn("用户{}积分不足，当前积分：{}，需要：{}", 
                     userId, 
-                    balance != null ? balance.getTotalPoints() : 0,
+                    currentPoints,
                     LotteryConstants.LOTTERY_COST);
             throw new BusinessException("积分不足，无法参与抽奖");
         }

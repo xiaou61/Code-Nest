@@ -379,6 +379,7 @@ proxy: {
 | 模型名称不匹配 | 确认 `XIAOU_AI_CHAT_MODEL`，默认 `gpt-5.4` |
 | 网络不通 | 检查代理设置或防火墙 |
 | 读取超时 | 增大 `xiaou.ai.timeout.read-ms`，默认 60000ms |
+| 推理模型长时间不结束 | 设置 `XIAOU_AI_MAX_COMPLETION_TOKENS`；默认 `2048`，短结构化 Prompt 可声明更小预算 |
 | AI 功能未开启 | 确认 `xiaou.ai.enabled=true` |
 
 > **提示**：不配置 AI 也能正常启动，只是 AI 相关接口会返回降级响应。

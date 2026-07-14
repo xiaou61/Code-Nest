@@ -111,4 +111,11 @@ public interface FileSystemSettingService {
      * @return 是否自动备份
      */
     boolean isAutoBackupEnabled();
-} 
+
+    /**
+     * 获取默认访问权限
+     *
+     * @return 默认访问权限，public 或 private
+     */
+    String getDefaultAccessLevel();
+}
