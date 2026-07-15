@@ -173,7 +173,10 @@ jobs:
         run: python -m py_compile scripts/deploy-frontends.py scripts/you_deserve_to_interview_sql.py
 
       - name: Shell syntax check
-        run: bash -n scripts/deploy-release.sh
+        run: bash -n scripts/ci-server-build-deploy.sh scripts/ci-server-build-deploy.test.sh scripts/deploy-release.sh
+
+      - name: Deployment dependency refresh contract
+        run: bash scripts/ci-server-build-deploy.test.sh
 
   ci-summary:
     name: CI Summary

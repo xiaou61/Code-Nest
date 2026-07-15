@@ -39,6 +39,17 @@ copy_tree() {
   cp -a "$source_dir"/. "$target_dir"/
 }
 
+install_frontend_dependencies() {
+  local frontend_dir="$1"
+
+  npm ci \
+    --prefer-offline \
+    --no-audit \
+    --fund=false \
+    --ignore-scripts \
+    --prefix "$frontend_dir"
+}
+
 main() {
   require_cmd git
   require_cmd mvn
@@ -64,16 +75,14 @@ main() {
   log "build backend"
   mvn -B -pl xiaou-application -am clean package -DskipTests
 
+  log "install admin frontend dependencies"
+  install_frontend_dependencies vue3-admin-front
   log "build admin frontend"
-  if [[ ! -d vue3-admin-front/node_modules ]]; then
-    npm ci --prefer-offline --no-audit --fund=false --ignore-scripts --timeout=300000 --prefix vue3-admin-front
-  fi
   npm run build --prefix vue3-admin-front
 
+  log "install user frontend dependencies"
+  install_frontend_dependencies vue3-user-front
   log "build user frontend"
-  if [[ ! -d vue3-user-front/node_modules ]]; then
-    npm ci --prefer-offline --no-audit --fund=false --ignore-scripts --timeout=300000 --prefix vue3-user-front
-  fi
   npm run build --prefix vue3-user-front
 
   log "assemble release bundle"
@@ -105,4 +114,6 @@ EOF
     "$bundle"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi
