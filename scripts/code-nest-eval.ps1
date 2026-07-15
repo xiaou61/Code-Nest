@@ -344,7 +344,9 @@ function Invoke-Release {
 
     Invoke-Step "script syntax checks" {
         Invoke-Native -Command $PythonCommand -Arguments @("-m", "py_compile", "scripts/deploy-frontends.py", "scripts/you_deserve_to_interview_sql.py")
-        Invoke-Native -Command (Resolve-BashCommand) -Arguments @("-n", "scripts/deploy-release.sh")
+        $bash = Resolve-BashCommand
+        Invoke-Native -Command $bash -Arguments @("-n", "scripts/ci-server-build-deploy.sh", "scripts/ci-server-build-deploy.test.sh", "scripts/deploy-release.sh")
+        Invoke-Native -Command $bash -Arguments @("scripts/ci-server-build-deploy.test.sh")
     }
 }
 
