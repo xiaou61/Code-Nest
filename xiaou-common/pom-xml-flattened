@@ -5,11 +5,11 @@
   <parent>
     <groupId>com.xiaou</groupId>
     <artifactId>Code-Nest</artifactId>
-    <version>v2.4.0</version>
+    <version>v2.4.1</version>
   </parent>
   <groupId>com.xiaou</groupId>
   <artifactId>xiaou-common</artifactId>
-  <version>v2.4.0</version>
+  <version>v2.4.1</version>
   <name>xiaou-common</name>
   <description>通用工具模块</description>
   <dependencies>
@@ -136,6 +136,11 @@
       <groupId>com.alibaba.fastjson2</groupId>
       <artifactId>fastjson2</artifactId>
       <version>2.0.43</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 </project>
