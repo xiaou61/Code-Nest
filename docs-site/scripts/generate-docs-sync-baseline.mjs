@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -8,6 +8,40 @@ const __dirname = path.dirname(__filename)
 const docsRoot = path.resolve(__dirname, '..')
 const repoRoot = path.resolve(docsRoot, '..')
 const outputPath = path.resolve(docsRoot, '.vitepress', 'cache', 'docs-sync-baseline.json')
+
+function countMarkdownFiles(directory) {
+  let count = 0
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    if (entry.name === 'node_modules' || entry.name === '.vitepress') {
+      continue
+    }
+    const fullPath = path.join(directory, entry.name)
+    if (entry.isDirectory()) {
+      count += countMarkdownFiles(fullPath)
+    } else if (entry.isFile() && entry.name.endsWith('.md')) {
+      count += 1
+    }
+  }
+  return count
+}
+
+function readText(filePath) {
+  try {
+    return readFileSync(filePath, 'utf8')
+  } catch {
+    return ''
+  }
+}
+
+const rootPom = readText(path.resolve(repoRoot, 'pom.xml'))
+const projectVersion =
+  rootPom.match(/<revision>\s*([^<]+)\s*<\/revision>/)?.[1]?.trim() ||
+  rootPom.match(/<version>\s*(v?\d+\.\d+\.\d+)\s*<\/version>/)?.[1]?.trim() ||
+  'unknown'
+const mavenModules = [...rootPom.matchAll(/<module>([^<]+)<\/module>/g)].length
+const databaseSql = readText(path.resolve(repoRoot, 'sql', 'MySql', 'code_nest.sql'))
+const databaseTables = [...databaseSql.matchAll(/^\s*CREATE TABLE\b/gim)].length
+const documentPages = countMarkdownFiles(docsRoot)
 
 function runGit(command, fallback = '') {
   try {
@@ -32,6 +66,7 @@ const status = runGit('git status --porcelain', '')
 const isDirty = status.length > 0
 
 const baseline = {
+  projectVersion,
   branch,
   upstream,
   shortSha,
@@ -39,6 +74,9 @@ const baseline = {
   commitCount,
   commitTime,
   subject,
+  documentPages,
+  mavenModules,
+  databaseTables,
   isDirty,
   workingTree: isDirty ? '有未提交变更' : '工作区已清洁',
   generatedAt: new Date().toISOString(),

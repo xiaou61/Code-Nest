@@ -60,13 +60,18 @@ const buildManualChunks = (id) => {
 export default defineConfig({
   plugins: [vue()],
   resolve: {
+    preserveSymlinks: true,
     alias: {
+      '@/design-system': resolve(process.cwd(), 'node_modules/@code-nest/design-system/src'),
       '@': resolve(process.cwd(), 'src'),
     },
   },
   server: {
     port: 3001,
     open: true,
+    fs: {
+      allow: [resolve(process.cwd()), resolve(process.cwd(), '../code-nest-design-system')],
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:9999',

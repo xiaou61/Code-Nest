@@ -1,6 +1,6 @@
 # Code Nest
 
-![Version](https://img.shields.io/badge/version-v2.4.0-blue.svg)
+![Version](https://img.shields.io/badge/version-v2.4.1-blue.svg)
 ![Java](https://img.shields.io/badge/java-17-orange.svg)
 ![Spring Boot](https://img.shields.io/badge/spring%20boot-3.4.4-brightgreen.svg)
 ![Vue](https://img.shields.io/badge/vue-3.x-4fc08d.svg)
@@ -15,6 +15,20 @@ Code Nest 是一个面向开发者的成长型社区与知识运营平台，采�
 - **vue3-admin-front**：面向运营/管理员的后台，覆盖菜单/角色、内容审核、题库管理、版本追踪、任务配置、观测看板等能力。
 - **vue3-user-front**：面向开发者的用户端，提供刷题、简历制作、动态广场、博客阅读、代码分享、学习资产沉淀、通知消息等场景。
 - **xiaou-application**：多模块聚合的 Spring Boot API，整合 `xiaou-*` 业务模块，对外暴露统一的 `/api` 网关、鉴权、日志与监控。
+
+## v2.4.1 Architecture And Documentation Hardening
+
+`v2.4.1` 聚焦共享基础设施、热点链路和工程文档治理，在不改变对外 API 与数据库结构的前提下减少重复实现，并补强可验证性。
+
+### 本次版本完成
+
+- **共享设计系统**：抽取独立的 `code-nest-design-system`，用户端和管理端复用同一套组件、主题、设计令牌与组合式函数。
+- **缓存边界收敛**：新增可注入的 `RedisValueStore`，移除静态 `RedisUtil`，集合、锁和业务语义继续由模块直接使用 Redisson 表达。
+- **线程池治理**：通用 I/O 任务使用 Spring 托管的有界 `applicationIoExecutor`，独立负载保留模块专用执行器，删除静态线程池与通用并发工具。
+- **热点链路优化**：学习驾驶舱、社区热点与摘要、朋友圈、摸鱼工具、抽奖和验证码等链路减少重复查询、缓存往返与无边界并发。
+- **聚焦回归测试**：补充学习驾驶舱、WebSocket 票据、Redis 值存储和朋友圈核心服务测试。
+- **文档中心重构**：129 个 Markdown 页面按开始、架构、模块、API、运维和资料重新组织，并新增响应式主题、动态同步基线与导航审计。
+- **版本基线统一**：Maven、共享设计系统、双前端、文档站、Jar 命令与 Docker 示例统一升级到 `v2.4.1`。
 
 ## v2.4.0 Unified Backend Agent Runtime
 
@@ -359,7 +373,7 @@ mvn clean package -DskipTests
 mvn -pl xiaou-application -am spring-boot:run
 
 # 或直接运行打包后的 jar
-java -jar xiaou-application/target/xiaou-application-v2.4.0.jar --spring.profiles.active=prod
+java -jar xiaou-application/target/xiaou-application-v2.4.1.jar --spring.profiles.active=prod
 ```
 
 - API 根地址：`http://localhost:9999/api`
@@ -527,7 +541,7 @@ management:
 
 ```bash
 # 构建镜像
-docker build -t code-nest:v2.4.0 -f docker/Dockerfile .
+docker build -t code-nest:v2.4.1 -f docker/Dockerfile .
 
 # 运行容器
 docker run -d \
@@ -535,7 +549,7 @@ docker run -d \
   -p 9999:9999 \
   -e SPRING_PROFILES_ACTIVE=prod \
   --env-file docker/env/example.env \
-  code-nest:v2.4.0
+  code-nest:v2.4.1
 ```
 
 如果要把 MySQL / Redis / Java 主服务 / `llamaindex-service` 一起编排起来，推荐使用：
@@ -604,6 +618,15 @@ server {
 ## 📝 更新日志
 
 仅列出最近版本，更多历史可查看 `git log`。
+
+### v2.4.1 Architecture And Documentation Hardening
+
+- **共享前端基础**：双前端改为复用独立设计系统包，避免组件与主题继续双份漂移。
+- **缓存与并发治理**：使用可注入缓存边界和 Spring 托管执行器替代静态全局工具。
+- **热点链路优化**：学习、社区、朋友圈、摸鱼、抽奖和验证码链路减少重复查询与缓存往返。
+- **测试补强**：为学习驾驶舱、WebSocket 票据、Redis 值存储和朋友圈服务新增回归覆盖。
+- **文档工程化**：129 个页面完成分类重组，VitePress 增加响应式主题、动态基线和自动审计。
+- **版本基线升级**：Maven、共享设计系统、双前端、文档站、Jar 与 Docker 示例统一升级到 `v2.4.1`。
 
 ### v2.4.0 Unified Backend Agent Runtime
 

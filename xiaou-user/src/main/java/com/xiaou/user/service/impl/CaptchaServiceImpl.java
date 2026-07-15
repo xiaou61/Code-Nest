@@ -3,7 +3,7 @@ package com.xiaou.user.service.impl;
 import cn.hutool.captcha.CaptchaUtil;
 import cn.hutool.captcha.LineCaptcha;
 import cn.hutool.core.util.IdUtil;
-import com.xiaou.common.utils.RedisUtil;
+import com.xiaou.common.cache.RedisValueStore;
 import com.xiaou.user.service.CaptchaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 /**
  * 验证码服务实现类
@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class CaptchaServiceImpl implements CaptchaService {
 
-    private final RedisUtil redisUtil;
+    private final RedisValueStore redisValueStore;
 
     /**
      * 验证码在Redis中的key前缀
@@ -74,7 +74,7 @@ public class CaptchaServiceImpl implements CaptchaService {
             
             // 将验证码存储到Redis中，保持原样（验证时忽略大小写）
             String redisKey = CAPTCHA_KEY_PREFIX + captchaKey;
-            redisUtil.set(redisKey, captchaCode, CAPTCHA_EXPIRE_MINUTES * 60); // 转换为秒
+            redisValueStore.put(redisKey, captchaCode, Duration.ofMinutes(CAPTCHA_EXPIRE_MINUTES));
 
             // 获取验证码图片的Base64编码
             String captchaImage = lineCaptcha.getImageBase64();
@@ -103,7 +103,7 @@ public class CaptchaServiceImpl implements CaptchaService {
 
         try {
             String redisKey = CAPTCHA_KEY_PREFIX + captchaKey;
-            String storedCaptcha = (String) redisUtil.get(redisKey);
+            String storedCaptcha = redisValueStore.find(redisKey, String.class).orElse(null);
             
             if (storedCaptcha == null) {
                 log.warn("验证码已过期或不存在，key: {}", captchaKey);
@@ -133,7 +133,7 @@ public class CaptchaServiceImpl implements CaptchaService {
     public void deleteCaptcha(String captchaKey) {
         if (captchaKey != null) {
             String redisKey = CAPTCHA_KEY_PREFIX + captchaKey;
-            redisUtil.del(redisKey);
+            redisValueStore.delete(redisKey);
             log.debug("删除验证码成功，key: {}", captchaKey);
         }
     }

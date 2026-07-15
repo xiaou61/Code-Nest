@@ -21,8 +21,8 @@ import com.xiaou.points.dto.CheckinCalendarResponse;
 import com.xiaou.points.dto.PointsBalanceResponse;
 import com.xiaou.points.service.PointsService;
 import com.xiaou.web.learning.dto.LearningCockpitOverviewResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
@@ -32,6 +32,9 @@ import java.time.Year;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
@@ -40,7 +43,6 @@ import java.util.function.Supplier;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class LearningCockpitService {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -50,6 +52,7 @@ public class LearningCockpitService {
     private static final int DEFAULT_WEEKLY_HOURS = 8;
     private static final int MIN_WEEKLY_HOURS = 3;
     private static final int MAX_WEEKLY_HOURS = 40;
+    private static final long QUERY_TIMEOUT_SECONDS = 3L;
 
     private final PlanService planService;
     private final PointsService pointsService;
@@ -60,6 +63,31 @@ public class LearningCockpitService {
     private final OjRankingService ojRankingService;
     private final CareerLoopService careerLoopService;
     private final LearningCockpitRankSnapshotMapper rankSnapshotMapper;
+    private final Executor applicationIoExecutor;
+
+    public LearningCockpitService(
+            PlanService planService,
+            PointsService pointsService,
+            FlashcardStudyService flashcardStudyService,
+            InterviewLearnRecordService interviewLearnRecordService,
+            InterviewMasteryService interviewMasteryService,
+            OjSubmissionService ojSubmissionService,
+            OjRankingService ojRankingService,
+            CareerLoopService careerLoopService,
+            LearningCockpitRankSnapshotMapper rankSnapshotMapper,
+            @Qualifier("applicationIoExecutor") Executor applicationIoExecutor
+    ) {
+        this.planService = planService;
+        this.pointsService = pointsService;
+        this.flashcardStudyService = flashcardStudyService;
+        this.interviewLearnRecordService = interviewLearnRecordService;
+        this.interviewMasteryService = interviewMasteryService;
+        this.ojSubmissionService = ojSubmissionService;
+        this.ojRankingService = ojRankingService;
+        this.careerLoopService = careerLoopService;
+        this.rankSnapshotMapper = rankSnapshotMapper;
+        this.applicationIoExecutor = applicationIoExecutor;
+    }
 
     public LearningCockpitOverviewResponse getOverview(Long userId) {
         return getOverview(userId, null, null);
@@ -73,18 +101,18 @@ public class LearningCockpitService {
         LearningCockpitOverviewResponse.TargetProfile profile = resolveTargetProfile(userId, targetRole, weeklyHours);
         WeeklyTargets targets = buildTargets(profile.getTargetRole(), profile.getWeeklyHours());
 
-        PlanStatsResponse planStats = safeCall("plan.stats", () -> planService.getStatsOverview(userId), PlanStatsResponse.builder().build());
-        PointsBalanceResponse pointsBalance = safeCall("points.balance", () -> pointsService.getPointsBalance(userId), new PointsBalanceResponse());
-        FlashcardStudyStatsVO flashcardStats = safeCall("flashcard.stats", () -> flashcardStudyService.getStudyStats(userId, null), new FlashcardStudyStatsVO());
-        FlashcardHeatmapVO flashcardHeatmap = safeCall("flashcard.heatmap", () -> flashcardStudyService.getHeatmap(userId, 21), new FlashcardHeatmapVO());
-        ReviewStatsResponse reviewStats = safeCall("interview.reviewStats", () -> interviewMasteryService.getReviewStats(userId), new ReviewStatsResponse());
-        HeatmapResponse interviewHeatmap = safeCall("interview.heatmap", () -> interviewMasteryService.getHeatmap(userId, Year.now().getValue()), new HeatmapResponse());
-        Integer totalLearned = safeCall("interview.totalLearned", () -> interviewLearnRecordService.getTotalLearnedCount(userId), 0);
-        OjStatisticsVO ojStats = safeCall("oj.stats", () -> ojSubmissionService.getStatistics(userId), new OjStatisticsVO());
-        List<RankingItem> weeklyRanking = safeCall("oj.weeklyRanking", () -> ojRankingService.getRanking("weekly"), Collections.emptyList());
-        List<RankingItem> allRanking = safeCall("oj.allRanking", () -> ojRankingService.getRanking("all"), Collections.emptyList());
-
-        Map<String, Set<Integer>> checkinDayMap = loadCheckinDayMap(userId, weekStart, today);
+        OverviewData overviewData = loadOverviewData(userId, weekStart, today);
+        PlanStatsResponse planStats = overviewData.planStats();
+        PointsBalanceResponse pointsBalance = overviewData.pointsBalance();
+        FlashcardStudyStatsVO flashcardStats = overviewData.flashcardStats();
+        FlashcardHeatmapVO flashcardHeatmap = overviewData.flashcardHeatmap();
+        ReviewStatsResponse reviewStats = overviewData.reviewStats();
+        HeatmapResponse interviewHeatmap = overviewData.interviewHeatmap();
+        Integer totalLearned = overviewData.totalLearned();
+        OjStatisticsVO ojStats = overviewData.ojStats();
+        List<RankingItem> weeklyRanking = overviewData.weeklyRanking();
+        List<RankingItem> allRanking = overviewData.allRanking();
+        Map<String, Set<Integer>> checkinDayMap = overviewData.checkinDayMap();
 
         int ojWeeklySolved = findAcceptedCount(weeklyRanking, userId);
         int interviewWeeklyCount = sumInterviewCount(interviewHeatmap, weekStart, today);
@@ -165,6 +193,54 @@ public class LearningCockpitService {
         response.setTodayTasks(todayTasks);
         response.setAiReview(buildAiReview(summary, growthScore, weaknesses, nextActions));
         return response;
+    }
+
+    private OverviewData loadOverviewData(Long userId, LocalDate weekStart, LocalDate today) {
+        CompletableFuture<PlanStatsResponse> planStats = loadAsync(
+                "plan.stats", () -> planService.getStatsOverview(userId), PlanStatsResponse.builder().build());
+        CompletableFuture<PointsBalanceResponse> pointsBalance = loadAsync(
+                "points.balance", () -> pointsService.getPointsBalance(userId), new PointsBalanceResponse());
+        CompletableFuture<FlashcardStudyStatsVO> flashcardStats = loadAsync(
+                "flashcard.stats", () -> flashcardStudyService.getStudyStats(userId, null), new FlashcardStudyStatsVO());
+        CompletableFuture<FlashcardHeatmapVO> flashcardHeatmap = loadAsync(
+                "flashcard.heatmap", () -> flashcardStudyService.getHeatmap(userId, 21), new FlashcardHeatmapVO());
+        CompletableFuture<ReviewStatsResponse> reviewStats = loadAsync(
+                "interview.reviewStats", () -> interviewMasteryService.getReviewStats(userId), new ReviewStatsResponse());
+        CompletableFuture<HeatmapResponse> interviewHeatmap = loadAsync(
+                "interview.heatmap", () -> interviewMasteryService.getHeatmap(userId, Year.now().getValue()), new HeatmapResponse());
+        CompletableFuture<Integer> totalLearned = loadAsync(
+                "interview.totalLearned", () -> interviewLearnRecordService.getTotalLearnedCount(userId), 0);
+        CompletableFuture<OjStatisticsVO> ojStats = loadAsync(
+                "oj.stats", () -> ojSubmissionService.getStatistics(userId), new OjStatisticsVO());
+        CompletableFuture<List<RankingItem>> weeklyRanking = loadAsync(
+                "oj.weeklyRanking", () -> ojRankingService.getRanking("weekly"), Collections.emptyList());
+        CompletableFuture<List<RankingItem>> allRanking = loadAsync(
+                "oj.allRanking", () -> ojRankingService.getRanking("all"), Collections.emptyList());
+        CompletableFuture<Map<String, Set<Integer>>> checkinDayMap = loadAsync(
+                "points.checkinCalendar", () -> loadCheckinDayMap(userId, weekStart, today), Collections.emptyMap());
+
+        return new OverviewData(
+                planStats.join(),
+                pointsBalance.join(),
+                flashcardStats.join(),
+                flashcardHeatmap.join(),
+                reviewStats.join(),
+                interviewHeatmap.join(),
+                totalLearned.join(),
+                ojStats.join(),
+                weeklyRanking.join(),
+                allRanking.join(),
+                checkinDayMap.join()
+        );
+    }
+
+    private <T> CompletableFuture<T> loadAsync(String name, Supplier<T> supplier, T fallback) {
+        return CompletableFuture.supplyAsync(() -> safeCall(name, supplier, fallback), applicationIoExecutor)
+                .orTimeout(QUERY_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .exceptionally(error -> {
+                    log.warn("学习驾驶舱聚合调用超时或失败: {}, reason={}", name, error.getMessage());
+                    return fallback;
+                });
     }
 
     private LearningCockpitOverviewResponse.GrowthScore buildGrowthScore(
@@ -1100,6 +1176,21 @@ public class LearningCockpitService {
             log.warn("学习驾驶舱聚合调用失败: {}", name, ex);
             return fallback;
         }
+    }
+
+    private record OverviewData(
+            PlanStatsResponse planStats,
+            PointsBalanceResponse pointsBalance,
+            FlashcardStudyStatsVO flashcardStats,
+            FlashcardHeatmapVO flashcardHeatmap,
+            ReviewStatsResponse reviewStats,
+            HeatmapResponse interviewHeatmap,
+            Integer totalLearned,
+            OjStatisticsVO ojStats,
+            List<RankingItem> weeklyRanking,
+            List<RankingItem> allRanking,
+            Map<String, Set<Integer>> checkinDayMap
+    ) {
     }
 
     private static class WeeklyTargets {

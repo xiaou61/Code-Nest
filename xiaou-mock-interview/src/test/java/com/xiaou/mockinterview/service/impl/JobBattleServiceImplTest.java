@@ -16,10 +16,11 @@ import com.xiaou.mockinterview.dto.response.JobBattleMatchEngineResult;
 import com.xiaou.mockinterview.mapper.JobBattleMatchRecordMapper;
 import com.xiaou.mockinterview.mapper.JobBattlePlanRecordMapper;
 import com.xiaou.mockinterview.service.CareerLoopService;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -28,6 +29,8 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.assertTimeout;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -54,8 +57,26 @@ class JobBattleServiceImplTest {
     @Mock
     private CareerLoopService careerLoopService;
 
-    @InjectMocks
     private JobBattleServiceImpl jobBattleService;
+
+    private ExecutorService applicationIoExecutor;
+
+    @BeforeEach
+    void setUp() {
+        applicationIoExecutor = Executors.newCachedThreadPool();
+        jobBattleService = new JobBattleServiceImpl(
+                aiJobBattleService,
+                planRecordMapper,
+                matchRecordMapper,
+                careerLoopService,
+                applicationIoExecutor
+        );
+    }
+
+    @AfterEach
+    void tearDown() {
+        applicationIoExecutor.shutdownNow();
+    }
 
     @Test
     void shouldRunMatchEngineUsingAnalyzeTargetAndRankTargets() {

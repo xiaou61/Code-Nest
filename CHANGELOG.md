@@ -6,6 +6,32 @@
 
 ## [Unreleased]
 
+## [v2.4.1] - 2026-07-15
+
+### Added
+
+- 新增独立的 `code-nest-design-system` 包，由用户端和管理端共享组件、主题、设计令牌与组合式函数。
+- 新增可注入的 `RedisValueStore` 和 Spring 托管的有界 `applicationIoExecutor`。
+- 新增学习驾驶舱、WebSocket 票据、Redis 值存储和朋友圈核心服务的聚焦回归测试。
+- 重构 VitePress 文档中心，新增分类首页、响应式工程手册主题、动态同步基线和导航完整性审计。
+
+### Changed
+
+- 学习驾驶舱、社区热点与摘要、朋友圈、摸鱼工具、抽奖和验证码等热点链路减少重复查询、缓存往返与无边界并发。
+- 缓存、锁、限流和执行器改为依赖注入或模块自有实现，明确基础设施与领域语义边界。
+- 129 个 Markdown 页面重组为开始、架构、模块、API、运维和资料六个一级入口。
+- 后端 Maven、共享设计系统、管理端前端、用户端前端、文档站和部署示例统一升级到 `v2.4.1`。
+
+### Removed
+
+- 删除双前端内重复的设计系统源码，统一从 `code-nest-design-system` 引用。
+- 删除静态 `RedisUtil`、`ThreadPoolUtils` 和 `ConcurrentUtils`，避免全局状态与无边界资源管理。
+
+### Migration
+
+- 本版本不新增数据库迁移、环境变量或对外 API 兼容性要求。
+- 前端依赖仍通过仓库内 `file:../code-nest-design-system` 安装，无需发布外部 npm 包。
+
 ## [v2.4.0] - 2026-07-14
 
 ### Added

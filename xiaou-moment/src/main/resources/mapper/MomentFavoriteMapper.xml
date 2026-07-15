@@ -16,6 +16,11 @@
         VALUES (#{momentId}, #{userId}, NOW())
     </insert>
 
+    <insert id="insertIfAbsent" parameterType="com.xiaou.moment.domain.MomentFavorite" useGeneratedKeys="true" keyProperty="id">
+        INSERT IGNORE INTO moment_favorites (moment_id, user_id, create_time)
+        VALUES (#{momentId}, #{userId}, NOW())
+    </insert>
+
     <!-- 删除收藏记录 -->
     <delete id="delete">
         DELETE FROM moment_favorites

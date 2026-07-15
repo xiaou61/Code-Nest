@@ -1,84 +1,82 @@
 # 版本历史
 
-这页建议分成两个视角来读：
+本页同时回答两个问题：仓库版本线如何演进，以及产品内版本墙如何维护。仓库版本以 Git、发布配置和 [文档同步基线](/reference/docs-sync-baseline) 为证据；用户可见公告由后台 `/system/version` 和用户端 `/version-history` 管理。
 
-1. **Git 演进视角**：项目真实是怎么从 `v1.8.x`、`v2.0.x` 一路演进到 `v2.2.x` 的。
-2. **产品内版本墙视角**：后台 `/system/version` 和用户端 `/version-history` 这套功能本身是怎么实现、怎么发布、怎么维护的。
+## 推荐阅读顺序
 
-如果你只是想给用户写一条版本公告，看下面的“产品内版本墙”部分就够了。
-如果你想回答“这个仓库最近几版到底做了什么、哪些是大版本、哪些只是补强批次”，先看下面的 Git 演进视角。
+1. 先看“版本线怎么看”，分清开发分支、发布版本和 tag。
+2. 再看 `v2.0.0` 到 `v2.4.x` 的关键节点，理解 AI Runtime、工程治理、生产交付和平台化优化的演进。
+3. 需要写发布说明时，继续看 [变更日志](/guide/changelog) 和 [版本公告与发版交接模板](/guide/version-release-handoff-template)。
+4. 需要维护产品内版本墙时，直接跳到“产品内版本墙视角”。
 
-## 推荐学习顺序
-
-1. 先看“版本线怎么看”，建立整个仓库的演进脑图。
-2. 再看 `v2.0.0` 到 `v2.2.x` 的关键版本节点，理解这条主线是怎么从 AI Runtime 重构一路走到工程质量与文档治理。
-3. 然后看“当前状态怎么判断”，理解 tag、分支、README 版本段和文档基线之间的关系。
-4. 最后再看产品内版本墙的接口、表结构、状态流转和写作规范。
-
-## 先看结论
-
-如果只用一句话概括这条版本线，可以这样理解：
+## 版本主线概览
 
 | 阶段 | 关键词 | 主要变化 |
 | --- | --- | --- |
 | `v1.8.1` ~ `v1.8.2` | 学习闭环与求职闭环 | 学习资产、Career Loop、内容到学习资产沉淀 |
 | `v2.0.0` | AI Runtime 重构 | 移除 Coze，统一到 `LangChain4j + LangGraph4j + LlamaIndex` |
-| `v2.0.1` | 重构后的功能补齐 | AI 治理总览、OJ 赛事增强、文件预览、积分导出 |
-| `v2.1.0` | Growth Intelligence | 用户成长驾驶舱 + 管理端 AI 治理中心 |
-| `v2.1.1` ~ `v2.1.2` | 安全与聊天室稳定性 | 文件权限、WebSocket 票据、限流、失败态闭环 |
-| `v2.2.0` | 工程质量与文档治理 | 异常出口、参数校验、Mapper SQL、前端规范、独立 VitePress 文档站 |
+| `v2.0.1` ~ `v2.1.2` | 功能补齐与稳定化 | AI 治理、成长驾驶舱、文件权限、WebSocket 票据与限流 |
+| `v2.2.0` ~ `v2.2.2` | 工程质量与文档治理 | Mapper 硬化、前端规范、独立 VitePress 文档站与协作治理 |
+| `v2.3.0` ~ `v2.3.2` | 生产交付与体验修复 | 双端 UI、统一 CI/CD、自动部署、版本分页和首页首屏修复 |
+| `v2.4.0` | Agent 平台化 | 管理员 Agent Runtime、工具注册、权限确认、审计与质量门禁 |
+| `v2.4.1` | 架构与热点链路优化 | 共享设计系统、缓存与线程池治理、批量查询、回归测试与文档中心重构 |
 
 ## 版本线怎么看
 
-这个仓库的“版本记录”不只存在于一个地方，而是分散在四类证据里：
+同一个“当前版本”在不同语境下含义不同，判断时要同时看以下证据：
 
-| 来源 | 用途 | 适合回答什么问题 |
+| 来源 | 用途 | 当前示例 |
 | --- | --- | --- |
-| Git tag | 正式切过哪些版本点 | “仓库明确打过哪些 tag” |
-| Git commit / PR merge | 某个版本批次真实是怎么落地的 | “这一版实际改了什么” |
-| README 更新日志 | 面向读者的版本摘要 | “这一版对外怎么描述” |
-| 产品内版本墙 | 面向用户的产品公告 | “用户在前台能看到什么” |
+| Git 分支 | 正在开发哪条工作线 | `v2.4.1` |
+| Maven `revision` 与前端 `package.json` | 当前构建产物声明的版本 | `v2.4.1` |
+| Git tag | 已形成的正式发布锚点 | `v2.4.1` |
+| Git commit / PR merge | 某个版本实际落地了什么 | `bce58a7` 等提交 |
+| README 与变更日志 | 面向维护者和读者的版本摘要 | [变更日志](/guide/changelog) |
+| 产品内版本墙 | 面向最终用户的公告 | `/version-history` |
 
-当前看到的实际情况是：
-
-- 正式 tag 一直打到 `V2.0.0`
-- `v2.0.1`、`v2.1.0`、`v2.1.2` 之后更多通过 **release commit / PR merge / README 版本段** 来表达
-- `v2.2.0` 则明显已经进入 **工程质量 + 文档治理批次持续推进** 的状态
-
-所以更稳的读法不是只看 tag，而是：
-
-**tag 看“官方锚点”，git log 看“真实演进过程”，README 看“对外摘要”。**
+因此不要仅凭分支名宣布发布，也不要因为 package 版本尚未提升就忽略正在进行的开发线。当前统一口径是：**开发线、构建产物和最近正式发布版本均为 `v2.4.1`。**
 
 ## Git 演进视角
 
-下面这部分按照真实提交来整理，不是按 PRD 想象出来的时间线。
+下面按真实提交和发布锚点整理；每次构建文档站时，[文档同步基线](/reference/docs-sync-baseline) 会记录当时的分支与提交。
 
-### `v2.2.0` 当前工作线
+### `v2.4.1` 架构与文档治理发布
 
-这是当前仓库最明显的主线，但它和 `v2.0.0` 不一样，**不是一个单点 release commit 就结束**，而是一串持续推进的治理批次。
+`v2.4.1` 从 `v2.4.0` 发布点继续推进，重点不是堆叠新页面，而是减少重复基础设施、修正热点链路和提升可验证性。
 
-关键提交：
+| 日期 | 提交或批次 | 含义 |
+| --- | --- | --- |
+| 2026-07-14 | `bce58a7` `refactor: complete v2.4.1 optimizations` | 抽取共享设计系统，治理缓存与线程池，优化学习、社区、朋友圈等热点链路并补测试 |
+| 2026-07-15 | `9169c6d` `docs: reorganize and harden documentation site` | 重组分类与导航，新增工程手册主题、自动同步基线和导航审计 |
+| 2026-07-15 | tag `v2.4.1` | 架构、热点链路和文档治理补丁正式发布 |
+
+这一工作线的发布状态和详细变化以 [变更日志](/guide/changelog) 为准。
+
+### `v2.4.0` Agent 平台化发布
+
+| 日期 | 提交或 tag | 含义 |
+| --- | --- | --- |
+| 2026-07-14 | `8166255` `feat(agent): add unified backend runtime and quality gates` | 建立后端 Agent Runtime 与质量门禁 |
+| 2026-07-14 | `5bb48f8` `chore(release): prepare v2.4.0` | 同步发布版本与发布资料 |
+| 2026-07-14 | tag `v2.4.0` | 当前最近的正式发布锚点 |
+
+这一版将 Agent 规划、权限、确认、执行、审计与幂等能力收口到后端，管理端只负责交互和结果展示。
+
+### `v2.3.x` 生产交付与体验修复
+
+`v2.3.0` 建立双端 UI 优化和部署脚本，`v2.3.1` 接入统一 CI/CD、生产备份和失败回滚，`v2.3.2` 修复版本分页与首页首屏空白。`V2.3.1` 与 `v2.4.0` 都可以从 tag 追溯。
+
+### `v2.2.x` 工程质量与文档治理
+
+这一阶段从单点业务功能转向持续治理：
 
 | 日期 | 提交 | 含义 |
 | --- | --- | --- |
-| 2026-04-26 | `857eacf` `chore: harden code quality for v2.2.0` | 明确把版本主题收敛到工程质量治理 |
+| 2026-04-26 | `857eacf` `chore: harden code quality for v2.2.0` | 将版本主题收敛到工程质量治理 |
 | 2026-05-02 | `9551452` `chore: continue v2.2.0 mapper hardening` | 继续推进 Mapper / SQL 级别硬化 |
-| 2026-05-16 | `0dd1819` `docs: add standalone VitePress site` | 独立文档站起点 |
-| 2026-05-16 ~ 2026-05-20 | 一系列 `docs:` 提交 | 持续补模块文档、索引、运维、回归、交接、事故响应等 |
+| 2026-05-16 | `0dd1819` `docs: add standalone VitePress site` | 建立独立文档站 |
 
-这一版真正的关键词不是“新增某个业务功能”，而是：
-
-1. 统一异常出口和参数校验。
-2. 收敛 Mapper SQL 和类型安全。
-3. 补齐前端构建、Lint、样板治理。
-4. 建立独立 VitePress 文档站和维护闭环。
-
-对应资料：
-
-- [README 更新日志](D:/onenodes/githubprojectstart/Code-Nest/README.md)
-- [v2.2.0 工程质量计划](D:/onenodes/githubprojectstart/Code-Nest/AI-DOCS/Archive/历史版本/2026-04-26-v2.2.0-code-quality-hardening.md)
-- [v2.2.0 文档计划](/roadmap/v2.2.0-docs-plan)
-- [文档同步基线](/reference/docs-sync-baseline)
+历史建设过程保留在 [路线图归档](/roadmap/)，现行维护规则见 [文档维护规范](/guide/documentation-maintenance)。
 
 ### `v2.1.2` 聊天室防刷增强
 
@@ -99,8 +97,8 @@
 
 对应资料：
 
-- [README v2.1.2 段落](D:/onenodes/githubprojectstart/Code-Nest/README.md)
-- [v2.1.2 审计记录](D:/onenodes/githubprojectstart/Code-Nest/AI-DOCS/Development/Code-Nest优化审计报告.md)
+- [仓库 README](https://github.com/xiaou61/Code-Nest/blob/master/README.md) 的 `v2.1.2` 段落
+- 仓库内 `AI-DOCS/Development/Code-Nest优化审计报告.md`
 
 ### `v2.1.1` 安全加固稳定批次
 
@@ -138,9 +136,9 @@
 
 对应资料：
 
-- [README v2.1.0 段落](D:/onenodes/githubprojectstart/Code-Nest/README.md)
-- [v2.1.0 Growth Intelligence 设计](D:/onenodes/githubprojectstart/Code-Nest/AI-DOCS/Archive/历史版本/2026-04-26-v2.1.0-growth-intelligence-design.md)
-- [v2.1.0 Growth Intelligence 实施计划](D:/onenodes/githubprojectstart/Code-Nest/AI-DOCS/Archive/历史版本/2026-04-26-v2.1.0-growth-intelligence.md)
+- [仓库 README](https://github.com/xiaou61/Code-Nest/blob/master/README.md) 的 `v2.1.0` 段落
+- 仓库内 `AI-DOCS/Archive/历史版本/2026-04-26-v2.1.0-growth-intelligence-design.md`
+- 仓库内 `AI-DOCS/Archive/历史版本/2026-04-26-v2.1.0-growth-intelligence.md`
 
 ### `v2.0.1` 重构后功能补齐
 
@@ -213,15 +211,15 @@
 | --- | --- |
 | 仓库当前工作线是什么 | `pom.xml`、前端 `package.json`、README 版本 badge |
 | 文档和代码同步到哪一批 | [文档同步基线](/reference/docs-sync-baseline) |
-| 当前大版本主题是什么 | README 的最新版本段 + [v2.2.1 文档计划](/roadmap/v2.2.1-docs-plan) |
+| 当前大版本主题是什么 | README 最新版本段 + [变更日志](/guide/changelog) |
 | 产品内给用户展示什么版本公告 | `/version-history` 和后台 `/system/version` |
 
-当前仓库的状态更接近：
+当前仓库状态：
 
-- **代码主线版本**：`v2.2.0`
-- **最近清晰 release 锚点**：`v2.1.2`
-- **最近正式 tag 锚点**：`V2.0.0`
-- **当前文档治理主线**：`v2.2.1` 持续维护与版本记录方法补强
+- **当前发布线**：`v2.4.1`
+- **当前构建产物版本**：`v2.4.1`，以 Maven `revision` 和各前端 `package.json` 为准
+- **最近正式 tag**：`v2.4.1`
+- **当前文档基线**：由 [文档同步基线](/reference/docs-sync-baseline) 在构建前动态刷新
 
 ## 产品内版本墙视角
 

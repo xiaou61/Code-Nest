@@ -34,12 +34,17 @@ export default defineConfig({
     },
     plugins: [vue()],
     resolve: {
+      preserveSymlinks: true,
       alias: {
+        '@/design-system': resolve(__dirname, 'node_modules/@code-nest/design-system/src'),
         '@': resolve(__dirname, 'src')
       }
     },
     server: {
       port: 3001,
+      fs: {
+        allow: [resolve(__dirname), resolve(__dirname, '../code-nest-design-system')]
+      },
       proxy: {
         '/api': {
           target: 'http://localhost:9999',

@@ -77,7 +77,7 @@
 | --- | --- | --- | --- | --- |
 | [开发者工具](/modules/dev-tools) | 至少一项核心工具输入输出、复制或下载动作、路由打开 | 非法输入、空输入、超长输入 | 前端本地逻辑、浏览器 API | 模块页、[前端路由索引](/reference/frontend-routes)、操作手册 |
 | [摸鱼工具](/modules/moyu) | 至少一个工具页、一个数据列表或计算器、后台配置或统计 | 空数据、缓存过期、未登录限制或非法输入 | Redis、工具表、定时任务 | 模块页、[数据表索引](/reference/database-tables)、验证记录 |
-| [版本历史](/modules/version-history) | 版本列表、详情、后台新增或编辑、状态流转 | 重复版本号、未发布版本公开可见、排序错误 | 版本表、后台权限 | 模块页、[数据表索引](/reference/database-tables)、[v2.2.1 文档计划](/roadmap/v2.2.1-docs-plan)、[按 Git Log 重写版本更新记录](/guide/git-log-release-notes) |
+| [版本历史](/modules/version-history) | 版本列表、详情、后台新增或编辑、状态流转 | 重复版本号、未发布版本公开可见、排序错误 | 版本表、后台权限 | 模块页、[数据表索引](/reference/database-tables)、[变更日志](/guide/changelog)、[按 Git Log 重写版本更新记录](/guide/git-log-release-notes) |
 
 ## 快速断点设置
 

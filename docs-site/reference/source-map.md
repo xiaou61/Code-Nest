@@ -12,7 +12,7 @@ Code-Nest/
 ├── xiaou-sensitive-api/   # 敏感词 API 模块 (跨模块调用契约)
 ├── xiaou-user/            # 用户管理模块
 ├── xiaou-system/          # 系统管理模块 (管理员、角色、日志)
-├── xiaou-ai/              # AI 功能模块 (Spring AI + LangGraph4j)
+├── xiaou-ai/              # AI 功能模块 (LangChain4j + LangGraph4j + LlamaIndex)
 ├── xiaou-interview/       # 面试题库模块
 ├── xiaou-mock-interview/  # 模拟面试与求职模块
 ├── xiaou-oj/              # 在线判题模块
@@ -283,7 +283,7 @@ xiaou-{module}/
 
 ```
 vue3-user-front/
-├── package.json              # code-nest-user-desktop v2.2.1
+├── package.json              # 用户端包名与发布版本（以文件内容为准）
 ├── vite.config.js            # Vite 配置 (端口 3001, 代理 /api→9999)
 ├── electron/                 # Electron 打包配置
 ├── src/
@@ -341,7 +341,7 @@ vue3-user-front/
 
 ```
 vue3-admin-front/
-├── package.json              # code-nest-admin-desktop v2.2.1
+├── package.json              # 管理端包名与发布版本（以文件内容为准）
 ├── vite.config.js            # Vite 配置 (端口 3000, 代理 /api→9999)
 ├── electron/                 # Electron 打包配置
 ├── src/

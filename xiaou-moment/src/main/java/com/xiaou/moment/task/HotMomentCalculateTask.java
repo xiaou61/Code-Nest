@@ -1,15 +1,16 @@
 package com.xiaou.moment.task;
 
-import com.xiaou.common.utils.RedisUtil;
 import com.xiaou.moment.domain.Moment;
 import com.xiaou.moment.mapper.MomentMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RScoredSortedSet;
+import org.redisson.api.RedissonClient;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.time.Duration;
 
 /**
  * 热门动态计算定时任务
@@ -20,7 +21,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class HotMomentCalculateTask {
     
-    private final RedisUtil redisUtil;
+    private final RedissonClient redissonClient;
     private final MomentMapper momentMapper;
     
     /**
@@ -51,8 +52,7 @@ public class HotMomentCalculateTask {
             }
             
             // 2. 获取Redisson的Sorted Set
-            RScoredSortedSet<Long> hotMomentsSet = redisUtil.getRedissonClient()
-                .getScoredSortedSet(HOT_MOMENTS_KEY);
+            RScoredSortedSet<Long> hotMomentsSet = redissonClient.getScoredSortedSet(HOT_MOMENTS_KEY);
             
             // 3. 清空旧数据
             hotMomentsSet.clear();
@@ -65,7 +65,7 @@ public class HotMomentCalculateTask {
             }
             
             // 5. 设置过期时间（10分钟）
-            redisUtil.expire(HOT_MOMENTS_KEY, CACHE_EXPIRE_SECONDS);
+            hotMomentsSet.expire(Duration.ofSeconds(CACHE_EXPIRE_SECONDS));
             
             log.info("定时任务：热门动态计算完成，共计算 {} 条热门动态", hotMoments.size());
         } catch (Exception e) {

@@ -1,6 +1,6 @@
 # 整体架构
 
-Code-Nest 是一个基于 Spring Boot 3.4.4 + Vue 3 的全栈学习成长平台，采用**单体模块化架构**（Modular Monolith），将业务拆分为 24 个独立 Maven 子模块，最终由 `xiaou-application` 聚合启动为一个 JAR。
+Code-Nest 是一个基于 Spring Boot 3.4.4 + Vue 3 的全栈学习成长平台，采用**单体模块化架构**（Modular Monolith）。根 POM 声明 28 个 Maven 子模块，最终由 `xiaou-application` 聚合启动为一个 JAR。
 
 ## 技术栈总览
 
@@ -9,12 +9,12 @@ Code-Nest 是一个基于 Spring Boot 3.4.4 + Vue 3 的全栈学习成长平台�
 | 运行时 | Java | 17 |
 | 后端框架 | Spring Boot | 3.4.4 |
 | ORM | MyBatis-Plus | 3.5.x |
-| 数据库 | MySQL | 8.0+，共 142 张表 |
+| 数据库 | MySQL | 8.0+，当前主库基线 145 张表 |
 | 缓存 | Redis | 7.x + Redisson |
 | 鉴权 | Sa-Token | 多端鉴权 (User + Admin) |
-| AI 接入 | Spring AI + LangGraph4j | Prompt 编排 / RAG / 图执行 |
+| AI 接入 | LangChain4j + LangGraph4j + LlamaIndex | Prompt、图执行、RAG 和结构化输出 |
 | 文件存储 | 本地磁盘 / S3 兼容 | 可切换 |
-| 实时通信 | Spring WebSocket | STOMP 协议 |
+| 实时通信 | Spring WebSocket | 原生 JSON 消息协议 + 一次性票据 |
 | 前端 (用户端) | Vue 3 + Vite | Element Plus |
 | 前端 (管理端) | Vue 3 + Vite | Element Plus |
 | 文档站 | VitePress | docs-site/ |
@@ -93,10 +93,10 @@ java -jar code-nest.jar --spring.profiles.active=prod
 |------|------|
 | 部署方式 | 单 JAR + 外置配置 |
 | 前端 | Nginx 托管静态资源，反向代理后端 API |
-| 数据库 | 单 MySQL 实例，共 142 张表 |
+| 数据库 | 单 MySQL 实例，当前主库基线 145 张表 |
 | 缓存 | Redis db3（业务缓存 + Redisson）+ db4（Sa-Token 会话） |
 | 文件 | 本地磁盘存储（默认），可切换 S3 / MinIO |
-| WebSocket | 与 HTTP 共用 9999 端口，STOMP 协议，Nginx 需单独配置 Upgrade 代理 |
+| WebSocket | 与 HTTP 共用 9999 端口，端点 `/ws/chat`，Nginx 需配置 Upgrade 代理 |
 
 ## 双端鉴权架构
 
@@ -245,7 +245,7 @@ xiaou-application (聚合)
 
 ## Maven 模块清单
 
-Code-Nest 当前包含 24 个 Maven 子模块，最终由 `xiaou-application` 聚合启动：
+Code-Nest 当前包含 28 个 Maven 子模块，最终由 `xiaou-application` 聚合启动：
 
 | 分组 | 模块 | 说明 |
 |------|------|------|
@@ -348,7 +348,7 @@ curl http://localhost:9999/api/actuator/prometheus
 | 单体 vs 微服务 | 模块化单体 | 团队规模小，模块化足以隔离，避免分布式复杂度 |
 | 多端鉴权 | Sa-Token 多 Stp | 用户端与管理端完全隔离，Token 不互通，Redis db4 统一存储 |
 | ORM 选择 | MyBatis-Plus | 灵活 SQL + 代码生成，适合复杂查询场景 |
-| AI 接入 | Spring AI + LangGraph4j | Prompt 编排 + RAG + 图执行，支持复杂 AI 流程 |
+| AI 接入 | LangChain4j + LangGraph4j + LlamaIndex | Prompt 编排 + RAG + 图执行，支持复杂 AI 流程 |
 | AI 降级 | 自动降级 | AI 不可用时返回默认提示，不影响其他业务 |
 | 文件存储 | 抽象接口 + 本地默认 | 最小依赖，可扩展 S3/OSS/MinIO |
 | API 模块 | 接口与实现分离 | 防止循环依赖，明确模块间契约 |

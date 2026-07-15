@@ -1,107 +1,52 @@
-# AI-DOCS 文档结构优化完成报告
+# AI-DOCS 分类索引
 
-## 1. 项目概述
+`AI-DOCS` 保存产品需求、技术专题、测试证据、部署材料和历史归档。与当前代码直接对应的架构、模块、API、操作和运维文档统一维护在 `docs-site`。
 
-已成功创建标准化的AI-DOCS文档结构，并完成现有文档的迁移。
+## 当前规模
 
-## 2. 目录结构
+截至 2026-07-14，`AI-DOCS` 共 177 个 Markdown 文件：
 
-```
-AI-DOCS/
-├── PRD/                    # 产品需求文档 (32个文件)
-├── Technical/              # 技术文档 (14个文件)
-├── Testing/                # 测试文档 (待填充)
-├── Deployment/             # 部署文档
-├── User/                   # 用户文档
-├── Development/            # 开发文档
-├── Archive/                # 归档文档 (包含原docs文件夹)
-└── assets/                 # 公共资源 (图片、模板)
-```
+| 分类 | 文件数 | 定位 |
+| --- | ---: | --- |
+| `PRD` | 32 | 产品目标、范围、流程和验收标准 |
+| `Technical` | 22 | 技术专题、面试亮点和设计说明 |
+| `Development` | 8 | 环境、规范和贡献材料 |
+| `Testing` | 5 | 测试计划、用例和报告 |
+| `User` | 4 | 用户材料和 FAQ |
+| `Deployment` | 3 | 部署专题材料 |
+| `assets` | 7 | 模板和文档资源 |
+| `Archive` | 95 | 历史版本、废弃方案和原始文档快照 |
+| 根索引 | 1 | 本页 |
 
-## 3. 迁移统计
+## 分类入口
 
-- **总文件数**: 553个
-- **PRD文档**: 32个
-- **技术文档**: 14个
-- **归档文档**: 包含原docs文件夹所有内容
-- **图片资源**: 包含所有手册截图
+- [PRD](./PRD/README.md)：需求和验收边界。
+- [技术专题](./Technical/README.md)：架构专题、技术亮点和专项分析。
+- [开发材料](./Development/README.md)：环境、规范和贡献流程。
+- [测试材料](./Testing/README.md)：测试计划、用例和结果证据。
+- [用户材料](./User/README.md)：用户手册与 FAQ 原始资料。
+- [部署材料](./Deployment/README.md)：部署专题和交付说明。
+- [历史归档](./Archive/README.md)：不再作为当前实现依据的文档。
+- [资源与模板](./assets/README.md)：PRD、技术、测试和交付模板。
 
-## 4. 文档规范
+## 与 VitePress 的关系
 
-### 4.1 命名规范
-- PRD文档: `{模块名称}PRD-v{版本号}.md`
-- 技术文档: `{主题名称}.md`
-- 测试文档: `{模块名称}测试{文档类型}-v{版本号}.md`
+| 内容 | 默认入口 |
+| --- | --- |
+| 当前系统架构、模块、API 和运维事实 | `docs-site` |
+| 产品需求和设计背景 | `AI-DOCS/PRD`、`AI-DOCS/Technical` |
+| 测试过程和交付证据 | `AI-DOCS/Testing` |
+| 历史方案和旧版本副本 | `AI-DOCS/Archive` |
 
-### 4.2 版本管理
-- 使用语义化版本号
-- 旧版本文档移至Archive目录
-- 保持文档与代码同步
+当一份专题材料影响当前开发或运维流程时，在 VitePress 中写一份简洁、可执行的现行说明，并链接到这里的背景材料。不要直接把归档文档加入主导航。
 
-## 5. 模板创建
+## 维护规则
 
-已创建以下文档模板：
-- PRD模板
-- 技术文档模板
-- 测试文档模板
-- 部署文档模板
-- 用户文档模板
-- 开发文档模板
+1. 新文档进入最具体的分类目录，不放在 `AI-DOCS` 根目录。
+2. 文件名说明主题；需要独立版本管理的 PRD 使用语义化版本号。
+3. 当前实现发生变化时，优先更新 `docs-site`，再更新相关专题材料。
+4. 废弃方案移动到 `Archive`，并在标题或开头标明状态。
+5. 每个分类的 `README.md` 维护入口和新增规则。
+6. 不在两处维护相同的接口表、模块数、数据库表数或环境变量清单。
 
-## 6. 链接更新
-
-已更新以下文件中的文档链接：
-- README.md
-- CONTRIBUTING.md
-- SKILL.md
-- docs-site/ (多个文件)
-
-## 7. 后续建议
-
-### 7.1 文档维护
-1. 定期更新文档，保持与代码同步
-2. 废弃文档及时归档
-3. 使用版本控制管理文档变更
-
-### 7.2 文档审查
-1. PRD需要产品经理审查
-2. 技术文档需要架构师审查
-3. 测试文档需要测试负责人审查
-
-### 7.3 文档工具
-1. 支持Markdown编写
-2. 支持图表 (Mermaid, PlantUML)
-3. 支持代码高亮
-
-## 8. 注意事项
-
-1. 原docs文件夹已移动至 `AI-DOCS/Archive/docs-original`
-2. 所有文档链接已更新指向AI-DOCS
-3. 文档模板位于 `AI-DOCS/assets/templates/`
-4. 每个目录都有README.md说明文档规范
-
-## 9. 文件清单
-
-### 主要目录
-- `AI-DOCS/PRD/` - 产品需求文档
-- `AI-DOCS/Technical/` - 技术文档
-- `AI-DOCS/Testing/` - 测试文档
-- `AI-DOCS/Deployment/` - 部署文档
-- `AI-DOCS/User/` - 用户文档
-- `AI-DOCS/Development/` - 开发文档
-- `AI-DOCS/Archive/` - 归档文档
-- `AI-DOCS/assets/` - 公共资源
-
-### 模板文件
-- `AI-DOCS/assets/templates/PRD-template.md`
-- `AI-DOCS/assets/templates/Technical-template.md`
-- `AI-DOCS/assets/templates/Testing-template.md`
-- `AI-DOCS/assets/templates/Deployment-template.md`
-- `AI-DOCS/assets/templates/User-template.md`
-- `AI-DOCS/assets/templates/Development-template.md`
-
----
-
-**完成时间**: 2026-05-29
-**执行者**: AI Assistant
-**状态**: 已完成
+VitePress 的分类和校验规则见 `docs-site/guide/documentation-maintenance.md`。

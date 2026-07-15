@@ -1,14 +1,15 @@
 {
   "name": "code-nest-docs-site",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "private": true,
   "type": "module",
   "scripts": {
     "sync:baseline": "node ./scripts/generate-docs-sync-baseline.mjs",
+    "audit": "node ./scripts/audit-docs.mjs",
     "postinstall": "npm run sync:baseline",
     "predev": "npm run sync:baseline",
     "dev": "vitepress dev . --host 0.0.0.0",
-    "prebuild": "npm run sync:baseline",
+    "prebuild": "npm run sync:baseline && npm run audit",
     "build": "vitepress build .",
     "prepreview": "npm run sync:baseline",
     "preview": "vitepress preview . --host 0.0.0.0"

@@ -1,27 +1,32 @@
 # AI 结构化输出 Schema 索引
 
-本页索引 AI 模块所有结构化输出 DTO（Structured Output）的 Schema 定义。AI 模块使用 Spring AI 的 `BeanOutputConverter` + JSON Schema 驱动，将大模型输出反序列化为强类型 Java 对象。每条 Schema 都绑定一个 Prompt 模板，构成「Prompt + Schema = 任务单元」的组合。
+本页索引 AI 模块的结构化输出契约（Structured Output）。当前实现使用 LangChain4j 调用模型，由 `AiStructuredOutputSpec` 显式绑定 Prompt、根类型和字段约束；同一份契约既用于运行时校验，也能导出 JSON Schema。场景服务解析模型 JSON 后再映射到业务 DTO，避免 Prompt、校验规则和返回结构长期分叉。
 
 ## 架构总览
 
 ```
-AiStructuredOutputSpec (枚举注册)
-  ├── scene → Prompt 模板 ID
-  ├── outputClass → Schema DTO 类
-  └── converter → BeanOutputConverter&lt;T&gt; (自动生成 JSON Schema)
+AiStructuredOutputCatalog
+  └── AiStructuredOutputSpec
+      ├── promptSpec → AiPromptSpec
+      ├── rootType → OBJECT / ARRAY
+      ├── field contract → 类型、必填、范围和枚举约束
+      ├── validateObject / validateArray → 运行时校验
+      └── jsonSchema → Draft 2020-12 Schema
 
-AiPromptSpec (枚举注册)
-  ├── id → Prompt 模板 ID
-  ├── systemPrompt → 系统提示词
-  └── userPromptTemplate → 用户提示词模板 (Velocity)
+AiPromptCatalog
+  └── AiPromptSpec (record)
+      ├── key + version → promptId
+      ├── systemPrompt → 系统提示词
+      ├── userTemplate → LangChain4j PromptTemplate
+      └── maxCompletionTokens → 可选场景预算
 ```
 
 **调用链路：**
-1. 前端请求 → Controller → `AiSceneService`
-2. `AiSceneService` 从 `AiStructuredOutputSpec` 获取 `outputClass` + `converter`
-3. 从 `AiPromptSpec` 获取 Prompt 模板，注入变量
-4. 调用 LLM，输出 JSON → `converter.convert()` 反序列化 → 强类型 DTO
-5. DTO 返回给调用方
+1. 前端请求进入 Controller，再转到对应的 Scene Support 或业务服务。
+2. 服务从领域 Prompt holder 获取 `AiPromptSpec`，用 LangChain4j `PromptTemplate` 注入命名变量。
+3. `AiModelFactory` 调用模型并返回文本结果。
+4. `AiJsonResponseParser` 提取 JSON，领域 `AiStructuredOutputSpec` 校验根类型、字段类型、范围和枚举值。
+5. 校验通过后由场景服务映射为业务 DTO；失败时进入该场景定义的降级或错误处理。
 
 ## 面试模块 Schema
 
@@ -531,51 +536,59 @@ AI 模块使用 LangGraph4j 实现多轮对话的状态机，每个场景有独�
 
 ## Prompt 模板注册机制
 
-所有 Prompt 通过 `AiPromptSpec` 枚举注册，运行时自动加载：
+Prompt 以不可变的 `AiPromptSpec` record 表达，按领域放在静态 holder 中，再由 `AiPromptCatalog` 汇总：
 
 ```java
-public enum AiPromptSpec {
-    INTERVIEW_GENERATE("interview.generate", systemPrompt, userPromptTemplate),
-    INTERVIEW_EVALUATE("interview.evaluate", systemPrompt, userPromptTemplate),
-    OJ_CODE_REVIEW("oj.codeReview", systemPrompt, userPromptTemplate),
-    // ...
-    ;
+public final class InterviewPromptSpecs {
+    public static final AiPromptSpec EVALUATE_ANSWER = AiPromptSpec.of(
+        "mock_interview.evaluate_answer",
+        "v1",
+        "你是资深技术面试官……",
+        "面试方向：{{direction}}\n候选人回答：{{answer}}"
+    );
 }
 ```
 
-每个枚举值对应：
-- **id** — 全局唯一标识，与前端请求中的 scene 参数一致
-- **systemPrompt** — 系统角色设定
-- **userPromptTemplate** — Velocity 模板，支持 ${variable} 占位符
+每个 Prompt 规范包含：
+
+- **key + version**：共同组成全局唯一的 `promptId`
+- **systemPrompt**：系统角色、任务和输出约束
+- **userTemplate**：LangChain4j 模板，使用双花括号包裹的命名占位符，例如 `direction`
+- **maxCompletionTokens**：可选的场景级输出预算；未设置时使用全局预算
 
 ## Schema 验证与容错
 
 AI 模块的 Schema 验证链路：
 
-1. **输出约束** — `BeanOutputConverter` 将 DTO 类自动转为 JSON Schema 注入 Prompt
-2. **格式校验** — LLM 返回 JSON 后，Jackson 反序列化时校验字段类型
-3. **降级处理** — 反序列化失败时返回 `Result.error("AI 输出解析失败")`
-4. **AI 回归测试** — 18 条用例覆盖所有 Schema 的解析正确性
+1. **输出约束**：系统 Prompt 明确要求只返回符合场景格式的 JSON。
+2. **JSON 提取**：`AiJsonResponseParser` 清理代码块、提取对象并处理少量兼容包装。
+3. **契约校验**：`AiStructuredOutputSpec` 对对象或数组执行必填、类型、范围、枚举与嵌套结构校验。
+4. **Schema 导出**：`AiStructuredJsonSchemaBuilder` 从同一份契约生成 Draft 2020-12 JSON Schema，避免校验和文档两套定义。
+5. **容错与回归**：场景服务处理解析或校验失败，并由 Prompt、Schema、Graph 和场景回归测试覆盖关键结构。
 
 ## 维护检查清单
 
 新增 AI Schema 时：
 
-1. 在 `xiaou-ai/src/main/java/com/xiaou/ai/dto/` 下创建 DTO 类
-2. 在 `AiStructuredOutputSpec` 枚举中注册 scene → outputClass 映射
-3. 在 `AiPromptSpec` 枚举中注册对应的 Prompt 模板
-4. 如果是多轮对话场景，在对应 `graph/` 包下创建 State 类
-5. 在 `AiSceneService` 中添加场景路由逻辑
-6. 编写 AI 回归测试用例
-7. 更新本页 Schema 索引
-8. 更新对应的模块功能文档
+1. 在对应 `prompt/{domain}/*PromptSpecs.java` 中定义 `AiPromptSpec`。
+2. 在对应 `structured/{domain}/*StructuredOutputSpecs.java` 中定义对象或数组契约。
+3. 确认新的 holder 或规范已进入 `AiPromptCatalog` 和 `AiStructuredOutputCatalog`。
+4. 在场景服务中接入模板渲染、模型调用、JSON 解析、契约校验和 DTO 映射。
+5. 如果是多轮场景，在对应 `graph/` 包补 State、节点和失败分支。
+6. 编写 Prompt、Schema、解析、Graph 和场景回归测试。
+7. 更新本页、对应模块页和回归说明。
 
 ## 源码导航
 
 | 文件 | 说明 |
 | --- | --- |
-| `xiaou-ai/.../structured/AiStructuredOutputSpec.java` | Schema 注册枚举 |
-| `xiaou-ai/.../prompt/AiPromptSpec.java` | Prompt 模板注册枚举 |
+| `xiaou-ai/.../structured/AiStructuredOutputSpec.java` | Prompt 与结构化输出契约绑定 |
+| `xiaou-ai/.../structured/AiStructuredOutputCatalog.java` | 结构化输出规范清单 |
+| `xiaou-ai/.../structured/AiStructuredJsonSchemaBuilder.java` | 从契约生成 JSON Schema |
+| `xiaou-ai/.../structured/AiStructuredOutputValidator.java` | JSON 对象和数组运行时校验 |
+| `xiaou-ai/.../prompt/AiPromptSpec.java` | 不可变 Prompt 规范 |
+| `xiaou-ai/.../prompt/AiPromptCatalog.java` | 分领域 Prompt 汇总清单 |
+| `xiaou-ai/.../util/AiJsonResponseParser.java` | 模型 JSON 文本提取与兼容解析 |
 | `xiaou-ai/.../dto/interview/` | 面试模块 DTO |
 | `xiaou-ai/.../dto/jobbattle/` | 求职作战 DTO |
 | `xiaou-ai/.../dto/oj/` | OJ 模块 DTO |

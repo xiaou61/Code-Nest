@@ -3,9 +3,9 @@ package com.xiaou.community.service.impl;
 
 import com.xiaou.ai.dto.community.PostSummaryResult;
 import com.xiaou.ai.service.AiCommunityService;
+import com.xiaou.common.cache.RedisValueStore;
 import com.xiaou.common.exception.BusinessException;
 import com.xiaou.common.utils.JsonUtils;
-import com.xiaou.common.utils.RedisUtil;
 import com.xiaou.community.config.CommunityProperties;
 import com.xiaou.community.domain.CommunityPost;
 import com.xiaou.community.mapper.CommunityPostMapper;
@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.time.Duration;
 
 /**
  * 社区AI摘要Service实现类
@@ -32,7 +33,7 @@ public class CommunityAiSummaryServiceImpl implements CommunityAiSummaryService 
     private final CommunityPostMapper communityPostMapper;
     private final CommunityProperties communityProperties;
     private final AiCommunityService aiCommunityService;
-    private final RedisUtil redisUtil;
+    private final RedisValueStore redisValueStore;
     private final CommunityCacheService communityCacheService;
     
     private static final String SUMMARY_CACHE_KEY = "community:post:summary:";
@@ -55,7 +56,7 @@ public class CommunityAiSummaryServiceImpl implements CommunityAiSummaryService 
         
         // 如果不是强制刷新，先从缓存获取
         if (!forceRefresh) {
-            String cachedData = redisUtil.get(cacheKey, String.class);
+            String cachedData = getCachedSummary(cacheKey);
             if (cachedData != null) {
                 log.info("从缓存获取帖子摘要，帖子ID: {}", postId);
                 return JsonUtils.parseMap(cachedData);
@@ -69,8 +70,7 @@ public class CommunityAiSummaryServiceImpl implements CommunityAiSummaryService 
                     post.getAiKeywords().split(",") : new String[0]);
                 
                 // 回填缓存
-                redisUtil.set(cacheKey, JsonUtils.toJsonString(result), 
-                    communityProperties.getAi().getSummaryCacheTtl());
+                cacheSummary(cacheKey, result);
                 
                 log.info("从数据库获取帖子摘要，帖子ID: {}", postId);
                 return result;
@@ -106,8 +106,7 @@ public class CommunityAiSummaryServiceImpl implements CommunityAiSummaryService 
             result.put("summary", summary);
             result.put("keywords", keywords);
             
-            redisUtil.set(cacheKey, JsonUtils.toJsonString(result), 
-                communityProperties.getAi().getSummaryCacheTtl());
+            cacheSummary(cacheKey, result);
             
             log.info("AI摘要生成成功并已清除帖子缓存，帖子ID: {}", postId);
             return result;
@@ -123,7 +122,7 @@ public class CommunityAiSummaryServiceImpl implements CommunityAiSummaryService 
         String cacheKey = SUMMARY_CACHE_KEY + postId;
         
         // 先从缓存获取
-        String cachedData = redisUtil.get(cacheKey, String.class);
+        String cachedData = getCachedSummary(cacheKey);
         if (cachedData != null) {
             return JsonUtils.parseMap(cachedData);
         }
@@ -140,10 +139,30 @@ public class CommunityAiSummaryServiceImpl implements CommunityAiSummaryService 
             post.getAiKeywords().split(",") : new String[0]);
         
         // 回填缓存
-        redisUtil.set(cacheKey, JsonUtils.toJsonString(result), 
-            communityProperties.getAi().getSummaryCacheTtl());
+        cacheSummary(cacheKey, result);
         
         return result;
+    }
+
+    private String getCachedSummary(String cacheKey) {
+        try {
+            return redisValueStore.find(cacheKey, String.class).orElse(null);
+        } catch (RuntimeException error) {
+            log.warn("读取帖子摘要缓存失败，key={}", cacheKey, error);
+            return null;
+        }
+    }
+
+    private void cacheSummary(String cacheKey, Map<String, Object> value) {
+        try {
+            redisValueStore.put(
+                    cacheKey,
+                    JsonUtils.toJsonString(value),
+                    Duration.ofSeconds(communityProperties.getAi().getSummaryCacheTtl())
+            );
+        } catch (RuntimeException error) {
+            log.warn("写入帖子摘要缓存失败，key={}", cacheKey, error);
+        }
     }
 }
 

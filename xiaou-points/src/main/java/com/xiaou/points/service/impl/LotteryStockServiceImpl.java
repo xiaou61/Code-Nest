@@ -1,6 +1,5 @@
 package com.xiaou.points.service.impl;
 
-import com.xiaou.common.utils.RedisUtil;
 import com.xiaou.points.domain.LotteryPrizeConfig;
 import com.xiaou.points.mapper.LotteryPrizeConfigMapper;
 import com.xiaou.points.service.LotteryStockService;
@@ -8,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RAtomicLong;
 import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 public class LotteryStockServiceImpl implements LotteryStockService {
     
     private final LotteryPrizeConfigMapper prizeConfigMapper;
-    private final RedisUtil redisUtil;
+    private final RedissonClient redissonClient;
     
     /**
      * 库存缓存Key
@@ -54,7 +54,7 @@ public class LotteryStockServiceImpl implements LotteryStockService {
         
         // 获取分布式锁
         String lockKey = STOCK_LOCK_KEY + prizeId;
-        RLock lock = redisUtil.getLock(lockKey);
+        RLock lock = redissonClient.getLock(lockKey);
         
         try {
             // 尝试获取锁，最多等待3秒
@@ -188,7 +188,7 @@ public class LotteryStockServiceImpl implements LotteryStockService {
     }
 
     private RAtomicLong getStockCounter(Long prizeId) {
-        return redisUtil.getRedissonClient().getAtomicLong(STOCK_KEY + prizeId);
+        return redissonClient.getAtomicLong(STOCK_KEY + prizeId);
     }
 
     private void initializeStockIfAbsent(RAtomicLong stockCounter, LotteryPrizeConfig prize) {

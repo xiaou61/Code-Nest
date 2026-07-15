@@ -166,7 +166,7 @@ git log --oneline --decorate --grep="docs: update"
 - [版本历史](/modules/version-history)：讲已经整理好的主版本演进和产品内版本墙实现。
 - [版本公告与发版交接模板](/guide/version-release-handoff-template)：讲怎么把证据落成可交付文本。
 - [版本公告与交接实战样例](/guide/version-release-worked-examples)：讲真实版本是怎么一步步写出来的。
-- [v2.2.1 文档计划](/roadmap/v2.2.1-docs-plan)：讲当前阶段还在补什么。
+- [路线图归档](/roadmap/)：追溯文档中心从 v2.2.0 到 v2.2.1 的建设过程。
 - [文档同步基线](/reference/docs-sync-baseline)：讲当前文档和代码同步到哪个提交。
 
 可以把职责简单理解成：
