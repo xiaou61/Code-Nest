@@ -61,15 +61,15 @@ CODE_NEST_HEALTH_URL=http://127.0.0.1:9999/api/actuator/health
 推送 `v*` 分支或 tag 会触发 `Deploy Production`：
 
 ```bash
-git checkout -b v2.3.1
-git push -u origin v2.3.1
+git checkout -b vX.Y.Z
+git push -u origin vX.Y.Z
 ```
 
 也可以在合并后创建 tag：
 
 ```bash
-git tag -a v2.3.1 -m "Code Nest v2.3.1"
-git push origin v2.3.1
+git tag -a vX.Y.Z -m "Code Nest vX.Y.Z"
+git push origin vX.Y.Z
 ```
 
 ### 手动部署指定 ref
@@ -92,7 +92,7 @@ python scripts/deploy-production.py \
   --host 36.140.150.167 \
   --user root \
   --identity ~/.ssh/code_nest_github_actions_ed25519 \
-  --version v2.3.1
+  --version vX.Y.Z
 ```
 
 如果已经提前构建过后端 Jar 和两个前端 `dist`，可以跳过构建：
@@ -102,7 +102,7 @@ python scripts/deploy-production.py \
   --host 36.140.150.167 \
   --user root \
   --identity ~/.ssh/code_nest_github_actions_ed25519 \
-  --version v2.3.1 \
+  --version vX.Y.Z \
   --skip-build
 ```
 

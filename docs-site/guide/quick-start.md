@@ -27,7 +27,7 @@
 ## 第 1 步：克隆仓库
 
 ```powershell
-git clone https://github.com/your-org/Code-Nest.git
+git clone https://github.com/xiaou61/Code-Nest.git
 cd Code-Nest
 ```
 
@@ -35,7 +35,7 @@ cd Code-Nest
 
 ```powershell
 git branch
-# 应该看到 * v2.3.1 或对应版本分支
+# 当前文档工作线应看到 * v2.4.1，其他版本按实际分支判断
 ```
 
 ## 第 2 步：初始化数据库
@@ -67,7 +67,7 @@ dir /s /b sql\MySql\code_nest.sql
 ```sql
 USE code_nest;
 SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'code_nest';
--- 预期：142 张表左右（视版本可能有差异）
+-- 预期：145 张表
 ```
 
 ## 第 3 步：配置后端

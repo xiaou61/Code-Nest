@@ -8,7 +8,7 @@
 
 执行以下链路前，确保：
 
-1. MySQL 已启动，`code_nest` 数据库已导入基础表结构（142 张表左右）。
+1. MySQL 已启动，`code_nest` 数据库已导入当前基础表结构（145 张表）。
 2. Redis 已启动，`redis-cli ping` 返回 `PONG`。
 3. 后端已启动，`curl http://localhost:9999/api/actuator/health` 返回 `{"status":"UP"}`。
 4. 前端至少启动了一端（用户端 3001 或管理端 3000）。

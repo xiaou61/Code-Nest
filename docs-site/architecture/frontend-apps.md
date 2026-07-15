@@ -138,7 +138,7 @@ server: {
 |------|------|----------|
 | AI 对话 | `/ai` | 流式响应 (SSE)、Markdown 渲染 |
 | 代码工坊 | `/codepen` | CodeMirror 6 编辑器、多语言切换 |
-| 聊天室 | `/chat` | WebSocket + STOMP、乐观消息、心跳 |
+| 聊天室 | `/chat` | 原生 JSON WebSocket、一次性票据、乐观消息、心跳 |
 | OJ 判题 | `/oj` | 代码提交、实时状态轮询 |
 | 学习小组 | `/team` | 签到日历、讨论区、任务板 |
 | 抽奖 | `/lottery` | 转盘动画、概率展示 |

@@ -147,7 +147,7 @@ Code Nest 的文档已经按模块拆得很细，但第一次接手时不要从�
 | 7 | [核心链路教程](/manuals/core-workflows) | 用户视角的端到端流程 |
 | 8 | [端到端业务链路图](/manuals/business-flow-map) | 全局业务链路和横切能力如何串联 |
 | 9 | [验证记录与已知问题](/manuals/verified-scenarios) | 真实验证结果和已知缺口 |
-| 10 | [v2.2.1 文档计划](/roadmap/v2.2.1-docs-plan) | 当前阶段补什么、为什么补、接下来怎么继续 |
+| 10 | [文档同步基线](/reference/docs-sync-baseline) | 当前文档与分支、提交、模块和数据库基线是否一致 |
 | 11 | [按 Git Log 重写版本更新记录](/guide/git-log-release-notes) | 新版版本说明如何基于提交、README 和真实证据重写 |
 | 12 | [版本公告与发版交接模板](/guide/version-release-handoff-template) | 把版本证据落成 README、产品公告和团队交接单 |
 | 13 | [版本公告与交接实战样例](/guide/version-release-worked-examples) | 看 `v2.2.0`、`v2.1.2` 是怎样从证据一路写成交付物的 |

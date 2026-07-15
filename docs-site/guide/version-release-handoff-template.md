@@ -81,7 +81,7 @@
 需要同步的文档：
 
 - [版本历史](/modules/version-history)
-- [当前路线图](/roadmap/v2.2.1-docs-plan)
+- [路线图归档](/roadmap/)
 - 其他：
 
 后续补测 / 跟进项：
@@ -274,7 +274,7 @@ README 一般不必保留：
 - [按 Git Log 重写版本更新记录](/guide/git-log-release-notes)
 - [发布前验证](/guide/release-verification)
 - [文档维护规范](/guide/documentation-maintenance)
-- [v2.2.1 文档计划](/roadmap/v2.2.1-docs-plan)
+- [路线图归档](/roadmap/)
 
 它们的职责可以简单理解成：
 

@@ -6,13 +6,13 @@
 
 ## 表统计总览
 
-基线脚本包含 136 张表，加上增量脚本后共 142 张表，按业务域分布：
+当前主库基线包含 145 张表，按业务域分布：
 
 | 业务域 | 表数量 | 模块 | 表前缀 |
 | --- | --- | --- | --- |
-| 账号与权限 | 8 | xiaou-user, xiaou-system | `user_info`, `sys_*` |
+| 账号、权限与智能体审计 | 10 | xiaou-user, xiaou-system | `user_info`, `sys_*` |
 | 面试题库 | 8 | xiaou-interview | `interview_*` |
-| 模拟面试与求职 | 9 | xiaou-mock-interview | `mock_interview_*`, `career_loop_*`, `job_battle_*` |
+| 模拟面试与求职 | 10 | xiaou-mock-interview | `mock_interview_*`, `career_loop_*`, `job_battle_*` |
 | 成长与计划 | 7 | xiaou-plan | `growth_autopilot_*`, `user_plan`, `plan_*`, `learning_cockpit_*` |
 | 学习小组 | 11 | xiaou-team | `study_team_*` |
 | 闪卡 | 8 | xiaou-flashcard | `flashcard_*` |
@@ -87,6 +87,8 @@
 | 角色-权限 | `sys_role_permission` | role_id, permission_id | xiaou-system |
 | 登录日志 | `sys_login_log` | username, ip, location, browser, status | xiaou-system |
 | 操作日志 | `sys_operation_log` | module, operation, method, params, user_id | xiaou-system |
+| 智能体审计 | `sys_agent_audit` | audit_id, action_id, risk_category, status, operator_id | xiaou-system |
+| 智能体会话上下文 | `sys_agent_session_context` | session_id, turns_json, updated_time | xiaou-system |
 
 ## 学习成长
 
@@ -116,6 +118,7 @@
 | `career_loop_action` | session_id, title, type, deadline, status | xiaou-mock-interview |
 | `career_loop_snapshot` | session_id, stage, snapshot_json | xiaou-mock-interview |
 | `job_battle_plan_record` | user_id, jd_text, plan_json, status | xiaou-mock-interview |
+| `job_battle_match_record` | user_id, target_count, best_score, fallback_count, result_json | xiaou-mock-interview |
 
 ### 成长与计划
 

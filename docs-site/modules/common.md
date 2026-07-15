@@ -172,7 +172,7 @@ RuntimeException
 | 常量 | 值 | 说明 |
 | --- | --- | --- |
 | `SYSTEM_NAME` | `"Code-Nest"` | 系统名称 |
-| `SYSTEM_VERSION` | `"1.0.0"` | 版本号（已过时，项目已到 v2.2.x） |
+| `SYSTEM_VERSION` | `"1.0.0"` | 版本号（已过时，当前开发线已到 v2.4.x） |
 | `DEFAULT_PASSWORD` | `"123456"` | 默认密码 |
 | `TOKEN_EXPIRE_TIME` | `7200L` | Token 有效期 2 小时 |
 | `CACHE_PREFIX` | `"code_nest:"` | Redis 缓存前缀 |
@@ -519,7 +519,7 @@ getIpAddress(request):
 
 | 常量 | 当前值 | 问题 | 建议 |
 | --- | --- | --- | --- |
-| `SYSTEM_VERSION` | `"1.0.0"` | 项目已到 v2.2.x，常量严重过时 | 从 pom.xml 读取或删除此常量 |
+| `SYSTEM_VERSION` | `"1.0.0"` | 当前开发线已到 v2.4.x，常量严重过时 | 从 pom.xml 读取或删除此常量 |
 | `DEFAULT_PASSWORD` | `"123456"` | 安全风险：默认密码太弱 | 至少改为随机生成或强制首次修改 |
 | `TOKEN_EXPIRE_TIME` | `7200L` | 2 小时可能对管理端太长 | 管理端考虑缩短到 30 分钟 |
 | `REGEX_PASSWORD` | 需要 `小写+大写+数字，≥8位` | 不要求特殊字符 | 考虑增加特殊字符要求 |

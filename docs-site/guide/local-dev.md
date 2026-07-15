@@ -30,11 +30,12 @@ CREATE DATABASE code_nest DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_
 mysql -u root -p code_nest < sql/MySql/code_nest.sql
 ```
 
-基础脚本包含 136 张表，加上增量脚本后共 142 张表，是系统运行的最低要求。
+当前基础脚本已经包含 145 张表，是新环境初始化的完整结构基线。
 
-### 3. 导入增量脚本（按版本顺序）
+### 3. 旧数据库升级时导入增量脚本
 
 ```bash
+# 仅用于从旧版本数据库升级；全新数据库跳过此步骤
 # 按版本号从小到大依次执行
 for ver in v1.2.0 v1.3.0 v1.4.0 v1.5.0 v1.6.0 v1.7.0 v1.7.1 v1.8.0 v1.8.1 v1.8.2 v1.8.3 v1.8.4; do
   if [ -f "sql/$ver/$ver.sql" ]; then
@@ -43,14 +44,14 @@ for ver in v1.2.0 v1.3.0 v1.4.0 v1.5.0 v1.6.0 v1.7.0 v1.7.1 v1.8.0 v1.8.1 v1.8.2
 done
 ```
 
-> **提示**：增量脚本中有些是 ALTER TABLE，如果基础脚本已包含最新结构则可能报"列已存在"，可安全忽略。
+> **提示**：全新数据库只执行 `sql/MySql/code_nest.sql`。增量脚本只用于旧环境升级，重复执行可能出现列或索引已存在错误。
 
 ### 4. 确认表数量
 
 ```sql
 USE code_nest;
 SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'code_nest';
--- 预期：142 张表左右（视版本可能有差异）
+-- 预期：145 张表
 ```
 
 ## Redis 配置

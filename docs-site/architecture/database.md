@@ -1,6 +1,6 @@
 # 数据库设计
 
-Code-Nest 使用单一 MySQL 数据库 `code_nest`，当前基线包含 **136 张表**，加上版本增量脚本后共 **142 张表**，采用"基线 + 版本增量"的脚本组织方式。
+Code-Nest 使用单一 MySQL 数据库 `code_nest`。当前 `sql/MySql/code_nest.sql` 已合并为 **145 张表**的完整结构基线；`sql/v*` 下的版本脚本用于旧环境升级和演进追溯，不需要在全新数据库上重复执行。
 
 ## 设计原则
 
@@ -28,7 +28,7 @@ Code-Nest 使用单一 MySQL 数据库 `code_nest`，当前基线包含 **136 �
 | `file_` | xiaou-filestorage | 5 | 文件信息/存储/访问/迁移/系统设置 |
 | `flashcard` | xiaou-flashcard | 9 | 闪卡/卡组/学习记录/复习日志/统计 |
 | `interview_` | xiaou-interview | 8 | 面试题/分类/收藏/掌握度/题单/学习记录 |
-| `job_battle_` | xiaou-mock-interview | 1 | 求职对战 |
+| `job_battle_` | xiaou-mock-interview | 2 | 求职计划与岗位匹配分析 |
 | `knowledge_` | xiaou-knowledge | 2 | 知识图谱节点/关系 |
 | `lottery_` | xiaou-points | 4 | 抽奖配置/记录/调整历史/统计 |
 | `mock_interview_` | xiaou-mock-interview | 4 | 模拟面试/方向/QA/统计 |
@@ -41,7 +41,7 @@ Code-Nest 使用单一 MySQL 数据库 `code_nest`，当前基线包含 **136 �
 | `sql_monitor_` | xiaou-sql-optimizer | 1 | SQL 监控日志 |
 | `storage_` | xiaou-filestorage | 1 | 存储配置 |
 | `study_team_` | xiaou-team | 10 | 小组/成员/签到/讨论/任务/申请/统计 |
-| `sys_` | xiaou-system | 7 | 管理员/角色/权限/日志 |
+| `sys_` | xiaou-system | 9 | 管理员、角色、权限、日志和智能体审计 |
 | `user_` | xiaou-user/points/plan | 10 | 用户信息/积分/计划/签到/抽奖限制/日历 |
 | `growth_autopilot_` | xiaou-plan | 3 | 成长自动导航目标/任务/事件 |
 | `learning_cockpit_` | xiaou-application | 1 | 学习驾驶舱排名快照 |
@@ -243,7 +243,7 @@ Redis 使用多个 database 索引隔离不同数据：
 ```text
 sql/
 ├── MySql/
-│   ├── code_nest.sql          ← 完整结构基线 (136 表)
+│   ├── code_nest.sql          ← 当前完整结构基线 (145 表)
 │   └── code_nest_data.sql     ← 初始化数据
 ├── v1.2.0/                    ← 初始版本
 ├── v1.2.1/                    ← 敏感词/知识图谱增量
@@ -298,6 +298,6 @@ sql/
 | --- | --- |
 | [架构总览](/architecture/overview) | 整体架构和部署拓扑 |
 | [后端模块](/architecture/backend-modules) | 后端 Maven 子模块详解 |
-| [数据表索引](/reference/database-tables) | 全部 142 张表清单 |
+| [数据表索引](/reference/database-tables) | 当前 145 张表清单 |
 | [数据库字段阅读指南](/reference/database-field-guide) | 命名规范和类型说明 |
 | [模块总览](/modules/) | 各模块的数据表分布 |

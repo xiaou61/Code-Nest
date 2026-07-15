@@ -1,6 +1,6 @@
 # 后端模块详解
 
-Code-Nest 后端由 24 个 Maven 子模块组成，按职责分为**基础设施模块**、**业务模块**和**API 契约模块**三类。
+Code-Nest 后端由 28 个 Maven 子模块组成，按职责分为**基础设施模块**、**业务模块**、**API 契约模块**和**启动聚合模块**四类。
 
 ## 模块分类与依赖方向
 
@@ -149,8 +149,8 @@ com.xiaou.sensitive.api
 | Controller | ChatUserController, ChatAdminController |
 | 核心功能 | 一对一/群组聊天、消息收发、历史记录、消息撤回、WebSocket 实时推送 |
 | 包结构 | `controller/`, `service/`, `dto/`, `domain/`, `mapper/`, `config/`, `websocket/` |
-| 特色 | STOMP + WebSocket 实时通信，聊天记录分页查询 |
-| 关键配置 | WebSocketConfig (STOMP 端点 `/ws`) |
+| 特色 | 原生 JSON WebSocket、一次性票据、心跳和聊天记录分页查询 |
+| 关键配置 | `WebSocketConfig` 注册 `/ws/chat`，`SaTokenWebSocketInterceptor` 消费短期票据 |
 
 #### xiaou-plan — 学习计划
 
@@ -296,7 +296,7 @@ com.xiaou.{module}
 | 管理认证 | `/api/auth` | `/auth` | 无 | 管理员登录 |
 | 验证码 | `/api/captcha` | `/captcha` | 无 | 图形验证码 |
 | 平台公共能力 | `/api/file`、`/api/notification`、`/api/version` | `/file`、`/notification`、`/version` | 按方法判断 | 上传需登录，读取可匿名 |
-| WebSocket | `/ws` | — | STOMP | 聊天实时通信 |
+| WebSocket | `/ws/chat` | — | 原生 WebSocket JSON 消息 | 聊天实时通信 |
 
 > 各模块的详细端点列表见 [API 路由索引](/reference/api-routes)。下表只列每个模块的主前缀。
 
@@ -334,7 +334,7 @@ CodeNestApplication.java (@SpringBootApplication)
 
 | 路径 | 说明 |
 |------|------|
-| `pom.xml` | 根 POM，定义 24 个子模块 |
+| `pom.xml` | 根 POM，定义 28 个子模块 |
 | `xiaou-application/pom.xml` | 聚合所有模块的依赖 |
 | `xiaou-application/.../CodeNestApplication.java` | Spring Boot 启动类 |
 | `xiaou-application/.../application.yml` | 主配置 (端口/MyBatis/Sa-Token) |
