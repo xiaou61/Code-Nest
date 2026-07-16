@@ -70,8 +70,8 @@ export const mockInterviewApi = {
   // ============ 统计 ============
   
   // 获取用户面试统计 - GET /stats/overview
-  getStats() {
-    return request.get('/user/mock-interview/stats/overview')
+  getStats(config = {}) {
+    return request.get('/user/mock-interview/stats/overview', {}, config)
   },
 
   // ============ AI总结 ============

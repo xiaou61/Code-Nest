@@ -259,7 +259,7 @@ const sitemapHostname = process.env.SITEMAP_HOSTNAME
 export default defineConfig({
   lang: 'zh-CN',
   title: 'Code Nest 文档',
-  description: 'Code Nest v2.4.1 工程文档中心：架构、模块、API、操作手册与运维参考。',
+  description: 'Code Nest v2.4.3 工程文档中心：架构、模块、API、操作手册与运维参考。',
   base,
   cleanUrls: true,
   lastUpdated: true,
@@ -357,7 +357,7 @@ export default defineConfig({
     darkModeSwitchTitle: '切换到深色模式',
     skipToContentLabel: '跳到正文',
     footer: {
-      message: 'Code Nest v2.4.1 engineering documentation.',
+      message: 'Code Nest v2.4.3 engineering documentation.',
       copyright: 'MIT Licensed.'
     }
   }

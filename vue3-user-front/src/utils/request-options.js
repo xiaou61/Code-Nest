@@ -13,6 +13,7 @@ const CONFIG_KEYS = new Set([
   'paramsSerializer',
   'responseEncoding',
   'responseType',
+  'silent',
   'signal',
   'timeout',
   'transformRequest',

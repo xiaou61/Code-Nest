@@ -84,8 +84,8 @@ export const communityApi = {
   // ==================== v1.1.0 新增接口 ====================
 
   // 获取热门帖子
-  getHotPosts(limit = 5) {
-    return request.get('/community/posts/hot', { limit })
+  getHotPosts(limit = 5, config = {}) {
+    return request.get('/community/posts/hot', { limit }, config)
   },
 
   // 获取启用的标签列表

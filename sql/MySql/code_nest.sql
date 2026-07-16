@@ -2868,6 +2868,7 @@ CREATE TABLE `growth_autopilot_goal`  (
   `week_end` date NOT NULL COMMENT '周结束日期（周日）',
   `target_role` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '目标岗位',
   `weekly_hours` int NULL DEFAULT 8 COMMENT '每周投入时长（小时）',
+  `current_stage` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT 'practice' COMMENT '当前学习阶段：foundation/practice/interview',
   `total_score_target` int NULL DEFAULT 0 COMMENT '目标总分',
   `total_score_completed` int NULL DEFAULT 0 COMMENT '已完成总分',
   `total_tasks` int NULL DEFAULT 0 COMMENT '任务总数',

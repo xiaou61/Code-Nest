@@ -1,24 +1,8 @@
 import { onBeforeUnmount, reactive, ref } from 'vue'
-import { interviewApi } from '@/api/interview'
-import { getPublishedKnowledgeMaps } from '@/api/knowledge'
-import { getOnlineCount } from '@/api/chat'
-import { communityApi } from '@/api/community'
-import { getHotMoments } from '@/api/moment'
-import { ojApi } from '@/api/oj'
-import { mockInterviewApi } from '@/api/mockInterview'
-import { planApi } from '@/api/plan'
-import { pointsApi } from '@/api/points'
-import { versionApi } from '@/api/version'
-import {
-  adaptDailyProblem,
-  adaptHeroMetrics,
-  adaptHotFeed,
-  adaptMockStats,
-  adaptPlanStats,
-  adaptVersionFeed
-} from '@/utils/home-data-adapter'
+import { homeApi } from '@/api/home'
 
 const REFRESH_INTERVAL = 60_000
+const HOME_REQUEST_CONFIG = { silent: true }
 
 function createModuleState() {
   return {
@@ -33,39 +17,29 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(numberValue) ? numberValue : fallback
 }
 
-function parseResult(result, fallbackValue) {
-  if (result.status === 'fulfilled') {
-    return {
-      ok: true,
-      value: result.value ?? fallbackValue
-    }
-  }
+function normalizeDailyProblem(source = {}) {
+  const difficulty = typeof source.difficulty === 'string' ? source.difficulty.toLowerCase() : 'easy'
+  const acceptedCount = toNumber(source.acceptedCount)
+  const submitCount = toNumber(source.submitCount)
+  const difficultyText = {
+    easy: '简单',
+    medium: '中等',
+    hard: '困难'
+  }[difficulty] || '未知'
+
   return {
-    ok: false,
-    value: fallbackValue
+    ...source,
+    difficulty,
+    difficultyText,
+    acceptedCount,
+    submitCount,
+    acceptanceRate: submitCount > 0 ? Math.round((acceptedCount / submitCount) * 100) : 0,
+    tags: Array.isArray(source.tags) ? source.tags : []
   }
 }
 
-export function useHomeData() {
-  const loading = ref(true)
-  const refreshAt = ref('')
-  let refreshTimer = null
-  let visibilityHandlerBound = false
-  const rawCache = reactive({
-    hotPosts: [],
-    hotMoments: [],
-    planStats: {}
-  })
-
-  const moduleState = reactive({
-    hero: createModuleState(),
-    hot: createModuleState(),
-    growth: createModuleState(),
-    challenge: createModuleState(),
-    version: createModuleState()
-  })
-
-  const homeData = reactive({
+function createHomeData() {
+  return {
     heroMetrics: {
       learnedCount: 0,
       knowledgeCount: 0,
@@ -78,8 +52,24 @@ export function useHomeData() {
       moments: []
     },
     growth: {
-      plan: adaptPlanStats(),
-      mockInterview: adaptMockStats(),
+      plan: {
+        activeCount: 0,
+        totalCheckins: 0,
+        todayCompleted: 0,
+        todayPending: 0,
+        todayCompletionRate: 0,
+        maxStreak: 0,
+        weekCheckinCount: 0,
+        monthCheckinCount: 0
+      },
+      mockInterview: {
+        totalInterviews: 0,
+        completedInterviews: 0,
+        avgScore: 0,
+        highestScore: 0,
+        interviewStreak: 0,
+        completionRate: 0
+      },
       points: {
         totalPoints: 0,
         balanceYuan: '0.00',
@@ -89,10 +79,35 @@ export function useHomeData() {
       }
     },
     challenge: {
-      dailyProblem: adaptDailyProblem()
+      dailyProblem: {
+        id: null,
+        title: '今日挑战正在准备中',
+        difficulty: 'easy',
+        acceptedCount: 0,
+        submitCount: 0,
+        tags: [],
+        routePath: '/oj'
+      }
     },
     versions: []
+  }
+}
+
+export function useHomeData() {
+  const loading = ref(true)
+  const refreshAt = ref('')
+  let refreshTimer = null
+  let visibilityHandlerBound = false
+
+  const moduleState = reactive({
+    hero: createModuleState(),
+    hot: createModuleState(),
+    growth: createModuleState(),
+    challenge: createModuleState(),
+    version: createModuleState()
   })
+
+  const homeData = reactive(createHomeData())
 
   const updateRefreshAt = () => {
     refreshAt.value = new Date().toLocaleTimeString('zh-CN', {
@@ -112,143 +127,76 @@ export function useHomeData() {
     moduleState[moduleName].message = message
   }
 
+  const resetModuleState = () => {
+    Object.keys(moduleState).forEach((moduleName) => {
+      moduleState[moduleName].loading = true
+      moduleState[moduleName].available = false
+      moduleState[moduleName].message = '加载中'
+    })
+  }
+
+  const applyOverview = (overview = {}) => {
+    const hero = overview?.heroMetrics || {}
+    const hotFeed = overview?.hotFeed || {}
+    const growth = overview?.growth || {}
+    const challenge = overview?.challenge || {}
+    const sections = overview?.sections || {}
+
+    Object.assign(homeData.heroMetrics, {
+      learnedCount: toNumber(hero.learnedCount),
+      knowledgeCount: toNumber(hero.knowledgeCount),
+      onlineCount: toNumber(hero.onlineCount),
+      hotTopicCount: toNumber(hero.hotTopicCount),
+      todayTaskCompletionRate: toNumber(hero.todayTaskCompletionRate)
+    })
+
+    homeData.hotFeed.posts = Array.isArray(hotFeed.posts) ? hotFeed.posts : []
+    homeData.hotFeed.moments = Array.isArray(hotFeed.moments) ? hotFeed.moments : []
+
+    Object.assign(homeData.growth.plan, growth.plan || {})
+    Object.assign(homeData.growth.mockInterview, growth.mockInterview || {})
+    Object.assign(homeData.growth.points, growth.points || {})
+    Object.assign(homeData.challenge.dailyProblem, normalizeDailyProblem(challenge.dailyProblem || {}))
+    homeData.versions = Array.isArray(overview.versions) ? overview.versions : []
+
+    Object.keys(moduleState).forEach((moduleName) => {
+      const section = sections[moduleName]
+      if (section?.available) {
+        setModuleSuccess(moduleName)
+        return
+      }
+      setModuleError(moduleName, section?.message || '数据暂不可用')
+    })
+    updateRefreshAt()
+  }
+
+  const loadOverview = async () => {
+    const overview = await homeApi.getOverview(HOME_REQUEST_CONFIG)
+    applyOverview(overview || {})
+  }
+
   const loadAllData = async ({ silent = false } = {}) => {
     if (!silent) {
       loading.value = true
+      resetModuleState()
+    }
+
+    try {
+      await loadOverview()
+    } catch {
       Object.keys(moduleState).forEach((moduleName) => {
-        moduleState[moduleName].loading = true
-        moduleState[moduleName].available = false
-        moduleState[moduleName].message = '加载中'
+        setModuleError(moduleName, '数据暂不可用')
       })
+    } finally {
+      loading.value = false
     }
-
-    const [
-      learnedResult,
-      knowledgeResult,
-      onlineResult,
-      hotPostsResult,
-      hotMomentsResult,
-      dailyProblemResult,
-      mockStatsResult,
-      planStatsResult,
-      pointsResult,
-      versionsResult
-    ] = await Promise.allSettled([
-      interviewApi.getTotalLearned(),
-      getPublishedKnowledgeMaps({ pageNum: 1, pageSize: 1 }),
-      getOnlineCount(),
-      communityApi.getHotPosts(6),
-      getHotMoments({ limit: 6 }),
-      ojApi.getDailyProblem(),
-      mockInterviewApi.getStats(),
-      planApi.getStatsOverview(),
-      pointsApi.getPointsBalance(),
-      versionApi.getLatestVersions(6)
-    ])
-
-    const learned = parseResult(learnedResult, 0)
-    const knowledge = parseResult(knowledgeResult, { total: 0 })
-    const online = parseResult(onlineResult, 0)
-    const hotPosts = parseResult(hotPostsResult, [])
-    const hotMoments = parseResult(hotMomentsResult, [])
-    const dailyProblem = parseResult(dailyProblemResult, null)
-    const mockStats = parseResult(mockStatsResult, {})
-    const planStats = parseResult(planStatsResult, {})
-    const points = parseResult(pointsResult, {})
-    const versions = parseResult(versionsResult, [])
-
-    rawCache.hotPosts = hotPosts.ok && Array.isArray(hotPosts.value) ? hotPosts.value : []
-    rawCache.hotMoments = hotMoments.ok && Array.isArray(hotMoments.value) ? hotMoments.value : []
-    rawCache.planStats = planStats.ok ? (planStats.value || {}) : {}
-
-    homeData.growth.plan = adaptPlanStats(rawCache.planStats)
-    homeData.growth.mockInterview = adaptMockStats(mockStats.value)
-    homeData.growth.points = {
-      totalPoints: toNumber(points.value.totalPoints),
-      balanceYuan: points.value.balanceYuan || '0.00',
-      continuousDays: toNumber(points.value.continuousDays),
-      todayCheckedIn: Boolean(points.value.todayCheckedIn),
-      todayPoints: toNumber(points.value.todayPoints)
-    }
-
-    homeData.hotFeed = adaptHotFeed({
-      posts: rawCache.hotPosts,
-      moments: rawCache.hotMoments,
-      limitPerType: 4
-    })
-
-    homeData.challenge.dailyProblem = adaptDailyProblem(dailyProblem.value || {})
-    homeData.versions = adaptVersionFeed(versions.value, 5)
-
-    homeData.heroMetrics = adaptHeroMetrics({
-      learnedTotal: learned.value,
-      knowledgeTotal: knowledge.value?.total,
-      onlineCount: online.value,
-      hotPosts: rawCache.hotPosts,
-      hotMoments: rawCache.hotMoments,
-      planStats: rawCache.planStats
-    })
-
-    const heroHasAnySource = learned.ok || knowledge.ok || online.ok || planStats.ok
-    const hotHasAnySource = hotPosts.ok || hotMoments.ok
-    const growthHasAnySource = planStats.ok || mockStats.ok || points.ok
-    const challengeHasAnySource = dailyProblem.ok || mockStats.ok
-    const versionHasAnySource = versions.ok
-
-    heroHasAnySource ? setModuleSuccess('hero') : setModuleError('hero')
-    hotHasAnySource ? setModuleSuccess('hot') : setModuleError('hot')
-    growthHasAnySource ? setModuleSuccess('growth') : setModuleError('growth')
-    challengeHasAnySource ? setModuleSuccess('challenge') : setModuleError('challenge')
-    versionHasAnySource ? setModuleSuccess('version') : setModuleError('version')
-
-    updateRefreshAt()
-    loading.value = false
   }
 
   const refreshRealtimeData = async () => {
     if (typeof document !== 'undefined' && document.hidden) {
       return
     }
-
-    const [onlineResult, hotPostsResult, hotMomentsResult, planStatsResult] = await Promise.allSettled([
-      getOnlineCount(),
-      communityApi.getHotPosts(6),
-      getHotMoments({ limit: 6 }),
-      planApi.getStatsOverview()
-    ])
-
-    const online = parseResult(onlineResult, homeData.heroMetrics.onlineCount)
-    const hotPosts = parseResult(hotPostsResult, rawCache.hotPosts)
-    const hotMoments = parseResult(hotMomentsResult, rawCache.hotMoments)
-    const planStats = parseResult(planStatsResult, rawCache.planStats)
-
-    if (hotPosts.ok && Array.isArray(hotPosts.value)) {
-      rawCache.hotPosts = hotPosts.value
-    }
-    if (hotMoments.ok && Array.isArray(hotMoments.value)) {
-      rawCache.hotMoments = hotMoments.value
-    }
-    if (planStats.ok) {
-      rawCache.planStats = planStats.value || {}
-    }
-
-    homeData.hotFeed = adaptHotFeed({
-      posts: rawCache.hotPosts,
-      moments: rawCache.hotMoments,
-      limitPerType: 4
-    })
-    homeData.growth.plan = adaptPlanStats(rawCache.planStats)
-
-    homeData.heroMetrics = adaptHeroMetrics({
-      learnedTotal: homeData.heroMetrics.learnedCount,
-      knowledgeTotal: homeData.heroMetrics.knowledgeCount,
-      onlineCount: online.value,
-      hotPosts: rawCache.hotPosts,
-      hotMoments: rawCache.hotMoments,
-      planStats: rawCache.planStats
-    })
-
-    updateRefreshAt()
+    await loadOverview()
   }
 
   const startAutoRefresh = () => {

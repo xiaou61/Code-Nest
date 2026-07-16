@@ -47,6 +47,11 @@ public class GrowthAutopilotGoal {
     private Integer weeklyHours;
 
     /**
+     * 首周计划的当前学习阶段：foundation / practice / interview。
+     */
+    private String currentStage;
+
+    /**
      * 目标总分
      */
     private Integer totalScoreTarget;

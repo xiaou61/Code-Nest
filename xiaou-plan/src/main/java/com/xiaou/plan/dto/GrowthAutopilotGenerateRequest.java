@@ -3,6 +3,7 @@ package com.xiaou.plan.dto;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -28,6 +29,13 @@ public class GrowthAutopilotGenerateRequest {
     @Min(value = 1, message = "每周投入时长必须大于等于1小时")
     @Max(value = 40, message = "每周投入时长不能超过40小时")
     private Integer weeklyHours;
+
+    /**
+     * 当前学习阶段：foundation / practice / interview。
+     */
+    @Pattern(regexp = "foundation|practice|interview", flags = Pattern.Flag.CASE_INSENSITIVE,
+            message = "当前阶段仅支持 foundation、practice 或 interview")
+    private String currentStage;
 
     /**
      * 周起始日期（周一），为空时使用当前周

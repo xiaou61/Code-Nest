@@ -8,15 +8,67 @@
       <template #meta>
         <CnStatusTag type="brand" size="sm">{{ current.session.currentStageLabel }}</CnStatusTag>
         <CnStatusTag :type="healthTone" size="sm" subtle>健康分 {{ current.session.healthScore }}</CnStatusTag>
+        <CnStatusTag type="success" size="sm" subtle>{{ syncStatusText }}</CnStatusTag>
       </template>
 
       <template #actions>
-        <el-button :icon="Refresh" :loading="loading.sync" @click="handleSync">手动同步</el-button>
+        <el-tooltip content="异常恢复" placement="bottom">
+          <el-dropdown trigger="click" @command="handleRecoveryCommand">
+            <el-button circle :icon="MoreFilled" :loading="loading.recovery" aria-label="异常恢复" />
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="reload">重新加载数据</el-dropdown-item>
+                <el-dropdown-item command="sync" divided>恢复同步</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </el-tooltip>
         <el-button type="primary" :icon="Connection" :loading="loading.start" @click="handleStart">
-          重启闭环会话
+          开始求职准备
         </el-button>
       </template>
     </CnPageHeader>
+
+    <CnSection class="career-actions-section" title="下一步行动" description="从当前阶段开始执行，完成后会同步刷新求职进度。" divided>
+      <div v-loading="loading.main" class="career-action-list" aria-live="polite">
+        <article v-for="action in actions" :key="action.id" class="career-action-item">
+          <div class="career-action-copy">
+            <div class="career-action-meta">
+              <CnStatusTag type="brand" size="sm" subtle>{{ mapStageLabel(action.stage) }}</CnStatusTag>
+              <CnStatusTag :type="mapActionStatusTone(action.status)" size="sm">
+                {{ mapActionStatusLabel(action.status) }}
+              </CnStatusTag>
+            </div>
+            <h2>{{ action.title || '待推进动作' }}</h2>
+            <p>{{ action.description || '完成该动作后，系统会更新下一步建议。' }}</p>
+          </div>
+
+          <div class="career-action-controls">
+            <el-button size="small" type="primary" plain @click="goByActionType(action.actionType)">
+              {{ action.actionType === 'offer' ? '记录跟踪' : '去执行' }}
+            </el-button>
+            <el-button size="small" type="success" :disabled="action.status === 'done'" @click="handleDoneAction(action)">
+              标记完成
+            </el-button>
+          </div>
+        </article>
+
+        <CnEmptyState
+          v-if="!loading.main && actions.length === 0"
+          title="暂无下一步行动"
+          description="开始求职准备后会生成行动清单。"
+          icon="AC"
+          size="sm"
+          surface="transparent"
+        >
+          <template #actions>
+            <el-button type="primary" :icon="Connection" :loading="loading.start" @click="handleStart">
+              开始求职准备
+            </el-button>
+          </template>
+        </CnEmptyState>
+      </div>
+    </CnSection>
 
     <div class="summary-grid">
       <CnStatCard
@@ -139,7 +191,7 @@
             <div class="timeline-note">{{ item.note || '无备注' }}</div>
           </el-timeline-item>
         </el-timeline>
-        <CnEmptyState v-else title="暂无阶段推进记录" description="同步或完成动作后会在这里沉淀时间线。" icon="TL" />
+        <CnEmptyState v-else title="暂无阶段推进记录" description="完成动作后会在这里沉淀时间线。" icon="TL" />
       </CnSection>
 
       <CnSection title="风险与建议" description="根据闭环快照展示当前风险项和下一步行动建议。" divided>
@@ -172,56 +224,21 @@
       </CnSection>
     </div>
 
-    <CnSection title="动作清单" description="按阶段推进求职动作，完成后同步刷新闭环状态。" divided>
-      <CnDataTable
-        :columns="actionColumns"
-        :data="actions"
-        :loading="loading.main"
-        row-key="id"
-        border
-        empty-title="暂无动作"
-        empty-description="启动或同步闭环会话后会生成行动清单。"
-        empty-icon="AC"
-      >
-        <template #stage="{ row }">
-          {{ mapStageLabel(row.stage) }}
-        </template>
-
-        <template #status="{ row }">
-          <CnStatusTag :type="mapActionStatusTone(row.status)" size="sm">
-            {{ mapActionStatusLabel(row.status) }}
-          </CnStatusTag>
-        </template>
-
-        <template #actions="{ row }">
-          <div class="table-actions">
-            <el-button link type="primary" @click="goByActionType(row.actionType)">
-              {{ row.actionType === 'offer' ? '记录跟踪' : '去执行' }}
-            </el-button>
-            <el-button link type="success" :disabled="row.status === 'done'" @click="handleDoneAction(row)">
-              标记完成
-            </el-button>
-          </div>
-        </template>
-      </CnDataTable>
-    </CnSection>
   </CnPage>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onActivated, onMounted, reactive, ref } from 'vue'
 import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Connection, Refresh } from '@element-plus/icons-vue'
+import { Connection, MoreFilled } from '@element-plus/icons-vue'
 import {
-  CnDataTable,
   CnEmptyState,
   CnPage,
   CnPageHeader,
   CnSection,
   CnStatCard,
   CnStatusTag,
-  type CnTableColumn,
   type CnTone
 } from '@/design-system'
 import { careerLoopApi } from '@/api/careerLoop'
@@ -304,29 +321,29 @@ const router = useRouter()
 const loading = reactive({
   main: false,
   start: false,
-  sync: false
+  recovery: false
 })
 
 const current = ref<CareerLoopCurrent>(adaptCareerLoopCurrent() as CareerLoopCurrent)
 const timeline = ref<CareerLoopTimelineItem[]>([])
 const actions = ref<CareerLoopAction[]>([])
+const lastSyncedAt = ref<Date | null>(null)
 const heatmapDayLabels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 const radarCenter = { x: 160, y: 160 }
 const radarRadius = 104
-
-const actionColumns: CnTableColumn<CareerLoopAction>[] = [
-  { prop: 'title', label: '动作', minWidth: 220, showOverflowTooltip: true },
-  { prop: 'description', label: '说明', minWidth: 260, showOverflowTooltip: true },
-  { prop: 'stage', label: '阶段', width: 180, slot: 'stage' },
-  { prop: 'status', label: '状态', width: 120, slot: 'status' },
-  { label: '操作', width: 200, fixed: 'right', slot: 'actions' }
-]
 
 const healthTone = computed<CnTone>(() => {
   const score = Number(current.value.session.healthScore || 0)
   if (score >= 80) return 'success'
   if (score >= 60) return 'warning'
   return 'danger'
+})
+
+const syncStatusText = computed(() => {
+  if (!lastSyncedAt.value) {
+    return '自动同步已开启'
+  }
+  return `自动同步 · ${lastSyncedAt.value.toLocaleTimeString('zh-CN', { hour12: false })}`
 })
 
 const fetchAll = async () => {
@@ -340,6 +357,7 @@ const fetchAll = async () => {
     current.value = adaptCareerLoopCurrent(currentData || {}) as CareerLoopCurrent
     timeline.value = Array.isArray(timelineData) ? timelineData : []
     actions.value = Array.isArray(actionData) ? actionData : []
+    lastSyncedAt.value = new Date()
   } catch (e) {
     console.error('加载求职闭环数据失败', e)
     ElMessage.error('加载求职闭环数据失败')
@@ -355,28 +373,36 @@ const handleStart = async () => {
       targetRole: current.value.session.targetRole || '',
       targetCompanyType: current.value.session.targetCompanyType || ''
     })
-    ElMessage.success('闭环会话已重启')
+    ElMessage.success('求职准备已就绪')
     await fetchAll()
   } catch (e) {
-    console.error('重启闭环会话失败', e)
-    ElMessage.error('重启闭环会话失败')
+    console.error('启动求职准备失败', e)
+    ElMessage.error('启动求职准备失败')
   } finally {
     loading.start = false
   }
 }
 
-const handleSync = async () => {
-  loading.sync = true
+const handleRecoverySync = async () => {
+  loading.recovery = true
   try {
     await careerLoopApi.sync({})
-    ElMessage.success('闭环状态已同步')
+    ElMessage.success('闭环状态已恢复同步')
     await fetchAll()
   } catch (e) {
-    console.error('同步闭环状态失败', e)
-    ElMessage.error('同步闭环状态失败')
+    console.error('恢复同步失败', e)
+    ElMessage.error('恢复同步失败')
   } finally {
-    loading.sync = false
+    loading.recovery = false
   }
+}
+
+const handleRecoveryCommand = async (command: string) => {
+  if (command === 'sync') {
+    await handleRecoverySync()
+    return
+  }
+  await fetchAll()
 }
 
 const handleDoneAction = async (row: CareerLoopAction) => {
@@ -565,8 +591,14 @@ const heatmapCells = computed<HeatmapCell[]>(() => {
   })
 })
 
-onMounted(async () => {
-  await fetchAll()
+onMounted(() => {
+  fetchAll()
+})
+
+onActivated(() => {
+  if (lastSyncedAt.value) {
+    fetchAll()
+  }
 })
 </script>
 
@@ -810,10 +842,54 @@ onMounted(async () => {
   margin: 0;
 }
 
-.table-actions {
+.career-actions-section :deep(.cn-section__body) {
+  padding-top: var(--cn-space-4);
+}
+
+.career-action-list {
+  display: grid;
+  gap: var(--cn-space-3);
+  min-height: 112px;
+}
+
+.career-action-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--cn-space-4);
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: 8px;
+  background: var(--cn-color-bg-surface-muted);
+}
+
+.career-action-copy {
+  min-width: 0;
+}
+
+.career-action-meta,
+.career-action-controls {
   display: flex;
   flex-wrap: wrap;
   gap: var(--cn-space-2);
+}
+
+.career-action-copy h2 {
+  margin: var(--cn-space-3) 0 var(--cn-space-1);
+  color: var(--cn-color-text-primary);
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.career-action-copy p {
+  margin: 0;
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.career-action-controls {
+  justify-content: flex-end;
 }
 
 @media (max-width: 1180px) {
@@ -844,6 +920,14 @@ onMounted(async () => {
   .radar-legend {
     min-width: 0;
     grid-template-columns: 1fr;
+  }
+
+  .career-action-item {
+    grid-template-columns: 1fr;
+  }
+
+  .career-action-controls {
+    justify-content: flex-start;
   }
 }
 </style>

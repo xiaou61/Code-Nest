@@ -5,8 +5,8 @@ import request from '@/utils/request'
  */
 
 // 获取已发布的知识图谱列表
-export function getPublishedKnowledgeMaps(params) {
-  return request.post('/pub/knowledge/maps/list', params)
+export function getPublishedKnowledgeMaps(params, config = {}) {
+  return request.post('/pub/knowledge/maps/list', params, config)
 }
 
 // 根据ID获取知识图谱详情
@@ -27,4 +27,4 @@ export function searchKnowledgeNodes(mapId, keyword) {
 // 记录节点查看
 export function recordNodeView(nodeId) {
   return request.post(`/pub/knowledge/maps/nodes/${nodeId}/view`)
-} 
+}

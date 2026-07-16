@@ -1,5 +1,7 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import Components from 'unplugin-vue-components/vite'
+import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import { resolve } from 'path'
 
 const buildManualChunks = (id) => {
@@ -58,7 +60,16 @@ const buildManualChunks = (id) => {
 }
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    Components({
+      dts: false,
+      resolvers: [ElementPlusResolver({ importStyle: 'css' })],
+      // The linked design system is intentionally resolved through node_modules.
+      // Keep it inside the transform scope so its Element Plus tags are also auto-imported.
+      exclude: [/node_modules[\\/](?!@code-nest[\\/]design-system[\\/])/]
+    })
+  ],
   resolve: {
     preserveSymlinks: true,
     alias: {

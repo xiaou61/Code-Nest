@@ -195,6 +195,7 @@ import {
 import { CnPage, CnSection, CnStatusTag, CnThemeSwitch } from '@/design-system'
 import { authApi } from '@/api/auth'
 import { captchaApi } from '@/api/captcha'
+import { careerLoopApi } from '@/api/careerLoop'
 import { useUserStore } from '@/stores/user'
 
 interface LoginForm {
@@ -221,6 +222,12 @@ interface AuthResult {
 interface CaptchaResult {
   captchaImage: string
   captchaKey: string
+}
+
+interface CareerLoopProfile {
+  session?: {
+    targetRole?: string
+  }
 }
 
 const router = useRouter()
@@ -349,6 +356,23 @@ const refreshCaptcha = () => {
   loadCaptcha()
 }
 
+const routeAfterLogin = async () => {
+  try {
+    const profile = (await careerLoopApi.getCurrent()) as CareerLoopProfile
+    if (!profile?.session?.targetRole?.trim()) {
+      router.push('/onboarding')
+      return
+    }
+  } catch (error) {
+    console.warn('读取首次学习设置失败', error)
+  }
+
+  const redirect = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/')
+    ? route.query.redirect
+    : '/'
+  router.push(redirect)
+}
+
 const handleLogin = async () => {
   try {
     await loginFormRef.value?.validate()
@@ -361,7 +385,7 @@ const handleLogin = async () => {
     })) as AuthResult
     userStore.login(result.accessToken, result.userInfo)
     ElMessage.success('登录成功')
-    router.push('/')
+    await routeAfterLogin()
   } catch (error) {
     console.error('登录失败:', error)
     refreshCaptcha()
@@ -743,10 +767,12 @@ onMounted(() => {
 
   .auth-brand-panel {
     min-height: auto;
+    order: 2;
   }
 
   .auth-form-panel {
     align-self: stretch;
+    order: 1;
   }
 }
 
@@ -765,12 +791,19 @@ onMounted(() => {
   }
 
   .auth-brand-copy {
-    margin: var(--cn-space-8) 0 0;
+    margin: var(--cn-space-5) 0 0;
+  }
+
+  .auth-brand-copy h1 {
+    font-size: 38px;
   }
 
   .auth-feature-grid {
-    grid-template-columns: minmax(0, 1fr);
-    margin-top: var(--cn-space-6);
+    display: none;
+  }
+
+  .auth-brand-footer {
+    margin-top: var(--cn-space-5);
   }
 
   .form-row {

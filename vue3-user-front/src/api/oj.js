@@ -98,8 +98,8 @@ export const ojApi = {
   // ============ 每日一题 ============
 
   // 获取每日一题
-  getDailyProblem() {
-    return request.get('/oj/daily-problem')
+  getDailyProblem(config = {}) {
+    return request.get('/oj/daily-problem', {}, config)
   },
 
   // ============ 题目评论 ============

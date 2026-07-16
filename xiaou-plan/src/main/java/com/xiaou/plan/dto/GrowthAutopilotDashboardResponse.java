@@ -77,6 +77,7 @@ public class GrowthAutopilotDashboardResponse {
     public static class TargetProfile {
         private String targetRole = "";
         private Integer weeklyHours = 0;
+        private String currentStage = "practice";
         private String note = "";
     }
 

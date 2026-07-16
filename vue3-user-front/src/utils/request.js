@@ -45,6 +45,12 @@ service.interceptors.request.use(
 // 标记是否正在处理token过期，避免重复弹窗
 let isHandlingTokenExpired = false
 
+function showRequestError(message, config) {
+  if (!config?.silent) {
+    ElMessage.error(message)
+  }
+}
+
 // 响应拦截器
 // 注意：Sa-Token 已经在后端配置了持久化机制
 // activity-timeout: -1（不启用活动超时）
@@ -58,7 +64,7 @@ service.interceptors.response.use(
     
     // HTTP状态码检查
     if (status !== 200) {
-      ElMessage.error(`HTTP错误: ${status}`)
+      showRequestError(`HTTP错误: ${status}`, response.config)
       return Promise.reject(new Error(`HTTP Error: ${status}`))
     }
     
@@ -79,19 +85,19 @@ service.interceptors.response.use(
       
       // 权限不足（业务状态码 703）
       if (code === 703) {
-        ElMessage.error(message || '权限不足')
+        showRequestError(message || '权限不足', response.config)
         return Promise.reject(new Error(message || '权限不足'))
       }
       
       // 账户被禁用
       if (code === 704) {
-        ElMessage.error(message)
+        showRequestError(message, response.config)
         handleLogout()
         return Promise.reject(new Error(message))
       }
       
       // 其他业务错误
-      ElMessage.error(message || '请求失败')
+      showRequestError(message || '请求失败', response.config)
       return Promise.reject(new Error(message || '请求失败'))
     }
     
@@ -104,34 +110,35 @@ service.interceptors.response.use(
     
     if (error.response) {
       const { status, data } = error.response
+      const config = error.config
       
       switch (status) {
         case 401:
           handleTokenError('登录已过期，请重新登录')
           break
         case 403:
-          ElMessage.error('权限不足')
+          showRequestError('权限不足', config)
           break
         case 404:
-          ElMessage.error('请求的资源不存在')
+          showRequestError('请求的资源不存在', config)
           break
         case 500:
-          ElMessage.error('服务器内部错误')
+          showRequestError('服务器内部错误', config)
           break
         case 502:
         case 503:
         case 504:
-          ElMessage.error('服务暂时不可用，请稍后重试')
+          showRequestError('服务暂时不可用，请稍后重试', config)
           break
         default:
-          ElMessage.error(data?.message || `请求失败 (${status})`)
+          showRequestError(data?.message || `请求失败 (${status})`, config)
       }
     } else if (error.code === 'ECONNABORTED') {
-      ElMessage.error('请求超时，请稍后重试')
+      showRequestError('请求超时，请稍后重试', error.config)
     } else if (error.code === 'ERR_NETWORK') {
-      ElMessage.error('网络连接异常，请检查网络')
+      showRequestError('网络连接异常，请检查网络', error.config)
     } else {
-      ElMessage.error('网络连接异常，请检查网络')
+      showRequestError('网络连接异常，请检查网络', error.config)
     }
     
     return Promise.reject(error)

@@ -26,7 +26,7 @@ export const versionApi = {
   },
 
   // 获取最新版本列表（用于首页展示等）
-  getLatestVersions(limit = 5) {
-    return request.get('/version/latest', { limit })
+  getLatestVersions(limit = 5, config = {}) {
+    return request.get('/version/latest', { limit }, config)
   }
-} 
+}

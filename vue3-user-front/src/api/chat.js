@@ -10,8 +10,8 @@ export function getChatHistory(data) {
 }
 
 // 获取在线人数
-export function getOnlineCount() {
-  return request.post('/user/chat/online-count')
+export function getOnlineCount(config = {}) {
+  return request.post('/user/chat/online-count', {}, config)
 }
 
 // 获取在线用户列表

@@ -1,6 +1,6 @@
 # Code Nest
 
-![Version](https://img.shields.io/badge/version-v2.4.1-blue.svg)
+![Version](https://img.shields.io/badge/version-v2.4.3-blue.svg)
 ![Java](https://img.shields.io/badge/java-17-orange.svg)
 ![Spring Boot](https://img.shields.io/badge/spring%20boot-3.4.4-brightgreen.svg)
 ![Vue](https://img.shields.io/badge/vue-3.x-4fc08d.svg)
@@ -16,19 +16,31 @@ Code Nest 是一个面向开发者的成长型社区与知识运营平台，采�
 - **vue3-user-front**：面向开发者的用户端，提供刷题、简历制作、动态广场、博客阅读、代码分享、学习资产沉淀、通知消息等场景。
 - **xiaou-application**：多模块聚合的 Spring Boot API，整合 `xiaou-*` 业务模块，对外暴露统一的 `/api` 网关、鉴权、日志与监控。
 
-## v2.4.1 Architecture And Documentation Hardening
+## v2.4.3 Guided First Week And Home Overview
 
-`v2.4.1` 聚焦共享基础设施、热点链路和工程文档治理，在不改变对外 API 与数据库结构的前提下减少重复实现，并补强可验证性。
+`v2.4.3` 将首次登录、首周学习任务和首页数据加载收成一条可恢复的用户流程。
 
 ### 本次版本完成
 
-- **共享设计系统**：抽取独立的 `code-nest-design-system`，用户端和管理端复用同一套组件、主题、设计令牌与组合式函数。
-- **缓存边界收敛**：新增可注入的 `RedisValueStore`，移除静态 `RedisUtil`，集合、锁和业务语义继续由模块直接使用 Redisson 表达。
-- **线程池治理**：通用 I/O 任务使用 Spring 托管的有界 `applicationIoExecutor`，独立负载保留模块专用执行器，删除静态线程池与通用并发工具。
-- **热点链路优化**：学习驾驶舱、社区热点与摘要、朋友圈、摸鱼工具、抽奖和验证码等链路减少重复查询、缓存往返与无边界并发。
-- **聚焦回归测试**：补充学习驾驶舱、WebSocket 票据、Redis 值存储和朋友圈核心服务测试。
-- **文档中心重构**：129 个 Markdown 页面按开始、架构、模块、API、运维和资料重新组织，并新增响应式主题、动态同步基线与导航审计。
-- **版本基线统一**：Maven、共享设计系统、双前端、文档站、Jar 命令与 Docker 示例统一升级到 `v2.4.1`。
+- **目标型首次引导**：登录后缺少目标画像时收集岗位、学习阶段和每周投入时间，直接生成首周自动驾驶计划。
+- **首页聚合**：新增 `/user/home/overview`，服务端并行读取首页来源，单个来源失败仅降级对应区域。
+- **行动优先首页**：把“今天的行动”前置，版本更新下沉为次级内容，减少首屏看板化干扰。
+- **求职自动同步**：闭环页面显示自动同步状态，恢复同步只在异常恢复菜单中出现。
+- **按需 UI 组件**：用户端通过 Vite 自动解析 Element Plus 组件与样式，不再全量 `app.use(ElementPlus)`。
+- **数据库迁移**：新增 `sql/v2.4.3/growth_autopilot_onboarding.sql`，为首周计划保存学习阶段。
+
+## v2.4.2 UX And Flow Refinement
+
+`v2.4.2` 聚焦用户端高频流程的可发现性和移动端可用性，在不改变路由、后端状态机、数据库结构或对外 API 的前提下完成体验修复。
+
+### 本次版本完成
+
+- **移动端导航**：导航抽屉脱离顶部栏容器，覆盖完整视口并支持长菜单滚动。
+- **认证首屏**：窄屏下先展示登录/注册表单，品牌说明移至后续内容并压缩冗余展示。
+- **目标导向导航**：主导航聚焦今天、学习、求职和社区，练习、创作和辅助能力收进更短的次级菜单。
+- **行动优先工作台**：求职闭环的下一步行动先于指标和图表展示；面试题单先于学习热力图展示。
+- **故障降噪**：首页聚合请求在异常时由模块级降级状态表达，不再产生多条重复的全局提示。
+- **版本基线统一**：Maven、共享设计系统、双前端、文档站、Jar 命令与 Docker 示例统一升级到 `v2.4.2`。
 
 ## v2.4.0 Unified Backend Agent Runtime
 
@@ -373,7 +385,7 @@ mvn clean package -DskipTests
 mvn -pl xiaou-application -am spring-boot:run
 
 # 或直接运行打包后的 jar
-java -jar xiaou-application/target/xiaou-application-v2.4.1.jar --spring.profiles.active=prod
+java -jar xiaou-application/target/xiaou-application-v2.4.3.jar --spring.profiles.active=prod
 ```
 
 - API 根地址：`http://localhost:9999/api`
@@ -541,7 +553,7 @@ management:
 
 ```bash
 # 构建镜像
-docker build -t code-nest:v2.4.1 -f docker/Dockerfile .
+docker build -t code-nest:v2.4.3 -f docker/Dockerfile .
 
 # 运行容器
 docker run -d \
@@ -549,7 +561,7 @@ docker run -d \
   -p 9999:9999 \
   -e SPRING_PROFILES_ACTIVE=prod \
   --env-file docker/env/example.env \
-  code-nest:v2.4.1
+  code-nest:v2.4.3
 ```
 
 如果要把 MySQL / Redis / Java 主服务 / `llamaindex-service` 一起编排起来，推荐使用：
@@ -618,6 +630,22 @@ server {
 ## 📝 更新日志
 
 仅列出最近版本，更多历史可查看 `git log`。
+
+### v2.4.3 Guided First Week And Home Overview
+
+- **首次登录闭环**：岗位、学习阶段和每周投入时间会直接生成首周自动驾驶任务。
+- **首页聚合接口**：`/user/home/overview` 用服务端并发与分区降级替代浏览器侧十个并行请求。
+- **行动优先首页**：今天的计划动作前置，版本更新移至次级内容区域。
+- **按需组件解析**：用户端 Element Plus 改为 Vite 自动按需解析，仍保留加载指令与消息组件支持。
+- **数据库迁移**：执行 `sql/v2.4.3/growth_autopilot_onboarding.sql` 以保存首周学习阶段。
+
+### v2.4.2 UX And Flow Refinement
+
+- **移动端可用性**：修复导航抽屉高度和滚动，登录表单在窄屏首屏优先出现。
+- **导航重组**：主入口按今天、学习、求职、社区组织，较长菜单归入练习与工具、创作和更多。
+- **行动优先**：求职闭环先展示下一步行动，面试题库先展示可进入的题单列表。
+- **异常降噪**：首页聚合请求静默失败，由模块级状态提示数据暂不可用，登录过期流程保持不变。
+- **版本基线升级**：Maven、共享设计系统、双前端、文档站、Jar 与 Docker 示例统一升级到 `v2.4.2`。
 
 ### v2.4.1 Architecture And Documentation Hardening
 

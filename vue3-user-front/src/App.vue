@@ -50,23 +50,21 @@ import { useUserStore } from '@/stores/user'
 import { CnCommandPalette, CnTopNav } from '@/design-system'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Bell,
   Calendar,
   Postcard,
   Promotion,
   SwitchButton,
   Trophy,
-  User,
-  UserFilled
+  User
 } from '@element-plus/icons-vue'
 import {
   commandSections,
   creationMenuItems,
   desktopDropdowns,
   flattenCommandItems,
-  learningMenuGroups,
-  leisureMenuItems,
-  primaryNavItems
+  moreMenuItems,
+  primaryNavItems,
+  practiceMenuGroups
 } from '@/config/navigation'
 import { readCommandHistory, writeCommandHistory } from '@/utils/command-history'
 
@@ -82,7 +80,7 @@ const mobileMenuVisible = ref(false)
 
 const allCommandItems = flattenCommandItems(commandSections)
 
-const isAuthPage = computed(() => route.path === '/login' || route.path === '/register')
+const isAuthPage = computed(() => ['/login', '/register', '/onboarding'].includes(route.path))
 
 const recentCommandPaths = ref(readCommandHistory())
 
@@ -94,9 +92,9 @@ const recentCommandItems = computed(() =>
 
 const mobileSections = computed(() => [
   {
-    key: 'learning',
-    title: '学习',
-    items: learningMenuGroups.flatMap((group) => group.items)
+    key: 'practice',
+    title: '练习与工具',
+    items: practiceMenuGroups.flatMap((group) => group.items)
   },
   {
     key: 'creation',
@@ -104,13 +102,9 @@ const mobileSections = computed(() => [
     items: creationMenuItems
   },
   {
-    key: 'leisure',
-    title: '娱乐与辅助',
-    items: leisureMenuItems.concat([
-      { path: '/points', label: '积分中心', desc: '签到、积分和排行榜', icon: Trophy },
-      { path: '/notification', label: '通知中心', desc: '查看系统消息和提醒', icon: Bell },
-      { path: '/profile', label: '个人中心', desc: '账号设置与信息维护', icon: UserFilled }
-    ])
+    key: 'more',
+    title: '更多',
+    items: moreMenuItems
   }
 ])
 
@@ -271,7 +265,7 @@ onUnmounted(() => {
   transform: translateY(8px);
 }
 
-@media (max-width: 992px) {
+@media (max-width: 1120px) {
   .app-main.with-header {
     padding-top: 66px;
   }

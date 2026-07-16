@@ -39,6 +39,7 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
     private static final int DEFAULT_WEEKLY_HOURS = 8;
     private static final int MIN_WEEKLY_HOURS = 3;
     private static final int MAX_WEEKLY_HOURS = 40;
+    private static final String DEFAULT_CURRENT_STAGE = "practice";
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final DateTimeFormatter DATETIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -64,11 +65,14 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
         GrowthAutopilotGenerateRequest body = request == null ? new GrowthAutopilotGenerateRequest() : request;
         LocalDate weekStart = normalizeWeekStart(body.getWeekStart());
         LocalDate weekEnd = weekStart.plusDays(6);
-        String targetRole = normalizeRole(body.getTargetRole());
-        Integer weeklyHours = normalizeWeeklyHours(body.getWeeklyHours());
         LocalDateTime now = LocalDateTime.now();
 
         GrowthAutopilotGoal goal = goalMapper.selectByUserAndWeek(userId, weekStart);
+        String targetRole = normalizeRole(body.getTargetRole());
+        Integer weeklyHours = normalizeWeeklyHours(body.getWeeklyHours());
+        String currentStage = body.getCurrentStage() == null && goal != null
+                ? normalizeCurrentStage(goal.getCurrentStage())
+                : normalizeCurrentStage(body.getCurrentStage());
         if (goal == null) {
             goal = new GrowthAutopilotGoal();
             goal.setUserId(userId);
@@ -76,6 +80,7 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
             goal.setWeekEnd(weekEnd);
             goal.setTargetRole(targetRole);
             goal.setWeeklyHours(weeklyHours);
+            goal.setCurrentStage(currentStage);
             goal.setTotalScoreTarget(0);
             goal.setTotalScoreCompleted(0);
             goal.setTotalTasks(0);
@@ -89,6 +94,7 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
             goal.setWeekEnd(weekEnd);
             goal.setTargetRole(targetRole);
             goal.setWeeklyHours(weeklyHours);
+            goal.setCurrentStage(currentStage);
             goal.setStatus("active");
             goal.setGeneratedAt(now);
             taskMapper.deleteByGoalId(goal.getId());
@@ -100,7 +106,7 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
             taskMapper.batchInsert(generatedTasks);
         }
         refreshGoalMetrics(goal.getId());
-        writeEvent(goal.getId(), userId, "generate", "系统已生成本周自动驾驶计划");
+        writeEvent(goal.getId(), userId, "generate", "系统已按「" + currentStageLabel(currentStage) + "」阶段生成本周自动驾驶计划");
         return getDashboard(userId, goal.getWeekStart());
     }
 
@@ -229,8 +235,9 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
         GrowthAutopilotDashboardResponse.TargetProfile targetProfile = new GrowthAutopilotDashboardResponse.TargetProfile();
         targetProfile.setTargetRole(StrUtil.blankToDefault(goal.getTargetRole(), "通用"));
         targetProfile.setWeeklyHours(nvl(goal.getWeeklyHours()));
-        targetProfile.setNote(String.format("按“%s”岗位 + 每周%d小时自动编排任务",
-                targetProfile.getTargetRole(), targetProfile.getWeeklyHours()));
+        targetProfile.setCurrentStage(normalizeCurrentStage(goal.getCurrentStage()));
+        targetProfile.setNote(String.format("按“%s”岗位 + %s阶段 + 每周%d小时自动编排任务",
+                targetProfile.getTargetRole(), currentStageLabel(targetProfile.getCurrentStage()), targetProfile.getWeeklyHours()));
         response.setTargetProfile(targetProfile);
 
         int totalTasks = tasks.size();
@@ -273,7 +280,7 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
 
         Map<String, List<GrowthAutopilotTask>> moduleMap = tasks.stream()
                 .collect(Collectors.groupingBy(item -> StrUtil.blankToDefault(item.getModuleKey(), "other")));
-        List<ModuleTemplate> moduleTemplates = buildModuleTemplates(goal.getTargetRole());
+        List<ModuleTemplate> moduleTemplates = buildModuleTemplates(goal.getTargetRole(), goal.getCurrentStage());
         List<GrowthAutopilotDashboardResponse.ModuleProgress> progressList = new ArrayList<>();
         for (ModuleTemplate template : moduleTemplates) {
             List<GrowthAutopilotTask> moduleTasks = moduleMap.getOrDefault(template.key(), Collections.emptyList());
@@ -396,7 +403,7 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
     }
 
     private List<GrowthAutopilotTask> buildWeeklyTasks(GrowthAutopilotGoal goal, LocalDate today) {
-        List<ModuleTemplate> templates = buildModuleTemplates(goal.getTargetRole());
+        List<ModuleTemplate> templates = buildModuleTemplates(goal.getTargetRole(), goal.getCurrentStage());
         int weeklyMinutes = nvl(goal.getWeeklyHours()) * 60;
         LocalDate startDate = maxDate(goal.getWeekStart(), today);
         List<LocalDate> availableDays = listDates(startDate, goal.getWeekEnd());
@@ -446,7 +453,7 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
             return Collections.emptyList();
         }
 
-        List<ModuleTemplate> templates = buildModuleTemplates(goal.getTargetRole());
+        List<ModuleTemplate> templates = buildModuleTemplates(goal.getTargetRole(), goal.getCurrentStage());
         Map<String, Long> doneCount = currentTasks.stream()
                 .filter(item -> "done".equalsIgnoreCase(item.getStatus()))
                 .collect(Collectors.groupingBy(GrowthAutopilotTask::getModuleKey, Collectors.counting()));
@@ -550,12 +557,13 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
         GrowthAutopilotDashboardResponse.TargetProfile targetProfile = new GrowthAutopilotDashboardResponse.TargetProfile();
         targetProfile.setTargetRole("通用");
         targetProfile.setWeeklyHours(DEFAULT_WEEKLY_HOURS);
+        targetProfile.setCurrentStage(DEFAULT_CURRENT_STAGE);
         targetProfile.setNote("先设置岗位和每周投入时长，系统会自动拆解今日任务包。");
         response.setTargetProfile(targetProfile);
         return response;
     }
 
-    private List<ModuleTemplate> buildModuleTemplates(String targetRole) {
+    private List<ModuleTemplate> buildModuleTemplates(String targetRole, String currentStage) {
         String role = StrUtil.blankToDefault(targetRole, "通用").toLowerCase(Locale.ROOT);
         List<ModuleTemplate> templates = new ArrayList<>();
         templates.add(new ModuleTemplate("oj", "OJ 冲刺", 0.26, "/oj", 80,
@@ -577,6 +585,13 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
             templates = rebalance(templates, Map.of("oj", 0.2, "interview", 0.27, "flashcard", 0.2, "plan", 0.13, "mock", 0.14, "points", 0.06));
         } else if (containsAny(role, "测试", "qa", "sdet")) {
             templates = rebalance(templates, Map.of("oj", 0.18, "interview", 0.28, "flashcard", 0.18, "plan", 0.16, "mock", 0.14, "points", 0.06));
+        }
+
+        String normalizedStage = normalizeCurrentStage(currentStage);
+        if ("foundation".equals(normalizedStage)) {
+            templates = rebalance(templates, Map.of("oj", 0.22, "interview", 0.27, "flashcard", 0.24, "plan", 0.15, "mock", 0.07, "points", 0.05));
+        } else if ("interview".equals(normalizedStage)) {
+            templates = rebalance(templates, Map.of("oj", 0.17, "interview", 0.30, "flashcard", 0.13, "plan", 0.10, "mock", 0.24, "points", 0.06));
         }
         return templates;
     }
@@ -675,6 +690,22 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
     private String normalizeRole(String role) {
         String value = StrUtil.blankToDefault(role, "通用").trim();
         return value.isEmpty() ? "通用" : value;
+    }
+
+    private String normalizeCurrentStage(String currentStage) {
+        String normalized = StrUtil.blankToDefault(currentStage, DEFAULT_CURRENT_STAGE).trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "foundation", "interview" -> normalized;
+            default -> DEFAULT_CURRENT_STAGE;
+        };
+    }
+
+    private String currentStageLabel(String currentStage) {
+        return switch (normalizeCurrentStage(currentStage)) {
+            case "foundation" -> "基础补齐";
+            case "interview" -> "面试冲刺";
+            default -> "能力练习";
+        };
     }
 
     private List<LocalDate> listDates(LocalDate start, LocalDate end) {

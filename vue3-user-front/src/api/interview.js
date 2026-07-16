@@ -129,8 +129,8 @@ export const interviewApi = {
   },
 
   // 获取用户总学习数量
-  getTotalLearned() {
-    return request.get('/interview/learn/total')
+  getTotalLearned(config = {}) {
+    return request.get('/interview/learn/total', {}, config)
   },
 
   // ============ 掌握度相关 ============

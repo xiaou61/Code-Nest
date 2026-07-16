@@ -56,6 +56,52 @@
     </section>
 
     <CnSection
+      class="home-section section-reveal today-action-section"
+      data-section="growth"
+      :class="{ 'is-visible': visibleSections.growth }"
+      title="今天的行动"
+      description="先完成一个可交付动作，再查看其余数据。"
+      surface="panel"
+      divided
+    >
+      <div v-if="moduleState.growth.loading" class="home-state">正在生成今日行动...</div>
+      <CnEmptyState
+        v-else-if="!moduleState.growth.available"
+        title="今日行动暂不可用"
+        :description="moduleState.growth.message"
+        icon="ACT"
+        size="sm"
+        surface="transparent"
+      />
+      <div v-else class="today-action-grid">
+        <article class="today-primary-action">
+          <span class="today-action-label">{{ todayTaskTotal > 0 ? '下一步' : '本周起点' }}</span>
+          <h2>{{ todayTaskTotal > 0 ? '继续完成今天的计划' : '生成你的第一周任务' }}</h2>
+          <p v-if="todayTaskTotal > 0">
+            今日还有 {{ homeData.growth.plan.todayPending }} 项待办，完成后即可更新学习节奏。
+          </p>
+          <p v-else>先设定岗位与投入时间，让系统生成可执行的首周任务。</p>
+          <div class="today-action-meta">
+            <CnStatusTag type="brand" size="sm" :dot="false">完成 {{ homeData.growth.plan.todayCompleted }} / {{ todayTaskTotal }}</CnStatusTag>
+            <CnStatusTag type="neutral" size="sm" subtle>连续 {{ homeData.growth.plan.maxStreak }} 天</CnStatusTag>
+          </div>
+          <el-button
+            type="primary"
+            @click="goTo(todayTaskTotal > 0 ? '/plan' : '/learning-cockpit?tab=autopilot')"
+          >
+            {{ todayTaskTotal > 0 ? '继续计划' : '制定本周计划' }}
+          </el-button>
+        </article>
+
+        <button class="today-secondary-action" type="button" @click="goTo(homeData.challenge.dailyProblem.routePath)">
+          <span>OJ 每日一题</span>
+          <strong>{{ homeData.challenge.dailyProblem.title }}</strong>
+          <em>{{ homeData.challenge.dailyProblem.difficultyText }} · 通过率 {{ homeData.challenge.dailyProblem.acceptanceRate }}%</em>
+        </button>
+      </div>
+    </CnSection>
+
+    <CnSection
       v-if="recentWorkspaceItems.length"
       class="home-section section-reveal"
       data-section="recent"
@@ -219,122 +265,6 @@
       </CnSection>
     </section>
 
-    <CnSection
-      class="home-section section-reveal"
-      data-section="growth"
-      :class="{ 'is-visible': visibleSections.growth }"
-      title="成长驾驶舱"
-      description="学习执行、面试练习、积分激励，三条成长曲线同屏可见。"
-      surface="panel"
-      divided
-    >
-      <template #actions>
-        <el-button text @click="goTo('/learning-cockpit')">打开完整驾驶舱</el-button>
-      </template>
-
-      <div v-if="moduleState.growth.loading" class="home-state">成长数据加载中...</div>
-      <CnEmptyState
-        v-else-if="!moduleState.growth.available"
-        title="成长数据暂不可用"
-        :description="moduleState.growth.message"
-        icon="AI"
-        size="sm"
-        surface="transparent"
-      />
-      <div v-else class="growth-grid">
-        <article class="growth-card">
-          <header>
-            <span>计划打卡</span>
-            <el-button text @click="goTo('/plan')">进入计划</el-button>
-          </header>
-          <strong>{{ homeData.growth.plan.todayCompletionRate }}%</strong>
-          <p>
-            今日完成 {{ homeData.growth.plan.todayCompleted }} / {{ todayTaskTotal }}，累计打卡
-            {{ homeData.growth.plan.totalCheckins }} 次
-          </p>
-          <el-progress :show-text="false" :percentage="homeData.growth.plan.todayCompletionRate" :stroke-width="8" />
-        </article>
-
-        <article class="growth-card">
-          <header>
-            <span>积分资产</span>
-            <el-button text @click="goTo('/points')">积分中心</el-button>
-          </header>
-          <strong>{{ homeData.growth.points.totalPoints }}</strong>
-          <p>
-            价值约 ¥{{ homeData.growth.points.balanceYuan }}，连续打卡
-            {{ homeData.growth.points.continuousDays }} 天
-          </p>
-          <CnStatusTag :type="homeData.growth.points.todayCheckedIn ? 'success' : 'warning'" size="sm">
-            {{ homeData.growth.points.todayCheckedIn ? '今日已打卡' : `今日可得 +${homeData.growth.points.todayPoints}` }}
-          </CnStatusTag>
-        </article>
-
-        <article class="growth-card">
-          <header>
-            <span>模拟面试</span>
-            <el-button text @click="goTo('/mock-interview')">进入面试</el-button>
-          </header>
-          <strong>{{ homeData.growth.mockInterview.totalInterviews }}</strong>
-          <p>
-            累计面试 {{ homeData.growth.mockInterview.totalInterviews }} 次，平均分
-            {{ homeData.growth.mockInterview.avgScore }}
-          </p>
-          <el-progress :show-text="false" :percentage="safeCompletionRate" :stroke-width="8" status="success" />
-        </article>
-      </div>
-    </CnSection>
-
-    <CnSection
-      class="home-section section-reveal"
-      data-section="version"
-      :class="{ 'is-visible': visibleSections.version }"
-      title="版本播报"
-      description="持续迭代记录，随时掌握平台最新能力。"
-      surface="panel"
-      divided
-    >
-      <template #actions>
-        <el-button text @click="goTo('/version-history')">查看版本历史</el-button>
-      </template>
-
-      <div v-if="moduleState.version.loading" class="home-state">版本数据加载中...</div>
-      <CnEmptyState
-        v-else-if="!moduleState.version.available"
-        title="版本数据暂不可用"
-        :description="moduleState.version.message"
-        icon="VER"
-        size="sm"
-        surface="transparent"
-      />
-      <CnEmptyState
-        v-else-if="homeData.versions.length === 0"
-        title="暂无版本记录"
-        icon="VER"
-        size="sm"
-        surface="transparent"
-      />
-      <div v-else class="version-list">
-        <button
-          v-for="version in homeData.versions"
-          :key="version.id || version.version"
-          class="version-item"
-          type="button"
-          @click="goTo('/version-history')"
-        >
-          <span>
-            <CnStatusTag type="brand" size="sm" :dot="false">{{ version.typeName }}</CnStatusTag>
-            <strong>{{ version.title }}</strong>
-            <em>{{ version.description || '点击查看完整更新说明' }}</em>
-          </span>
-          <span class="version-meta">
-            <strong>{{ version.version }}</strong>
-            <em>{{ version.dateText }}</em>
-          </span>
-        </button>
-      </div>
-    </CnSection>
-
     <section class="home-two-column">
       <CnSection
         class="home-section section-reveal"
@@ -375,6 +305,55 @@
         </div>
       </CnSection>
     </section>
+
+    <CnSection
+      class="home-section home-version-section section-reveal"
+      data-section="version"
+      :class="{ 'is-visible': visibleSections.version }"
+      title="最近更新"
+      surface="panel"
+      compact
+    >
+      <template #actions>
+        <el-button text @click="goTo('/version-history')">版本历史</el-button>
+      </template>
+
+      <div v-if="moduleState.version.loading" class="home-state">版本数据加载中...</div>
+      <CnEmptyState
+        v-else-if="!moduleState.version.available"
+        title="版本数据暂不可用"
+        :description="moduleState.version.message"
+        icon="VER"
+        size="sm"
+        surface="transparent"
+      />
+      <CnEmptyState
+        v-else-if="homeData.versions.length === 0"
+        title="暂无版本记录"
+        icon="VER"
+        size="sm"
+        surface="transparent"
+      />
+      <div v-else class="version-list compact-version-list">
+        <button
+          v-for="version in homeData.versions.slice(0, 2)"
+          :key="version.id || version.version"
+          class="version-item"
+          type="button"
+          @click="goTo('/version-history')"
+        >
+          <span>
+            <CnStatusTag type="brand" size="sm" :dot="false">{{ version.typeName }}</CnStatusTag>
+            <strong>{{ version.title }}</strong>
+            <em>{{ version.description || '点击查看完整更新说明' }}</em>
+          </span>
+          <span class="version-meta">
+            <strong>{{ version.version }}</strong>
+            <em>{{ version.dateText }}</em>
+          </span>
+        </button>
+      </div>
+    </CnSection>
   </CnPage>
 </template>
 
@@ -656,6 +635,98 @@ onBeforeUnmount(() => {
   line-height: 1.1;
 }
 
+.today-action-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.55fr);
+  gap: var(--cn-space-4);
+}
+
+.today-primary-action,
+.today-secondary-action {
+  min-width: 0;
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+}
+
+.today-primary-action {
+  display: grid;
+  align-content: start;
+  gap: var(--cn-space-3);
+  padding: var(--cn-space-5);
+  border-left: 3px solid var(--cn-color-brand-primary);
+  background: var(--cn-color-bg-surface);
+}
+
+.today-action-label {
+  color: var(--cn-color-brand-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.today-primary-action h2 {
+  margin: 0;
+  color: var(--cn-color-text-primary);
+  font-family: var(--cn-font-heading);
+  font-size: 22px;
+  line-height: 1.3;
+}
+
+.today-primary-action p {
+  margin: 0;
+  color: var(--cn-color-text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.today-action-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
+}
+
+.today-primary-action :deep(.el-button) {
+  justify-self: start;
+}
+
+.today-secondary-action {
+  display: grid;
+  align-content: center;
+  gap: var(--cn-space-3);
+  padding: var(--cn-space-5);
+  background: var(--cn-color-bg-surface-muted);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition:
+    border-color var(--cn-motion-fast) var(--cn-ease-out),
+    box-shadow var(--cn-motion-fast) var(--cn-ease-out),
+    transform var(--cn-motion-fast) var(--cn-ease-out);
+}
+
+.today-secondary-action:hover {
+  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 30%, var(--cn-color-border-subtle));
+  box-shadow: var(--cn-shadow-sm);
+  transform: translateY(-2px);
+}
+
+.today-secondary-action > span {
+  color: var(--cn-color-text-secondary);
+  font-size: 12px;
+}
+
+.today-secondary-action strong {
+  color: var(--cn-color-text-primary);
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.today-secondary-action em {
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+  font-style: normal;
+}
+
 .home-section {
   min-width: 0;
 }
@@ -877,6 +948,10 @@ onBeforeUnmount(() => {
   gap: var(--cn-space-2);
 }
 
+.compact-version-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .version-meta {
   justify-items: end;
 }
@@ -972,7 +1047,8 @@ onBeforeUnmount(() => {
 
 @media (max-width: 1180px) {
   .home-hero,
-  .home-two-column {
+  .home-two-column,
+  .today-action-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -998,6 +1074,14 @@ onBeforeUnmount(() => {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .today-primary-action :deep(.el-button) {
+    width: 100%;
+  }
+
+  .compact-version-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .version-item {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1018,6 +1102,7 @@ onBeforeUnmount(() => {
   .recent-card,
   .feed-item,
   .challenge-card,
+  .today-secondary-action,
   .version-item,
   .feature-card,
   .quick-item {

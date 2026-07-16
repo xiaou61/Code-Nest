@@ -5,8 +5,8 @@ import request from '@/utils/request'
  */
 export const pointsApi = {
   // 获取用户积分余额信息
-  getPointsBalance() {
-    return request.get('/user/points/balance')
+  getPointsBalance(config = {}) {
+    return request.get('/user/points/balance', {}, config)
   },
 
   // 用户每日打卡

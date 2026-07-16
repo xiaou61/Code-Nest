@@ -42,8 +42,8 @@ export function getMomentComments(data) {
 // ========== v1.1.0 新增接口 ==========
 
 // 获取热门动态
-export function getHotMoments(data) {
-  return request.post('/user/moments/hot', data)
+export function getHotMoments(data, config = {}) {
+  return request.post('/user/moments/hot', data, config)
 }
 
 // 搜索动态
@@ -69,4 +69,4 @@ export function toggleFavorite(momentId) {
 // 获取我的收藏列表
 export function getMyFavorites(data) {
   return request.post('/user/moments/my-favorites', data)
-} 
+}

@@ -9,6 +9,7 @@
         <result column="week_end" property="weekEnd" jdbcType="DATE"/>
         <result column="target_role" property="targetRole" jdbcType="VARCHAR"/>
         <result column="weekly_hours" property="weeklyHours" jdbcType="INTEGER"/>
+        <result column="current_stage" property="currentStage" jdbcType="VARCHAR"/>
         <result column="total_score_target" property="totalScoreTarget" jdbcType="INTEGER"/>
         <result column="total_score_completed" property="totalScoreCompleted" jdbcType="INTEGER"/>
         <result column="total_tasks" property="totalTasks" jdbcType="INTEGER"/>
@@ -22,7 +23,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id, user_id, week_start, week_end, target_role, weekly_hours,
+        id, user_id, week_start, week_end, target_role, weekly_hours, current_stage,
         total_score_target, total_score_completed, total_tasks, completed_tasks, completion_rate,
         risk_level, status, generated_at, create_time, update_time
     </sql>
@@ -52,11 +53,11 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO growth_autopilot_goal (
-            user_id, week_start, week_end, target_role, weekly_hours,
+            user_id, week_start, week_end, target_role, weekly_hours, current_stage,
             total_score_target, total_score_completed, total_tasks, completed_tasks, completion_rate,
             risk_level, status, generated_at, create_time, update_time
         ) VALUES (
-            #{userId}, #{weekStart}, #{weekEnd}, #{targetRole}, #{weeklyHours},
+            #{userId}, #{weekStart}, #{weekEnd}, #{targetRole}, #{weeklyHours}, #{currentStage},
             #{totalScoreTarget}, #{totalScoreCompleted}, #{totalTasks}, #{completedTasks}, #{completionRate},
             #{riskLevel}, #{status}, #{generatedAt}, NOW(), NOW()
         )
@@ -67,6 +68,7 @@
         SET
             target_role = #{targetRole},
             weekly_hours = #{weeklyHours},
+            current_stage = #{currentStage},
             total_score_target = #{totalScoreTarget},
             total_score_completed = #{totalScoreCompleted},
             total_tasks = #{totalTasks},

@@ -56,14 +56,6 @@
         :loading="loading"
         trend-text="结果"
       />
-      <CnStatCard
-        title="当前页码"
-        :value="queryParams.page"
-        description="分页浏览面试题单"
-        tone="warning"
-        trend="flat"
-        trend-text="分页"
-      />
     </section>
 
     <div class="interview-layout">
@@ -153,8 +145,6 @@
       </aside>
 
       <main class="interview-main">
-        <LearningHeatmap class="heatmap-section cn-learn-reveal" />
-
         <CnSection
           class="question-set-section cn-learn-reveal"
           title="题单列表"
@@ -251,6 +241,8 @@
             />
           </div>
         </CnSection>
+
+        <LearningHeatmap class="heatmap-section cn-learn-reveal" />
       </main>
     </div>
   </CnPage>
@@ -348,7 +340,7 @@ const activeFilterText = computed(() => {
 })
 
 const questionSetSectionDescription = computed(() => {
-  return `当前页 ${queryParams.page}，每页 ${queryParams.size} 个，筛选条件：${activeFilterText.value}`
+  return `每页 ${queryParams.size} 个，筛选条件：${activeFilterText.value}`
 })
 
 const formatDate = (dateStr?: string) => {
@@ -464,7 +456,7 @@ onMounted(async () => {
 
 .interview-summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--cn-space-4);
 }
 

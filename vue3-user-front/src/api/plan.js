@@ -55,8 +55,8 @@ export const planApi = {
   },
 
   // 获取统计概览
-  getStatsOverview() {
-    return request.get('/user/plan/stats/overview')
+  getStatsOverview(config = {}) {
+    return request.get('/user/plan/stats/overview', {}, config)
   }
 }
 

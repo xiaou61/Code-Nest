@@ -39,3 +39,9 @@ test('normalizeBodyRequestConfig should preserve axios config options', () => {
     timeout: 120000
   })
 })
+
+test('normalizeBodyRequestConfig should preserve silent request config', () => {
+  assert.deepEqual(normalizeBodyRequestConfig({ silent: true }), {
+    silent: true
+  })
+})

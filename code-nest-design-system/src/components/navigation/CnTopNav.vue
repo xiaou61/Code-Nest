@@ -148,6 +148,7 @@
     </div>
 
     <el-drawer
+      append-to-body
       :model-value="mobileOpen"
       class="cn-top-nav-mobile"
       direction="rtl"
@@ -679,6 +680,8 @@ function selectMobileItem(item: CnTopNavItem) {
 .cn-top-nav-learning-popper .el-dropdown-menu,
 .cn-top-nav-rich-popper .el-dropdown-menu {
   min-width: 320px;
+  max-height: calc(100dvh - 96px);
+  overflow-y: auto;
   padding: 8px;
   border-color: color-mix(in srgb, var(--cn-color-brand-primary) 18%, var(--cn-color-border-subtle));
   border-radius: 14px;
@@ -799,15 +802,23 @@ function selectMobileItem(item: CnTopNavItem) {
 }
 
 .cn-top-nav-mobile .el-drawer__body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0;
+}
+
+.cn-top-nav-mobile {
+  height: 100dvh;
+  max-height: 100dvh;
 }
 
 .cn-top-nav-mobile__shell {
   display: grid;
   align-content: start;
   gap: 16px;
-  height: 100%;
-  padding: 22px 18px 24px;
+  min-height: 100%;
+  padding: 22px 18px max(24px, env(safe-area-inset-bottom));
   background: var(--cn-color-bg-page);
 }
 
@@ -912,7 +923,7 @@ function selectMobileItem(item: CnTopNavItem) {
   }
 }
 
-@media (max-width: 992px) {
+@media (max-width: 1120px) {
   .cn-top-nav__content {
     height: 66px;
     padding: 0 14px;
