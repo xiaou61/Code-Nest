@@ -234,14 +234,15 @@ node-exporter --------------------+
 | 80 | Nginx 用户端 | 公网 | 业务网站和 API。 |
 | 81 | Nginx 管理端 | 公网或办公网 | 后台管理入口。 |
 | 9999 | Spring Boot | 本机/监控网络 | 云安全组禁止互联网访问。 |
-| 9090 | Prometheus | `127.0.0.1` | 使用 SSH 隧道查看。 |
+| 19090 | Prometheus | `127.0.0.1` | 使用 SSH 隧道查看；避开 Cockpit 的 9090。 |
 | 3000 | Grafana | `127.0.0.1` | 使用 SSH 隧道或认证反代。 |
-| 9093 | Alertmanager | Docker bridge | 不映射主机端口。 |
-| 9100 | node-exporter | Docker bridge | 不映射主机端口。 |
-| 9115 | blackbox-exporter | Docker bridge | 不映射主机端口。 |
+| 19093 | Alertmanager | `127.0.0.1` | host network 下仅本机监听。 |
+| 19094 | Alertmanager 集群通信 | `127.0.0.1` | 单机运行时不对外开放。 |
+| 19100 | node-exporter | `127.0.0.1` | host network 下仅本机监听。 |
+| 19115 | blackbox-exporter | `127.0.0.1` | host network 下仅本机监听。 |
 
-Nginx 的 `/api/actuator/` 404 规则是应用层防护；云安全组、服务器防火墙和 Docker 网络
-限制是网络层防护，三层不能只依赖其中一层。
+Nginx 的 `/api/actuator/` 404 规则是应用层防护；云安全组、服务器防火墙和各监控服务的
+loopback 监听是网络层防护，三层不能只依赖其中一层。
 
 ### 5.3 P0 告警生命周期
 
@@ -645,9 +646,9 @@ Grafana 链接使用后端生成的白名单 URL，避免用户输入任意 URL 
 
 - 所有 Prometheus targets 为 `UP`；
 - QQ firing/resolved 邮件均收到；
-- 公网无法访问 `9999`、`9090`、`3000`；
+- 公网无法访问 `9999`、`19090`、`19093`、`19094`、`19100`、`19115`、`3000`；
 - 停止应用可以触发告警，恢复应用可以收到 resolved；
-- 服务器执行过 `promtool`、`amtool`、`docker compose config` 和 Nginx 配置检查。
+- 服务器执行过 `promtool`、`amtool`、Docker/Podman Compose 配置和 Nginx 配置检查。
 
 ### P1：可观测性补全
 
@@ -748,7 +749,7 @@ Docker、任意 PromQL/LogQL 或数据库写操作。
 
 ### 安全
 
-- [ ] 公网无法访问 `9999`、`9090`、`3000`、`9093`、`9100`、`9115`。
+- [ ] 公网无法访问 `9999`、`19090`、`19093`、`19094`、`19100`、`19115`、`3000`。
 - [ ] `/api/actuator/**` 经 Nginx 返回 404。
 - [ ] webhook 使用机器凭据，不使用浏览器 Token。
 - [ ] P1 exporter 使用最小权限账号。

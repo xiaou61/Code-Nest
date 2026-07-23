@@ -2,14 +2,12 @@ services:
   prometheus:
     image: ${PROMETHEUS_IMAGE}
     restart: unless-stopped
-    ports:
-      - "${PROMETHEUS_BIND_ADDRESS}:${PROMETHEUS_PORT}:9090"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    network_mode: host
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION}
+      - --web.listen-address=${PROMETHEUS_BIND_ADDRESS}:${PROMETHEUS_PORT}
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./alert_rules.yml:/etc/prometheus/rules/alert_rules.yml:ro
@@ -19,27 +17,26 @@ services:
       - alertmanager
       - node-exporter
       - blackbox-exporter
-    networks:
-      - monitoring
-
   alertmanager:
     image: ${ALERTMANAGER_IMAGE}
     restart: unless-stopped
+    network_mode: host
     command:
       - --config.file=/etc/alertmanager/alertmanager.yml
       - --storage.path=/alertmanager
+      - --web.listen-address=${ALERTMANAGER_BIND_ADDRESS}:${ALERTMANAGER_PORT}
+      - --cluster.listen-address=${ALERTMANAGER_BIND_ADDRESS}:${ALERTMANAGER_CLUSTER_PORT}
     volumes:
       - ./alertmanager/alertmanager.local.yml:/etc/alertmanager/alertmanager.yml:ro
+      # Alertmanager runs as UID 65534. The host secret files must be owned by
+      # that UID with mode 0400; Podman Compose cannot honor Compose secret modes.
       - ./secrets/qq_smtp_auth_code:/run/secrets/qq_smtp_auth_code:ro
+      - ./secrets/sre_webhook_token:/run/secrets/sre_webhook_token:ro
       - alertmanager-data:/alertmanager
-    networks:
-      - monitoring
-
   grafana:
     image: ${GRAFANA_IMAGE}
     restart: unless-stopped
-    ports:
-      - "${GRAFANA_BIND_ADDRESS}:${GRAFANA_PORT}:3000"
+    network_mode: host
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
@@ -47,42 +44,35 @@ services:
       GF_SECURITY_ALLOW_EMBEDDING: "false"
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL}
+      GF_SERVER_HTTP_ADDR: ${GRAFANA_BIND_ADDRESS}
+      GF_SERVER_HTTP_PORT: ${GRAFANA_PORT}
       TZ: Asia/Shanghai
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
     depends_on:
       - prometheus
-    networks:
-      - monitoring
-
   node-exporter:
     image: ${NODE_EXPORTER_IMAGE}
     restart: unless-stopped
+    network_mode: host
     command:
       - --path.rootfs=/host
       - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run|var/lib/docker/.+)($$|/)
+      - --web.listen-address=${NODE_EXPORTER_BIND_ADDRESS}:${NODE_EXPORTER_PORT}
     pid: host
     volumes:
       - /:/host:ro,rslave
-    networks:
-      - monitoring
-
   blackbox-exporter:
     image: ${BLACKBOX_EXPORTER_IMAGE}
     restart: unless-stopped
+    network_mode: host
     command:
       - --config.file=/etc/blackbox_exporter/config.yml
+      - --web.listen-address=${BLACKBOX_EXPORTER_BIND_ADDRESS}:${BLACKBOX_EXPORTER_PORT}
     volumes:
       - ./blackbox/config.yml:/etc/blackbox_exporter/config.yml:ro
-    networks:
-      - monitoring
-
 volumes:
   prometheus-data:
   alertmanager-data:
   grafana-data:
-
-networks:
-  monitoring:
-    driver: bridge

@@ -1,5 +1,5 @@
 - targets:
-    - host.docker.internal:9999
+    - 127.0.0.1:9999
   labels:
     service: code-nest
     environment: production

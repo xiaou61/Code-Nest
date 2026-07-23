@@ -1,0 +1,47 @@
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: smtp.qq.com:465
+  smtp_from: replace-with-your-qq-email@qq.com
+  smtp_auth_username: replace-with-your-qq-email@qq.com
+  smtp_auth_password_file: /run/secrets/qq_smtp_auth_code
+  smtp_require_tls: true
+  smtp_force_implicit_tls: true
+
+route:
+  receiver: qq-email-and-sre-webhook
+  group_by:
+    - alertname
+    - job
+    - instance
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - receiver: qq-email-and-sre-webhook
+      matchers:
+        - 'severity = "critical"'
+      repeat_interval: 1h
+
+inhibit_rules:
+  - source_matchers:
+      - 'severity = "critical"'
+    target_matchers:
+      - 'severity = "warning"'
+    equal:
+      - alertname
+      - instance
+
+receivers:
+  - name: qq-email-and-sre-webhook
+    email_configs:
+      - to: replace-with-alert-recipient@qq.com
+        send_resolved: true
+        headers:
+          subject: '[{{ .Status | toUpper }}] Code-Nest {{ .CommonLabels.alertname }}'
+    webhook_configs:
+      - url: http://127.0.0.1:9999/api/internal/sre/alertmanager/v1/alerts
+        send_resolved: true
+        http_config:
+          authorization:
+            type: Bearer
+            credentials_file: /run/secrets/sre_webhook_token
