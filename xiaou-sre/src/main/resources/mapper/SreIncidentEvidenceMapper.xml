@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.sre.mapper.SreIncidentEvidenceMapper">
+
+    <resultMap id="SreIncidentEvidenceResult" type="com.xiaou.sre.domain.SreIncidentEvidence">
+        <id property="id" column="id"/>
+        <result property="incidentId" column="incident_id"/>
+        <result property="outboxEventId" column="outbox_event_id"/>
+        <result property="sourceType" column="source_type"/>
+        <result property="sourceRef" column="source_ref"/>
+        <result property="query" column="query_text"/>
+        <result property="snapshotJson" column="snapshot_json"/>
+        <result property="capturedAt" column="captured_at"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <select id="selectByOutboxEventAndSource" resultMap="SreIncidentEvidenceResult">
+        SELECT id, incident_id, outbox_event_id, source_type, source_ref, query_text,
+               snapshot_json, captured_at, create_time
+        FROM sre_incident_evidence
+        WHERE outbox_event_id = #{outboxEventId}
+          AND source_type = #{sourceType}
+        LIMIT 1
+    </select>
+
+    <select id="selectByIncidentId" resultMap="SreIncidentEvidenceResult">
+        SELECT id, incident_id, outbox_event_id, source_type, source_ref, query_text,
+               snapshot_json, captured_at, create_time
+        FROM sre_incident_evidence
+        WHERE incident_id = #{incidentId}
+        ORDER BY captured_at DESC, id DESC
+        LIMIT 200
+    </select>
+
+    <select id="selectForInvestigation" resultMap="SreIncidentEvidenceResult">
+        SELECT id, incident_id, outbox_event_id, source_type, source_ref, query_text,
+               snapshot_json, captured_at, create_time
+        FROM sre_incident_evidence
+        WHERE incident_id = #{incidentId}
+        ORDER BY captured_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sre_incident_evidence (
+            incident_id, outbox_event_id, source_type, source_ref, query_text,
+            snapshot_json, captured_at, create_time
+        ) VALUES (
+            #{incidentId}, #{outboxEventId}, #{sourceType}, #{sourceRef}, #{query},
+            #{snapshotJson}, #{capturedAt}, CURRENT_TIMESTAMP
+        )
+        ON DUPLICATE KEY UPDATE id = id
+    </insert>
+</mapper>

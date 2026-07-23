@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.xiaou</groupId>
+    <artifactId>Code-Nest</artifactId>
+    <version>v2.4.3</version>
+  </parent>
+  <groupId>com.xiaou</groupId>
+  <artifactId>xiaou-sre</artifactId>
+  <version>v2.4.3</version>
+  <name>xiaou-sre</name>
+  <description>SRE 告警、事故生命周期与证据领域模块</description>
+  <dependencies>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-common</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

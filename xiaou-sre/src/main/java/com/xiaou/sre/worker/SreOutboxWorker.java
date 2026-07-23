@@ -1,0 +1,112 @@
+package com.xiaou.sre.worker;
+
+import com.xiaou.sre.config.SreOutboxProperties;
+import com.xiaou.sre.domain.SreOutboxEvent;
+import com.xiaou.sre.service.SreOutboxClaimService;
+import com.xiaou.sre.service.SreOutboxEventProcessor;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+/**
+ * SRE Outbox 定时消费器。
+ *
+ * <p>单机阶段使用数据库状态和租约即可避免重复消费；进程异常退出后，过期的
+ * PROCESSING 事件会回到 PENDING。该 Worker 只做只读证据任务，不执行系统动作。</p>
+ *
+ * @author xiaou
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class SreOutboxWorker {
+
+    private final SreOutboxProperties properties;
+    private final SreOutboxClaimService claimService;
+    private final SreOutboxEventProcessor eventProcessor;
+    private final AtomicBoolean running = new AtomicBoolean(false);
+
+    @Scheduled(
+            fixedDelayString = "${xiaou.sre.outbox.fixed-delay-ms:5000}",
+            initialDelayString = "${xiaou.sre.outbox.initial-delay-ms:10000}"
+    )
+    public void drain() {
+        if (!properties.isEnabled() || !running.compareAndSet(false, true)) {
+            return;
+        }
+
+        try {
+            claimService.recoverStaleProcessing();
+            List<Long> pendingIds = claimService.listPendingIds(properties.normalizedBatchSize());
+            if (pendingIds == null || pendingIds.isEmpty()) {
+                return;
+            }
+            for (Long id : pendingIds) {
+                processOne(id);
+            }
+        } catch (RuntimeException exception) {
+            log.error("SRE Outbox 扫描失败: {}", exception.getClass().getSimpleName(), exception);
+        } finally {
+            running.set(false);
+        }
+    }
+
+    private void processOne(Long id) {
+        SreOutboxEvent event;
+        try {
+            event = claimService.claim(id);
+        } catch (RuntimeException exception) {
+            log.warn("SRE Outbox 领取失败: eventId={}, reason={}", id, exception.getClass().getSimpleName());
+            return;
+        }
+        if (event == null) {
+            return;
+        }
+
+        try {
+            eventProcessor.process(event);
+            log.info("SRE Outbox 处理成功: eventId={}, eventType={}", event.getId(), event.getEventType());
+        } catch (RuntimeException exception) {
+            handleFailure(event, exception);
+        }
+    }
+
+    private void handleFailure(SreOutboxEvent event, RuntimeException exception) {
+        int attempts = event.getAttempts() == null ? 1 : Math.max(event.getAttempts(), 1);
+        if (attempts >= properties.normalizedMaxAttempts()) {
+            try {
+                claimService.markFailed(event.getId());
+            } catch (RuntimeException stateException) {
+                log.error("SRE Outbox 标记失败状态异常: eventId={}, reason={}",
+                        event.getId(), stateException.getClass().getSimpleName(), stateException);
+            }
+            log.error("SRE Outbox 超过最大尝试次数: eventId={}, eventType={}, attempts={}, reason={}",
+                    event.getId(), event.getEventType(), attempts, exception.getClass().getSimpleName());
+            return;
+        }
+
+        long delaySeconds = retryDelaySeconds(attempts);
+        try {
+            claimService.markRetry(event.getId(), delaySeconds);
+        } catch (RuntimeException stateException) {
+            log.error("SRE Outbox 标记重试异常: eventId={}, reason={}",
+                    event.getId(), stateException.getClass().getSimpleName(), stateException);
+            return;
+        }
+        log.warn("SRE Outbox 处理失败，将重试: eventId={}, eventType={}, attempts={}, delaySeconds={}, reason={}",
+                event.getId(), event.getEventType(), attempts, delaySeconds, exception.getClass().getSimpleName());
+    }
+
+    private long retryDelaySeconds(int attempts) {
+        long delay = properties.normalizedRetryBackoffSeconds();
+        long maxDelay = properties.normalizedMaxRetryBackoffSeconds();
+        for (int i = 1; i < attempts && delay < maxDelay; i++) {
+            delay = Math.min(maxDelay, delay * 2L);
+        }
+        return delay;
+    }
+}

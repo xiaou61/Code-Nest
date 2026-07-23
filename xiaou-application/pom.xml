@@ -25,6 +25,13 @@
             <artifactId>xiaou-system</artifactId>
             <version>${revision}</version>
         </dependency>
+
+        <!-- SRE 告警、事故与证据领域 -->
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-sre</artifactId>
+            <version>${revision}</version>
+        </dependency>
         
         <!-- 引入user-api模块 -->
         <dependency>
