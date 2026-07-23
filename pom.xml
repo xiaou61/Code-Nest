@@ -11,6 +11,7 @@
     <modules>
         <module>xiaou-common</module>
         <module>xiaou-system</module>
+        <module>xiaou-sre</module>
         <module>xiaou-user-api</module>
         <module>xiaou-user</module>
         <module>xiaou-application</module>

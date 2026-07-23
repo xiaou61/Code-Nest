@@ -1,106 +1,108 @@
-# Prometheus + Grafana 监控部署
+# Single-Server Monitoring
 
-## 快速启动
+This directory is the production baseline for one Code-Nest server. It runs
+Prometheus, Alertmanager, Grafana, node-exporter, and blackbox-exporter. It is
+intentionally read-only: it detects, records, and notifies; it does not restart
+containers, alter databases, or execute AI-proposed actions.
 
-### 1. 启动监控服务
+## What It Covers
 
-```bash
-# 在此目录下执行
-docker-compose up -d
-```
+- Spring Boot Actuator and Micrometer metrics
+- Host CPU and disk capacity
+- Public HTTP availability from a blackbox probe
+- HTTP error ratio, latency, and JVM heap
+- QQ mail delivery for warning and critical alerts
 
-### 2. 验证服务状态
+MySQL/Redis exporters, logs, traces, incident workflow, and AI RCA belong to
+later phases. Do not add their credentials to this stack until dedicated
+least-privilege accounts and retention policies exist.
 
-```bash
-# 查看运行状态
-docker-compose ps
+## Network Boundary
 
-# 查看日志
-docker-compose logs -f
-```
+Before starting, close public access to TCP `9999`, `3000`, `9090`, `9093`,
+`9100`, and `9115` in the cloud security group and host firewall. The public
+entry points are Nginx on `80` and `81`; Nginx proxies business traffic to the
+backend, while Prometheus reaches the backend through Docker's host gateway.
 
-### 3. 访问界面
+Blocking `/api/actuator/` in Nginx is only one layer. It does not protect a
+directly exposed backend port. Verify that the server's security group does
+not allow public TCP `9999`, and keep the monitoring UI ports bound to
+`127.0.0.1` as configured in `.env`.
 
-- **Prometheus**: http://localhost:9090
-- **Grafana**: http://localhost:3000
-  - 默认账号: `admin`
-  - 默认密码: `admin123`
+## Server Setup
 
-### 4. 确认应用监控
-
-1. 访问 Prometheus Targets: http://localhost:9090/targets
-2. 确认 `code-nest` 任务状态为 **UP**
-
-## 配置说明
-
-### prometheus.yml
-- Prometheus 主配置文件
-- 配置了采集间隔、目标等
-- 如需修改目标地址，请编辑此文件
-
-### alert_rules.yml
-- 告警规则配置（当前未启用）
-- 要启用告警，需要：
-  1. 取消 prometheus.yml 中 `rule_files` 的注释
-  2. 配置 AlertManager（可选）
-
-### docker-compose.yml
-- Docker Compose 编排文件
-- 包含 Prometheus 和 Grafana 两个服务
-- 数据会持久化到 Docker volumes
-
-## Grafana 配置
-
-### 添加数据源
-
-1. 登录 Grafana
-2. 左侧菜单 → Configuration → Data Sources
-3. Add data source → Prometheus
-4. URL 填写: `http://prometheus:9090`
-5. Save & Test
-
-### 导入 Dashboard
-
-推荐以下 Dashboard ID：
-
-- **11378** - Spring Boot 2.1 Statistics（全面监控）
-- **4701** - JVM (Micrometer)（JVM专项）
-- **6756** - Spring Boot Statistics（轻量级）
-
-导入步骤：
-1. 左侧菜单 → + → Import
-2. 输入 Dashboard ID
-3. 选择 Prometheus 数据源
-4. Import
-
-## 停止服务
+Run these commands on the Linux server, from `docker/monitoring`:
 
 ```bash
-docker-compose down
+cp .env.example .env
+cp targets/code-nest.local.yml.example targets/code-nest.local.yml
+cp targets/blackbox.local.yml.example targets/blackbox.local.yml
+cp alertmanager/alertmanager.yml.example alertmanager/alertmanager.local.yml
+mkdir -p secrets
+chmod 700 secrets
 ```
 
-## 完全清理（包括数据）
+Edit the two target files and the local Alertmanager file. `code-nest.local.yml`
+must point at the application metrics endpoint from the monitoring Docker
+network. For a host-exposed application, `host.docker.internal:9999` is the
+default; Docker Compose maps that name to the Linux host gateway.
+
+Set the QQ mailbox and recipient in `alertmanager/alertmanager.local.yml`, then
+write the QQ SMTP authorization code to the secret file without placing it in
+shell history:
 
 ```bash
-docker-compose down -v
+read -rsp 'QQ SMTP authorization code: ' code
+printf '%s' "$code" > secrets/qq_smtp_auth_code
+unset code
+chmod 600 secrets/qq_smtp_auth_code alertmanager/alertmanager.local.yml .env
 ```
 
-## 故障排查
+Use QQ SMTP authorization code rather than the mailbox login password. The
+authorization code and local config are ignored by git.
 
-### 应用连接失败
+## Validate And Start
 
-1. 确认应用运行在 `localhost:9999`
-2. 确认 `/api/actuator/prometheus` 端点可访问
-3. Windows 系统确认使用 `host.docker.internal`
-4. Linux 系统可能需要改为 `172.17.0.1` 或宿主机IP
+```bash
+chmod +x scripts/validate-config.sh
+./scripts/validate-config.sh
+docker compose --env-file .env up -d
+docker compose --env-file .env ps
+```
 
-### Grafana 无数据
+Prometheus and Grafana bind to `127.0.0.1` by default. Access them through an
+SSH tunnel or an authenticated reverse proxy; do not expose ports 9090 or 3000
+directly to the public internet.
 
-1. 检查 Prometheus 数据源配置
-2. 检查 Prometheus Targets 状态
-3. 检查应用指标端点是否正常
+## First Acceptance Drill
 
-## 参考文档
+1. Confirm all Prometheus targets are `UP`.
+2. Trigger a test alert with the Alertmanager UI/API only after the QQ sender is configured.
+3. Stop the application in a staging window and verify `CodeNestTargetDown` and the public probe alert arrive once, then resolve after recovery.
+4. Restore the application and confirm the resolved email arrives.
 
-详细配置说明请查看：`docs/Prometheus监控部署指南.md`
+## Operational Notes
 
+- Alert thresholds are intentionally conservative starting points. Tune them after two weeks of baseline data.
+- A stack on the same server cannot detect complete server loss. Add an external uptime monitor or a second monitoring node before claiming host-level 24x7 coverage.
+- Nginx now rejects `/api/actuator/`; Prometheus must scrape the backend directly over the host/Docker monitoring path.
+
+## Optional SRE Event Ingestion
+
+The Java `xiaou-sre` module and its Outbox worker are opt-in. QQ email delivery does
+not depend on them. Before enabling the worker on the application server:
+
+1. Apply `sql/v2.5.0/sre_incident.sql`, or apply the incremental
+   `sql/v2.5.0/sre_incident_evidence.sql` when the four original SRE tables already exist.
+2. Set a dedicated `XIAOU_SRE_WEBHOOK_TOKEN`; do not reuse an administrator token.
+3. Enable `XIAOU_SRE_WEBHOOK_ENABLED=true` only after the Alertmanager receiver is
+   configured to call the backend directly over the monitoring path.
+4. Enable `XIAOU_SRE_OUTBOX_ENABLED=true` only after the evidence table migration succeeds.
+
+The first worker stores an `ALERT_SNAPSHOT` evidence record and can optionally collect
+read-only Prometheus/Loki evidence. Prometheus and Loki are disabled by default in the
+application configuration. Enable `XIAOU_SRE_PROMETHEUS_ENABLED` only after the
+Prometheus API is restricted to the monitoring network; enable `XIAOU_SRE_LOKI_ENABLED`
+only after an Alloy/Loki deployment and its retention policy are verified. Neither
+collector executes remediation commands, and an unavailable evidence source is recorded
+as a bounded unavailable snapshot instead of blocking the QQ alert path.

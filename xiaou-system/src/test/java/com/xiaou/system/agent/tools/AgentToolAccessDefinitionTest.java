@@ -9,6 +9,7 @@ import com.xiaou.system.agent.AgentToolCatalogService;
 import com.xiaou.system.agent.AgentToolDefinition;
 import com.xiaou.system.service.SysAgentAuditService;
 import com.xiaou.system.service.SysOperationLogService;
+import com.xiaou.system.service.SreIncidentRcaService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
@@ -26,6 +27,7 @@ class AgentToolAccessDefinitionTest {
     private final LotteryAdminService lotteryAdminService = mock(LotteryAdminService.class);
     private final SysAgentAuditService auditService = mock(SysAgentAuditService.class);
     private final AgentToolCatalogService catalogService = mock(AgentToolCatalogService.class);
+    private final SreIncidentRcaService sreIncidentRcaService = mock(SreIncidentRcaService.class);
     private final AgentSessionProperties sessionProperties = new AgentSessionProperties();
     private final ObjectProvider<AgentPlanResolver> planResolverProvider = planResolverProvider();
 
@@ -266,6 +268,15 @@ class AgentToolAccessDefinitionTest {
         AgentToolDefinition definition = new LotteryRealtimeMonitorAgentTool(lotteryAdminService).definition();
 
         assertEquals(List.of("agent:points:lottery:monitor:read"), definition.getRequiredPermissions());
+        assertTrue(definition.getRequiredRoles().isEmpty());
+        assertEquals("ANY", definition.getTenantScope());
+    }
+
+    @Test
+    void sreIncidentRcaShouldDeclareReadonlyAgentPermission() {
+        AgentToolDefinition definition = new SreIncidentRcaAgentTool(sreIncidentRcaService).definition();
+
+        assertEquals(List.of("agent:sre:incident:read"), definition.getRequiredPermissions());
         assertTrue(definition.getRequiredRoles().isEmpty());
         assertEquals("ANY", definition.getTenantScope());
     }

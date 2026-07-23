@@ -66,6 +66,11 @@ final class AiStructuredOutputFixtures {
                         {"overallConclusion":"系统设计表达和指标量化仍需加强。","rootCauses":["缺少容量估算"],"highImpactFixes":[{"issue":"系统设计表达不成体系","action":"重写高频系统设计题","deadline":"D+3","metric":"5 分钟讲清方案"}],"questionTypeWeakness":[{"type":"系统设计","suggestion":"按容量、链路、扩展性、容灾展开"}],"next7DayPlan":["Day1：整理模板"],"confidenceScore":82}
                         """);
 
+        fixtures.put("sre.incident.rca:v1",
+                """
+                        {"executiveSummary":"目标实例不可用，当前证据支持健康检查失败。","severityAssessment":"CRITICAL","conclusionStatus":"SUPPORTED","observations":[{"statement":"up 指标为 0","evidenceIds":["31"]}],"hypotheses":[{"title":"应用实例停止响应","reasoning":"健康检查和指标在同一时间窗口失败。","confidence":0.86,"evidenceIds":["31"],"counterEvidenceIds":[],"nextChecks":["复核应用进程和最近发布记录"]}],"recommendedNextSteps":[{"description":"人工复核目标健康状态","risk":"READ_ONLY","evidenceIds":["31"]}],"limitations":[]}
+                        """);
+
         fixtures.put("sql_optimize.analyze:v1",
                 """
                         {"score":42,"optimizedSql":"SELECT id FROM orders WHERE user_id = 1","knowledgePoints":["联合索引","避免回表"],"problems":[{"type":"FULL_TABLE_SCAN","severity":"HIGH","description":"未命中过滤索引","location":"orders"}],"explainAnalysis":[{"table":"orders","type":"ALL","typeExplain":"全表扫描","key":"NULL","keyExplain":"未命中索引","rows":500000,"extra":"Using filesort","extraExplain":"需要额外排序","issue":"扫描和排序成本较高"}],"suggestions":[{"type":"ADD_INDEX","title":"补充联合索引","ddl":"ALTER TABLE orders ADD INDEX idx_user_ctime(user_id, create_time DESC);","sql":"","reason":"让过滤与排序尽量命中同一索引","expectedImprovement":"显著减少扫描与排序开销"}]}

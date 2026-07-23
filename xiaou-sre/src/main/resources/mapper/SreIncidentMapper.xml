@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.sre.mapper.SreIncidentMapper">
+
+    <resultMap id="SreIncidentResult" type="com.xiaou.sre.domain.SreIncident">
+        <id property="id" column="id"/>
+        <result property="incidentNo" column="incident_no"/>
+        <result property="incidentKey" column="incident_key"/>
+        <result property="service" column="service"/>
+        <result property="alertName" column="alert_name"/>
+        <result property="severity" column="severity"/>
+        <result property="state" column="state"/>
+        <result property="summary" column="summary"/>
+        <result property="firstSeen" column="first_seen"/>
+        <result property="lastSeen" column="last_seen"/>
+        <result property="acknowledgedBy" column="acknowledged_by"/>
+        <result property="acknowledgedAt" column="acknowledged_at"/>
+        <result property="resolvedAt" column="resolved_at"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="selectColumns">
+        id, incident_no, incident_key, service, alert_name, severity, state,
+        summary, first_seen, last_seen, acknowledged_by, acknowledged_at,
+        resolved_at, create_time, update_time
+    </sql>
+
+    <select id="selectById" resultMap="SreIncidentResult">
+        SELECT <include refid="selectColumns"/>
+        FROM sre_incident
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectActiveByIncidentKey" resultMap="SreIncidentResult">
+        SELECT <include refid="selectColumns"/>
+        FROM sre_incident
+        WHERE incident_key = #{incidentKey}
+          AND state IN ('OPEN', 'ACKNOWLEDGED', 'INVESTIGATING', 'MITIGATED')
+        ORDER BY last_seen DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectList" resultMap="SreIncidentResult">
+        SELECT <include refid="selectColumns"/>
+        FROM sre_incident
+        <where>
+            <if test="state != null and state != ''">
+                AND state = #{state}
+            </if>
+            <if test="severity != null and severity != ''">
+                AND severity = #{severity}
+            </if>
+            <if test="service != null and service != ''">
+                AND service = #{service}
+            </if>
+        </where>
+        ORDER BY
+            CASE severity WHEN 'critical' THEN 1 WHEN 'warning' THEN 2 ELSE 3 END,
+            CASE state WHEN 'OPEN' THEN 1 WHEN 'ACKNOWLEDGED' THEN 2 WHEN 'INVESTIGATING' THEN 3 ELSE 4 END,
+            last_seen DESC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sre_incident (
+            incident_no, incident_key, service, alert_name, severity, state,
+            summary, first_seen, last_seen, acknowledged_by, acknowledged_at,
+            resolved_at, create_time, update_time
+        ) VALUES (
+            #{incidentNo}, #{incidentKey}, #{service}, #{alertName}, #{severity}, #{state},
+            #{summary}, #{firstSeen}, #{lastSeen}, #{acknowledgedBy}, #{acknowledgedAt},
+            #{resolvedAt}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <update id="updateLastSeen">
+        UPDATE sre_incident
+        SET last_seen = #{lastSeen}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="reopen">
+        UPDATE sre_incident
+        SET state = #{state}, resolved_at = NULL, last_seen = #{lastSeen}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="markResolved">
+        UPDATE sre_incident
+        SET state = #{state}, resolved_at = #{resolvedAt}, last_seen = #{lastSeen}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="acknowledge">
+        UPDATE sre_incident
+        SET state = #{state}, acknowledged_by = #{acknowledgedBy}, acknowledged_at = #{acknowledgedAt},
+            last_seen = #{lastSeen}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND state NOT IN ('RESOLVED', 'CLOSED')
+    </update>
+
+    <update id="resolveManually">
+        UPDATE sre_incident
+        SET state = #{state}, resolved_at = #{resolvedAt}, last_seen = #{lastSeen},
+            acknowledged_by = #{acknowledgedBy}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND state NOT IN ('RESOLVED', 'CLOSED')
+    </update>
+</mapper>

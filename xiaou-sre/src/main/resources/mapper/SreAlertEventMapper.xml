@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.sre.mapper.SreAlertEventMapper">
+
+    <resultMap id="SreAlertEventResult" type="com.xiaou.sre.domain.SreAlertEvent">
+        <id property="id" column="id"/>
+        <result property="source" column="source"/>
+        <result property="fingerprint" column="fingerprint"/>
+        <result property="alertName" column="alert_name"/>
+        <result property="status" column="status"/>
+        <result property="severity" column="severity"/>
+        <result property="service" column="service"/>
+        <result property="labelsJson" column="labels_json"/>
+        <result property="annotationsJson" column="annotations_json"/>
+        <result property="startsAt" column="starts_at"/>
+        <result property="endsAt" column="ends_at"/>
+        <result property="generatorUrl" column="generator_url"/>
+        <result property="rawPayload" column="raw_payload"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="selectColumns">
+        id, `source`, fingerprint, alert_name, status, severity, service,
+        labels_json, annotations_json, starts_at, ends_at, generator_url,
+        raw_payload, create_time, update_time
+    </sql>
+
+    <select id="selectByFingerprintAndStartsAt" resultMap="SreAlertEventResult">
+        SELECT <include refid="selectColumns"/>
+        FROM sre_alert_event
+        WHERE `source` = 'alertmanager'
+          AND fingerprint = #{fingerprint}
+          AND starts_at = #{startsAt}
+        LIMIT 1
+    </select>
+
+    <select id="selectById" resultMap="SreAlertEventResult">
+        SELECT <include refid="selectColumns"/>
+        FROM sre_alert_event
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByIncidentId" resultMap="SreAlertEventResult">
+        SELECT alert_row.id, alert_row.`source`, alert_row.alert_name, alert_row.status,
+               alert_row.severity, alert_row.service, alert_row.starts_at, alert_row.ends_at,
+               alert_row.create_time, alert_row.update_time
+        FROM sre_incident_alert_relation relation_row
+        INNER JOIN sre_alert_event alert_row ON alert_row.id = relation_row.alert_event_id
+        WHERE relation_row.incident_id = #{incidentId}
+        ORDER BY COALESCE(alert_row.update_time, alert_row.create_time) DESC, alert_row.id DESC
+        LIMIT #{limit}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sre_alert_event (
+            `source`, fingerprint, alert_name, status, severity, service,
+            labels_json, annotations_json, starts_at, ends_at, generator_url,
+            raw_payload, create_time, update_time
+        ) VALUES (
+            #{source}, #{fingerprint}, #{alertName}, #{status}, #{severity}, #{service},
+            #{labelsJson}, #{annotationsJson}, #{startsAt}, #{endsAt}, #{generatorUrl},
+            #{rawPayload}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <update id="updateStatusAndPayload">
+        UPDATE sre_alert_event
+        SET status = #{status},
+            alert_name = #{alertName},
+            severity = #{severity},
+            service = #{service},
+            labels_json = #{labelsJson},
+            annotations_json = #{annotationsJson},
+            ends_at = #{endsAt},
+            generator_url = #{generatorUrl},
+            raw_payload = #{rawPayload},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+</mapper>

@@ -176,8 +176,10 @@ management:
         include: health,info,metrics,prometheus
   endpoint:
     health:
-      # 显示健康检查详细信息
-      show-details: always
+      # 健康详情不向未受信任的调用方暴露；巡检只依赖聚合状态。
+      show-details: never
+      probes:
+        enabled: true
     prometheus:
       # 启用 Prometheus 端点
       enabled: true
@@ -229,6 +231,42 @@ xiaou:
       endpoint: ${XIAOU_AI_RAG_ENDPOINT:http://localhost:18080}
       api-key: ${XIAOU_AI_RAG_API_KEY:}
       default-top-k: 5
+  sre:
+    webhook:
+      # 默认关闭；只有完成 Alertmanager 机器凭据配置后才开启。
+      enabled: ${XIAOU_SRE_WEBHOOK_ENABLED:false}
+      token: ${XIAOU_SRE_WEBHOOK_TOKEN:}
+      max-requests-per-minute: ${XIAOU_SRE_WEBHOOK_MAX_REQUESTS_PER_MINUTE:120}
+      max-body-bytes: ${XIAOU_SRE_WEBHOOK_MAX_BODY_BYTES:2000000}
+    outbox:
+      # 数据库迁移完成并接入证据表后再开启后台消费。
+      enabled: ${XIAOU_SRE_OUTBOX_ENABLED:false}
+      fixed-delay-ms: ${XIAOU_SRE_OUTBOX_FIXED_DELAY_MS:5000}
+      initial-delay-ms: ${XIAOU_SRE_OUTBOX_INITIAL_DELAY_MS:10000}
+      batch-size: ${XIAOU_SRE_OUTBOX_BATCH_SIZE:20}
+      max-attempts: ${XIAOU_SRE_OUTBOX_MAX_ATTEMPTS:5}
+      lease-seconds: ${XIAOU_SRE_OUTBOX_LEASE_SECONDS:120}
+      retry-backoff-seconds: ${XIAOU_SRE_OUTBOX_RETRY_BACKOFF_SECONDS:10}
+      max-retry-backoff-seconds: ${XIAOU_SRE_OUTBOX_MAX_RETRY_BACKOFF_SECONDS:900}
+    prometheus:
+      # 默认关闭；开启前确认 Prometheus 只允许本机/监控网络访问。
+      enabled: ${XIAOU_SRE_PROMETHEUS_ENABLED:false}
+      endpoint: ${XIAOU_SRE_PROMETHEUS_ENDPOINT:http://127.0.0.1:9090}
+      connect-timeout-millis: ${XIAOU_SRE_PROMETHEUS_CONNECT_TIMEOUT_MS:2000}
+      read-timeout-millis: ${XIAOU_SRE_PROMETHEUS_READ_TIMEOUT_MS:5000}
+      max-response-bytes: ${XIAOU_SRE_PROMETHEUS_MAX_RESPONSE_BYTES:512000}
+      max-results: ${XIAOU_SRE_PROMETHEUS_MAX_RESULTS:50}
+    loki:
+      # 默认关闭；接入 Alloy/Loki 并确认仅监控网络可访问后再开启。
+      enabled: ${XIAOU_SRE_LOKI_ENABLED:false}
+      endpoint: ${XIAOU_SRE_LOKI_ENDPOINT:http://127.0.0.1:3100}
+      connect-timeout-millis: ${XIAOU_SRE_LOKI_CONNECT_TIMEOUT_MS:2000}
+      read-timeout-millis: ${XIAOU_SRE_LOKI_READ_TIMEOUT_MS:5000}
+      max-response-bytes: ${XIAOU_SRE_LOKI_MAX_RESPONSE_BYTES:512000}
+      max-results: ${XIAOU_SRE_LOKI_MAX_RESULTS:50}
+      max-line-length: ${XIAOU_SRE_LOKI_MAX_LINE_LENGTH:2000}
+      lookback-minutes: ${XIAOU_SRE_LOKI_LOOKBACK_MINUTES:15}
+      max-range-minutes: ${XIAOU_SRE_LOKI_MAX_RANGE_MINUTES:60}
 
 # ==================== 社区模块配置 ====================
 community:

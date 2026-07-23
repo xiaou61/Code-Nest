@@ -54,6 +54,9 @@ xiaou-application/src/main/resources/application-sec.yml
 llamaindex-service/.venv/
 llamaindex-service/data/knowledge-base.json
 docker/ai/.env
+docker/monitoring/.env
+docker/monitoring/alertmanager/alertmanager.local.yml
+docker/monitoring/secrets/
 __pycache__/
 *.pyc
 

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.sre.mapper.SreOutboxEventMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sre_outbox_event (
+            aggregate_type, aggregate_id, event_type, payload_json, state,
+            attempts, next_attempt_at, create_time, update_time
+        ) VALUES (
+            #{aggregateType}, #{aggregateId}, #{eventType}, #{payloadJson}, #{state},
+            #{attempts}, #{nextAttemptAt}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <select id="selectPendingIds" resultType="java.lang.Long">
+        SELECT id
+        FROM sre_outbox_event
+        WHERE state = 'PENDING'
+          AND next_attempt_at &lt;= CURRENT_TIMESTAMP
+        ORDER BY id ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectById" resultType="com.xiaou.sre.domain.SreOutboxEvent">
+        SELECT id, aggregate_type, aggregate_id, event_type, payload_json, state,
+               attempts, next_attempt_at, create_time, update_time
+        FROM sre_outbox_event
+        WHERE id = #{id}
+    </select>
+
+    <update id="claim">
+        UPDATE sre_outbox_event
+        SET state = 'PROCESSING',
+            attempts = COALESCE(attempts, 0) + 1,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND state = 'PENDING'
+          AND next_attempt_at &lt;= CURRENT_TIMESTAMP
+    </update>
+
+    <update id="failStaleProcessing">
+        UPDATE sre_outbox_event
+        SET state = 'FAILED', update_time = CURRENT_TIMESTAMP
+        WHERE state = 'PROCESSING'
+          AND update_time &lt; #{staleBefore}
+          AND attempts &gt;= #{maxAttempts}
+    </update>
+
+    <update id="recoverStaleProcessing">
+        UPDATE sre_outbox_event
+        SET state = 'PENDING',
+            next_attempt_at = CURRENT_TIMESTAMP,
+            update_time = CURRENT_TIMESTAMP
+        WHERE state = 'PROCESSING'
+          AND update_time &lt; #{staleBefore}
+          AND attempts &lt; #{maxAttempts}
+    </update>
+
+    <update id="markSucceeded">
+        UPDATE sre_outbox_event
+        SET state = 'SUCCEEDED', update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND state = 'PROCESSING'
+    </update>
+
+    <update id="markRetry">
+        UPDATE sre_outbox_event
+        SET state = 'PENDING',
+            next_attempt_at = #{nextAttemptAt},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND state = 'PROCESSING'
+    </update>
+
+    <update id="markFailed">
+        UPDATE sre_outbox_event
+        SET state = 'FAILED', update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND state = 'PROCESSING'
+    </update>
+</mapper>
