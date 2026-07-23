@@ -1,0 +1,291 @@
+<mxfile host="app.diagrams.net" modified="2026-07-20T00:00:00.000Z" agent="Code-Nest SRE Architecture" version="24.7.17" type="device">
+  <diagram id="p0-deployment" name="P0 单机部署与告警链">
+    <mxGraphModel adaptiveColors="auto" dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1400" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="p0-user" value="用户&#xa;公网访问" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#1f2937;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="200" width="140" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-admin" value="管理员&#xa;后台访问" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#1f2937;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="330" width="140" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-qq" value="QQ SMTP&#xa;465 / TLS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#1f2937;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1710" y="735" width="150" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-external" value="P1 异地探针&#xa;不同故障域" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#fce4ec;strokeColor=#b85450;fontColor=#1f2937;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1710" y="480" width="150" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="p0-server" value="唯一生产服务器（单一故障域）" style="swimlane;startSize=32;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#1f2937;fontStyle=1;fontSize=15;html=1;" vertex="1" parent="1">
+          <mxGeometry x="220" y="40" width="1440" height="980" as="geometry" />
+        </mxCell>
+
+        <mxCell id="p0-web-zone" value="公网入口层" style="swimlane;startSize=28;fillColor=#e8f4f8;strokeColor=#6c8ebf;fontColor=#1f2937;fontStyle=1;fontSize=13;html=1;" vertex="1" parent="p0-server">
+          <mxGeometry x="30" y="45" width="250" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-nginx" value="Nginx&#xa;80 用户端 / 81 管理端&#xa;拒绝 /api/actuator/*" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#1f2937;fontSize=12;" vertex="1" parent="p0-web-zone">
+          <mxGeometry x="45" y="60" width="160" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-firewall" value="云安全组 + 主机防火墙&#xa;9999 / 3000 / 9090 不公网开放" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p0-web-zone">
+          <mxGeometry x="30" y="175" width="190" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="p0-app-zone" value="Code-Nest 应用层（现有模块化单体）" style="swimlane;startSize=28;fillColor=#e8f5e9;strokeColor=#82b366;fontColor=#1f2937;fontStyle=1;fontSize=13;html=1;" vertex="1" parent="p0-server">
+          <mxGeometry x="300" y="45" width="540" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-app" value="xiaou-application&#xa;Spring Boot :9999&#xa;统一启动入口" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#1f2937;fontSize=12;" vertex="1" parent="p0-app-zone">
+          <mxGeometry x="35" y="55" width="190" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-common" value="xiaou-common&#xa;Sa-Token / MyBatis / Druid&#xa;Actuator / Micrometer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p0-app-zone">
+          <mxGeometry x="270" y="55" width="220" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-system-agent" value="xiaou-system&#xa;现有 Admin Agent&#xa;只读观测工具" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#1f2937;fontSize=12;" vertex="1" parent="p0-app-zone">
+          <mxGeometry x="35" y="160" width="190" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-sre-future" value="P2 xiaou-sre&#xa;事故域 / Runbook / 证据&#xa;P3 才接 AI" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#1f2937;fontSize=12;" vertex="1" parent="p0-app-zone">
+          <mxGeometry x="270" y="160" width="220" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="p0-data-zone" value="数据层" style="swimlane;startSize=28;fillColor=#fff9e6;strokeColor=#d6b656;fontColor=#1f2937;fontStyle=1;fontSize=13;html=1;" vertex="1" parent="p0-server">
+          <mxGeometry x="860" y="45" width="540" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-mysql" value="MySQL&#xa;业务数据&#xa;P2 事故/证据表" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#1f2937;fontSize=12;" vertex="1" parent="p0-data-zone">
+          <mxGeometry x="55" y="70" width="130" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-redis" value="Redis&#xa;Token / 缓存&#xa;分布式锁" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#1f2937;fontSize=12;" vertex="1" parent="p0-data-zone">
+          <mxGeometry x="230" y="70" width="130" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-secrets" value="Docker secrets&#xa;QQ 授权码&#xa;本地配置不入 Git" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#1f2937;fontSize=12;" vertex="1" parent="p0-data-zone">
+          <mxGeometry x="385" y="75" width="115" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="p0-monitor-zone" value="监控网络（Docker bridge，当前与生产机同故障域）" style="swimlane;startSize=28;fillColor=#fce4ec;strokeColor=#b85450;fontColor=#1f2937;fontStyle=1;fontSize=13;html=1;" vertex="1" parent="p0-server">
+          <mxGeometry x="30" y="340" width="1370" height="560" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-node" value="node-exporter&#xa;主机 CPU / 磁盘" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce4ec;strokeColor=#b85450;fontColor=#1f2937;fontSize=12;" vertex="1" parent="p0-monitor-zone">
+          <mxGeometry x="35" y="65" width="145" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-blackbox" value="blackbox-exporter&#xa;公网 URL HTTP 探测" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce4ec;strokeColor=#b85450;fontColor=#1f2937;fontSize=12;" vertex="1" parent="p0-monitor-zone">
+          <mxGeometry x="220" y="65" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-prom" value="Prometheus&#xa;抓取 / PromQL / 规则&#xa;30d retention" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#1f2937;fontSize=12;" vertex="1" parent="p0-monitor-zone">
+          <mxGeometry x="420" y="55" width="175" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-alertmanager" value="Alertmanager&#xa;分组 / 去重 / 抑制&#xa;QQ 路由" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#1f2937;fontSize=12;" vertex="1" parent="p0-monitor-zone">
+          <mxGeometry x="635" y="55" width="175" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-grafana" value="Grafana&#xa;只读查询与仪表盘&#xa;127.0.0.1:3000" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#1f2937;fontSize=12;" vertex="1" parent="p0-monitor-zone">
+          <mxGeometry x="850" y="55" width="175" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-alloy" value="P1 Alloy + Loki&#xa;结构化日志&#xa;虚线表示未来" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#e8f4f8;strokeColor=#6c8ebf;fontColor=#1f2937;fontSize=12;" vertex="1" parent="p0-monitor-zone">
+          <mxGeometry x="1065" y="55" width="175" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-note" value="P0 固定链路：&#xa;监控判定不依赖 AI&#xa;整机失联仍无法告警" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;fontColor=#1f2937;fontSize=12;" vertex="1" parent="p0-monitor-zone">
+          <mxGeometry x="420" y="250" width="390" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="p0-e-user-nginx" value="80" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#6c8ebf;fontSize=11;" edge="1" parent="1" source="p0-user" target="p0-nginx">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-e-admin-nginx" value="81" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#6c8ebf;fontSize=11;" edge="1" parent="1" source="p0-admin" target="p0-nginx">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-e-nginx-app" value="/api 反代" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#82b366;fontSize=11;" edge="1" parent="1" source="p0-nginx" target="p0-app">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-e-app-mysql" value="JDBC" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#d6b656;fontSize=11;" edge="1" parent="1" source="p0-app" target="p0-mysql">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-e-app-redis" value="Token / cache" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#d6b656;fontSize=11;" edge="1" parent="1" source="p0-app" target="p0-redis">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-e-prom-app" value="10s scrape /api/actuator/prometheus" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#6c8ebf;fontSize=11;" edge="1" parent="1" source="p0-prom" target="p0-app">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-e-node-prom" value="主机指标" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#b85450;fontSize=11;" edge="1" parent="1" source="p0-node" target="p0-prom">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-e-blackbox-nginx" value="探测公网 URL" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#b85450;fontSize=11;" edge="1" parent="1" source="p0-blackbox" target="p0-nginx">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-e-blackbox-prom" value="probe metrics" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#b85450;fontSize=11;" edge="1" parent="1" source="p0-blackbox" target="p0-prom">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-e-prom-alert" value="firing / resolved" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#d6b656;fontSize=11;" edge="1" parent="1" source="p0-prom" target="p0-alertmanager">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-e-alert-qq" value="QQ email" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#d6b656;fontSize=11;" edge="1" parent="1" source="p0-alertmanager" target="p0-qq">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-e-grafana-prom" value="PromQL" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#6c8ebf;fontSize=11;" edge="1" parent="1" source="p0-grafana" target="p0-prom">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-e-alert-sre" value="P2 webhook" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=classic;strokeColor=#d6b656;fontSize=11;" edge="1" parent="1" source="p0-alertmanager" target="p0-sre-future">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-e-app-alloy" value="P1 structured logs" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=classic;strokeColor=#6c8ebf;fontSize=11;" edge="1" parent="1" source="p0-app" target="p0-alloy">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p0-e-external-nginx" value="P1 independent check" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=classic;strokeColor=#b85450;fontSize=11;" edge="1" parent="1" source="p0-external" target="p0-nginx">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="p2-module" name="P2-P3 SRE 模块内部架构">
+    <mxGraphModel adaptiveColors="auto" dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1400" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="p2-alert-source" value="Alertmanager&#xa;监控网络内调用" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#1f2937;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="210" width="160" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-admin-source" value="vue3-admin-front&#xa;管理员 Bearer Token" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#1f2937;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="360" width="160" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-ai-source" value="P3 SRE Agent&#xa;只读工具调用" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#fce4ec;strokeColor=#b85450;fontColor=#1f2937;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="520" width="160" height="75" as="geometry" />
+        </mxCell>
+
+        <mxCell id="p2-sre" value="xiaou-sre（模块化单体内的事故域）" style="swimlane;startSize=32;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#1f2937;fontStyle=1;fontSize=15;html=1;" vertex="1" parent="1">
+          <mxGeometry x="260" y="40" width="1200" height="760" as="geometry" />
+        </mxCell>
+
+        <mxCell id="p2-ingress" value="入口适配层" style="swimlane;startSize=28;fillColor=#e8f4f8;strokeColor=#6c8ebf;fontColor=#1f2937;fontStyle=1;fontSize=13;html=1;" vertex="1" parent="p2-sre">
+          <mxGeometry x="30" y="50" width="1140" height="135" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-internal-controller" value="InternalWebhookController&#xa;/internal/sre/alertmanager/v1/alerts&#xa;Bearer secret + source allowlist" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p2-ingress">
+          <mxGeometry x="35" y="42" width="280" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-admin-controller" value="SreAdminController&#xa;/admin/sre/**&#xa;Sa-Token + permission" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p2-ingress">
+          <mxGeometry x="360" y="42" width="250" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-health-controller" value="SreHealth / Metrics&#xa;本模块运行指标&#xa;只读" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p2-ingress">
+          <mxGeometry x="655" y="42" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-auth-policy" value="入口策略：&#xa;内部 webhook 不走浏览器 Token&#xa;管理端写操作必须审计" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p2-ingress">
+          <mxGeometry x="920" y="42" width="185" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="p2-services" value="应用服务层（事务边界）" style="swimlane;startSize=28;fillColor=#e8f5e9;strokeColor=#82b366;fontColor=#1f2937;fontStyle=1;fontSize=13;html=1;" vertex="1" parent="p2-sre">
+          <mxGeometry x="30" y="210" width="1140" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-ingestion" value="AlertIngestionService&#xa;解析 / 校验 / 幂等入库&#xa;快速返回 2xx" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p2-services">
+          <mxGeometry x="25" y="50" width="205" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-incident-service" value="IncidentLifecycleService&#xa;告警聚合 / 状态机&#xa;确认 / 指派 / 关闭" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p2-services">
+          <mxGeometry x="260" y="50" width="205" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-evidence-service" value="EvidenceCollectionService&#xa;异步采集 PromQL / Loki&#xa;版本与 Runbook 快照" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p2-services">
+          <mxGeometry x="495" y="50" width="225" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-runbook-service" value="RunbookService&#xa;版本、触发条件、审批策略&#xa;只读查看 / 管理" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p2-services">
+          <mxGeometry x="750" y="50" width="205" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-action-service" value="ActionProposalService&#xa;P3 只生成提案&#xa;P4 才允许审批执行" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#fce4ec;strokeColor=#b85450;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p2-services">
+          <mxGeometry x="985" y="50" width="130" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="p2-domain" value="领域模型与状态机" style="swimlane;startSize=28;fillColor=#fff9e6;strokeColor=#d6b656;fontColor=#1f2937;fontStyle=1;fontSize=13;html=1;" vertex="1" parent="p2-sre">
+          <mxGeometry x="30" y="425" width="1140" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-alert-event" value="SreAlertEvent&#xa;fingerprint / labels / startsAt&#xa;firing / resolved" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p2-domain">
+          <mxGeometry x="25" y="42" width="190" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-incident" value="SreIncident&#xa;事故编号 / 优先级 / Owner&#xa;时间线与状态" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p2-domain">
+          <mxGeometry x="245" y="42" width="190" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-evidence" value="SreIncidentEvidence&#xa;事实 / 查询 / 链接 / 快照&#xa;可回链" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p2-domain">
+          <mxGeometry x="465" y="42" width="205" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-proposal" value="SreActionProposal&#xa;风险 / 理由 / 回滚计划&#xa;待审批" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#fce4ec;strokeColor=#b85450;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p2-domain">
+          <mxGeometry x="700" y="42" width="190" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-audit" value="审计记录&#xa;操作者 / 权限 / 结果&#xa;不可绕过" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p2-domain">
+          <mxGeometry x="920" y="42" width="190" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="p2-infra" value="基础设施适配层" style="swimlane;startSize=28;fillColor=#fce4ec;strokeColor=#b85450;fontColor=#1f2937;fontStyle=1;fontSize=13;html=1;" vertex="1" parent="p2-sre">
+          <mxGeometry x="30" y="575" width="1140" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-mappers" value="MyBatis Mapper&#xa;事务入库 / 查询&#xa;不引入新消息队列" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p2-infra">
+          <mxGeometry x="25" y="45" width="190" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-outbox" value="Transactional Outbox&#xa;数据库持久化后异步消费&#xa;复用有界线程池" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p2-infra">
+          <mxGeometry x="245" y="45" width="210" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-prom-client" value="PrometheusClient&#xa;PromQL 查询&#xa;超时 / 限流 / 脱敏" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p2-infra">
+          <mxGeometry x="485" y="45" width="190" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-loki-client" value="LokiClient（P1）&#xa;日志范围 / 关键词&#xa;最大返回量" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#e8f4f8;strokeColor=#6c8ebf;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p2-infra">
+          <mxGeometry x="705" y="45" width="190" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-policy" value="Policy Guard&#xa;READ_ONLY / PROPOSE_ONLY&#xa;EXECUTE（P4）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#1f2937;fontSize=11;" vertex="1" parent="p2-infra">
+          <mxGeometry x="925" y="45" width="190" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="p2-mysql" value="MySQL&#xa;sre_alert_event&#xa;sre_incident / evidence / outbox" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#1f2937;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1530" y="170" width="190" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-prometheus" value="Prometheus&#xa;指标与规则数据" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#1f2937;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1530" y="350" width="190" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-loki" value="Loki（P1）&#xa;结构化日志" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#e8f4f8;strokeColor=#6c8ebf;fontColor=#1f2937;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1530" y="500" width="190" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-system" value="xiaou-system&#xa;P3 薄 AgentTool 适配器&#xa;不反向污染 xiaou-sre" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#fce4ec;strokeColor=#b85450;fontColor=#1f2937;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1530" y="650" width="190" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="p2-e-alert-ingress" value="Bearer secret" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#d6b656;fontSize=11;" edge="1" parent="1" source="p2-alert-source" target="p2-internal-controller">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-e-admin-ingress" value="Sa-Token" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#6c8ebf;fontSize=11;" edge="1" parent="1" source="p2-admin-source" target="p2-admin-controller">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-e-ai-policy" value="只读证据" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=classic;strokeColor=#b85450;fontSize=11;" edge="1" parent="1" source="p2-ai-source" target="p2-policy">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-e-internal-ingest" value="同步事务" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#82b366;fontSize=11;" edge="1" parent="1" source="p2-internal-controller" target="p2-ingestion">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-e-admin-incident" value="查询 / 操作" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#6c8ebf;fontSize=11;" edge="1" parent="1" source="p2-admin-controller" target="p2-incident-service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-e-ingest-alert" value="幂等事件" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#d6b656;fontSize=11;" edge="1" parent="1" source="p2-ingestion" target="p2-alert-event">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-e-incident-domain" value="状态机" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#82b366;fontSize=11;" edge="1" parent="1" source="p2-incident-service" target="p2-incident">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-e-evidence-domain" value="证据" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#6c8ebf;fontSize=11;" edge="1" parent="1" source="p2-evidence-service" target="p2-evidence">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-e-runbook-domain" value="Runbook" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#d6b656;fontSize=11;" edge="1" parent="1" source="p2-runbook-service" target="p2-proposal">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-e-action-policy" value="策略判定" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#b85450;fontSize=11;" edge="1" parent="1" source="p2-action-service" target="p2-policy">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-e-mapper-db" value="事务读写" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#d6b656;fontSize=11;" edge="1" parent="1" source="p2-mappers" target="p2-mysql">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-e-outbox-evidence" value="异步消费" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#82b366;fontSize=11;" edge="1" parent="1" source="p2-outbox" target="p2-evidence-service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-e-prom-client" value="PromQL" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;strokeColor=#6c8ebf;fontSize=11;" edge="1" parent="1" source="p2-prom-client" target="p2-prometheus">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-e-loki-client" value="日志查询" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=classic;strokeColor=#6c8ebf;fontSize=11;" edge="1" parent="1" source="p2-loki-client" target="p2-loki">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-e-system-sre" value="P3 facade" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=classic;strokeColor=#b85450;fontSize=11;" edge="1" parent="1" source="p2-system" target="p2-evidence-service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

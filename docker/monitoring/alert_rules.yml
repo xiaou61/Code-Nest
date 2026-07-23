@@ -1,74 +1,113 @@
 groups:
-  - name: code-nest-alerts
+  - name: code-nest-availability
     interval: 30s
     rules:
-      # JVM 内存使用率告警
-      - alert: HighMemoryUsage
-        expr: (jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"}) > 0.9
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "JVM堆内存使用率过高"
-          description: "{{ $labels.application }} 堆内存使用率超过90%，当前值：{{ $value }}"
-      
-      # HTTP 错误率告警
-      - alert: HighErrorRate
-        expr: rate(http_server_requests_seconds_count{status=~"5.."}[5m]) > 0.05
-        for: 5m
-        labels:
-          severity: critical
-        annotations:
-          summary: "HTTP 5xx错误率过高"
-          description: "{{ $labels.application }} 5xx错误率超过5%"
-      
-      # 数据库连接池告警
-      - alert: DatabaseConnectionPoolExhausted
-        expr: hikaricp_connections_pending > 0
+      - alert: CodeNestTargetDown
+        expr: up{job="code-nest"} == 0
         for: 2m
         labels:
-          severity: warning
+          severity: critical
+          domain: availability
         annotations:
-          summary: "数据库连接池耗尽"
-          description: "{{ $labels.application }} 有{{ $value }}个请求在等待数据库连接"
-      
-      # 应用停止响应告警
-      - alert: ApplicationDown
-        expr: up{job="code-nest"} == 0
-        for: 1m
+          summary: Code-Nest metrics target is unavailable
+          description: "{{ $labels.instance }} has not been scraped successfully for 2 minutes."
+
+      - alert: CodeNestPublicEndpointDown
+        expr: probe_success{job="blackbox-http"} == 0
+        for: 2m
         labels:
           severity: critical
+          domain: availability
         annotations:
-          summary: "应用停止响应"
-          description: "{{ $labels.application }} 无法访问，可能已停止运行"
-      
-      # GC 时间过长告警
-      - alert: HighGCTime
-        expr: rate(jvm_gc_pause_seconds_sum[5m]) > 0.1
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "GC时间占比过高"
-          description: "{{ $labels.application }} GC时间占比超过10%"
-      
-      # CPU 使用率告警
-      - alert: HighCPUUsage
-        expr: process_cpu_usage > 0.8
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "CPU使用率过高"
-          description: "{{ $labels.application }} CPU使用率超过80%，当前值：{{ $value }}"
-      
-      # 慢请求告警
-      - alert: SlowRequests
-        expr: histogram_quantile(0.99, rate(http_server_requests_seconds_bucket[5m])) > 2
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "接口响应时间过长"
-          description: "{{ $labels.application }} P99响应时间超过2秒"
+          summary: Code-Nest public endpoint is unavailable
+          description: "HTTP probe to the public endpoint failed for {{ $labels.instance }}."
 
+  - name: code-nest-application
+    interval: 30s
+    rules:
+      - alert: CodeNestHighHttpErrorRatio
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{job="code-nest",status=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(http_server_requests_seconds_count{job="code-nest"}[5m])), 0.001)
+          ) > 0.05
+          and
+          sum(rate(http_server_requests_seconds_count{job="code-nest"}[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          domain: application
+        annotations:
+          summary: Code-Nest HTTP 5xx ratio is high
+          description: "5xx ratio has exceeded 5% for 5 minutes while traffic is present."
+
+      - alert: CodeNestHighHttpLatencyP95
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(http_server_requests_seconds_bucket{job="code-nest"}[5m]))
+          ) > 2
+        for: 10m
+        labels:
+          severity: warning
+          domain: application
+        annotations:
+          summary: Code-Nest HTTP latency is high
+          description: "P95 HTTP latency has exceeded 2 seconds for 10 minutes."
+
+      - alert: CodeNestHighJvmHeapUsage
+        expr: |
+          sum(jvm_memory_used_bytes{job="code-nest",area="heap"})
+          /
+          clamp_min(sum(jvm_memory_max_bytes{job="code-nest",area="heap"}), 1)
+          > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          domain: application
+        annotations:
+          summary: Code-Nest JVM heap usage is high
+          description: "JVM heap utilization has exceeded 85% for 10 minutes."
+
+  - name: code-nest-host
+    interval: 30s
+    rules:
+      - alert: CodeNestHostDiskLow
+        expr: |
+          node_filesystem_avail_bytes{job="node-exporter",fstype!~"tmpfs|overlay"}
+          /
+          node_filesystem_size_bytes{job="node-exporter",fstype!~"tmpfs|overlay"}
+          < 0.15
+        for: 15m
+        labels:
+          severity: warning
+          domain: host
+        annotations:
+          summary: Code-Nest host disk space is low
+          description: "Available disk space is below 15% on {{ $labels.instance }} ({{ $labels.mountpoint }})."
+
+      - alert: CodeNestHostDiskCritical
+        expr: |
+          node_filesystem_avail_bytes{job="node-exporter",fstype!~"tmpfs|overlay"}
+          /
+          node_filesystem_size_bytes{job="node-exporter",fstype!~"tmpfs|overlay"}
+          < 0.05
+        for: 5m
+        labels:
+          severity: critical
+          domain: host
+        annotations:
+          summary: Code-Nest host disk space is critically low
+          description: "Available disk space is below 5% on {{ $labels.instance }} ({{ $labels.mountpoint }})."
+
+      - alert: CodeNestHostCpuHigh
+        expr: |
+          1 - avg by (instance) (rate(node_cpu_seconds_total{job="node-exporter",mode="idle"}[5m])) > 0.90
+        for: 15m
+        labels:
+          severity: warning
+          domain: host
+        annotations:
+          summary: Code-Nest host CPU usage is high
+          description: "Host CPU usage has exceeded 90% for 15 minutes on {{ $labels.instance }}."

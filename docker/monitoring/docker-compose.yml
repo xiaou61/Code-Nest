@@ -1,58 +1,88 @@
-version: '3.8'
-
 services:
-  # Prometheus 服务
   prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
+    image: ${PROMETHEUS_IMAGE}
     restart: unless-stopped
     ports:
-      - "9090:9090"
-    volumes:
-      # 挂载配置文件
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-      # 持久化存储（可选）
-      - prometheus-data:/prometheus
+      - "${PROMETHEUS_BIND_ADDRESS}:${PROMETHEUS_PORT}:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      # 数据保留时间（默认15天）
-      - '--storage.tsdb.retention.time=30d'
-      # 开启 Web 生命周期 API
-      - '--web.enable-lifecycle'
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION}
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alert_rules.yml:/etc/prometheus/rules/alert_rules.yml:ro
+      - ./targets:/etc/prometheus/targets:ro
+      - prometheus-data:/prometheus
+    depends_on:
+      - alertmanager
+      - node-exporter
+      - blackbox-exporter
     networks:
       - monitoring
 
-  # Grafana 服务
+  alertmanager:
+    image: ${ALERTMANAGER_IMAGE}
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ./alertmanager/alertmanager.local.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./secrets/qq_smtp_auth_code:/run/secrets/qq_smtp_auth_code:ro
+      - alertmanager-data:/alertmanager
+    networks:
+      - monitoring
+
   grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
+    image: ${GRAFANA_IMAGE}
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${GRAFANA_BIND_ADDRESS}:${GRAFANA_PORT}:3000"
     environment:
-      # 管理员账号密码
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin123
-      # 允许匿名访问（可选）
-      - GF_AUTH_ANONYMOUS_ENABLED=false
-      # 设置时区
-      - TZ=Asia/Shanghai
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SECURITY_ALLOW_EMBEDDING: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL}
+      TZ: Asia/Shanghai
     volumes:
-      # 持久化存储
       - grafana-data:/var/lib/grafana
-      # 自定义配置（可选）
-      # - ./grafana.ini:/etc/grafana/grafana.ini
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
     depends_on:
       - prometheus
     networks:
       - monitoring
 
+  node-exporter:
+    image: ${NODE_EXPORTER_IMAGE}
+    restart: unless-stopped
+    command:
+      - --path.rootfs=/host
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run|var/lib/docker/.+)($$|/)
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+    networks:
+      - monitoring
+
+  blackbox-exporter:
+    image: ${BLACKBOX_EXPORTER_IMAGE}
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/blackbox_exporter/config.yml
+    volumes:
+      - ./blackbox/config.yml:/etc/blackbox_exporter/config.yml:ro
+    networks:
+      - monitoring
+
 volumes:
   prometheus-data:
+  alertmanager-data:
   grafana-data:
 
 networks:
   monitoring:
     driver: bridge
-

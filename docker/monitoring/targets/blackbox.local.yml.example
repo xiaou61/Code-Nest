@@ -1,0 +1,5 @@
+- targets:
+    - https://replace-with-your-public-code-nest-url/
+  labels:
+    service: code-nest-public
+    environment: production
