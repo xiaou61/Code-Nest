@@ -5,6 +5,7 @@ import com.xiaou.ai.prompt.community.CommunityPromptSpecs;
 import com.xiaou.ai.prompt.interview.InterviewPromptSpecs;
 import com.xiaou.ai.prompt.jobbattle.JobBattlePromptSpecs;
 import com.xiaou.ai.prompt.sql.SqlOptimizePromptSpecs;
+import com.xiaou.ai.prompt.sre.SreRcaPromptSpecs;
 
 import java.util.List;
 
@@ -22,6 +23,7 @@ public final class AiPromptCatalog {
             CommunityPromptSpecs.class,
             InterviewPromptSpecs.class,
             JobBattlePromptSpecs.class,
+            SreRcaPromptSpecs.class,
             SqlOptimizePromptSpecs.class
     );
 

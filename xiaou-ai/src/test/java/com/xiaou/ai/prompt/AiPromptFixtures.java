@@ -82,6 +82,7 @@ public final class AiPromptFixtures {
         values.put("interviewResult", "未通过");
         values.put("interviewNotes", "系统设计容量估算不足。");
         values.put("qaTranscriptJson", "[{\"q\":\"缓存一致性\",\"a\":\"延迟双删\"}]");
+        values.put("incidentContextJson", "{\"incident\":{\"id\":11},\"evidence\":[{\"id\":31}]}");
         return Map.copyOf(values);
     }
 }

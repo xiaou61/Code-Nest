@@ -37,7 +37,8 @@ VALUES
 (0, '智能体清理操作日志', 'agent:system:operation-log:clean', 2, NULL, NULL, NULL, 2403, 0, '允许管理员智能体清理系统操作日志', NULL),
 (0, '智能体查询聊天禁言', 'agent:chat:user-ban:read', 2, NULL, NULL, NULL, 2404, 0, '允许管理员智能体查询聊天用户禁言状态', NULL),
 (0, '智能体解除聊天禁言', 'agent:chat:user-ban:write', 2, NULL, NULL, NULL, 2405, 0, '允许管理员智能体解除聊天用户禁言', NULL),
-(0, '智能体查询抽奖监控', 'agent:points:lottery:monitor:read', 2, NULL, NULL, NULL, 2414, 0, '允许管理员智能体查询抽奖实时监控', NULL);
+(0, '智能体查询抽奖监控', 'agent:points:lottery:monitor:read', 2, NULL, NULL, NULL, 2414, 0, '允许管理员智能体查询抽奖实时监控', NULL),
+(0, '智能体调查 SRE 事故', 'agent:sre:incident:read', 2, NULL, NULL, NULL, 2415, 0, '允许管理员智能体读取受限证据并生成只读 RCA 报告', NULL);
 
 INSERT IGNORE INTO `sys_role_permission` (`role_id`, `permission_id`, `create_by`)
 SELECT role_table.`id`, permission_table.`id`, NULL
@@ -58,7 +59,8 @@ JOIN `sys_permission` permission_table
     'agent:system:operation-log:clean',
     'agent:chat:user-ban:read',
     'agent:chat:user-ban:write',
-    'agent:points:lottery:monitor:read'
+    'agent:points:lottery:monitor:read',
+    'agent:sre:incident:read'
   )
 WHERE role_table.`role_code` = 'SUPER_ADMIN';
 
@@ -710,4 +712,3 @@ INSERT INTO `oj_solution` (`problem_id`, `language`, `title`, `code`, `descripti
 
 SET UNIQUE_CHECKS = 1;
 SET FOREIGN_KEY_CHECKS = 1;
-

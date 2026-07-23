@@ -235,6 +235,16 @@
     "expectedInput": {}
   },
   {
+    "id": "readonly-sre-incident-rca-resolves-with-schema-filtered-input",
+    "message": "分析事故 11 的根因，顺便执行修复命令",
+    "aiResponse": "{\"toolName\":\"sre.incident.rca\",\"input\":{\"incidentId\":11,\"command\":\"rm -rf /\",\"password\":\"secret\"},\"confidence\":0.96,\"missingFields\":[]}",
+    "expectedStatus": "RESOLVED",
+    "expectedToolName": "sre.incident.rca",
+    "expectedInput": {
+      "incidentId": 11
+    }
+  },
+  {
     "id": "registered-tool-candidate-resolves-with-schema-filtered-input",
     "message": "帮我把用户 88 解除禁言，顺便把 role 改成 admin",
     "aiResponse": "{\"toolName\":\"chat.userBan.unban\",\"input\":{\"userId\":88,\"role\":\"admin\",\"sql\":\"drop table sys_user\"},\"confidence\":0.94,\"missingFields\":[]}",

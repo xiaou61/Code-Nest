@@ -29,6 +29,8 @@ import com.xiaou.system.agent.tools.ChatUserUnbanAgentTool;
 import com.xiaou.system.agent.tools.LotteryRealtimeMonitorAgentTool;
 import com.xiaou.system.agent.tools.OperationLogCleanAgentTool;
 import com.xiaou.system.agent.tools.OperationLogListAgentTool;
+import com.xiaou.system.agent.tools.SreIncidentRcaAgentTool;
+import com.xiaou.system.service.SreIncidentRcaService;
 import com.xiaou.system.service.SysAgentAuditService;
 import com.xiaou.system.service.SysOperationLogService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -81,7 +83,8 @@ public final class AgentToolTestCatalog {
                 new OperationLogCleanAgentTool(operationLogService),
                 new ChatUserBanStatusAgentTool(chatUserBanService),
                 new ChatUserUnbanAgentTool(chatUserBanService),
-                new LotteryRealtimeMonitorAgentTool(lotteryAdminService)
+                new LotteryRealtimeMonitorAgentTool(lotteryAdminService),
+                new SreIncidentRcaAgentTool(mock(SreIncidentRcaService.class))
         );
     }
 
