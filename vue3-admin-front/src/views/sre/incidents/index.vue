@@ -332,6 +332,51 @@
 
                   <p class="rca-summary">{{ rcaReport.executiveSummary || '暂无执行摘要。' }}</p>
 
+                  <div v-if="rcaProvenance" class="rca-block provenance-block">
+                    <div class="provenance-heading">
+                      <div>
+                        <h4>回放来源</h4>
+                        <p>保存模型实际接收的脱敏上下文；页面仅展示校验摘要，不回显正文。</p>
+                      </div>
+                      <CnStatusTag :type="invocationOutcomeTone(rcaProvenance.invocationOutcome)" size="sm">
+                        {{ invocationOutcomeLabel(rcaProvenance.invocationOutcome) }}
+                      </CnStatusTag>
+                    </div>
+                    <dl class="provenance-grid">
+                      <div>
+                        <dt>Prompt</dt>
+                        <dd><code>{{ rcaProvenance.promptId || '-' }}</code></dd>
+                      </div>
+                      <div>
+                        <dt>结构化契约</dt>
+                        <dd><code>{{ rcaProvenance.schemaId || '-' }}</code></dd>
+                      </div>
+                      <div>
+                        <dt>Provider</dt>
+                        <dd>{{ rcaProvenance.provider || '-' }}</dd>
+                      </div>
+                      <div>
+                        <dt>配置 / 实际模型</dt>
+                        <dd>{{ rcaProvenance.configuredModel || '-' }} / {{ rcaProvenance.actualModel || '未调用或未返回' }}</dd>
+                      </div>
+                      <div>
+                        <dt>上下文规模</dt>
+                        <dd>
+                          {{ Number(rcaProvenance.contextLength || 0).toLocaleString() }} 字符
+                          · {{ rcaProvenance.contextTruncated ? '已裁剪' : '完整' }}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>固化时间</dt>
+                        <dd>{{ formatTime(rcaProvenance.createdAt) }}</dd>
+                      </div>
+                      <div class="provenance-hash">
+                        <dt>Context SHA-256</dt>
+                        <dd><code>{{ rcaProvenance.contextSha256 || '-' }}</code></dd>
+                      </div>
+                    </dl>
+                  </div>
+
                   <div class="rca-block rca-feedback-block">
                     <div class="feedback-heading">
                       <div>
@@ -663,6 +708,20 @@ interface RcaFeedbackForm {
   expectedConclusion: string
 }
 
+interface RcaProvenance {
+  artifactId?: number
+  promptId?: string
+  schemaId?: string
+  provider?: string
+  configuredModel?: string
+  actualModel?: string
+  invocationOutcome?: string
+  contextSha256?: string
+  contextLength?: number
+  contextTruncated?: boolean
+  createdAt?: string
+}
+
 interface InvestigationStep {
   id?: number
   order: number
@@ -676,6 +735,7 @@ interface RcaRunDetail {
   run?: RcaRunSummary
   steps?: InvestigationStep[]
   report?: RcaReport
+  provenance?: RcaProvenance
   feedback?: RcaFeedback
 }
 
@@ -764,6 +824,7 @@ const rcaReport = ref<RcaReport | null>(null)
 const rcaRuns = ref<RcaRunSummary[]>([])
 const selectedRcaRunId = ref<number | null>(null)
 const investigationSteps = ref<InvestigationStep[]>([])
+const rcaProvenance = ref<RcaProvenance | null>(null)
 const rcaFeedback = ref<RcaFeedback | null>(null)
 const feedbackForm = reactive<RcaFeedbackForm>({
   accuracy: '',
@@ -895,6 +956,7 @@ const openIncident = async (incident: Incident) => {
   rcaRuns.value = []
   selectedRcaRunId.value = null
   investigationSteps.value = []
+  rcaProvenance.value = null
   rcaFeedback.value = null
   resetFeedbackForm()
   activeDetailTab.value = 'overview'
@@ -933,6 +995,7 @@ const loadRcaRuns = async (incidentId: number) => {
       selectedRcaRunId.value = null
       rcaReport.value = null
       investigationSteps.value = []
+      rcaProvenance.value = null
       rcaFeedback.value = null
       resetFeedbackForm()
       return
@@ -955,6 +1018,7 @@ const loadRcaRun = async (
 ) => {
   const requestVersion = inheritedRequestVersion ?? ++rcaRequestVersion
   if (manageLoading) rcaHistoryLoading.value = true
+  rcaProvenance.value = null
   rcaFeedback.value = null
   resetFeedbackForm()
   try {
@@ -963,6 +1027,7 @@ const loadRcaRun = async (
     selectedRcaRunId.value = runId
     rcaReport.value = response?.report || null
     investigationSteps.value = response?.steps || []
+    rcaProvenance.value = response?.provenance || null
     rcaFeedback.value = response?.feedback || null
     resetFeedbackForm(rcaFeedback.value)
     if (response?.run) {
@@ -974,6 +1039,7 @@ const loadRcaRun = async (
     if (requestVersion === rcaRequestVersion && isCurrentIncident(incidentId)) {
       rcaReport.value = null
       investigationSteps.value = []
+      rcaProvenance.value = null
       rcaFeedback.value = null
       resetFeedbackForm()
     }
@@ -1148,6 +1214,7 @@ const resetDrawer = () => {
   rcaRuns.value = []
   selectedRcaRunId.value = null
   investigationSteps.value = []
+  rcaProvenance.value = null
   rcaFeedback.value = null
   resetFeedbackForm()
   detailLoading.value = false
@@ -1224,6 +1291,22 @@ const runStatusLabel = (value?: string) => ({
   FAILED: '失败',
   SKIPPED: '已跳过'
 }[String(value || '').toUpperCase()] || value || '-')
+
+const invocationOutcomeTone = (value?: string): CnTone => ({
+  SUCCESS: 'success',
+  MODEL_UNAVAILABLE: 'warning',
+  EMPTY_RESPONSE: 'warning',
+  INVOCATION_EXCEPTION: 'danger',
+  PARSER_FAILURE: 'warning'
+}[String(value || '').toUpperCase()] as CnTone || 'neutral')
+
+const invocationOutcomeLabel = (value?: string) => ({
+  SUCCESS: '模型调用成功',
+  MODEL_UNAVAILABLE: '模型不可用，已降级',
+  EMPTY_RESPONSE: '空响应，已降级',
+  INVOCATION_EXCEPTION: '调用异常，已降级',
+  PARSER_FAILURE: '解析失败，已降级'
+}[String(value || '').toUpperCase()] || value || '未知结果')
 
 const investigationStepLabel = (value?: string) => ({
   CONTEXT_LOADED: '加载事故上下文',
@@ -1603,6 +1686,59 @@ onBeforeUnmount(() => {
   margin-top: var(--cn-space-5);
 }
 
+.provenance-block {
+  padding: var(--cn-space-5);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-bg-surface-muted);
+}
+
+.provenance-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cn-space-3);
+}
+
+.provenance-heading p {
+  margin: var(--cn-space-1) 0 0;
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+}
+
+.provenance-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cn-space-3) var(--cn-space-5);
+  margin: var(--cn-space-4) 0 0;
+}
+
+.provenance-grid > div {
+  min-width: 0;
+}
+
+.provenance-grid dt {
+  margin-bottom: var(--cn-space-1);
+  color: var(--cn-color-text-tertiary);
+  font-size: 11px;
+}
+
+.provenance-grid dd {
+  margin: 0;
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.provenance-grid code {
+  font-family: var(--cn-font-mono);
+  font-size: 11px;
+}
+
+.provenance-hash {
+  grid-column: 1 / -1;
+}
+
 .rca-feedback-block {
   padding: var(--cn-space-5) 0;
   border-top: 1px solid var(--cn-color-border-subtle);
@@ -1840,6 +1976,7 @@ onBeforeUnmount(() => {
   .drawer-status-row,
   .section-heading,
   .rca-heading,
+  .provenance-heading,
   .feedback-heading,
   .rca-history-toolbar,
   .recommendation-list li {
@@ -1868,8 +2005,13 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
   }
 
+  .provenance-grid {
+    grid-template-columns: 1fr;
+  }
+
   .feedback-form :deep(.el-form-item),
-  .feedback-actions {
+  .feedback-actions,
+  .provenance-hash {
     grid-column: 1;
   }
 }

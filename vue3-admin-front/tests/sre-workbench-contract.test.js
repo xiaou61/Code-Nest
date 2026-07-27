@@ -48,6 +48,9 @@ test('SRE workbench should keep incident actions, evidence and AI output inspect
   assert.match(workbenchSource, /rcaRuns/)
   assert.match(workbenchSource, /investigationSteps/)
   assert.match(workbenchSource, /调查轨迹/)
+  assert.match(workbenchSource, /rcaProvenance/)
+  assert.match(workbenchSource, /回放来源/)
+  assert.match(workbenchSource, /contextSha256/)
   assert.match(workbenchSource, /分析反馈/)
   assert.match(workbenchSource, /saveRcaFeedback/)
   assert.match(workbenchSource, /exportRcaEvaluationSample/)
@@ -82,10 +85,17 @@ test('disk alerts should ignore the container overlay mirror of the root filesys
 })
 
 test('persistent RCA tables should be present in both fresh and incremental database paths', () => {
-  for (const table of ['sre_investigation_run', 'sre_investigation_step', 'sre_investigation_feedback']) {
+  for (const table of [
+    'sre_investigation_run',
+    'sre_investigation_step',
+    'sre_investigation_feedback',
+    'sre_investigation_artifact'
+  ]) {
     const createTable = 'CREATE TABLE IF NOT EXISTS `' + table + '`'
     assert.ok(databaseBaselineSource.includes(createTable))
     assert.ok(investigationMigrationSource.includes(createTable))
   }
+  assert.match(investigationMigrationSource, /`context_sha256` CHAR\(64\)/)
+  assert.match(investigationMigrationSource, /UNIQUE KEY `uk_sre_artifact_run` \(`run_id`\)/)
   assert.match(monitoringReadmeSource, /sql\/v2\.5\.0\/sre_investigation_run\.sql/)
 })
