@@ -9,10 +9,16 @@ import com.xiaou.ai.structured.AiStructuredOutputValidator;
 import com.xiaou.ai.structured.sre.SreRcaStructuredOutputSpecs;
 import com.xiaou.ai.support.AiExecutionSupport;
 import com.xiaou.ai.util.AiJsonResponseParser;
+import com.xiaou.sre.domain.SreInvestigationRun;
+import com.xiaou.sre.domain.SreInvestigationStep;
 import com.xiaou.sre.dto.response.SreInvestigationContext;
 import com.xiaou.sre.service.SreInvestigationFacade;
+import com.xiaou.sre.service.SreInvestigationRunService;
 import com.xiaou.system.dto.SreRcaReport;
+import com.xiaou.system.dto.SreRcaRunDetail;
+import com.xiaou.system.dto.SreRcaRunSummary;
 import com.xiaou.system.service.SreIncidentRcaService;
+import com.xiaou.system.service.SreRcaTriggerSource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -66,9 +72,12 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
     private final SreInvestigationFacade investigationFacade;
     private final AiExecutionSupport aiExecutionSupport;
     private final ObjectMapper objectMapper;
+    private final SreInvestigationRunService investigationRunService;
 
     @Override
-    public Optional<SreRcaReport> investigate(Long incidentId) {
+    public Optional<SreRcaReport> investigate(Long incidentId,
+                                              SreRcaTriggerSource triggerSource,
+                                              Long requestedBy) {
         if (incidentId == null || incidentId <= 0) {
             return Optional.empty();
         }
@@ -78,31 +87,106 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
         }
 
         SreInvestigationContext context = contextOptional.get();
+        SreInvestigationRun run = investigationRunService.start(
+                incidentId,
+                triggerSource == null ? SreRcaTriggerSource.SYSTEM.name() : triggerSource.name(),
+                requestedBy,
+                context.alerts().size(),
+                context.evidence().size(),
+                context.alertsTruncated() || context.evidenceTruncated()
+        );
+        try {
+            investigationRunService.recordStep(
+                    run.getId(), 1, "CONTEXT_LOADED", "SUCCEEDED", contextStepDetail(context));
+        } catch (RuntimeException exception) {
+            markRunFailed(run.getId(), exception);
+            throw exception;
+        }
+
         ModelContext modelContext;
         try {
             modelContext = buildModelContext(context);
         } catch (RuntimeException exception) {
             log.warn("SRE RCA 上下文构建失败，返回证据不足报告: incidentId={}, reason={}",
                     incidentId, exception.getClass().getSimpleName());
-            return Optional.of(fallbackReport(context, references(context, Set.of()), true));
+            SreRcaReport report = fallbackReport(context, references(context, Set.of()), true);
+            try {
+                investigationRunService.recordStep(
+                        run.getId(), 2, "MODEL_CONTEXT_BUILT", "DEGRADED", "上下文构建失败，已进入确定性降级。"
+                );
+                investigationRunService.recordStep(
+                        run.getId(), 3, "MODEL_ANALYSIS", "SKIPPED", "未调用模型。"
+                );
+                investigationRunService.recordStep(
+                        run.getId(), 4, "REPORT_VALIDATED", "SUCCEEDED", "已生成只含事实的降级报告。"
+                );
+                persistCompletedRun(run.getId(), report);
+            } catch (RuntimeException persistenceException) {
+                markRunFailed(run.getId(), persistenceException);
+                throw persistenceException;
+            }
+            return Optional.of(report);
+        }
+        try {
+            investigationRunService.recordStep(
+                    run.getId(), 2, "MODEL_CONTEXT_BUILT", "SUCCEEDED", modelContextStepDetail(modelContext));
+        } catch (RuntimeException exception) {
+            markRunFailed(run.getId(), exception);
+            throw exception;
         }
 
-        SreRcaReport report = aiExecutionSupport.chatWithFallback(
-                SCENE,
-                SreRcaPromptSpecs.INVESTIGATE,
-                Map.of("incidentContextJson", modelContext.json()),
-                response -> parseReport(response, context, modelContext),
-                () -> fallbackReport(context, references(context, modelContext.evidenceIds()),
-                        modelContext.truncated())
-        );
-        if (report == null) {
-            report = fallbackReport(context, references(context, modelContext.evidenceIds()),
-                    modelContext.truncated());
-        }
+        try {
+            SreRcaReport report = aiExecutionSupport.chatWithFallback(
+                    SCENE,
+                    SreRcaPromptSpecs.INVESTIGATE,
+                    Map.of("incidentContextJson", modelContext.json()),
+                    response -> parseReport(response, context, modelContext),
+                    () -> fallbackReport(context, references(context, modelContext.evidenceIds()),
+                            modelContext.truncated())
+            );
+            if (report == null) {
+                report = fallbackReport(context, references(context, modelContext.evidenceIds()),
+                        modelContext.truncated());
+            }
 
-        log.info("SRE RCA 调查完成: incidentId={}, mode={}, conclusionStatus={}, evidenceIds={}",
-                incidentId, report.generationMode(), report.conclusionStatus(), modelContext.evidenceIds());
-        return Optional.of(report);
+            String analysisStatus = "AI".equals(report.generationMode()) ? "SUCCEEDED" : "DEGRADED";
+            String analysisDetail = "AI".equals(report.generationMode())
+                    ? "模型返回了通过结构化契约校验的报告。"
+                    : "模型不可用或输出无效，已使用确定性降级报告。";
+            investigationRunService.recordStep(
+                    run.getId(), 3, "MODEL_ANALYSIS", analysisStatus, analysisDetail);
+            investigationRunService.recordStep(
+                    run.getId(), 4, "REPORT_VALIDATED", "SUCCEEDED", "证据引用和只读风险边界校验完成。"
+            );
+            persistCompletedRun(run.getId(), report);
+
+            log.info("SRE RCA 调查完成: incidentId={}, runId={}, mode={}, conclusionStatus={}, evidenceIds={}",
+                    incidentId, run.getId(), report.generationMode(), report.conclusionStatus(),
+                    modelContext.evidenceIds());
+            return Optional.of(report);
+        } catch (RuntimeException exception) {
+            markRunFailed(run.getId(), exception);
+            throw exception;
+        }
+    }
+
+    @Override
+    public List<SreRcaRunSummary> listRuns(Long incidentId, int limit) {
+        return investigationRunService.listByIncidentId(incidentId, limit).stream()
+                .map(this::toRunSummary)
+                .toList();
+    }
+
+    @Override
+    public Optional<SreRcaRunDetail> getRun(Long incidentId, Long runId) {
+        return investigationRunService.findByIncidentIdAndRunId(incidentId, runId)
+                .map(run -> new SreRcaRunDetail(
+                        toRunSummary(run),
+                        investigationRunService.listSteps(run.getId()).stream()
+                                .map(this::toRunStep)
+                                .toList(),
+                        readPersistedReport(run)
+                ));
     }
 
     private ModelContext buildModelContext(SreInvestigationContext context) {
@@ -512,6 +596,88 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
         LinkedHashSet<String> result = new LinkedHashSet<>(values);
         result.add(value);
         return result.stream().limit(maxItems).toList();
+    }
+
+    private String contextStepDetail(SreInvestigationContext context) {
+        boolean truncated = context.alertsTruncated() || context.evidenceTruncated();
+        return "已加载 " + context.alerts().size() + " 条告警、" + context.evidence().size()
+                + " 条证据；输入裁剪=" + truncated + "。";
+    }
+
+    private String modelContextStepDetail(ModelContext modelContext) {
+        return "已选择 " + modelContext.evidenceIds().size() + " 条可引用证据；模型上下文裁剪="
+                + modelContext.truncated() + "。";
+    }
+
+    private void persistCompletedRun(Long runId, SreRcaReport report) {
+        String status = "AI".equals(report.generationMode()) ? "SUCCEEDED" : "DEGRADED";
+        investigationRunService.complete(
+                runId,
+                status,
+                report.generationMode(),
+                report.conclusionStatus(),
+                report.contextTruncated(),
+                writeJson(report)
+        );
+    }
+
+    private void markRunFailed(Long runId, RuntimeException exception) {
+        try {
+            investigationRunService.recordStep(
+                    runId, 99, "RUN_FAILED", "FAILED", "调查运行异常中止，未执行任何修复动作。"
+            );
+        } catch (RuntimeException stepException) {
+            log.warn("SRE RCA 失败步骤记录失败: runId={}, reason={}",
+                    runId, stepException.getClass().getSimpleName());
+        }
+        try {
+            investigationRunService.fail(runId, exception.getClass().getSimpleName());
+        } catch (RuntimeException failureException) {
+            log.warn("SRE RCA 运行失败状态写入失败: runId={}, reason={}",
+                    runId, failureException.getClass().getSimpleName());
+        }
+    }
+
+    private SreRcaRunSummary toRunSummary(SreInvestigationRun run) {
+        return new SreRcaRunSummary(
+                run.getId(),
+                run.getIncidentId(),
+                run.getStatus(),
+                run.getTriggerSource(),
+                run.getRequestedBy(),
+                run.getGenerationMode(),
+                run.getConclusionStatus(),
+                run.getAlertCount() == null ? 0 : run.getAlertCount(),
+                run.getEvidenceCount() == null ? 0 : run.getEvidenceCount(),
+                Boolean.TRUE.equals(run.getContextTruncated()),
+                run.getFailureCode(),
+                run.getStartedAt(),
+                run.getCompletedAt()
+        );
+    }
+
+    private SreRcaRunDetail.Step toRunStep(SreInvestigationStep step) {
+        return new SreRcaRunDetail.Step(
+                step.getId(),
+                step.getStepOrder() == null ? 0 : step.getStepOrder(),
+                step.getStepCode(),
+                step.getStatus(),
+                step.getDetail(),
+                step.getRecordedAt()
+        );
+    }
+
+    private SreRcaReport readPersistedReport(SreInvestigationRun run) {
+        if (!StringUtils.hasText(run.getReportJson())) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(run.getReportJson(), SreRcaReport.class);
+        } catch (JsonProcessingException exception) {
+            log.warn("SRE RCA 持久化报告解析失败: runId={}, reason={}",
+                    run.getId(), exception.getClass().getSimpleName());
+            return null;
+        }
     }
 
     private String writeJson(Object value) {

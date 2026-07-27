@@ -134,10 +134,12 @@ not depend on them. Before enabling the worker on the application server:
 
 1. Apply `sql/v2.5.0/sre_incident.sql`, or apply the incremental
    `sql/v2.5.0/sre_incident_evidence.sql` when the four original SRE tables already exist.
-2. Set a dedicated `XIAOU_SRE_WEBHOOK_TOKEN`; do not reuse an administrator token.
+2. Apply `sql/v2.5.0/sre_investigation_run.sql` before deploying a backend that exposes
+   persistent RCA history. The migration is idempotent and creates the run and step tables.
+3. Set a dedicated `XIAOU_SRE_WEBHOOK_TOKEN`; do not reuse an administrator token.
    Put the identical value in `secrets/sre_webhook_token` with owner `65534:65534`
    and mode `0400`.
-3. Replace the email-only local config with the webhook template, then edit the
+4. Replace the email-only local config with the webhook template, then edit the
    QQ sender and recipient values:
 
    ```bash
@@ -153,9 +155,9 @@ not depend on them. Before enabling the worker on the application server:
    The template sends every alert independently to QQ and the private Java
    endpoint `http://127.0.0.1:9999/api/internal/sre/alertmanager/v1/alerts`.
    Do not publish that path through Nginx or the public firewall.
-4. Enable `XIAOU_SRE_WEBHOOK_ENABLED=true` only after the Alertmanager receiver is
+5. Enable `XIAOU_SRE_WEBHOOK_ENABLED=true` only after the Alertmanager receiver is
    configured to call the backend directly over the monitoring path.
-5. Enable `XIAOU_SRE_OUTBOX_ENABLED=true` only after the evidence table migration succeeds.
+6. Enable `XIAOU_SRE_OUTBOX_ENABLED=true` only after the evidence table migration succeeds.
 
 For Prometheus evidence on the current production host, set
 `XIAOU_SRE_PROMETHEUS_ENDPOINT=http://127.0.0.1:19090` in the application
