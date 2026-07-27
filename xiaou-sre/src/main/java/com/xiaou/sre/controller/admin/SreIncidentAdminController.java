@@ -10,6 +10,7 @@ import com.xiaou.sre.domain.SreIncident;
 import com.xiaou.sre.domain.SreIncidentEvidence;
 import com.xiaou.sre.dto.request.SreIncidentQuery;
 import com.xiaou.sre.dto.response.SreInvestigationContext;
+import com.xiaou.sre.dto.response.SreIncidentSummary;
 import com.xiaou.sre.service.SreIncidentEvidenceService;
 import com.xiaou.sre.service.SreIncidentService;
 import com.xiaou.sre.service.SreInvestigationFacade;
@@ -40,6 +41,12 @@ public class SreIncidentAdminController {
     private final SreIncidentService incidentService;
     private final SreIncidentEvidenceService evidenceService;
     private final SreInvestigationFacade investigationFacade;
+
+    @GetMapping("/summary")
+    @RequireAdmin(message = "查询 SRE 事故汇总需要管理员权限")
+    public Result<SreIncidentSummary> summary() {
+        return Result.success(incidentService.summary());
+    }
 
     @GetMapping
     @RequireAdmin(message = "查询 SRE 事故需要管理员权限")

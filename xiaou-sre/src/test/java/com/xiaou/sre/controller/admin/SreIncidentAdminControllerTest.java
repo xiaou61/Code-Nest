@@ -4,6 +4,7 @@ import com.xiaou.common.annotation.RequireAdmin;
 import com.xiaou.common.core.domain.Result;
 import com.xiaou.common.core.domain.ResultCode;
 import com.xiaou.sre.dto.response.SreInvestigationContext;
+import com.xiaou.sre.dto.response.SreIncidentSummary;
 import com.xiaou.sre.service.SreIncidentEvidenceService;
 import com.xiaou.sre.service.SreIncidentService;
 import com.xiaou.sre.service.SreInvestigationFacade;
@@ -22,6 +23,37 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SreIncidentAdminControllerTest {
+
+    @Test
+    void summaryEndpointIsAdminOnlyGetContract() throws Exception {
+        Method method = SreIncidentAdminController.class.getMethod("summary");
+
+        GetMapping getMapping = method.getAnnotation(GetMapping.class);
+        RequireAdmin requireAdmin = method.getAnnotation(RequireAdmin.class);
+
+        assertThat(getMapping).isNotNull();
+        assertThat(getMapping.value()).containsExactly("/summary");
+        assertThat(requireAdmin).isNotNull();
+        assertThat(requireAdmin.message()).isEqualTo("查询 SRE 事故汇总需要管理员权限");
+    }
+
+    @Test
+    void summaryReturnsServiceAggregation() {
+        SreIncidentService incidentService = mock(SreIncidentService.class);
+        SreIncidentEvidenceService evidenceService = mock(SreIncidentEvidenceService.class);
+        SreInvestigationFacade investigationFacade = mock(SreInvestigationFacade.class);
+        SreIncidentAdminController controller = new SreIncidentAdminController(
+                incidentService, evidenceService, investigationFacade);
+        SreIncidentSummary summary = new SreIncidentSummary();
+        summary.setActiveCount(3L);
+        when(incidentService.summary()).thenReturn(summary);
+
+        Result<SreIncidentSummary> result = controller.summary();
+
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.getData()).isSameAs(summary);
+        verify(incidentService).summary();
+    }
 
     @Test
     void investigationContextEndpointIsAdminOnlyGetContract() throws Exception {
