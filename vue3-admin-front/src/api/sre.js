@@ -23,6 +23,14 @@ export const sreApi = {
 
   generateRca(id) {
     return request.post(`/admin/sre/incidents/${id}/rca`, {}, { timeout: 180000 })
+  },
+
+  getRcaRuns(id, limit = 10) {
+    return request.get(`/admin/sre/incidents/${id}/rca-runs`, { limit })
+  },
+
+  getRcaRun(id, runId) {
+    return request.get(`/admin/sre/incidents/${id}/rca-runs/${runId}`)
   }
 }
 

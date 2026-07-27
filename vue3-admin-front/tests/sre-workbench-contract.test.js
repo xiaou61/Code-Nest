@@ -10,6 +10,12 @@ const routerSource = readFileSync(resolve(projectRoot, 'src/router/index.js'), '
 const layoutSource = readFileSync(resolve(projectRoot, 'src/layout/index.vue'), 'utf8')
 const workbenchSource = readFileSync(resolve(projectRoot, 'src/views/sre/incidents/index.vue'), 'utf8')
 const alertRulesSource = readFileSync(resolve(repositoryRoot, 'docker/monitoring/alert_rules.yml'), 'utf8')
+const monitoringReadmeSource = readFileSync(resolve(repositoryRoot, 'docker/monitoring/README.md'), 'utf8')
+const databaseBaselineSource = readFileSync(resolve(repositoryRoot, 'sql/MySql/code_nest.sql'), 'utf8')
+const investigationMigrationSource = readFileSync(
+  resolve(repositoryRoot, 'sql/v2.5.0/sre_investigation_run.sql'),
+  'utf8'
+)
 
 test('SRE API client should expose the complete administrator incident workflow', () => {
   assert.match(apiSource, /request\.get\('\/admin\/sre\/incidents\/summary'\)/)
@@ -18,6 +24,8 @@ test('SRE API client should expose the complete administrator incident workflow'
   assert.match(apiSource, /`\/admin\/sre\/incidents\/\$\{id\}\/ack`/)
   assert.match(apiSource, /`\/admin\/sre\/incidents\/\$\{id\}\/resolve`/)
   assert.match(apiSource, /`\/admin\/sre\/incidents\/\$\{id\}\/rca`/)
+  assert.match(apiSource, /`\/admin\/sre\/incidents\/\$\{id\}\/rca-runs`/)
+  assert.match(apiSource, /`\/admin\/sre\/incidents\/\$\{id\}\/rca-runs\/\$\{runId\}`/)
   assert.match(apiSource, /timeout:\s*180000/)
 })
 
@@ -35,6 +43,11 @@ test('SRE workbench should keep incident actions, evidence and AI output inspect
   assert.match(workbenchSource, /resolveIncident/)
   assert.match(workbenchSource, /evidenceReferences/)
   assert.match(workbenchSource, /executionAllowed/)
+  assert.match(workbenchSource, /rcaRuns/)
+  assert.match(workbenchSource, /investigationSteps/)
+  assert.match(workbenchSource, /调查轨迹/)
+  assert.match(workbenchSource, /isCurrentIncident/)
+  assert.match(workbenchSource, /rcaRequestVersion/)
   assert.match(workbenchSource, /aria-live="polite"/)
   assert.doesNotMatch(workbenchSource, /v-html/)
 })
@@ -61,4 +74,13 @@ test('disk alerts should ignore the container overlay mirror of the root filesys
   ) || []
 
   assert.equal(exclusions.length, 4)
+})
+
+test('persistent RCA tables should be present in both fresh and incremental database paths', () => {
+  for (const table of ['sre_investigation_run', 'sre_investigation_step']) {
+    const createTable = 'CREATE TABLE IF NOT EXISTS `' + table + '`'
+    assert.ok(databaseBaselineSource.includes(createTable))
+    assert.ok(investigationMigrationSource.includes(createTable))
+  }
+  assert.match(monitoringReadmeSource, /sql\/v2\.5\.0\/sre_investigation_run\.sql/)
 })

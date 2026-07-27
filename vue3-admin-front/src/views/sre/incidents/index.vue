@@ -291,7 +291,23 @@
             </el-tab-pane>
 
             <el-tab-pane label="AI RCA" name="rca">
-              <section v-loading="rcaLoading" class="detail-section rca-section" aria-labelledby="rca-title">
+              <section v-loading="rcaLoading || rcaHistoryLoading" class="detail-section rca-section" aria-labelledby="rca-title">
+                <div v-if="rcaRuns.length" class="rca-history-toolbar">
+                  <span>历史版本</span>
+                  <el-select
+                    v-model="selectedRcaRunId"
+                    aria-label="选择 RCA 历史版本"
+                    @change="selectRcaRun"
+                  >
+                    <el-option
+                      v-for="run in rcaRuns"
+                      :key="run.id"
+                      :label="runHistoryLabel(run)"
+                      :value="run.id"
+                    />
+                  </el-select>
+                </div>
+
                 <template v-if="rcaReport">
                   <div class="section-heading rca-heading">
                     <div>
@@ -305,6 +321,9 @@
                       <CnStatusTag :type="conclusionTone(rcaReport.conclusionStatus)" size="sm">
                         {{ conclusionLabel(rcaReport.conclusionStatus) }}
                       </CnStatusTag>
+                      <CnStatusTag v-if="selectedRcaRun" :type="runStatusTone(selectedRcaRun.status)" size="sm">
+                        {{ runStatusLabel(selectedRcaRun.status) }}
+                      </CnStatusTag>
                       <CnStatusTag :type="rcaReport.executionAllowed ? 'danger' : 'neutral'" size="sm">
                         {{ rcaReport.executionAllowed ? '允许执行' : '禁止自动执行' }}
                       </CnStatusTag>
@@ -312,6 +331,25 @@
                   </div>
 
                   <p class="rca-summary">{{ rcaReport.executiveSummary || '暂无执行摘要。' }}</p>
+
+                  <div v-if="investigationSteps.length" class="rca-block investigation-trace">
+                    <h4>调查轨迹</h4>
+                    <ol>
+                      <li v-for="step in investigationSteps" :key="step.id || step.order">
+                        <span class="trace-index" aria-hidden="true">{{ step.order }}</span>
+                        <div>
+                          <div class="trace-heading">
+                            <strong>{{ investigationStepLabel(step.code) }}</strong>
+                            <CnStatusTag :type="runStatusTone(step.status)" size="sm">
+                              {{ runStatusLabel(step.status) }}
+                            </CnStatusTag>
+                          </div>
+                          <p>{{ step.detail || '-' }}</p>
+                          <time>{{ formatTime(step.recordedAt) }}</time>
+                        </div>
+                      </li>
+                    </ol>
+                  </div>
 
                   <div class="rca-block">
                     <h4>观测事实</h4>
@@ -377,6 +415,15 @@
                     </ul>
                   </div>
                 </template>
+
+                <div v-else-if="selectedRcaRun" class="rca-empty">
+                  <CnEmptyState
+                    :title="selectedRcaRun.status === 'RUNNING' ? '调查正在进行' : '调查报告不可用'"
+                    :description="selectedRcaRun.failureCode || '该次运行尚未生成可恢复的结构化报告。'"
+                    icon="AI"
+                    surface="transparent"
+                  />
+                </div>
 
                 <div v-else class="rca-empty">
                   <CnEmptyState
@@ -494,6 +541,37 @@ interface RcaReport {
   generatedAt?: string
 }
 
+interface RcaRunSummary {
+  id: number
+  incidentId?: number
+  status?: string
+  triggerSource?: string
+  requestedBy?: number
+  generationMode?: string
+  conclusionStatus?: string
+  alertCount?: number
+  evidenceCount?: number
+  contextTruncated?: boolean
+  failureCode?: string
+  startedAt?: string
+  completedAt?: string
+}
+
+interface InvestigationStep {
+  id?: number
+  order: number
+  code?: string
+  status?: string
+  detail?: string
+  recordedAt?: string
+}
+
+interface RcaRunDetail {
+  run?: RcaRunSummary
+  steps?: InvestigationStep[]
+  report?: RcaReport
+}
+
 interface FilterState extends Record<string, unknown> {
   state: string
   severity: string
@@ -574,8 +652,14 @@ const investigationContext = ref<InvestigationContext | null>(null)
 const activeDetailTab = ref('overview')
 const expandedEvidenceIds = ref<Array<number | string>>([])
 const rcaLoading = ref(false)
+const rcaHistoryLoading = ref(false)
 const rcaReport = ref<RcaReport | null>(null)
+const rcaRuns = ref<RcaRunSummary[]>([])
+const selectedRcaRunId = ref<number | null>(null)
+const investigationSteps = ref<InvestigationStep[]>([])
 const actionLoading = ref<'ack' | 'resolve' | ''>('')
+let investigationRequestVersion = 0
+let rcaRequestVersion = 0
 
 const refreshing = computed(() => summaryLoading.value || listLoading.value)
 const headerDescription = computed(() => `最近观测：${formatTime(summary.value.lastObservedAt)}`)
@@ -601,6 +685,12 @@ const drawerSize = computed(() => Math.min(780, Math.max(280, Math.floor(viewpor
 const drawerTitle = computed(() => selectedIncident.value?.incidentNo || '事故详情')
 const contextAlerts = computed(() => investigationContext.value?.alerts || [])
 const contextEvidence = computed(() => investigationContext.value?.evidence || [])
+const selectedRcaRun = computed(() => (
+  rcaRuns.value.find((run) => run.id === selectedRcaRunId.value) || null
+))
+const isCurrentIncident = (incidentId: number) => (
+  drawerVisible.value && selectedIncident.value?.id === incidentId
+)
 const canAcknowledge = computed(() => selectedIncident.value?.state === 'OPEN')
 const canResolve = computed(() => !['RESOLVED', 'CLOSED'].includes(selectedIncident.value?.state || ''))
 
@@ -672,27 +762,96 @@ const changePageSize = (size: number) => {
 }
 
 const openIncident = async (incident: Incident) => {
+  investigationRequestVersion += 1
+  rcaRequestVersion += 1
   selectedIncident.value = { ...incident }
   investigationContext.value = null
   rcaReport.value = null
+  rcaRuns.value = []
+  selectedRcaRunId.value = null
+  investigationSteps.value = []
   activeDetailTab.value = 'overview'
   expandedEvidenceIds.value = []
   drawerVisible.value = true
-  await loadInvestigationContext(incident.id)
+  await Promise.all([
+    loadInvestigationContext(incident.id),
+    loadRcaRuns(incident.id)
+  ])
 }
 
 const loadInvestigationContext = async (incidentId: number) => {
+  const requestVersion = ++investigationRequestVersion
   detailLoading.value = true
   try {
     const response = await sreApi.getInvestigationContext(incidentId) as InvestigationContext | null
+    if (requestVersion !== investigationRequestVersion || !isCurrentIncident(incidentId)) return
     investigationContext.value = response
     if (response?.incident) selectedIncident.value = { ...selectedIncident.value, ...response.incident }
     expandedEvidenceIds.value = (response?.evidence || []).slice(0, 1).map((item) => item.id)
   } catch (error) {
     console.error('加载 SRE 事故详情失败:', error)
   } finally {
-    detailLoading.value = false
+    if (requestVersion === investigationRequestVersion) detailLoading.value = false
   }
+}
+
+const loadRcaRuns = async (incidentId: number) => {
+  const requestVersion = ++rcaRequestVersion
+  rcaHistoryLoading.value = true
+  try {
+    const response = await sreApi.getRcaRuns(incidentId, 20) as RcaRunSummary[] | null
+    if (requestVersion !== rcaRequestVersion || !isCurrentIncident(incidentId)) return
+    rcaRuns.value = Array.isArray(response) ? response : []
+    if (!rcaRuns.value.length) {
+      selectedRcaRunId.value = null
+      rcaReport.value = null
+      investigationSteps.value = []
+      return
+    }
+    const selectedStillExists = rcaRuns.value.some((run) => run.id === selectedRcaRunId.value)
+    const runId = selectedStillExists ? selectedRcaRunId.value : rcaRuns.value[0].id
+    if (runId != null) await loadRcaRun(incidentId, runId, false, requestVersion)
+  } catch (error) {
+    console.error('加载 SRE RCA 历史失败:', error)
+  } finally {
+    if (requestVersion === rcaRequestVersion) rcaHistoryLoading.value = false
+  }
+}
+
+const loadRcaRun = async (
+  incidentId: number,
+  runId: number,
+  manageLoading = true,
+  inheritedRequestVersion?: number
+) => {
+  const requestVersion = inheritedRequestVersion ?? ++rcaRequestVersion
+  if (manageLoading) rcaHistoryLoading.value = true
+  try {
+    const response = await sreApi.getRcaRun(incidentId, runId) as RcaRunDetail | null
+    if (requestVersion !== rcaRequestVersion || !isCurrentIncident(incidentId)) return
+    selectedRcaRunId.value = runId
+    rcaReport.value = response?.report || null
+    investigationSteps.value = response?.steps || []
+    if (response?.run) {
+      const index = rcaRuns.value.findIndex((run) => run.id === response.run?.id)
+      if (index >= 0) rcaRuns.value[index] = response.run
+    }
+  } catch (error) {
+    console.error('加载 SRE RCA 详情失败:', error)
+    if (requestVersion === rcaRequestVersion && isCurrentIncident(incidentId)) {
+      rcaReport.value = null
+      investigationSteps.value = []
+    }
+  } finally {
+    if (manageLoading && requestVersion === rcaRequestVersion) rcaHistoryLoading.value = false
+  }
+}
+
+const selectRcaRun = (value: number | string) => {
+  const incidentId = selectedIncident.value?.id
+  const runId = Number(value)
+  if (!incidentId || !Number.isInteger(runId) || runId <= 0) return
+  loadRcaRun(incidentId, runId).catch((error) => console.error('切换 SRE RCA 历史失败:', error))
 }
 
 const acknowledgeSelected = async () => {
@@ -746,11 +905,16 @@ const resolveSelected = async () => {
 
 const generateRca = async () => {
   if (!selectedIncident.value || rcaLoading.value) return
+  const incidentId = selectedIncident.value.id
   activeDetailTab.value = 'rca'
   rcaLoading.value = true
   liveStatus.value = '正在生成只读 AI 根因分析'
   try {
-    rcaReport.value = await sreApi.generateRca(selectedIncident.value.id) as RcaReport
+    const report = await sreApi.generateRca(incidentId) as RcaReport
+    if (!isCurrentIncident(incidentId)) return
+    rcaReport.value = report
+    await loadRcaRuns(incidentId)
+    if (!isCurrentIncident(incidentId)) return
     liveStatus.value = 'AI 根因分析已生成'
     ElMessage.success('AI 根因分析已生成')
   } catch (error) {
@@ -762,9 +926,16 @@ const generateRca = async () => {
 }
 
 const resetDrawer = () => {
+  investigationRequestVersion += 1
+  rcaRequestVersion += 1
   selectedIncident.value = null
   investigationContext.value = null
   rcaReport.value = null
+  rcaRuns.value = []
+  selectedRcaRunId.value = null
+  investigationSteps.value = []
+  detailLoading.value = false
+  rcaHistoryLoading.value = false
   activeDetailTab.value = 'overview'
   expandedEvidenceIds.value = []
   actionLoading.value = ''
@@ -808,15 +979,46 @@ const evidenceTone = (value?: string): CnTone => ({
 
 const conclusionTone = (value?: string): CnTone => ({
   SUPPORTED: 'success',
+  PARTIAL: 'warning',
   PARTIALLY_SUPPORTED: 'warning',
   INSUFFICIENT_EVIDENCE: 'warning'
 }[String(value || '').toUpperCase()] as CnTone || 'info')
 
 const conclusionLabel = (value?: string) => ({
   SUPPORTED: '证据支持',
+  PARTIAL: '部分支持',
   PARTIALLY_SUPPORTED: '部分支持',
   INSUFFICIENT_EVIDENCE: '证据不足'
 }[String(value || '').toUpperCase()] || value || '-')
+
+const runStatusTone = (value?: string): CnTone => ({
+  RUNNING: 'info',
+  SUCCEEDED: 'success',
+  DEGRADED: 'warning',
+  FAILED: 'danger',
+  SKIPPED: 'neutral'
+}[String(value || '').toUpperCase()] as CnTone || 'neutral')
+
+const runStatusLabel = (value?: string) => ({
+  RUNNING: '进行中',
+  SUCCEEDED: '已完成',
+  DEGRADED: '已降级',
+  FAILED: '失败',
+  SKIPPED: '已跳过'
+}[String(value || '').toUpperCase()] || value || '-')
+
+const investigationStepLabel = (value?: string) => ({
+  CONTEXT_LOADED: '加载事故上下文',
+  MODEL_CONTEXT_BUILT: '构建模型上下文',
+  MODEL_ANALYSIS: '执行只读分析',
+  REPORT_VALIDATED: '校验结构化报告',
+  RUN_FAILED: '调查异常中止'
+}[String(value || '').toUpperCase()] || value || '未知步骤')
+
+const runHistoryLabel = (run: RcaRunSummary) => {
+  const mode = run.generationMode || runStatusLabel(run.status)
+  return `${formatTime(run.startedAt)} · ${mode} · ${conclusionLabel(run.conclusionStatus)}`
+}
 
 const riskTone = (value?: string): CnTone => ({
   LOW: 'success',
@@ -1138,8 +1340,84 @@ onBeforeUnmount(() => {
   min-height: 360px;
 }
 
+.rca-history-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--cn-space-3);
+  min-height: 40px;
+  margin-bottom: var(--cn-space-4);
+  padding-bottom: var(--cn-space-4);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
+}
+
+.rca-history-toolbar > span {
+  flex: 0 0 auto;
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+}
+
+.rca-history-toolbar :deep(.el-select) {
+  width: min(360px, 100%);
+}
+
 .rca-block {
   margin-top: var(--cn-space-5);
+}
+
+.investigation-trace {
+  padding-bottom: var(--cn-space-5);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
+}
+
+.investigation-trace ol {
+  display: grid;
+  gap: var(--cn-space-3);
+  margin: var(--cn-space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.investigation-trace li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: var(--cn-space-3);
+  min-width: 0;
+}
+
+.trace-index {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--cn-color-border);
+  border-radius: 50%;
+  background: var(--cn-color-bg-surface-muted);
+  color: var(--cn-color-text-secondary);
+  font-family: var(--cn-font-mono);
+  font-size: 11px;
+}
+
+.trace-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cn-space-3);
+}
+
+.trace-heading strong {
+  color: var(--cn-color-text-primary);
+  font-size: 13px;
+}
+
+.investigation-trace p,
+.investigation-trace time {
+  display: block;
+  margin: var(--cn-space-1) 0 0;
+  overflow-wrap: anywhere;
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .rca-list,
@@ -1273,6 +1551,7 @@ onBeforeUnmount(() => {
   .drawer-status-row,
   .section-heading,
   .rca-heading,
+  .rca-history-toolbar,
   .recommendation-list li {
     align-items: flex-start;
     flex-direction: column;
@@ -1285,6 +1564,14 @@ onBeforeUnmount(() => {
   .drawer-actions :deep(.el-button) {
     flex: 1 1 auto;
     margin-left: 0;
+  }
+
+  .rca-history-toolbar {
+    align-items: stretch;
+  }
+
+  .rca-history-toolbar :deep(.el-select) {
+    width: 100%;
   }
 }
 </style>
