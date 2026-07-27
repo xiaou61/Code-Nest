@@ -30,7 +30,7 @@ CREATE DATABASE code_nest DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_
 mysql -u root -p code_nest < sql/MySql/code_nest.sql
 ```
 
-当前基础脚本已经包含 153 张表，是新环境初始化的完整结构基线。
+当前基础脚本已经包含 154 张表，是新环境初始化的完整结构基线。
 
 ### 3. 旧数据库升级时导入增量脚本
 
@@ -51,7 +51,7 @@ done
 ```sql
 USE code_nest;
 SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'code_nest';
--- 预期：153 张表
+-- 预期：154 张表
 ```
 
 ## Redis 配置

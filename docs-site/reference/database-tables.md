@@ -6,7 +6,7 @@
 
 ## 表统计总览
 
-当前主库基线包含 153 张表，按业务域分布：
+当前主库基线包含 154 张表，按业务域分布：
 
 | 业务域 | 表数量 | 模块 | 表前缀 |
 | --- | --- | --- | --- |
@@ -30,7 +30,7 @@
 | 敏感词 | 11 | xiaou-sensitive | `sensitive_*` |
 | 摸鱼工具 | 7 | xiaou-moyu | `developer_calendar_*`, `daily_content`, `user_calendar_*`, `user_salary_*`, `work_record`, `bug_*`, `user_bug_*` |
 | 版本历史 | 1 | xiaou-version | `version_history` |
-| SRE 运维 | 7 | xiaou-sre, xiaou-system | `sre_*` |
+| SRE 运维 | 9 | xiaou-sre, xiaou-system | `sre_*` |
 
 ## 索引策略
 
@@ -283,12 +283,15 @@
 | `sre_outbox_event` | aggregate_id, event_type, state, attempts, next_attempt_at | xiaou-sre |
 | `sre_incident_evidence` | incident_id, source_type, source_ref, snapshot_json | xiaou-sre |
 | `sre_investigation_run` | incident_id, status, trigger_source, report_json, failure_code | xiaou-sre, xiaou-system |
+| `sre_investigation_artifact` | run_id, context_sha256, prompt_id, schema_id, actual_model, invocation_outcome | xiaou-sre, xiaou-system |
 | `sre_investigation_step` | run_id, step_order, step_code, status, detail | xiaou-sre, xiaou-system |
 | `sre_investigation_feedback` | run_id, accuracy, gap_type, expected_conclusion, reviewed_by | xiaou-sre, xiaou-system |
 
 `sre_investigation_run.report_json` 只保存经过后端脱敏和结构校验的报告；调查步骤只保存
-受控摘要与失败码，不保存原始模型输入或异常正文。反馈表采用追加式修订，每次编辑新增一行；
-备注和期望结论在入库前清理控制字符及常见凭据，评测样本不导出备注和管理员身份。
+受控摘要与失败码，不保存异常正文。`sre_investigation_artifact` 每个 run 最多一行，保存模型
+实际接收的 60k 内脱敏上下文、SHA-256 和 Prompt/Schema/模型来源，详情接口只返回来源摘要，
+不返回 `context_json`。反馈表采用追加式修订，每次编辑新增一行；备注和期望结论在入库前清理
+控制字符及常见凭据，当前评测样本仍不导出模型输入、备注和管理员身份。
 
 ## 数据库视图
 
@@ -316,7 +319,7 @@
 | `sql/v1.8.2` | 成长自动驾驶、求职闭环、岗位匹配、OJ 评论、SQL 优化、驾驶舱排行 |
 | `sql/v1.8.3` | 学习资产候选 |
 | `sql/v1.8.4` | 学习资产转化 |
-| `sql/v2.5.0` | SRE 告警、事故、证据、调查运行、步骤与反馈修订 |
+| `sql/v2.5.0` | SRE 告警、事故、证据、调查运行、回放产物、步骤与反馈修订 |
 
 ## Mapper 定位规则
 
@@ -356,7 +359,7 @@ grep -r "user_points_balance" --include="*.xml" xiaou-*/
 
 | 文件 | 说明 |
 | --- | --- |
-| `sql/MySql/code_nest.sql` | 当前完整主库基线脚本（153 表） |
+| `sql/MySql/code_nest.sql` | 当前完整主库基线脚本（154 表） |
 | `sql/v1.2.0/` ~ `sql/v2.5.0/` | 版本增量脚本 |
 | `xiaou-*/src/main/java/**/domain/` | 实体类目录 |
 | `xiaou-*/src/main/java/**/mapper/` | Mapper 接口目录 |

@@ -68,6 +68,13 @@ Code-Nest 的优势是事故、证据、权限、事务 Outbox 和管理后台�
 8. 管理端可恢复和编辑当前反馈，`PARTIAL/INACCURATE` 必须给出缺口与期望结论；
 9. 每次运行可导出 `code-nest.sre.rca-eval.v1` 样本。样本只包含结构化报告与评价结论，
    不包含模型输入、原始日志、异常正文、管理员备注或身份。
+10. `sre_investigation_artifact` 以“一次 run 一份”的唯一约束固化模型实际接收的脱敏上下文，
+    上下文继续受 60,000 字符上限约束，并保存 SHA-256、裁剪状态和创建时间；
+11. artifact 同时记录 Prompt ID、结构化输出 Schema ID、provider、配置模型、上游返回的实际
+    模型以及 `SUCCESS / MODEL_UNAVAILABLE / EMPTY_RESPONSE / INVOCATION_EXCEPTION /
+    PARSER_FAILURE` 调用结果；
+12. RCA 详情接口和管理端只展示 provenance 摘要，不返回 `context_json`；明显未脱敏的 Bearer、
+    常见云密钥和敏感 JSON 字段会被持久化边界拒绝。
 
 ## 4. 差距和优先级
 
@@ -77,7 +84,7 @@ Code-Nest 的优势是事故、证据、权限、事务 Outbox 和管理后台�
 | --- | --- | --- | --- |
 | P0 | RCA 运行不可恢复、不可审计 | 刷新即丢、无法判断 AI/降级过程 | 本次已完成 |
 | 已完成 | 没有准确/部分准确/不准确反馈 | 无法知道模型是否真的帮助定位 | v2.5.0 已增加评价、缺口分类、追加审计和期望结论 |
-| P1 | 尚无自动离线回放与可比较评分 | 改 Prompt/模型后仍不能自动量化差异 | 已有脱敏样本导出；下一步经人工审核后转为固定 regression cases，并记录模型、Prompt 版本和评分 |
+| P1 | 尚无自动离线回放与可比较评分 | 改 Prompt/模型后仍不能自动量化差异 | 已有精确脱敏输入与 provenance；下一步将反馈 + artifact 提升为不可变 case，再持久化单 case 评分和聚合得分 |
 | P1 | 缺少发布和 Runbook 证据 | 根因容易停留在指标/日志层 | 先接入最近发布、版本和只读 Runbook，仍走证据表 |
 | P1 | SRE 自身指标不完整 | 无法发现调查失败率、降级率和积压 | 暴露 run duration、status、generation mode、outbox backlog 指标 |
 | P2 | 固定查询不能按假设追加取证 | 复杂事故证据覆盖有限 | 只在白名单工具上实现最多 3-5 轮的有界调查，不开放任意命令或查询 |
@@ -88,16 +95,19 @@ Code-Nest 的优势是事故、证据、权限、事务 Outbox 和管理后台�
 
 ### 5.1 RCA 反馈与回归评测
 
-反馈与样本基础已经落地：
+反馈、精确输入与 provenance 基础已经落地：
 
 - `ACCURATE / PARTIAL / INACCURATE` 评价；
 - `RETRIEVAL_GAP / REASONING_GAP / TOOL_FAILURE / ROUTING_GAP / UNKNOWN` 分类；
 - 管理员备注、期望结论、评价人、评价时间和不可变修订；
 - 只导出结构化报告和评价结论，不导出原始模型输入、日志、备注、身份或异常正文。
+- 服务端按 run 保存模型实际接收的脱敏上下文、SHA-256、Prompt/Schema ID、配置与实际模型、
+  调用结果；管理端不回显上下文正文。
 
-下一步不是直接让生产库驱动模型，而是人工审核导出样本，将稳定样本纳入仓库内的固定回归
-夹具，再记录模型、Prompt/结构化契约版本、单 case 结果和聚合得分。完成自动回放前，不能宣称
-“模型升级后真的更好”。
+下一步不是让生产表被定时任务直接拿去调用模型，而是增加显式管理员“提升为评测 case”动作，
+把反馈与 artifact 复制成不可变、可禁用、可版本化的评测用例。离线 runner 只读取这些已审核
+case，保存候选模型、Prompt/Schema、代码提交、单 case 原始结果、评分和聚合得分。完成自动
+回放与可比较评分前，仍不能宣称“模型升级后真的更好”。
 
 ### 5.2 发布和 Runbook 证据
 

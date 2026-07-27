@@ -134,8 +134,10 @@ rule_files:
 
 管理端 `/sre/incidents` 将 Alertmanager 告警聚合为事故，并提供事故状态、时间线、固定白名单
 证据和只读 RCA。打开事故时会恢复最近一次 RCA，也可以切换历史运行并查看上下文加载、模型
-上下文构建、模型分析和报告校验四阶段轨迹。管理员可对每次运行评价准确度、标记主要缺口并
-填写期望结论；每次修改追加审计修订，可下载不含原始输入、备注和管理员身份的评测样本。
+上下文构建、模型分析和报告校验四阶段轨迹。每次成功构建模型上下文后，还会固化同一份脱敏
+输入及其 SHA-256、Prompt/Schema 版本、配置模型、实际模型和调用结果；页面只展示来源摘要，
+不回显上下文正文。管理员可对每次运行评价准确度、标记主要缺口并填写期望结论；每次修改
+追加审计修订，可下载不含原始输入、备注和管理员身份的评测样本。
 
 后端边界分为两部分：`xiaou-sre` 负责告警、事故、证据与调查记录，`xiaou-system` 复用统一
 AI Runtime 生成并校验结构化报告。AI 不进入 QQ 邮件告警热路径，也不能执行 Shell、Docker、
@@ -143,11 +145,12 @@ AI Runtime 生成并校验结构化报告。AI 不进入 QQ 邮件告警热路�
 
 数据库准备顺序：
 
-1. 新环境直接使用包含 8 张 SRE 表的 `sql/MySql/code_nest.sql`。
+1. 新环境直接使用包含 9 张 SRE 表的 `sql/MySql/code_nest.sql`。
 2. 已有环境先执行 `sql/v2.5.0/sre_incident.sql`，已有四张早期 SRE 表时可改用
    `sre_incident_evidence.sql`。
-3. 部署带 RCA 历史与反馈的后端前，再执行 `sql/v2.5.0/sre_investigation_run.sql`；已执行过
-   早期版本的环境需再次执行该幂等脚本，以创建反馈表。
+3. 部署带 RCA 历史、反馈和回放来源的后端前，再执行
+   `sql/v2.5.0/sre_investigation_run.sql`；已执行过早期版本的环境需再次执行该幂等脚本，
+   以创建反馈表和 `sre_investigation_artifact`。
 
 完整监控栈和私网 Webhook 配置见 `docker/monitoring/README.md`。
 

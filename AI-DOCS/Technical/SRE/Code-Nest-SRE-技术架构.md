@@ -2,7 +2,7 @@
 
 > 文档类型：技术架构设计
 >
-> 版本：v1.2（P3.3 RCA 反馈与评测样本基础已落地）
+> 版本：v1.3（P3.4 脱敏回放输入与 provenance 已落地）
 >
 > 日期：2026-07-23
 >
@@ -714,7 +714,8 @@ Docker、任意 PromQL/LogQL 或数据库写操作。
    `conclusionStatus=INSUFFICIENT_EVIDENCE` 的确定性报告；任何路径都不会触发目标操作。
 7. P3.2 已新增 `sre_investigation_run` 与 `sre_investigation_step`：每次管理员或 Agent
    发起的 RCA 都记录来源、操作者、运行状态、输入计数、结构化报告和四阶段调查轨迹。
-   AI 与降级报告均可恢复；异常只保存受控失败码，不保存模型输入或异常正文。
+   AI 与降级报告均可恢复；run/step 只保存受控失败码和步骤摘要，不保存模型输入或异常正文。
+   P3.4 的脱敏回放输入由独立 artifact 表承载，不混入运行状态和步骤记录。
 8. 管理端通过 `GET /api/admin/sre/incidents/{id}/rca-runs` 与
    `GET /api/admin/sre/incidents/{id}/rca-runs/{runId}` 恢复并切换历史报告。原生成接口
    契约保持不变，页面刷新不再丢失 RCA。
@@ -724,6 +725,13 @@ Docker、任意 PromQL/LogQL 或数据库写操作。
 10. `GET /api/admin/sre/incidents/{id}/rca-runs/{runId}/evaluation-sample` 导出最小评测样本。
     导出类型不包含管理员备注、身份、模型输入、原始日志或异常正文；样本仍需人工审核后才能
     进入固定离线回归集，当前不会从生产库自动调用模型。
+11. P3.4 新增 `sre_investigation_artifact`：模型上下文构建成功后，按 run 唯一保存实际传给
+    Prompt 的同一份脱敏 JSON、SHA-256、字符数、裁剪状态、Prompt ID、Schema ID、provider、
+    配置模型、实际模型和模型调用结果。上下文仍限制在 60,000 字符内，持久化边界会拒绝明显
+    未脱敏的 Bearer、常见云密钥和敏感 JSON 字段。
+12. RCA 详情新增 provenance 摘要，管理端展示 Prompt/Schema、配置与实际模型、调用结果、
+    上下文规模和哈希，但 DTO 不含 `context_json`，因此页面和普通详情 API 都不能回显模型输入。
+    这为后续“人工提升为不可变评测 case”提供精确输入，但当前尚未实现自动回放和评分器。
 
 相对初稿的调整：不再为模型提供直接的 PromQL/Loki 查询工具。P2 采集器使用固定查询白名单
 生成可审计快照，P3 只分析这些已入库证据。发布记录和 Runbook 证据可以后续通过同一 facade
@@ -731,7 +739,8 @@ Docker、任意 PromQL/LogQL 或数据库写操作。
 
 完成标准已满足：AI 不可用不影响 P0/P1/P2；每个结论都有有效事实引用或明确的“证据不足”
 标记；接口、AgentTool、权限种子、统一入口、提示词注入、脱敏、非法证据、降级路径、
-报告恢复、调查轨迹、反馈组合校验、跨事故归属和脱敏样本边界均有测试。
+报告恢复、调查轨迹、反馈组合校验、artifact 跨事故归属、上下文大小与凭据拒绝、详情不回显
+输入以及脱敏样本边界均有测试。
 
 ### P4：受控动作
 

@@ -9,7 +9,7 @@ Code-Nest 是一个基于 Spring Boot 3.4.4 + Vue 3 的全栈学习成长平台�
 | 运行时 | Java | 17 |
 | 后端框架 | Spring Boot | 3.4.4 |
 | ORM | MyBatis-Plus | 3.5.x |
-| 数据库 | MySQL | 8.0+，当前主库基线 153 张表 |
+| 数据库 | MySQL | 8.0+，当前主库基线 154 张表 |
 | 缓存 | Redis | 7.x + Redisson |
 | 鉴权 | Sa-Token | 多端鉴权 (User + Admin) |
 | AI 接入 | LangChain4j + LangGraph4j + LlamaIndex | Prompt、图执行、RAG 和结构化输出 |
@@ -93,7 +93,7 @@ java -jar code-nest.jar --spring.profiles.active=prod
 |------|------|
 | 部署方式 | 单 JAR + 外置配置 |
 | 前端 | Nginx 托管静态资源，反向代理后端 API |
-| 数据库 | 单 MySQL 实例，当前主库基线 153 张表 |
+| 数据库 | 单 MySQL 实例，当前主库基线 154 张表 |
 | 缓存 | Redis db3（业务缓存 + Redisson）+ db4（Sa-Token 会话） |
 | 文件 | 本地磁盘存储（默认），可切换 S3 / MinIO |
 | WebSocket | 与 HTTP 共用 9999 端口，端点 `/ws/chat`，Nginx 需配置 Upgrade 代理 |
