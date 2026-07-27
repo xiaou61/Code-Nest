@@ -75,9 +75,9 @@ groups:
     rules:
       - alert: CodeNestHostDiskLow
         expr: |
-          node_filesystem_avail_bytes{job="node-exporter",fstype!~"tmpfs|overlay"}
+          node_filesystem_avail_bytes{job="node-exporter",fstype!~"tmpfs|overlay",mountpoint!~"/var/lib/containers/storage/overlay($|/)"}
           /
-          node_filesystem_size_bytes{job="node-exporter",fstype!~"tmpfs|overlay"}
+          node_filesystem_size_bytes{job="node-exporter",fstype!~"tmpfs|overlay",mountpoint!~"/var/lib/containers/storage/overlay($|/)"}
           < 0.15
         for: 15m
         labels:
@@ -89,9 +89,9 @@ groups:
 
       - alert: CodeNestHostDiskCritical
         expr: |
-          node_filesystem_avail_bytes{job="node-exporter",fstype!~"tmpfs|overlay"}
+          node_filesystem_avail_bytes{job="node-exporter",fstype!~"tmpfs|overlay",mountpoint!~"/var/lib/containers/storage/overlay($|/)"}
           /
-          node_filesystem_size_bytes{job="node-exporter",fstype!~"tmpfs|overlay"}
+          node_filesystem_size_bytes{job="node-exporter",fstype!~"tmpfs|overlay",mountpoint!~"/var/lib/containers/storage/overlay($|/)"}
           < 0.05
         for: 5m
         labels:

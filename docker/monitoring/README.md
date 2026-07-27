@@ -123,6 +123,7 @@ ports directly to the public internet.
 ## Operational Notes
 
 - Alert thresholds are intentionally conservative starting points. Tune them after two weeks of baseline data.
+- Disk rules ignore Podman's overlay mirror mount because it reports the same backing filesystem as `/`; the root filesystem remains monitored.
 - A stack on the same server cannot detect complete server loss. Add an external uptime monitor or a second monitoring node before claiming host-level 24x7 coverage.
 - Nginx now rejects `/api/actuator/`; Prometheus scrapes the backend directly over host loopback.
 
