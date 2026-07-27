@@ -13,6 +13,7 @@ Code-Nest/
 ├── xiaou-user/            # 用户管理模块
 ├── xiaou-system/          # 系统管理模块 (管理员、角色、日志)
 ├── xiaou-ai/              # AI 功能模块 (LangChain4j + LangGraph4j + LlamaIndex)
+├── xiaou-sre/             # SRE 告警、事故、证据和调查持久化模块
 ├── xiaou-interview/       # 面试题库模块
 ├── xiaou-mock-interview/  # 模拟面试与求职模块
 ├── xiaou-oj/              # 在线判题模块
@@ -263,11 +264,24 @@ xiaou-{module}/
 | `service/impl/BugStoreServiceImpl.java` | Bug 商店逻辑 |
 | `dto/BugItemQueryRequest.java` | Bug 查询请求 |
 
+### xiaou-sre (SRE 运维)
+
+| 路径 | 说明 |
+| --- | --- |
+| `controller/internal/AlertmanagerWebhookController.java` | Alertmanager 私网告警入口 |
+| `controller/admin/SreIncidentAdminController.java` | 管理端事故、证据和调查上下文接口 |
+| `service/impl/SreAlertIngestionServiceImpl.java` | 告警幂等接入和事故聚合 |
+| `service/impl/SreInvestigationRunServiceImpl.java` | RCA 运行、报告和步骤轨迹持久化 |
+| `worker/SreOutboxWorker.java` | 有界异步证据采集 |
+| `resources/mapper/SreInvestigationRunMapper.xml` | 调查运行查询和状态迁移 SQL |
+
 ### xiaou-system (系统管理)
 
 | 路径 | 说明 |
 | --- | --- |
 | `controller/AuthController.java` | 认证接口 (登录/注册) |
+| `controller/SreRcaAdminController.java` | 只读 RCA 生成、历史和恢复接口 |
+| `service/impl/SreIncidentRcaServiceImpl.java` | 模型上下文脱敏、报告校验与调查编排 |
 
 ### xiaou-user (用户管理)
 
@@ -379,7 +393,7 @@ vue3-admin-front/
 ```
 sql/
 ├── MySql/
-│   └── code_nest.sql         # 主库基线 (136 表，加上增量共 142 表)
+│   └── code_nest.sql         # 当前完整主库基线 (152 表)
 ├── v1.2.0/                   # 基础表结构
 ├── v1.2.1/                   # 知识图谱、敏感词
 ├── v1.3.0/                   # Bug 商店、薪资计算器

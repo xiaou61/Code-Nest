@@ -130,6 +130,25 @@ rule_files:
 
 具体到每条告警响了以后先看什么、先止损什么，见 [告警 Runbook](/operations/alert-runbooks)。
 
+## SRE 事故工作台
+
+管理端 `/sre/incidents` 将 Alertmanager 告警聚合为事故，并提供事故状态、时间线、固定白名单
+证据和只读 RCA。打开事故时会恢复最近一次 RCA，也可以切换历史运行并查看上下文加载、模型
+上下文构建、模型分析和报告校验四阶段轨迹。
+
+后端边界分为两部分：`xiaou-sre` 负责告警、事故、证据与调查记录，`xiaou-system` 复用统一
+AI Runtime 生成并校验结构化报告。AI 不进入 QQ 邮件告警热路径，也不能执行 Shell、Docker、
+任意 PromQL/LogQL 或修复动作。
+
+数据库准备顺序：
+
+1. 新环境直接使用包含 7 张 SRE 表的 `sql/MySql/code_nest.sql`。
+2. 已有环境先执行 `sql/v2.5.0/sre_incident.sql`，已有四张早期 SRE 表时可改用
+   `sre_incident_evidence.sql`。
+3. 部署带 RCA 历史的后端前，再执行 `sql/v2.5.0/sre_investigation_run.sql`。
+
+完整监控栈和私网 Webhook 配置见 `docker/monitoring/README.md`。
+
 ## 常用 PromQL
 
 HTTP 请求速率：

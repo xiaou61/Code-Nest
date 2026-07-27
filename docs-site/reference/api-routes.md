@@ -114,6 +114,8 @@
 | 摸鱼工具用户侧 | `/moyu/**` | 多个 Moyu Controller | `xiaou-moyu` |
 | 摸鱼工具管理侧 | `/admin/moyu/**` | 多个 Admin Moyu Controller | `xiaou-moyu` |
 | Bug 商店管理 | `/admin/moyu/bug-store` | `AdminBugStoreController` | `xiaou-moyu` |
+| SRE 事故、证据和 RCA 工作台 | `/admin/sre/incidents` | `SreIncidentAdminController`、`SreRcaAdminController` | `xiaou-sre`、`xiaou-system` |
+| Alertmanager 私有接入 | `/internal/sre/alertmanager/v1` | `AlertmanagerWebhookController` | `xiaou-sre` |
 
 ## AI Runtime 管理接口
 
@@ -470,6 +472,25 @@
 | `AdminBugStoreController` | `/admin/moyu/bug-store` | Bug 商店 CRUD、批量导入 |
 | `AdminDeveloperCalendarController` | `/admin/moyu/developer-calendar` | 开发者日历管理 |
 
+### `/admin/sre/incidents` — SRE 事故工作台
+
+除 Alertmanager 私有接入外，以下接口都要求管理员登录态。RCA 生成接口的操作日志不保存
+请求或响应正文，历史接口只读取已脱敏的结构化报告和受控步骤摘要。
+
+| 方法 | 路径 | 用途 |
+| --- | --- | --- |
+| GET | `/admin/sre/incidents/summary` | 事故数量和严重级别汇总 |
+| GET | `/admin/sre/incidents` | 按状态、级别和服务分页查询事故 |
+| GET | `/admin/sre/incidents/{id}` | 事故详情 |
+| GET | `/admin/sre/incidents/{id}/evidence` | 已入库证据列表 |
+| GET | `/admin/sre/incidents/{id}/investigation-context` | 受限且脱敏的调查上下文 |
+| POST | `/admin/sre/incidents/{id}/ack` | 确认事故 |
+| POST | `/admin/sre/incidents/{id}/resolve` | 关闭事故 |
+| POST | `/admin/sre/incidents/{id}/rca` | 生成只读 RCA 报告 |
+| GET | `/admin/sre/incidents/{id}/rca-runs` | 查询最近 RCA 运行摘要，最多 50 条 |
+| GET | `/admin/sre/incidents/{id}/rca-runs/{runId}` | 恢复单次 RCA 报告和调查轨迹 |
+| POST | `/internal/sre/alertmanager/v1/alerts` | Alertmanager 私网 Webhook，独立共享密钥认证 |
+
 ## 通用请求模式
 
 ### 分页
@@ -532,6 +553,7 @@
 | `xiaou-moyu` | 5 | 5+ | 0 | 10+ |
 | `xiaou-system` | 0 | 9 | 0 | 9 |
 | `xiaou-ai` | 0 | 9 | 0 | 9 |
+| `xiaou-sre`、`xiaou-system` | 0 | 10 | 1 个私有机器接口 | 11 |
 | 其余模块 | — | — | — | ~50 |
 | **合计** | — | — | — | **~370** |
 

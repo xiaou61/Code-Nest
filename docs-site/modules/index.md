@@ -120,6 +120,7 @@ Code Nest 的功能可以按读者视角分成五组：成长学习、内容社�
 | IM 聊天室 | WebSocket、心跳、撤回、禁言、踢人 | `xiaou-chat` |
 | 积分抽奖 | 积分账户、规则、明细、抽奖 | `xiaou-points` |
 | 敏感词风控 | 词库、白名单、策略、统计 | `xiaou-sensitive` |
+| SRE 运维 | 告警、事故、证据、只读 RCA 和调查审计 | `xiaou-sre`、`xiaou-system` |
 | 版本与摸鱼工具 | 版本墙、程序员日历、热榜、薪资计算、Bug 商店 | `xiaou-version`、`xiaou-moyu` |
 
 ## 已拆分文档页

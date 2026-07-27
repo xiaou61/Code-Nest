@@ -278,6 +278,7 @@
 | `/system/ai-config` | AiConfig | AI配置与观测 | [AI Runtime](/modules/ai-runtime) |
 | `/system/ai-governance` | AiGovernance | AI质量治理 | [AI Runtime](/modules/ai-runtime) |
 | `/system/version` | VersionManagement | 版本管理 | [版本历史](/modules/version-history) |
+| `/sre/incidents` | SreIncidents | SRE 事故工作台 | [监控与观测](/operations/monitoring) |
 | `/logs/login` | LoginLogs | 登录日志 | [仪表盘与日志](/modules/dashboard-logs) |
 | `/logs/operation` | OperationLogs | 操作日志 | [仪表盘与日志](/modules/dashboard-logs) |
 | `/notification` | Notification | 通知管理 | [通知中心](/modules/notification) |

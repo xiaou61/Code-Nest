@@ -67,7 +67,7 @@ dir /s /b sql\MySql\code_nest.sql
 ```sql
 USE code_nest;
 SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'code_nest';
--- 预期：145 张表
+-- 预期：152 张表
 ```
 
 ## 第 3 步：配置后端

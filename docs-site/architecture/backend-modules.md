@@ -102,11 +102,21 @@ com.xiaou.sensitive.api
 
 | 维度 | 说明 |
 |------|------|
-| API 前缀 | `/api/auth` (管理端认证), `/api/admin/dashboard` (仪表盘), `/api/log` (日志), `/api/admin/ai/config` (AI 配置管理) |
-| Controller | AuthController (管理端认证), DashboardController, LogController, AiConfigController |
-| 核心功能 | 管理员登录、仪表盘统计、操作日志、AI 配置管理 |
+| API 前缀 | `/api/auth` (管理端认证), `/api/admin/dashboard` (仪表盘), `/api/log` (日志), `/api/admin/ai/config` (AI 配置管理), `/api/admin/sre/incidents` (RCA) |
+| Controller | AuthController (管理端认证), DashboardController, LogController, AiConfigController, SreRcaAdminController |
+| 核心功能 | 管理员登录、仪表盘统计、操作日志、AI 配置管理、只读 RCA 编排与恢复 |
 | 关键表 | `system_log` |
 | @RequireAdmin 方法 | 29 个 (Log×8 + Dashboard×1 + AiConfig×20) |
+
+#### xiaou-sre
+
+| 维度 | 说明 |
+|------|------|
+| API 前缀 | `/api/internal/sre/alertmanager/v1` (私网告警接入), `/api/admin/sre/incidents` (事故工作台) |
+| Controller | AlertmanagerWebhookController, SreIncidentAdminController |
+| 核心功能 | 告警幂等接入、事故聚合、事务 Outbox、白名单证据采集、调查运行和步骤持久化 |
+| 关键表 | `sre_alert_event`, `sre_incident`, `sre_outbox_event`, `sre_incident_evidence`, `sre_investigation_run`, `sre_investigation_step` |
+| 安全边界 | 告警热路径不依赖 AI；模型只读已入库证据，不开放 Shell 或任意 PromQL/LogQL |
 
 #### xiaou-sensitive
 

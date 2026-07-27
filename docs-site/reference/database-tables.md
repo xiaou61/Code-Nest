@@ -6,7 +6,7 @@
 
 ## 表统计总览
 
-当前主库基线包含 145 张表，按业务域分布：
+当前主库基线包含 152 张表，按业务域分布：
 
 | 业务域 | 表数量 | 模块 | 表前缀 |
 | --- | --- | --- | --- |
@@ -30,6 +30,7 @@
 | 敏感词 | 11 | xiaou-sensitive | `sensitive_*` |
 | 摸鱼工具 | 7 | xiaou-moyu | `developer_calendar_*`, `daily_content`, `user_calendar_*`, `user_salary_*`, `work_record`, `bug_*`, `user_bug_*` |
 | 版本历史 | 1 | xiaou-version | `version_history` |
+| SRE 运维 | 7 | xiaou-sre, xiaou-system | `sre_*` |
 
 ## 索引策略
 
@@ -272,6 +273,21 @@
 | `bug_item` | title, description, severity, status | xiaou-moyu |
 | `user_bug_history` | user_id, bug_id, action | xiaou-moyu |
 
+## SRE 运维
+
+| 表 | 关键字段 | Mapper 模块 |
+| --- | --- | --- |
+| `sre_alert_event` | source, fingerprint, alert_name, status, raw_payload | xiaou-sre |
+| `sre_incident` | incident_no, incident_key, service, severity, state | xiaou-sre |
+| `sre_incident_alert_relation` | incident_id, alert_event_id | xiaou-sre |
+| `sre_outbox_event` | aggregate_id, event_type, state, attempts, next_attempt_at | xiaou-sre |
+| `sre_incident_evidence` | incident_id, source_type, source_ref, snapshot_json | xiaou-sre |
+| `sre_investigation_run` | incident_id, status, trigger_source, report_json, failure_code | xiaou-sre, xiaou-system |
+| `sre_investigation_step` | run_id, step_order, step_code, status, detail | xiaou-sre, xiaou-system |
+
+`sre_investigation_run.report_json` 只保存经过后端脱敏和结构校验的报告；调查步骤只保存
+受控摘要与失败码，不保存原始模型输入或异常正文。
+
 ## 数据库视图
 
 | 视图名 | 说明 | 源表 |
@@ -298,6 +314,7 @@
 | `sql/v1.8.2` | 成长自动驾驶、求职闭环、岗位匹配、OJ 评论、SQL 优化、驾驶舱排行 |
 | `sql/v1.8.3` | 学习资产候选 |
 | `sql/v1.8.4` | 学习资产转化 |
+| `sql/v2.5.0` | SRE 告警、事故、证据、调查运行与步骤 |
 
 ## Mapper 定位规则
 
@@ -337,8 +354,8 @@ grep -r "user_points_balance" --include="*.xml" xiaou-*/
 
 | 文件 | 说明 |
 | --- | --- |
-| `sql/MySql/code_nest.sql` | 主库基线脚本（136 表，加上增量共 142 表） |
-| `sql/v1.2.0/` ~ `sql/v1.8.4/` | 版本增量脚本 |
+| `sql/MySql/code_nest.sql` | 当前完整主库基线脚本（152 表） |
+| `sql/v1.2.0/` ~ `sql/v2.5.0/` | 版本增量脚本 |
 | `xiaou-*/src/main/java/**/domain/` | 实体类目录 |
 | `xiaou-*/src/main/java/**/mapper/` | Mapper 接口目录 |
 | `xiaou-*/src/main/resources/mapper/` | Mapper XML 目录 |

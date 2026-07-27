@@ -712,13 +712,20 @@ Docker、任意 PromQL/LogQL 或数据库写操作。
    递归脱敏，并校验所有证据引用。模型输出 `DESTRUCTIVE` 等风险值会被结构化契约拒绝。
 6. AI 运行失败时返回 `generationMode=FALLBACK`、
    `conclusionStatus=INSUFFICIENT_EVIDENCE` 的确定性报告；任何路径都不会触发目标操作。
+7. P3.2 已新增 `sre_investigation_run` 与 `sre_investigation_step`：每次管理员或 Agent
+   发起的 RCA 都记录来源、操作者、运行状态、输入计数、结构化报告和四阶段调查轨迹。
+   AI 与降级报告均可恢复；异常只保存受控失败码，不保存模型输入或异常正文。
+8. 管理端通过 `GET /api/admin/sre/incidents/{id}/rca-runs` 与
+   `GET /api/admin/sre/incidents/{id}/rca-runs/{runId}` 恢复并切换历史报告。原生成接口
+   契约保持不变，页面刷新不再丢失 RCA。
 
 相对初稿的调整：不再为模型提供直接的 PromQL/Loki 查询工具。P2 采集器使用固定查询白名单
 生成可审计快照，P3 只分析这些已入库证据。发布记录和 Runbook 证据可以后续通过同一 facade
 扩充，但仍不得给模型增加执行能力。
 
 完成标准已满足：AI 不可用不影响 P0/P1/P2；每个结论都有有效事实引用或明确的“证据不足”
-标记；接口、AgentTool、权限种子、统一入口、提示词注入、脱敏、非法证据和降级路径均有测试。
+标记；接口、AgentTool、权限种子、统一入口、提示词注入、脱敏、非法证据、降级路径、
+报告恢复和调查轨迹均有测试。
 
 ### P4：受控动作
 
