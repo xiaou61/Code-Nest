@@ -26,6 +26,8 @@ test('SRE API client should expose the complete administrator incident workflow'
   assert.match(apiSource, /`\/admin\/sre\/incidents\/\$\{id\}\/rca`/)
   assert.match(apiSource, /`\/admin\/sre\/incidents\/\$\{id\}\/rca-runs`/)
   assert.match(apiSource, /`\/admin\/sre\/incidents\/\$\{id\}\/rca-runs\/\$\{runId\}`/)
+  assert.match(apiSource, /`\/admin\/sre\/incidents\/\$\{id\}\/rca-runs\/\$\{runId\}\/feedback`/)
+  assert.match(apiSource, /`\/admin\/sre\/incidents\/\$\{id\}\/rca-runs\/\$\{runId\}\/evaluation-sample`/)
   assert.match(apiSource, /timeout:\s*180000/)
 })
 
@@ -46,6 +48,9 @@ test('SRE workbench should keep incident actions, evidence and AI output inspect
   assert.match(workbenchSource, /rcaRuns/)
   assert.match(workbenchSource, /investigationSteps/)
   assert.match(workbenchSource, /调查轨迹/)
+  assert.match(workbenchSource, /分析反馈/)
+  assert.match(workbenchSource, /saveRcaFeedback/)
+  assert.match(workbenchSource, /exportRcaEvaluationSample/)
   assert.match(workbenchSource, /isCurrentIncident/)
   assert.match(workbenchSource, /rcaRequestVersion/)
   assert.match(workbenchSource, /aria-live="polite"/)
@@ -77,7 +82,7 @@ test('disk alerts should ignore the container overlay mirror of the root filesys
 })
 
 test('persistent RCA tables should be present in both fresh and incremental database paths', () => {
-  for (const table of ['sre_investigation_run', 'sre_investigation_step']) {
+  for (const table of ['sre_investigation_run', 'sre_investigation_step', 'sre_investigation_feedback']) {
     const createTable = 'CREATE TABLE IF NOT EXISTS `' + table + '`'
     assert.ok(databaseBaselineSource.includes(createTable))
     assert.ok(investigationMigrationSource.includes(createTable))

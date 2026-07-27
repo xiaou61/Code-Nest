@@ -31,6 +31,14 @@ export const sreApi = {
 
   getRcaRun(id, runId) {
     return request.get(`/admin/sre/incidents/${id}/rca-runs/${runId}`)
+  },
+
+  saveRcaFeedback(id, runId, data) {
+    return request.put(`/admin/sre/incidents/${id}/rca-runs/${runId}/feedback`, data)
+  },
+
+  getRcaEvaluationSample(id, runId) {
+    return request.get(`/admin/sre/incidents/${id}/rca-runs/${runId}/evaluation-sample`)
   }
 }
 

@@ -332,6 +332,94 @@
 
                   <p class="rca-summary">{{ rcaReport.executiveSummary || '暂无执行摘要。' }}</p>
 
+                  <div class="rca-block rca-feedback-block">
+                    <div class="feedback-heading">
+                      <div>
+                        <h4>分析反馈</h4>
+                        <div v-if="rcaFeedback" class="feedback-meta">
+                          <CnStatusTag :type="feedbackAccuracyTone(rcaFeedback.accuracy)" size="sm">
+                            {{ feedbackAccuracyLabel(rcaFeedback.accuracy) }}
+                          </CnStatusTag>
+                          <span>{{ feedbackGapLabel(rcaFeedback.gapType) }}</span>
+                          <span>管理员 #{{ rcaFeedback.reviewedBy || '-' }}</span>
+                          <time>{{ formatTime(rcaFeedback.reviewedAt) }}</time>
+                        </div>
+                      </div>
+                      <el-button
+                        :icon="Download"
+                        :loading="evaluationExporting"
+                        :disabled="!rcaFeedback"
+                        plain
+                        @click="exportRcaEvaluationSample"
+                      >
+                        导出样本
+                      </el-button>
+                    </div>
+
+                    <el-form class="feedback-form" :model="feedbackForm" label-position="top">
+                      <el-form-item label="准确度">
+                        <el-radio-group
+                          v-model="feedbackForm.accuracy"
+                          size="small"
+                          aria-label="RCA 准确度"
+                          @change="handleAccuracyChange"
+                        >
+                          <el-radio-button label="ACCURATE">准确</el-radio-button>
+                          <el-radio-button label="PARTIAL">部分准确</el-radio-button>
+                          <el-radio-button label="INACCURATE">不准确</el-radio-button>
+                        </el-radio-group>
+                      </el-form-item>
+
+                      <el-form-item
+                        v-if="['PARTIAL', 'INACCURATE'].includes(feedbackForm.accuracy)"
+                        label="主要缺口"
+                      >
+                        <el-select v-model="feedbackForm.gapType" aria-label="RCA 主要缺口">
+                          <el-option label="证据检索不足" value="RETRIEVAL_GAP" />
+                          <el-option label="推理判断偏差" value="REASONING_GAP" />
+                          <el-option label="取证工具失败" value="TOOL_FAILURE" />
+                          <el-option label="调查路由错误" value="ROUTING_GAP" />
+                          <el-option label="尚未分类" value="UNKNOWN" />
+                        </el-select>
+                      </el-form-item>
+
+                      <el-form-item
+                        v-if="['PARTIAL', 'INACCURATE'].includes(feedbackForm.accuracy)"
+                        class="feedback-wide"
+                        label="期望结论"
+                      >
+                        <el-input
+                          v-model="feedbackForm.expectedConclusion"
+                          type="textarea"
+                          :rows="3"
+                          maxlength="2000"
+                          show-word-limit
+                        />
+                      </el-form-item>
+
+                      <el-form-item class="feedback-wide" label="管理员备注">
+                        <el-input
+                          v-model="feedbackForm.note"
+                          type="textarea"
+                          :rows="3"
+                          maxlength="1000"
+                          show-word-limit
+                        />
+                      </el-form-item>
+
+                      <div class="feedback-actions">
+                        <el-button
+                          type="primary"
+                          :icon="Check"
+                          :loading="feedbackSaving"
+                          @click="saveRcaFeedback"
+                        >
+                          {{ rcaFeedback ? '更新反馈' : '保存反馈' }}
+                        </el-button>
+                      </div>
+                    </el-form>
+                  </div>
+
                   <div v-if="investigationSteps.length" class="rca-block investigation-trace">
                     <h4>调查轨迹</h4>
                     <ol>
@@ -448,7 +536,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Check, CircleCheck, MagicStick, Refresh, View } from '@element-plus/icons-vue'
+import { Check, CircleCheck, Download, MagicStick, Refresh, View } from '@element-plus/icons-vue'
 import { sreApi } from '@/api/sre'
 import {
   CnDataTable,
@@ -557,6 +645,24 @@ interface RcaRunSummary {
   completedAt?: string
 }
 
+interface RcaFeedback {
+  id?: number
+  runId?: number
+  accuracy?: string
+  gapType?: string
+  note?: string
+  expectedConclusion?: string
+  reviewedBy?: number
+  reviewedAt?: string
+}
+
+interface RcaFeedbackForm {
+  accuracy: string
+  gapType: string
+  note: string
+  expectedConclusion: string
+}
+
 interface InvestigationStep {
   id?: number
   order: number
@@ -570,6 +676,7 @@ interface RcaRunDetail {
   run?: RcaRunSummary
   steps?: InvestigationStep[]
   report?: RcaReport
+  feedback?: RcaFeedback
 }
 
 interface FilterState extends Record<string, unknown> {
@@ -657,6 +764,15 @@ const rcaReport = ref<RcaReport | null>(null)
 const rcaRuns = ref<RcaRunSummary[]>([])
 const selectedRcaRunId = ref<number | null>(null)
 const investigationSteps = ref<InvestigationStep[]>([])
+const rcaFeedback = ref<RcaFeedback | null>(null)
+const feedbackForm = reactive<RcaFeedbackForm>({
+  accuracy: '',
+  gapType: '',
+  note: '',
+  expectedConclusion: ''
+})
+const feedbackSaving = ref(false)
+const evaluationExporting = ref(false)
 const actionLoading = ref<'ack' | 'resolve' | ''>('')
 let investigationRequestVersion = 0
 let rcaRequestVersion = 0
@@ -693,6 +809,15 @@ const isCurrentIncident = (incidentId: number) => (
 )
 const canAcknowledge = computed(() => selectedIncident.value?.state === 'OPEN')
 const canResolve = computed(() => !['RESOLVED', 'CLOSED'].includes(selectedIncident.value?.state || ''))
+
+const resetFeedbackForm = (feedback?: RcaFeedback | null) => {
+  Object.assign(feedbackForm, {
+    accuracy: feedback?.accuracy || '',
+    gapType: feedback?.gapType || '',
+    note: feedback?.note || '',
+    expectedConclusion: feedback?.expectedConclusion || ''
+  })
+}
 
 const buildQuery = () => ({
   state: filters.state || undefined,
@@ -770,6 +895,8 @@ const openIncident = async (incident: Incident) => {
   rcaRuns.value = []
   selectedRcaRunId.value = null
   investigationSteps.value = []
+  rcaFeedback.value = null
+  resetFeedbackForm()
   activeDetailTab.value = 'overview'
   expandedEvidenceIds.value = []
   drawerVisible.value = true
@@ -806,6 +933,8 @@ const loadRcaRuns = async (incidentId: number) => {
       selectedRcaRunId.value = null
       rcaReport.value = null
       investigationSteps.value = []
+      rcaFeedback.value = null
+      resetFeedbackForm()
       return
     }
     const selectedStillExists = rcaRuns.value.some((run) => run.id === selectedRcaRunId.value)
@@ -826,12 +955,16 @@ const loadRcaRun = async (
 ) => {
   const requestVersion = inheritedRequestVersion ?? ++rcaRequestVersion
   if (manageLoading) rcaHistoryLoading.value = true
+  rcaFeedback.value = null
+  resetFeedbackForm()
   try {
     const response = await sreApi.getRcaRun(incidentId, runId) as RcaRunDetail | null
     if (requestVersion !== rcaRequestVersion || !isCurrentIncident(incidentId)) return
     selectedRcaRunId.value = runId
     rcaReport.value = response?.report || null
     investigationSteps.value = response?.steps || []
+    rcaFeedback.value = response?.feedback || null
+    resetFeedbackForm(rcaFeedback.value)
     if (response?.run) {
       const index = rcaRuns.value.findIndex((run) => run.id === response.run?.id)
       if (index >= 0) rcaRuns.value[index] = response.run
@@ -841,6 +974,8 @@ const loadRcaRun = async (
     if (requestVersion === rcaRequestVersion && isCurrentIncident(incidentId)) {
       rcaReport.value = null
       investigationSteps.value = []
+      rcaFeedback.value = null
+      resetFeedbackForm()
     }
   } finally {
     if (manageLoading && requestVersion === rcaRequestVersion) rcaHistoryLoading.value = false
@@ -852,6 +987,85 @@ const selectRcaRun = (value: number | string) => {
   const runId = Number(value)
   if (!incidentId || !Number.isInteger(runId) || runId <= 0) return
   loadRcaRun(incidentId, runId).catch((error) => console.error('切换 SRE RCA 历史失败:', error))
+}
+
+const handleAccuracyChange = (value: string | number | boolean | undefined) => {
+  if (value === 'ACCURATE') {
+    feedbackForm.gapType = ''
+    feedbackForm.expectedConclusion = ''
+  }
+}
+
+const saveRcaFeedback = async () => {
+  const incidentId = selectedIncident.value?.id
+  const runId = selectedRcaRunId.value
+  if (!incidentId || !runId || feedbackSaving.value) return
+  if (!feedbackForm.accuracy) {
+    ElMessage.warning('请选择 RCA 准确度')
+    return
+  }
+  const requiresCorrection = ['PARTIAL', 'INACCURATE'].includes(feedbackForm.accuracy)
+  if (requiresCorrection && !feedbackForm.gapType) {
+    ElMessage.warning('请选择主要缺口')
+    return
+  }
+  if (requiresCorrection && !feedbackForm.expectedConclusion.trim()) {
+    ElMessage.warning('请填写期望结论')
+    return
+  }
+
+  const requestVersion = rcaRequestVersion
+  feedbackSaving.value = true
+  try {
+    const response = await sreApi.saveRcaFeedback(incidentId, runId, {
+      accuracy: feedbackForm.accuracy,
+      gapType: requiresCorrection ? feedbackForm.gapType : null,
+      note: feedbackForm.note.trim() || null,
+      expectedConclusion: requiresCorrection ? feedbackForm.expectedConclusion.trim() : null
+    }) as RcaFeedback
+    if (requestVersion !== rcaRequestVersion || !isCurrentIncident(incidentId)
+      || selectedRcaRunId.value !== runId) return
+    rcaFeedback.value = response
+    resetFeedbackForm(response)
+    liveStatus.value = 'RCA 分析反馈已保存'
+    ElMessage.success('RCA 分析反馈已保存')
+  } catch (error) {
+    console.error('保存 SRE RCA 反馈失败:', error)
+    liveStatus.value = 'RCA 分析反馈保存失败'
+  } finally {
+    feedbackSaving.value = false
+  }
+}
+
+const exportRcaEvaluationSample = async () => {
+  const incidentId = selectedIncident.value?.id
+  const runId = selectedRcaRunId.value
+  if (!incidentId || !runId || !rcaFeedback.value || evaluationExporting.value) return
+  const requestVersion = rcaRequestVersion
+  evaluationExporting.value = true
+  try {
+    const sample = await sreApi.getRcaEvaluationSample(incidentId, runId)
+    if (requestVersion !== rcaRequestVersion || !isCurrentIncident(incidentId)
+      || selectedRcaRunId.value !== runId) return
+    const blobUrl = URL.createObjectURL(new Blob(
+      [JSON.stringify(sample, null, 2)],
+      { type: 'application/json;charset=utf-8' }
+    ))
+    const link = document.createElement('a')
+    link.href = blobUrl
+    link.download = `sre-rca-eval-${incidentId}-${runId}.json`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(blobUrl)
+    liveStatus.value = 'RCA 评测样本已导出'
+    ElMessage.success('RCA 评测样本已导出')
+  } catch (error) {
+    console.error('导出 SRE RCA 评测样本失败:', error)
+    liveStatus.value = 'RCA 评测样本导出失败'
+  } finally {
+    evaluationExporting.value = false
+  }
 }
 
 const acknowledgeSelected = async () => {
@@ -934,8 +1148,12 @@ const resetDrawer = () => {
   rcaRuns.value = []
   selectedRcaRunId.value = null
   investigationSteps.value = []
+  rcaFeedback.value = null
+  resetFeedbackForm()
   detailLoading.value = false
   rcaHistoryLoading.value = false
+  feedbackSaving.value = false
+  evaluationExporting.value = false
   activeDetailTab.value = 'overview'
   expandedEvidenceIds.value = []
   actionLoading.value = ''
@@ -1014,6 +1232,26 @@ const investigationStepLabel = (value?: string) => ({
   REPORT_VALIDATED: '校验结构化报告',
   RUN_FAILED: '调查异常中止'
 }[String(value || '').toUpperCase()] || value || '未知步骤')
+
+const feedbackAccuracyLabel = (value?: string) => ({
+  ACCURATE: '准确',
+  PARTIAL: '部分准确',
+  INACCURATE: '不准确'
+}[String(value || '').toUpperCase()] || value || '未评价')
+
+const feedbackAccuracyTone = (value?: string): CnTone => ({
+  ACCURATE: 'success',
+  PARTIAL: 'warning',
+  INACCURATE: 'danger'
+}[String(value || '').toUpperCase()] as CnTone || 'neutral')
+
+const feedbackGapLabel = (value?: string) => ({
+  RETRIEVAL_GAP: '证据检索不足',
+  REASONING_GAP: '推理判断偏差',
+  TOOL_FAILURE: '取证工具失败',
+  ROUTING_GAP: '调查路由错误',
+  UNKNOWN: '尚未分类'
+}[String(value || '').toUpperCase()] || '无主要缺口')
 
 const runHistoryLabel = (run: RcaRunSummary) => {
   const mode = run.generationMode || runStatusLabel(run.status)
@@ -1365,6 +1603,57 @@ onBeforeUnmount(() => {
   margin-top: var(--cn-space-5);
 }
 
+.rca-feedback-block {
+  padding: var(--cn-space-5) 0;
+  border-top: 1px solid var(--cn-color-border-subtle);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
+}
+
+.feedback-heading,
+.feedback-meta,
+.feedback-actions {
+  display: flex;
+  align-items: center;
+}
+
+.feedback-heading {
+  justify-content: space-between;
+  gap: var(--cn-space-3);
+}
+
+.feedback-meta {
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
+  margin-top: var(--cn-space-2);
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+}
+
+.feedback-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 var(--cn-space-4);
+  margin-top: var(--cn-space-4);
+}
+
+.feedback-form .feedback-wide,
+.feedback-actions {
+  grid-column: 1 / -1;
+}
+
+.feedback-form :deep(.el-select) {
+  width: 100%;
+}
+
+.feedback-form :deep(.el-radio-group) {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.feedback-actions {
+  justify-content: flex-end;
+}
+
 .investigation-trace {
   padding-bottom: var(--cn-space-5);
   border-bottom: 1px solid var(--cn-color-border-subtle);
@@ -1551,6 +1840,7 @@ onBeforeUnmount(() => {
   .drawer-status-row,
   .section-heading,
   .rca-heading,
+  .feedback-heading,
   .rca-history-toolbar,
   .recommendation-list li {
     align-items: flex-start;
@@ -1572,6 +1862,15 @@ onBeforeUnmount(() => {
 
   .rca-history-toolbar :deep(.el-select) {
     width: 100%;
+  }
+
+  .feedback-form {
+    grid-template-columns: 1fr;
+  }
+
+  .feedback-form :deep(.el-form-item),
+  .feedback-actions {
+    grid-column: 1;
   }
 }
 </style>
