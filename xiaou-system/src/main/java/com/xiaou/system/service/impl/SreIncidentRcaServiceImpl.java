@@ -7,12 +7,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xiaou.ai.prompt.sre.SreRcaPromptSpecs;
 import com.xiaou.ai.structured.AiStructuredOutputValidator;
 import com.xiaou.ai.structured.sre.SreRcaStructuredOutputSpecs;
+import com.xiaou.ai.support.AiExecutionResult;
 import com.xiaou.ai.support.AiExecutionSupport;
 import com.xiaou.ai.util.AiJsonResponseParser;
+import com.xiaou.sre.domain.SreInvestigationArtifact;
 import com.xiaou.sre.domain.SreInvestigationRun;
 import com.xiaou.sre.domain.SreInvestigationStep;
 import com.xiaou.sre.domain.SreInvestigationFeedback;
+import com.xiaou.sre.dto.request.SreInvestigationArtifactCapture;
 import com.xiaou.sre.dto.response.SreInvestigationContext;
+import com.xiaou.sre.service.SreInvestigationArtifactService;
 import com.xiaou.sre.service.SreInvestigationFacade;
 import com.xiaou.sre.service.SreInvestigationFeedbackService;
 import com.xiaou.sre.service.SreInvestigationRunService;
@@ -83,6 +87,7 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
     private final ObjectMapper objectMapper;
     private final SreInvestigationRunService investigationRunService;
     private final SreInvestigationFeedbackService investigationFeedbackService;
+    private final SreInvestigationArtifactService investigationArtifactService;
 
     @Override
     public Optional<SreRcaReport> investigate(Long incidentId,
@@ -146,7 +151,7 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
         }
 
         try {
-            SreRcaReport report = aiExecutionSupport.chatWithFallback(
+            AiExecutionResult<SreRcaReport> execution = aiExecutionSupport.chatWithFallbackResult(
                     SCENE,
                     SreRcaPromptSpecs.INVESTIGATE,
                     Map.of("incidentContextJson", modelContext.json()),
@@ -154,10 +159,13 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
                     () -> fallbackReport(context, references(context, modelContext.evidenceIds()),
                             modelContext.truncated())
             );
+            SreRcaReport report = execution.value();
             if (report == null) {
                 report = fallbackReport(context, references(context, modelContext.evidenceIds()),
                         modelContext.truncated());
             }
+
+            captureArtifact(incidentId, run.getId(), modelContext, execution);
 
             String analysisStatus = "AI".equals(report.generationMode()) ? "SUCCEEDED" : "DEGRADED";
             String analysisDetail = "AI".equals(report.generationMode())
@@ -196,6 +204,9 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
                                 .map(this::toRunStep)
                                 .toList(),
                         readPersistedReport(run),
+                        investigationArtifactService.findByIncidentIdAndRunId(incidentId, runId)
+                                .map(this::toProvenance)
+                                .orElse(null),
                         investigationFeedbackService.findLatest(incidentId, runId)
                                 .map(this::toFeedback)
                                 .orElse(null)
@@ -771,6 +782,24 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
         );
     }
 
+    private void captureArtifact(Long incidentId,
+                                 Long runId,
+                                 ModelContext modelContext,
+                                 AiExecutionResult<SreRcaReport> execution) {
+        investigationArtifactService.capture(new SreInvestigationArtifactCapture(
+                incidentId,
+                runId,
+                modelContext.json(),
+                modelContext.truncated(),
+                SreRcaPromptSpecs.INVESTIGATE.promptId(),
+                SreRcaStructuredOutputSpecs.REPORT.schemaId(),
+                execution.provider(),
+                execution.configuredModel(),
+                execution.actualModel(),
+                execution.outcome()
+        )).orElseThrow(() -> new IllegalStateException("SRE 调查回放产物归属校验失败"));
+    }
+
     private void markRunFailed(Long runId, RuntimeException exception) {
         try {
             investigationRunService.recordStep(
@@ -827,6 +856,22 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
                 feedback.getExpectedConclusion(),
                 feedback.getReviewedBy(),
                 feedback.getReviewedAt()
+        );
+    }
+
+    private SreRcaRunDetail.Provenance toProvenance(SreInvestigationArtifact artifact) {
+        return new SreRcaRunDetail.Provenance(
+                artifact.getId(),
+                artifact.getPromptId(),
+                artifact.getSchemaId(),
+                artifact.getProvider(),
+                artifact.getConfiguredModel(),
+                artifact.getActualModel(),
+                artifact.getInvocationOutcome(),
+                artifact.getContextSha256(),
+                artifact.getContextLength() == null ? 0 : artifact.getContextLength(),
+                Boolean.TRUE.equals(artifact.getContextTruncated()),
+                artifact.getCreatedAt()
         );
     }
 

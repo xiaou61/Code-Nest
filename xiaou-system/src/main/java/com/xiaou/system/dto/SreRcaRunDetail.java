@@ -12,6 +12,7 @@ public record SreRcaRunDetail(
         SreRcaRunSummary run,
         List<Step> steps,
         SreRcaReport report,
+        Provenance provenance,
         SreRcaFeedback feedback
 ) {
 
@@ -26,6 +27,24 @@ public record SreRcaRunDetail(
             String status,
             String detail,
             LocalDateTime recordedAt
+    ) {
+    }
+
+    /**
+     * 可安全展示的回放来源摘要。模型输入正文只保留在服务端，不通过详情接口返回。
+     */
+    public record Provenance(
+            Long artifactId,
+            String promptId,
+            String schemaId,
+            String provider,
+            String configuredModel,
+            String actualModel,
+            String invocationOutcome,
+            String contextSha256,
+            int contextLength,
+            boolean contextTruncated,
+            LocalDateTime createdAt
     ) {
     }
 }
