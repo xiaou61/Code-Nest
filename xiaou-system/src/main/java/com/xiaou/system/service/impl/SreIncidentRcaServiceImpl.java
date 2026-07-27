@@ -11,9 +11,15 @@ import com.xiaou.ai.support.AiExecutionSupport;
 import com.xiaou.ai.util.AiJsonResponseParser;
 import com.xiaou.sre.domain.SreInvestigationRun;
 import com.xiaou.sre.domain.SreInvestigationStep;
+import com.xiaou.sre.domain.SreInvestigationFeedback;
 import com.xiaou.sre.dto.response.SreInvestigationContext;
 import com.xiaou.sre.service.SreInvestigationFacade;
+import com.xiaou.sre.service.SreInvestigationFeedbackService;
 import com.xiaou.sre.service.SreInvestigationRunService;
+import com.xiaou.sre.service.SreValidationException;
+import com.xiaou.system.dto.SreRcaEvaluationSample;
+import com.xiaou.system.dto.SreRcaFeedback;
+import com.xiaou.system.dto.SreRcaFeedbackRequest;
 import com.xiaou.system.dto.SreRcaReport;
 import com.xiaou.system.dto.SreRcaRunDetail;
 import com.xiaou.system.dto.SreRcaRunSummary;
@@ -48,6 +54,7 @@ import java.util.regex.Pattern;
 public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
 
     private static final String SCENE = "sre.incident.rca";
+    private static final String EVALUATION_SCHEMA_VERSION = "code-nest.sre.rca-eval.v1";
     private static final int MAX_CONTEXT_LENGTH = 60_000;
     private static final int MAX_ALERTS = 10;
     private static final int MAX_EVIDENCE = 12;
@@ -67,12 +74,15 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
     private static final Pattern INLINE_SECRET_PATTERN = Pattern.compile(
             "(?i)\\b(authorization|password|passwd|token|secret|api[-_ ]?key|cookie|credential)"
                     + "\\b\\s*[:=]\\s*([^\\s,;]+)");
+    private static final Pattern STANDALONE_CREDENTIAL_PATTERN = Pattern.compile(
+            "(?i)\\b(?:sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})\\b");
     private static final Pattern CONTROL_PATTERN = Pattern.compile("[\\p{Cntrl}&&[^\\r\\n\\t]]");
 
     private final SreInvestigationFacade investigationFacade;
     private final AiExecutionSupport aiExecutionSupport;
     private final ObjectMapper objectMapper;
     private final SreInvestigationRunService investigationRunService;
+    private final SreInvestigationFeedbackService investigationFeedbackService;
 
     @Override
     public Optional<SreRcaReport> investigate(Long incidentId,
@@ -185,8 +195,148 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
                         investigationRunService.listSteps(run.getId()).stream()
                                 .map(this::toRunStep)
                                 .toList(),
-                        readPersistedReport(run)
+                        readPersistedReport(run),
+                        investigationFeedbackService.findLatest(incidentId, runId)
+                                .map(this::toFeedback)
+                                .orElse(null)
                 ));
+    }
+
+    @Override
+    public Optional<SreRcaFeedback> saveFeedback(Long incidentId,
+                                                 Long runId,
+                                                 SreRcaFeedbackRequest request,
+                                                 Long reviewedBy) {
+        if (request == null) {
+            throw new IllegalArgumentException("RCA 反馈不能为空");
+        }
+        try {
+            return investigationFeedbackService.save(
+                    incidentId,
+                    runId,
+                    request.accuracy(),
+                    request.gapType(),
+                    request.note(),
+                    request.expectedConclusion(),
+                    reviewedBy
+            ).map(this::toFeedback);
+        } catch (SreValidationException exception) {
+            throw new IllegalArgumentException(exception.getMessage(), exception);
+        }
+    }
+
+    @Override
+    public Optional<SreRcaEvaluationSample> getEvaluationSample(Long incidentId, Long runId) {
+        return getRun(incidentId, runId)
+                .filter(detail -> detail.report() != null && detail.feedback() != null)
+                .map(detail -> {
+                    SreRcaFeedback feedback = detail.feedback();
+                    SreRcaReport report = sanitizeEvaluationReport(detail.report());
+                    String expectedConclusion = safeText(feedback.expectedConclusion(), 2_000, null);
+                    if (!StringUtils.hasText(expectedConclusion)
+                            && "ACCURATE".equals(feedback.accuracy())) {
+                        expectedConclusion = report.executiveSummary();
+                    }
+                    return new SreRcaEvaluationSample(
+                            EVALUATION_SCHEMA_VERSION,
+                            detail.run().id(),
+                            detail.run().generationMode(),
+                            detail.run().conclusionStatus(),
+                            report,
+                            new SreRcaEvaluationSample.Evaluation(
+                                    feedback.accuracy(),
+                                    feedback.gapType(),
+                                    expectedConclusion,
+                                    feedback.reviewedAt()
+                            )
+                    );
+                });
+    }
+
+    private SreRcaReport sanitizeEvaluationReport(SreRcaReport report) {
+        List<SreRcaReport.Observation> observations = report.observations().stream()
+                .limit(MAX_OBSERVATIONS)
+                .map(item -> new SreRcaReport.Observation(
+                        safeText(item.statement(), 1_000, ""),
+                        sanitizeEvidenceIds(item.evidenceIds())
+                ))
+                .toList();
+        List<SreRcaReport.Hypothesis> hypotheses = report.hypotheses().stream()
+                .limit(MAX_HYPOTHESES)
+                .map(item -> new SreRcaReport.Hypothesis(
+                        safeText(item.title(), 200, ""),
+                        safeText(item.reasoning(), 2_000, ""),
+                        Double.isFinite(item.confidence())
+                                ? Math.max(0D, Math.min(1D, item.confidence()))
+                                : 0D,
+                        safeText(item.evidenceStatus(), 32, "INSUFFICIENT"),
+                        sanitizeEvidenceIds(item.evidenceIds()),
+                        sanitizeEvidenceIds(item.counterEvidenceIds()),
+                        sanitizeStrings(item.nextChecks(), 8, 500)
+                ))
+                .toList();
+        List<SreRcaReport.RecommendedNextStep> recommendations = report.recommendedNextSteps().stream()
+                .limit(MAX_RECOMMENDATIONS)
+                .map(item -> new SreRcaReport.RecommendedNextStep(
+                        safeText(item.description(), 1_000, ""),
+                        safeText(item.risk(), 32, "READ_ONLY"),
+                        sanitizeEvidenceIds(item.evidenceIds())
+                ))
+                .toList();
+        List<SreRcaReport.EvidenceReference> references = report.evidenceReferences().stream()
+                .limit(MAX_EVIDENCE)
+                .map(item -> new SreRcaReport.EvidenceReference(
+                        item.id(),
+                        safeText(item.sourceType(), 64, "UNKNOWN"),
+                        safeText(item.sourceRef(), 200, "UNKNOWN"),
+                        item.capturedAt(),
+                        safeText(item.status(), 32, "UNKNOWN")
+                ))
+                .toList();
+        return new SreRcaReport(
+                report.incidentId(),
+                safeText(report.incidentNo(), 64, "UNKNOWN"),
+                safeText(report.generationMode(), 16, "UNKNOWN"),
+                safeText(report.conclusionStatus(), 32, "INSUFFICIENT_EVIDENCE"),
+                safeText(report.severityAssessment(), 32, "UNKNOWN"),
+                safeText(report.executiveSummary(), 2_000, ""),
+                observations,
+                hypotheses,
+                recommendations,
+                references,
+                sanitizeStrings(report.limitations(), MAX_LIMITATIONS, 1_000),
+                report.contextTruncated(),
+                false,
+                report.generatedAt()
+        );
+    }
+
+    private List<Long> sanitizeEvidenceIds(Collection<Long> ids) {
+        if (ids == null) {
+            return List.of();
+        }
+        return ids.stream()
+                .filter(id -> id != null && id > 0)
+                .distinct()
+                .limit(MAX_EVIDENCE)
+                .toList();
+    }
+
+    private List<String> sanitizeStrings(Collection<String> values, int maxItems, int maxLength) {
+        if (values == null) {
+            return List.of();
+        }
+        LinkedHashSet<String> result = new LinkedHashSet<>();
+        for (String value : values) {
+            if (result.size() >= maxItems) {
+                break;
+            }
+            String sanitized = safeText(value, maxLength, "");
+            if (StringUtils.hasText(sanitized)) {
+                result.add(sanitized);
+            }
+        }
+        return List.copyOf(result);
     }
 
     private ModelContext buildModelContext(SreInvestigationContext context) {
@@ -667,6 +817,19 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
         );
     }
 
+    private SreRcaFeedback toFeedback(SreInvestigationFeedback feedback) {
+        return new SreRcaFeedback(
+                feedback.getId(),
+                feedback.getRunId(),
+                feedback.getAccuracy(),
+                feedback.getGapType(),
+                feedback.getNote(),
+                feedback.getExpectedConclusion(),
+                feedback.getReviewedBy(),
+                feedback.getReviewedAt()
+        );
+    }
+
     private SreRcaReport readPersistedReport(SreInvestigationRun run) {
         if (!StringUtils.hasText(run.getReportJson())) {
             return null;
@@ -695,6 +858,7 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
         String sanitized = CONTROL_PATTERN.matcher(value).replaceAll("").trim();
         sanitized = BEARER_PATTERN.matcher(sanitized).replaceAll("Bearer [REDACTED]");
         sanitized = INLINE_SECRET_PATTERN.matcher(sanitized).replaceAll("$1=[REDACTED]");
+        sanitized = STANDALONE_CREDENTIAL_PATTERN.matcher(sanitized).replaceAll("[REDACTED]");
         return sanitized.length() <= maxLength ? sanitized : sanitized.substring(0, maxLength);
     }
 

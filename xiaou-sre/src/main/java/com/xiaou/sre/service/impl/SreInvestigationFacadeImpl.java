@@ -51,6 +51,8 @@ public class SreInvestigationFacadeImpl implements SreInvestigationFacade {
                     + "api[-_ ]?key|cookie|credential)\\b\\s*[:=]\\s*([^\\s,;]+)");
     private static final Pattern BEARER_PATTERN = Pattern.compile(
             "(?i)\\bBearer\\s+[A-Za-z0-9._~+/=-]{6,}");
+    private static final Pattern STANDALONE_CREDENTIAL_PATTERN = Pattern.compile(
+            "(?i)\\b(?:sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})\\b");
 
     private final SreIncidentMapper incidentMapper;
     private final SreAlertEventMapper alertEventMapper;
@@ -278,7 +280,8 @@ public class SreInvestigationFacadeImpl implements SreInvestigationFacade {
 
     private String redactInline(String value) {
         String redacted = BEARER_PATTERN.matcher(value).replaceAll("Bearer [REDACTED]");
-        return INLINE_SECRET_PATTERN.matcher(redacted).replaceAll("$1=[REDACTED]");
+        redacted = INLINE_SECRET_PATTERN.matcher(redacted).replaceAll("$1=[REDACTED]");
+        return STANDALONE_CREDENTIAL_PATTERN.matcher(redacted).replaceAll("[REDACTED]");
     }
 
     private String normalizeKey(String key) {

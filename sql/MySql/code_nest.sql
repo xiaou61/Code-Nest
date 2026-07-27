@@ -3333,3 +3333,18 @@ CREATE TABLE IF NOT EXISTS `sre_investigation_step` (
   UNIQUE KEY `uk_sre_step_run_order` (`run_id`, `step_order`),
   KEY `idx_sre_step_run_recorded` (`run_id`, `recorded_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='SRE调查步骤轨迹';
+
+CREATE TABLE IF NOT EXISTS `sre_investigation_feedback` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '反馈修订ID',
+  `run_id` BIGINT NOT NULL COMMENT '调查运行ID',
+  `accuracy` VARCHAR(16) NOT NULL COMMENT 'ACCURATE/PARTIAL/INACCURATE',
+  `gap_type` VARCHAR(32) NULL COMMENT '检索/推理/工具/路由等主要缺口',
+  `note` VARCHAR(1000) NULL COMMENT '已清理的管理员备注',
+  `expected_conclusion` VARCHAR(2000) NULL COMMENT '已清理的期望结论',
+  `reviewed_by` BIGINT NOT NULL COMMENT '评价管理员ID',
+  `reviewed_at` DATETIME NOT NULL COMMENT '评价时间',
+  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_sre_feedback_run_revision` (`run_id`, `id`),
+  KEY `idx_sre_feedback_reviewed_at` (`reviewed_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='SRE调查人工反馈修订';

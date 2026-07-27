@@ -6,14 +6,19 @@ import com.xiaou.common.core.domain.Result;
 import com.xiaou.common.core.domain.ResultCode;
 import com.xiaou.common.satoken.StpAdminUtil;
 import com.xiaou.system.dto.SreRcaReport;
+import com.xiaou.system.dto.SreRcaFeedback;
+import com.xiaou.system.dto.SreRcaFeedbackRequest;
 import com.xiaou.system.dto.SreRcaRunDetail;
 import com.xiaou.system.dto.SreRcaRunSummary;
 import com.xiaou.system.service.SreIncidentRcaService;
 import com.xiaou.system.service.SreRcaTriggerSource;
+import jakarta.validation.Valid;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import java.lang.reflect.Method;
 import java.time.LocalDateTime;
@@ -64,14 +69,59 @@ class SreRcaAdminControllerTest {
     }
 
     @Test
-    void historyAndDetailEndpointsAreAdminOnly() throws Exception {
+    void historyDetailAndEvaluationEndpointsAreAdminOnly() throws Exception {
         Method history = SreRcaAdminController.class.getMethod("history", Long.class, Integer.class);
         Method detail = SreRcaAdminController.class.getMethod("runDetail", Long.class, Long.class);
+        Method evaluation = SreRcaAdminController.class.getMethod(
+                "evaluationSample", Long.class, Long.class);
 
         assertThat(history.getAnnotation(GetMapping.class).value()).containsExactly("/{id}/rca-runs");
         assertThat(detail.getAnnotation(GetMapping.class).value()).containsExactly("/{id}/rca-runs/{runId}");
+        assertThat(evaluation.getAnnotation(GetMapping.class).value())
+                .containsExactly("/{id}/rca-runs/{runId}/evaluation-sample");
         assertThat(history.getAnnotation(RequireAdmin.class)).isNotNull();
         assertThat(detail.getAnnotation(RequireAdmin.class)).isNotNull();
+        assertThat(evaluation.getAnnotation(RequireAdmin.class)).isNotNull();
+    }
+
+    @Test
+    void feedbackEndpointIsAdminOnlyAndDoesNotLogHumanContent() throws Exception {
+        Method method = SreRcaAdminController.class.getMethod(
+                "saveFeedback", Long.class, Long.class, SreRcaFeedbackRequest.class);
+
+        PutMapping putMapping = method.getAnnotation(PutMapping.class);
+        RequireAdmin requireAdmin = method.getAnnotation(RequireAdmin.class);
+        Log log = method.getAnnotation(Log.class);
+        RequestBody requestBody = method.getParameters()[2].getAnnotation(RequestBody.class);
+        Valid valid = method.getParameters()[2].getAnnotation(Valid.class);
+
+        assertThat(putMapping.value()).containsExactly("/{id}/rca-runs/{runId}/feedback");
+        assertThat(requireAdmin).isNotNull();
+        assertThat(requestBody).isNotNull();
+        assertThat(valid).isNotNull();
+        assertThat(log).isNotNull();
+        assertThat(log.saveRequestData()).isFalse();
+        assertThat(log.saveResponseData()).isFalse();
+    }
+
+    @Test
+    void feedbackUsesAuthenticatedAdministratorAndStableMissingRunError() {
+        SreIncidentRcaService service = mock(SreIncidentRcaService.class);
+        SreRcaAdminController controller = new SreRcaAdminController(service);
+        SreRcaFeedbackRequest request = new SreRcaFeedbackRequest(
+                "PARTIAL", "RETRIEVAL_GAP", "缺少发布证据", "发布变更导致故障");
+        SreRcaFeedback feedback = mock(SreRcaFeedback.class);
+        when(service.saveFeedback(11L, 91L, request, 7L)).thenReturn(Optional.of(feedback));
+        when(service.saveFeedback(11L, 404L, request, 7L)).thenReturn(Optional.empty());
+
+        try (MockedStatic<StpAdminUtil> stpAdminUtil = mockStatic(StpAdminUtil.class)) {
+            stpAdminUtil.when(StpAdminUtil::getLoginIdAsLong).thenReturn(7L);
+
+            assertThat(controller.saveFeedback(11L, 91L, request).getData()).isSameAs(feedback);
+            Result<SreRcaFeedback> missing = controller.saveFeedback(11L, 404L, request);
+            assertThat(missing.getCode()).isEqualTo(ResultCode.DATA_NOT_EXIST.getCode());
+            assertThat(missing.getMessage()).isEqualTo("RCA 调查记录不存在");
+        }
     }
 
     @Test

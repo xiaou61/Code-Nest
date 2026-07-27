@@ -11,7 +11,8 @@ import java.util.List;
 public record SreRcaRunDetail(
         SreRcaRunSummary run,
         List<Step> steps,
-        SreRcaReport report
+        SreRcaReport report,
+        SreRcaFeedback feedback
 ) {
 
     public SreRcaRunDetail {
