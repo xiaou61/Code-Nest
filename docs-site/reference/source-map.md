@@ -272,16 +272,18 @@ xiaou-{module}/
 | `controller/admin/SreIncidentAdminController.java` | 管理端事故、证据和调查上下文接口 |
 | `service/impl/SreAlertIngestionServiceImpl.java` | 告警幂等接入和事故聚合 |
 | `service/impl/SreInvestigationRunServiceImpl.java` | RCA 运行、报告和步骤轨迹持久化 |
+| `service/impl/SreInvestigationFeedbackServiceImpl.java` | 反馈校验、脱敏和追加式修订持久化 |
 | `worker/SreOutboxWorker.java` | 有界异步证据采集 |
 | `resources/mapper/SreInvestigationRunMapper.xml` | 调查运行查询和状态迁移 SQL |
+| `resources/mapper/SreInvestigationFeedbackMapper.xml` | 反馈修订追加和最新评价查询 SQL |
 
 ### xiaou-system (系统管理)
 
 | 路径 | 说明 |
 | --- | --- |
 | `controller/AuthController.java` | 认证接口 (登录/注册) |
-| `controller/SreRcaAdminController.java` | 只读 RCA 生成、历史和恢复接口 |
-| `service/impl/SreIncidentRcaServiceImpl.java` | 模型上下文脱敏、报告校验与调查编排 |
+| `controller/SreRcaAdminController.java` | 只读 RCA 生成、历史、反馈和评测样本接口 |
+| `service/impl/SreIncidentRcaServiceImpl.java` | 模型上下文脱敏、报告校验、反馈映射与调查编排 |
 
 ### xiaou-user (用户管理)
 
@@ -393,7 +395,7 @@ vue3-admin-front/
 ```
 sql/
 ├── MySql/
-│   └── code_nest.sql         # 当前完整主库基线 (152 表)
+│   └── code_nest.sql         # 当前完整主库基线 (153 表)
 ├── v1.2.0/                   # 基础表结构
 ├── v1.2.1/                   # 知识图谱、敏感词
 ├── v1.3.0/                   # Bug 商店、薪资计算器

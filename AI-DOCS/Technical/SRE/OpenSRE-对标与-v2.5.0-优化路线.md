@@ -34,7 +34,7 @@ Code-Nest 的优势是事故、证据、权限、事务 Outbox 和管理后台�
 | 有界 Agent 循环 | 工具 schema 最多 32 个、循环最多 20 次；重复调用复用缓存，连续两次停滞后移除工具并强制收敛 | 未来做动态只读取证时必须先具备同类预算和停滞保护 |
 | 会话持久化 | JSONL Session Repo 支持最近会话、调查历史、按前缀恢复调查；REPL 暴露 `/sessions` 和 `/resume` | Code-Nest 页面刷新后应继续看到原 RCA 和调查轨迹 |
 | 工具元数据 | `ToolMetadata` 声明 evidence type 和 `none/read_only/mutating/external` 副作用等级 | 与 Code-Nest 已有 Agent 风险模型方向一致 |
-| 反馈闭环 | `partial/inaccurate` 结果会按 retrieval/reasoning/tool/routing 等 taxonomy 记录为 miss，并可导出为 benchmark case | Code-Nest 尚缺 RCA 准确性反馈和回归数据集 |
+| 反馈闭环 | `partial/inaccurate` 结果会按 retrieval/reasoning/tool/routing 等 taxonomy 记录为 miss，并可导出为 benchmark case | Code-Nest v2.5.0 已补齐评价、缺口分类、追加审计和脱敏样本导出；自动跑分器仍待实现 |
 | 评测体系 | benchmark 保存报告、单 case 原始产物和代码/配置/模型 provenance；官方文档当前提到 452 个 CloudOpsBench 场景 | 在扩大模型自主取证之前，应先建立离线回放和可比较评分 |
 | 数据安全 | README 声明可逆标识符掩码、结构化审计 Prompt、本地 transcript；遥测默认 opt-out | Code-Nest 已有双层脱敏，但仍需持续检查持久化报告和日志边界 |
 
@@ -63,6 +63,11 @@ Code-Nest 的优势是事故、证据、权限、事务 Outbox 和管理后台�
 4. 新增管理员历史和详情查询，路径参数及数量有边界；
 5. 管理端打开事故时恢复最近报告，可切换历史版本并查看调查轨迹；
 6. 原 `POST /admin/sre/incidents/{id}/rca` 契约不变，Admin Agent 仍可兼容调用。
+7. `sre_investigation_feedback` 以追加修订保存准确度、缺口分类、管理员备注、期望结论、
+   评价人和评价时间，不覆盖旧评价；
+8. 管理端可恢复和编辑当前反馈，`PARTIAL/INACCURATE` 必须给出缺口与期望结论；
+9. 每次运行可导出 `code-nest.sre.rca-eval.v1` 样本。样本只包含结构化报告与评价结论，
+   不包含模型输入、原始日志、异常正文、管理员备注或身份。
 
 ## 4. 差距和优先级
 
@@ -71,8 +76,8 @@ Code-Nest 的优势是事故、证据、权限、事务 Outbox 和管理后台�
 | 优先级 | 差距 | 当前风险 | 建议 |
 | --- | --- | --- | --- |
 | P0 | RCA 运行不可恢复、不可审计 | 刷新即丢、无法判断 AI/降级过程 | 本次已完成 |
-| P1 | 没有准确/部分准确/不准确反馈 | 无法知道模型是否真的帮助定位 | 为每次 run 增加评价、缺口分类和管理员备注 |
-| P1 | 没有离线回放评测 | 改 Prompt/模型后只能凭感觉验收 | 从脱敏事故快照生成固定 regression cases，记录模型、Prompt 版本和评分 |
+| 已完成 | 没有准确/部分准确/不准确反馈 | 无法知道模型是否真的帮助定位 | v2.5.0 已增加评价、缺口分类、追加审计和期望结论 |
+| P1 | 尚无自动离线回放与可比较评分 | 改 Prompt/模型后仍不能自动量化差异 | 已有脱敏样本导出；下一步经人工审核后转为固定 regression cases，并记录模型、Prompt 版本和评分 |
 | P1 | 缺少发布和 Runbook 证据 | 根因容易停留在指标/日志层 | 先接入最近发布、版本和只读 Runbook，仍走证据表 |
 | P1 | SRE 自身指标不完整 | 无法发现调查失败率、降级率和积压 | 暴露 run duration、status、generation mode、outbox backlog 指标 |
 | P2 | 固定查询不能按假设追加取证 | 复杂事故证据覆盖有限 | 只在白名单工具上实现最多 3-5 轮的有界调查，不开放任意命令或查询 |
@@ -83,14 +88,16 @@ Code-Nest 的优势是事故、证据、权限、事务 Outbox 和管理后台�
 
 ### 5.1 RCA 反馈与回归评测
 
-先给历史 run 增加：
+反馈与样本基础已经落地：
 
 - `ACCURATE / PARTIAL / INACCURATE` 评价；
 - `RETRIEVAL_GAP / REASONING_GAP / TOOL_FAILURE / ROUTING_GAP / UNKNOWN` 分类；
-- 管理员备注、评价人、评价时间；
-- 只导出脱敏证据引用和期望结论，不导出密钥或无限原始日志。
+- 管理员备注、期望结论、评价人、评价时间和不可变修订；
+- 只导出结构化报告和评价结论，不导出原始模型输入、日志、备注、身份或异常正文。
 
-这一步能回答“模型升级后是否真的更好”，其价值高于马上增加更多模型自主权。
+下一步不是直接让生产库驱动模型，而是人工审核导出样本，将稳定样本纳入仓库内的固定回归
+夹具，再记录模型、Prompt/结构化契约版本、单 case 结果和聚合得分。完成自动回放前，不能宣称
+“模型升级后真的更好”。
 
 ### 5.2 发布和 Runbook 证据
 

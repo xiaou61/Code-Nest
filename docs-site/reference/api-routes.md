@@ -474,8 +474,8 @@
 
 ### `/admin/sre/incidents` — SRE 事故工作台
 
-除 Alertmanager 私有接入外，以下接口都要求管理员登录态。RCA 生成接口的操作日志不保存
-请求或响应正文，历史接口只读取已脱敏的结构化报告和受控步骤摘要。
+除 Alertmanager 私有接入外，以下接口都要求管理员登录态。RCA 生成与反馈接口的操作日志
+不保存请求或响应正文，历史接口只读取已脱敏的结构化报告、受控步骤摘要和当前反馈。
 
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
@@ -489,6 +489,8 @@
 | POST | `/admin/sre/incidents/{id}/rca` | 生成只读 RCA 报告 |
 | GET | `/admin/sre/incidents/{id}/rca-runs` | 查询最近 RCA 运行摘要，最多 50 条 |
 | GET | `/admin/sre/incidents/{id}/rca-runs/{runId}` | 恢复单次 RCA 报告和调查轨迹 |
+| PUT | `/admin/sre/incidents/{id}/rca-runs/{runId}/feedback` | 追加准确度、缺口、备注和期望结论反馈 |
+| GET | `/admin/sre/incidents/{id}/rca-runs/{runId}/evaluation-sample` | 导出不含原始输入、备注和管理员身份的评测样本 |
 | POST | `/internal/sre/alertmanager/v1/alerts` | Alertmanager 私网 Webhook，独立共享密钥认证 |
 
 ## 通用请求模式

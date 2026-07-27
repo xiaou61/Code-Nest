@@ -135,7 +135,9 @@ not depend on them. Before enabling the worker on the application server:
 1. Apply `sql/v2.5.0/sre_incident.sql`, or apply the incremental
    `sql/v2.5.0/sre_incident_evidence.sql` when the four original SRE tables already exist.
 2. Apply `sql/v2.5.0/sre_investigation_run.sql` before deploying a backend that exposes
-   persistent RCA history. The migration is idempotent and creates the run and step tables.
+   persistent RCA history and feedback. The migration is idempotent and creates the run,
+   step, and append-only feedback tables. Re-run it when upgrading from the earlier v2.5.0
+   investigation schema.
 3. Set a dedicated `XIAOU_SRE_WEBHOOK_TOKEN`; do not reuse an administrator token.
    Put the identical value in `secrets/sre_webhook_token` with owner `65534:65534`
    and mode `0400`.

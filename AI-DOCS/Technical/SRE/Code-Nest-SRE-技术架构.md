@@ -2,7 +2,7 @@
 
 > 文档类型：技术架构设计
 >
-> 版本：v1.1（P3 只读 AI RCA 已落地）
+> 版本：v1.2（P3.3 RCA 反馈与评测样本基础已落地）
 >
 > 日期：2026-07-23
 >
@@ -718,6 +718,12 @@ Docker、任意 PromQL/LogQL 或数据库写操作。
 8. 管理端通过 `GET /api/admin/sre/incidents/{id}/rca-runs` 与
    `GET /api/admin/sre/incidents/{id}/rca-runs/{runId}` 恢复并切换历史报告。原生成接口
    契约保持不变，页面刷新不再丢失 RCA。
+9. P3.3 已新增追加式 `sre_investigation_feedback`：管理员通过
+   `PUT /api/admin/sre/incidents/{id}/rca-runs/{runId}/feedback` 评价准确度、缺口与期望结论。
+   每次编辑新增修订，备注与期望结论入库前清理控制字符和常见凭据；操作日志不保存正文。
+10. `GET /api/admin/sre/incidents/{id}/rca-runs/{runId}/evaluation-sample` 导出最小评测样本。
+    导出类型不包含管理员备注、身份、模型输入、原始日志或异常正文；样本仍需人工审核后才能
+    进入固定离线回归集，当前不会从生产库自动调用模型。
 
 相对初稿的调整：不再为模型提供直接的 PromQL/Loki 查询工具。P2 采集器使用固定查询白名单
 生成可审计快照，P3 只分析这些已入库证据。发布记录和 Runbook 证据可以后续通过同一 facade
@@ -725,7 +731,7 @@ Docker、任意 PromQL/LogQL 或数据库写操作。
 
 完成标准已满足：AI 不可用不影响 P0/P1/P2；每个结论都有有效事实引用或明确的“证据不足”
 标记；接口、AgentTool、权限种子、统一入口、提示词注入、脱敏、非法证据、降级路径、
-报告恢复和调查轨迹均有测试。
+报告恢复、调查轨迹、反馈组合校验、跨事故归属和脱敏样本边界均有测试。
 
 ### P4：受控动作
 
