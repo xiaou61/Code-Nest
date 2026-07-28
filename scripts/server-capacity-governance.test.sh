@@ -6,6 +6,15 @@ script="$repo_root/scripts/server-capacity-governance.sh"
 workspace="$(mktemp -d)"
 trap 'rm -rf "$workspace"' EXIT
 
+tool_dir="$workspace/tools"
+mkdir -p "$tool_dir"
+cat >"$tool_dir/pgrep" <<'EOF'
+#!/usr/bin/env bash
+exit 1
+EOF
+chmod 755 "$tool_dir/pgrep"
+export PATH="$tool_dir:$PATH"
+
 app_root="$workspace/code-nest"
 runner_root="$app_root/actions-runner"
 source_dir="$runner_root/source"
