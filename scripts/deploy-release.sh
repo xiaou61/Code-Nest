@@ -418,7 +418,7 @@ restart_service() {
 release_value() {
   local release_file="$1"
   local key="$2"
-  awk -F= -v key="$key" '$1 == key { sub(/^[^=]*=/, ""); print; exit }' "$release_file"
+  awk -F= -v key="$key" '$1 == key { sub(/^[^=]*=/, ""); sub(/\r$/, ""); print; exit }' "$release_file"
 }
 
 load_release_metadata() {
