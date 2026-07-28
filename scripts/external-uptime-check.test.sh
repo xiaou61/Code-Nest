@@ -58,7 +58,7 @@ run_check() {
   CODE_NEST_UPTIME_ATTEMPTS=3 \
   CODE_NEST_UPTIME_RETRY_DELAY_SECONDS=0 \
   GITHUB_OUTPUT="$output_file" \
-  "$check_script"
+  bash "$check_script"
 }
 
 healthy_output="$workspace/healthy.out"

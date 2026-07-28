@@ -211,7 +211,7 @@ export CODE_NEST_PROMETHEUS_URL="http://prometheus.test"
 export CODE_NEST_GRAFANA_URL="http://grafana.test"
 export CODE_NEST_MIN_FREE_GB=0
 
-"$deploy_script" deploy "$bundle"
+bash "$deploy_script" deploy "$bundle"
 
 grep -Fqx 'new-jar' "$app_dir/app.jar"
 grep -Fqx 'new-user' "$user_dir/index.html"
@@ -243,7 +243,7 @@ backup_dir="$(find "$app_root/backups/releases" -mindepth 1 -maxdepth 1 -type d 
 [[ -f "$backup_dir/app-env/code-nest.env" ]]
 [[ -f "$backup_dir/ops/nginx/code-nest.conf" ]]
 
-"$deploy_script" rollback "$backup_dir"
+bash "$deploy_script" rollback "$backup_dir"
 
 grep -Fqx 'old-jar' "$app_dir/app.jar"
 grep -Fqx 'old-version' "$app_dir/RELEASE"
