@@ -43,7 +43,21 @@ case "$url" in
     printf '{"status":"UP"}'
     ;;
   */api/v1/targets)
-    printf '{"status":"success","data":{"activeTargets":[{"health":"up"},{"health":"up"},{"health":"up"},{"health":"up"}]}}'
+    counter_file="${MOCK_PROMETHEUS_TARGET_COUNTER_FILE:-}"
+    failure_count="${MOCK_PROMETHEUS_TARGET_FAILURES:-0}"
+    attempt=1
+    if [[ -n "$counter_file" ]]; then
+      if [[ -f "$counter_file" ]]; then
+        read -r attempt <"$counter_file"
+        attempt=$((attempt + 1))
+      fi
+      printf '%s\n' "$attempt" >"$counter_file"
+    fi
+    if [[ -n "$counter_file" && "$attempt" -le "$failure_count" ]]; then
+      printf '{"status":"success","data":{"activeTargets":[{"health":"down"},{"health":"up"},{"health":"up"},{"health":"up"}]}}'
+    else
+      printf '{"status":"success","data":{"activeTargets":[{"health":"up"},{"health":"up"},{"health":"up"},{"health":"up"}]}}'
+    fi
     ;;
   */api/health)
     printf '{"database":"ok"}'
@@ -129,11 +143,11 @@ printf 'webhook-secret' >"$monitoring_dir/secrets/sre_webhook_token"
 printf 'GRAFANA_ADMIN_PASSWORD=test-grafana-password\n' >"$monitoring_dir/.env"
 touch "$monitoring_dir/alertmanager/alertmanager.local.yml"
 
-cat >"$app_root/app/RELEASE" <<'EOF'
-version=v2.5.1
-sha=1111111111111111111111111111111111111111
-built_at=2026-07-28T12:00:00Z
-EOF
+printf '%s\r\n' \
+  'version=v2.5.1' \
+  'sha=1111111111111111111111111111111111111111' \
+  'built_at=2026-07-28T12:00:00Z' \
+  >"$app_root/app/RELEASE"
 
 run_baseline() {
   PATH="$mock_bin:$PATH" \
@@ -146,11 +160,23 @@ run_baseline() {
   CODE_NEST_EXPECTED_VERSION="v2.5.1" \
   CODE_NEST_EXPECTED_SHA="1111111111111111111111111111111111111111" \
   CODE_NEST_GRAFANA_REQUIRED="true" \
+  CODE_NEST_PROMETHEUS_TARGET_ATTEMPTS="${CODE_NEST_PROMETHEUS_TARGET_ATTEMPTS:-1}" \
+  CODE_NEST_PROMETHEUS_TARGET_INTERVAL_SECONDS="${CODE_NEST_PROMETHEUS_TARGET_INTERVAL_SECONDS:-0}" \
   bash "$baseline_script"
 }
 
 healthy_output="$(run_baseline)"
 grep -Fq 'PASS check=production_baseline' <<<"$healthy_output"
+
+prometheus_counter="$workspace/prometheus-target-attempts"
+transient_output="$(
+  MOCK_PROMETHEUS_TARGET_COUNTER_FILE="$prometheus_counter" \
+  MOCK_PROMETHEUS_TARGET_FAILURES=2 \
+  CODE_NEST_PROMETHEUS_TARGET_ATTEMPTS=3 \
+  run_baseline
+)"
+grep -Fq 'PASS check=prometheus_targets' <<<"$transient_output"
+[[ "$(cat "$prometheus_counter")" -eq 3 ]]
 
 printf 'drift\n' >>"$monitoring_dir/alert_rules.yml"
 set +e
