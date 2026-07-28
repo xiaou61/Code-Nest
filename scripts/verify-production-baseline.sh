@@ -20,6 +20,8 @@ EXPECTED_VERSION="${CODE_NEST_EXPECTED_VERSION:-}"
 EXPECTED_SHA="${CODE_NEST_EXPECTED_SHA:-}"
 MIN_FREE_GB="${CODE_NEST_MIN_FREE_GB:-8}"
 MIN_PROMETHEUS_TARGETS="${CODE_NEST_MIN_PROMETHEUS_TARGETS:-4}"
+PROMETHEUS_TARGET_ATTEMPTS="${CODE_NEST_PROMETHEUS_TARGET_ATTEMPTS:-12}"
+PROMETHEUS_TARGET_INTERVAL_SECONDS="${CODE_NEST_PROMETHEUS_TARGET_INTERVAL_SECONDS:-5}"
 DISK_PATH="${CODE_NEST_DISK_PATH:-$APP_ROOT}"
 RELEASE_FILE="${CODE_NEST_RELEASE_FILE:-$APP_DIR/RELEASE}"
 EXPECTED_SECRET_UID="${CODE_NEST_EXPECTED_SECRET_UID:-65534}"
@@ -100,16 +102,37 @@ check_health() {
 
 check_prometheus_targets() {
   local response
-  if response="$(curl -fsS "$PROMETHEUS_URL/api/v1/targets" 2>/dev/null)" \
-      && jq -e --argjson minimum "$MIN_PROMETHEUS_TARGETS" '
-        .status == "success"
-        and (.data.activeTargets | length) >= $minimum
-        and all(.data.activeTargets[]; .health == "up")
-      ' >/dev/null 2>&1 <<<"$response"; then
-    pass prometheus_targets "minimum=$MIN_PROMETHEUS_TARGETS state=all_up"
-  else
-    fail prometheus_targets "minimum=$MIN_PROMETHEUS_TARGETS url=$PROMETHEUS_URL"
+  local attempt
+
+  if [[ ! "$PROMETHEUS_TARGET_ATTEMPTS" =~ ^[0-9]+$ ]] \
+      || ((PROMETHEUS_TARGET_ATTEMPTS < 1 || PROMETHEUS_TARGET_ATTEMPTS > 30)); then
+    fail prometheus_targets "invalid_attempts=$PROMETHEUS_TARGET_ATTEMPTS"
+    return
   fi
+  if [[ ! "$PROMETHEUS_TARGET_INTERVAL_SECONDS" =~ ^[0-9]+$ ]] \
+      || ((PROMETHEUS_TARGET_INTERVAL_SECONDS > 30)); then
+    fail prometheus_targets "invalid_interval_seconds=$PROMETHEUS_TARGET_INTERVAL_SECONDS"
+    return
+  fi
+
+  for ((attempt = 1; attempt <= PROMETHEUS_TARGET_ATTEMPTS; attempt++)); do
+    if response="$(curl -fsS "$PROMETHEUS_URL/api/v1/targets" 2>/dev/null)" \
+        && jq -e --argjson minimum "$MIN_PROMETHEUS_TARGETS" '
+          .status == "success"
+          and (.data.activeTargets | length) >= $minimum
+          and all(.data.activeTargets[]; .health == "up")
+        ' >/dev/null 2>&1 <<<"$response"; then
+      pass prometheus_targets \
+        "minimum=$MIN_PROMETHEUS_TARGETS state=all_up attempt=$attempt"
+      return
+    fi
+    if ((attempt < PROMETHEUS_TARGET_ATTEMPTS)); then
+      sleep "$PROMETHEUS_TARGET_INTERVAL_SECONDS"
+    fi
+  done
+
+  fail prometheus_targets \
+    "minimum=$MIN_PROMETHEUS_TARGETS attempts=$PROMETHEUS_TARGET_ATTEMPTS url=$PROMETHEUS_URL"
 }
 
 check_grafana() {
@@ -129,7 +152,7 @@ check_grafana() {
 
 release_value() {
   local key="$1"
-  awk -F= -v key="$key" '$1 == key { sub(/^[^=]*=/, ""); print; exit }' "$RELEASE_FILE"
+  awk -F= -v key="$key" '$1 == key { sub(/^[^=]*=/, ""); sub(/\r$/, ""); print; exit }' "$RELEASE_FILE"
 }
 
 check_release() {
