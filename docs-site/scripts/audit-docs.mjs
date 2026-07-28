@@ -92,8 +92,8 @@ for (const filePath of markdownFiles) {
   }
 }
 
-if (!config.includes('Code Nest v2.5.0 工程文档中心')) {
-  errors.push('VitePress description 未标记 v2.5.0 文档中心')
+if (!config.includes('Code Nest v2.5.1 工程文档中心')) {
+  errors.push('VitePress description 未标记 v2.5.1 文档中心')
 }
 
 console.log(`[docs-audit] pages=${markdownFiles.length}, configuredLinks=${configuredLinks.size}`)

@@ -1,0 +1,67 @@
+{
+  "schema": "code-nest.sre.runbook-catalog.v1",
+  "runbooks": [
+    {
+      "key": "code-nest-availability",
+      "services": ["code-nest", "api"],
+      "alertNames": ["CodeNestTargetDown", "CodeNestPublicEndpointDown"],
+      "title": "Code Nest availability",
+      "objective": "Determine whether the application, reverse proxy, or host is responsible for lost availability.",
+      "triageSteps": [
+        "Compare the internal application target with the external HTTP probe.",
+        "Check the latest deployment snapshot and application start time.",
+        "Review bounded HTTP error, latency, JVM, CPU, and disk evidence.",
+        "Escalate for operator action when the host or reverse proxy is unavailable."
+      ],
+      "escalationSignals": [
+        "Both internal and external availability signals are unavailable.",
+        "The external probe fails while the internal application target remains healthy.",
+        "A recent deployment aligns with the first failed observation."
+      ]
+    },
+    {
+      "key": "code-nest-sre-runtime",
+      "services": ["code-nest", "sre"],
+      "alertNames": [
+        "CodeNestSreOutboxStalled",
+        "CodeNestSreEvaluationQueueStalled",
+        "CodeNestSreQueueTerminalFailure",
+        "CodeNestSreQueueDeadlineExceeded",
+        "CodeNestSreLeaseRecoverySpike",
+        "CodeNestSreInvestigationFailureRatioHigh",
+        "CodeNestSreInvestigationDurationHigh"
+      ],
+      "title": "Code Nest SRE runtime",
+      "objective": "Identify queue, lease, deadline, or read-only investigation degradation without changing system state.",
+      "triageSteps": [
+        "Compare backlog size with the oldest queued item age.",
+        "Review retry, lease recovery, deadline, and terminal failure counters.",
+        "Check worker start time and the immutable deployment provenance.",
+        "Use the stored run trajectory to identify the last completed bounded step."
+      ],
+      "escalationSignals": [
+        "A queue contains terminal failures or deadline violations.",
+        "Lease recovery continues after a worker restart.",
+        "Read-only investigation failures exceed the configured alert threshold."
+      ]
+    },
+    {
+      "key": "code-nest-default",
+      "services": ["*"],
+      "alertNames": ["*"],
+      "title": "Code Nest default investigation",
+      "objective": "Build a bounded timeline from persisted alerts, metrics, deployment provenance, and incident evidence.",
+      "triageSteps": [
+        "Confirm the alert state, severity, service, and first observation time.",
+        "Compare the current metric snapshot with the persisted alert snapshot.",
+        "Check whether a recent deployment aligns with the incident timeline.",
+        "Record missing evidence as a limitation and request operator review."
+      ],
+      "escalationSignals": [
+        "The available evidence cannot distinguish application and host failure.",
+        "The incident remains active after the bounded investigation ends.",
+        "The recommended next step requires a system change."
+      ]
+    }
+  ]
+}

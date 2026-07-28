@@ -39,4 +39,48 @@ for frontend_dir in vue3-admin-front vue3-user-front; do
   fi
 done
 
+ops_stage="$workspace/release-stage"
+assemble_operational_assets "$ops_stage"
+
+required_ops_files=(
+  ops/nginx/code-nest-production.conf
+  ops/monitoring/docker-compose.yml
+  ops/monitoring/prometheus.yml
+  ops/monitoring/alert_rules.yml
+  ops/monitoring/grafana/provisioning/datasources/prometheus.yml
+  ops/monitoring/grafana/provisioning/dashboards/code-nest.yml
+  ops/monitoring/grafana/dashboards/code-nest-application.json
+  ops/monitoring/grafana/dashboards/code-nest-sre.json
+  ops/monitoring/scripts/compose.sh
+  ops/monitoring/scripts/validate-config.sh
+  ops/systemd/code-nest-capacity-governance.service
+  ops/systemd/code-nest-capacity-governance.timer
+  ops/scripts/server-capacity-governance.sh
+  ops/scripts/sre-alertmanager-e2e.py
+  ops/scripts/verify-production-baseline.sh
+  scripts/deploy-release.sh
+  scripts/server-capacity-governance.sh
+  scripts/sre-alertmanager-e2e.py
+  scripts/verify-production-baseline.sh
+)
+
+for relative_path in "${required_ops_files[@]}"; do
+  if [[ ! -f "$ops_stage/$relative_path" ]]; then
+    printf 'release operations asset missing: %s\n' "$relative_path" >&2
+    exit 1
+  fi
+done
+
+for forbidden_path in \
+  ops/monitoring/.env \
+  ops/monitoring/alertmanager/alertmanager.local.yml \
+  ops/monitoring/targets/code-nest.local.yml \
+  ops/monitoring/targets/blackbox.local.yml \
+  ops/monitoring/secrets; do
+  if [[ -e "$ops_stage/$forbidden_path" ]]; then
+    printf 'release bundle contains local monitoring state: %s\n' "$forbidden_path" >&2
+    exit 1
+  fi
+done
+
 printf 'deployment dependency refresh contract passed\n'

@@ -12,6 +12,7 @@
 
 | 版本 | 日期 | 主要变更 |
 |------|------|---------|
+| v2.5.1 | 2026-07-28 | 生产 SRE 指标/告警/Dashboard、发布回滚、容量与漂移治理、外部探针和合成演练 |
 | v2.5.0 | 2026-07-28 | 24x7 SRE 监控、事故工作台、最多 5 轮只读 RCA、回放反馈、持久化评测队列与自身指标 |
 | v2.4.3 | 2026-07-16 | 首次登录首周任务引导、首页聚合接口、自动同步状态、首页行动优先与 Element Plus 按需引入 |
 | v2.4.2 | 2026-07-16 | 移动端导航和认证首屏修复、目标导向导航、行动优先页面顺序、首页故障提示降噪 |
@@ -26,6 +27,27 @@
 | v2.1.1 | - | WebSocket 票据机制、CORS 配置化 |
 | v2.1.0 | - | AI 学习成长驾驶舱、AI Runtime 治理中心 |
 | v2.0.0 | - | AI 基础设施切换到 LangChain4j/LangGraph4j/LlamaIndex |
+
+---
+
+## v2.5.1 (2026-07-28)
+
+### Added
+
+- 新增 SRE Recording Rules、队列与 RCA 生产告警，以及自动 provision 的应用/SRE Dashboard
+- 新增零流量指标注册、部署/Runbook 快照证据、容量治理 timer 和生产基线校验
+- 新增 GitHub 外部 uptime 单 Issue 状态机、确定性队列恢复验证和受控 Alertmanager 合成演练
+
+### Changed
+
+- release bundle 统一管理应用、双前端、Nginx、监控、Grafana、systemd、治理脚本和构建溯源
+- 部署失败时恢复全部受管资产，同时始终保留监控 `.env`、本地 Alertmanager 配置、targets 与 secrets
+- 生产验收默认要求 4 个 Prometheus targets 全绿、Grafana 健康、secret 权限正确、配置无漂移和至少 8 GiB 可用空间
+
+### Migration
+
+- 本版本无新增数据库迁移；旧环境继续以 `sql/v2.5.0` 为 SRE schema 前置条件
+- 继续保持只读调查、人工处置、无任意查询、无自动修复和无成本预算闸门的边界
 
 ---
 

@@ -377,10 +377,42 @@ function Invoke-Release {
     }
 
     Invoke-Step "script syntax checks" {
-        Invoke-Native -Command $PythonCommand -Arguments @("-m", "py_compile", "scripts/deploy-frontends.py", "scripts/you_deserve_to_interview_sql.py")
+        Invoke-Native -Command $PythonCommand -Arguments @(
+            "-m", "py_compile",
+            "scripts/deploy-frontends.py",
+            "scripts/deploy-production.py",
+            "scripts/sre-alertmanager-e2e.py",
+            "scripts/test_sre_alertmanager_e2e.py",
+            "scripts/you_deserve_to_interview_sql.py"
+        )
         $bash = Resolve-BashCommand
-        Invoke-Native -Command $bash -Arguments @("-n", "scripts/ci-server-build-deploy.sh", "scripts/ci-server-build-deploy.test.sh", "scripts/deploy-release.sh")
-        Invoke-Native -Command $bash -Arguments @("scripts/ci-server-build-deploy.test.sh")
+        Invoke-Native -Command $bash -Arguments @(
+            "-n",
+            "scripts/ci-server-build-deploy.sh",
+            "scripts/ci-server-build-deploy.test.sh",
+            "scripts/deploy-release.sh",
+            "scripts/deploy-release.test.sh",
+            "scripts/external-uptime-check.sh",
+            "scripts/external-uptime-check.test.sh",
+            "scripts/server-capacity-governance.sh",
+            "scripts/server-capacity-governance.test.sh",
+            "scripts/verify-production-baseline.sh",
+            "scripts/verify-production-baseline.test.sh"
+        )
+    }
+
+    Invoke-Step "release script contract tests" {
+        $bash = Resolve-BashCommand
+        foreach ($contractTest in @(
+            "scripts/ci-server-build-deploy.test.sh",
+            "scripts/deploy-release.test.sh",
+            "scripts/external-uptime-check.test.sh",
+            "scripts/server-capacity-governance.test.sh",
+            "scripts/verify-production-baseline.test.sh"
+        )) {
+            Invoke-Native -Command $bash -Arguments @($contractTest)
+        }
+        Invoke-Native -Command $PythonCommand -Arguments @("scripts/test_sre_alertmanager_e2e.py")
     }
 }
 

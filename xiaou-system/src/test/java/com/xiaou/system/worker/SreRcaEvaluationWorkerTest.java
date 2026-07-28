@@ -90,6 +90,44 @@ class SreRcaEvaluationWorkerTest {
                 org.mockito.ArgumentMatchers.anyLong());
     }
 
+    @Test
+    void executionPastDeadlineRecordsDeadlineMetric() {
+        SreRcaEvaluationWorker worker = workerForFailedRun(
+                SreQueueRetryOutcome.DEADLINE_EXCEEDED);
+
+        worker.drain();
+
+        verify(metricsRecorder).incrementQueueEvent("evaluation", "deadline_exceeded", 1);
+        verify(metricsRecorder, never()).incrementQueueEvent("evaluation", "retry", 1);
+        verify(metricsRecorder, never()).incrementQueueEvent("evaluation", "terminal_failure", 1);
+    }
+
+    @Test
+    void exhaustedAttemptBudgetRecordsTerminalFailureMetric() {
+        SreRcaEvaluationWorker worker = workerForFailedRun(
+                SreQueueRetryOutcome.TERMINAL_FAILURE);
+
+        worker.drain();
+
+        verify(metricsRecorder).incrementQueueEvent("evaluation", "terminal_failure", 1);
+        verify(metricsRecorder, never()).incrementQueueEvent("evaluation", "retry", 1);
+        verify(metricsRecorder, never()).incrementQueueEvent("evaluation", "deadline_exceeded", 1);
+    }
+
+    private SreRcaEvaluationWorker workerForFailedRun(SreQueueRetryOutcome outcome) {
+        SreRcaEvaluationProperties properties = enabledProperties();
+        SreRcaEvaluationRun run = new SreRcaEvaluationRun();
+        run.setId(401L);
+        when(runService.listClaimableIds(2)).thenReturn(List.of(401L));
+        when(runService.claim(401L)).thenReturn(run);
+        doThrow(new IllegalStateException("controlled failure"))
+                .when(evaluationService).executeClaimedRun(401L);
+        when(runService.retryOrFail(401L, "EVALUATION_EXECUTION_FAILED"))
+                .thenReturn(outcome);
+        return new SreRcaEvaluationWorker(
+                properties, runService, evaluationService, metricsRecorder);
+    }
+
     private SreRcaEvaluationProperties enabledProperties() {
         SreRcaEvaluationProperties properties = new SreRcaEvaluationProperties();
         properties.setEnabled(true);

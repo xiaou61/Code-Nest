@@ -5,7 +5,7 @@
     <CnPageHeader
       title="SRE 事故工作台"
       :description="headerDescription"
-      eyebrow="OPERATIONS / V2.5.0"
+      eyebrow="OPERATIONS / V2.5.1"
       :breadcrumbs="breadcrumbs"
     >
       <template #meta>

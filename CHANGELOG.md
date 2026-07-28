@@ -6,6 +6,38 @@
 
 ## [Unreleased]
 
+## [v2.5.1] - 2026-07-28
+
+### Added
+
+- 新增 SRE Recording Rules、Outbox/评测积压与任务年龄告警、队列终态/deadline/租约恢复告警，以及 RCA 失败率和耗时告警。
+- 新增自动 provision 的应用生产 Dashboard 与 SRE Runtime Dashboard；数据源使用稳定 UID，零流量时指标保持真实零值。
+- 新增幂等 `DEPLOYMENT_SNAPSHOT` 和 `RUNBOOK_SNAPSHOT` 证据；运行手册来自 Jar 内固定目录，构建来源只读发布配置。
+- 新增默认只报告的服务器容量治理脚本、每周 systemd timer、生产基线校验、GitHub 外部 uptime 探针和受控 Alertmanager 合成演练。
+- 新增确定性队列恢复验证，覆盖 lease 恢复、deadline、最大尝试失败、对应指标，以及恢复后跳过已完成用例。
+
+### Changed
+
+- release bundle 现在同时携带 JAR、双前端、RELEASE 元数据和白名单运维资产；部署会校验 Nginx/Prometheus、启动 Grafana、刷新 systemd，并在失败时恢复全部受管文件。
+- 发布脚本只更新应用环境中的三项 SRE 构建溯源，不覆盖监控 `.env`、Alertmanager 本地配置、targets 或 secrets。
+- 发布备份、数据库备份和构建 bundle 的默认保留数分别收敛为 4、14 和 2，生产验收默认要求至少 8 GiB 可用空间。
+- 后端 Maven、共享设计系统、双前端和文档站统一升级到 `v2.5.1`。
+
+### Security
+
+- Nginx 在用户端与管理端入口统一拒绝公网 `/api/actuator/**` 和 `/api/internal/sre/**`，监控端口继续只绑定 loopback。
+- 运维资产采用逐文件白名单安装与漂移比对；发布包明确排除监控本地状态和凭据，合成演练必须显式确认通知并从权限受限文件读取 token。
+
+### Migration
+
+- 本版本不新增数据库迁移。尚未完成 SRE 表升级的环境仍需先按 `sql/v2.5.0` 的既有顺序迁移，再启用数据库 Worker 和 gauge。
+- 部署前确认监控 `.env` 已配置 Grafana 镜像和管理员密码，QQ/Webhook secret owner 为 `65534:65534` 且 mode 为 `0400`。
+
+### Notes
+
+- 本版本仍为只读调查和人工处置体系，不包含自动修复，也没有金额、Token 或模型成本预算闸门。
+- 当前实现吸收了 OpenSRE 的可恢复队列、证据、Runbook、可观测和运行治理原则，但不宣称功能或协议完全对齐。
+
 ## [v2.5.0] - 2026-07-28
 
 ### Added

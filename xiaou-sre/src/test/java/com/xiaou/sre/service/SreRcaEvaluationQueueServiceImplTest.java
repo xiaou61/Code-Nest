@@ -133,10 +133,20 @@ class SreRcaEvaluationQueueServiceImplTest {
     }
 
     @Test
-    void staleAndExpiredRunsAreRecoveredWithControlledFailureCodes() {
+    void staleAndExpiredRunsProduceDeterministicRecoveryResult() {
         SreRcaEvaluationRunServiceImpl service = service();
+        when(runMapper.failExpired(
+                any(LocalDateTime.class), eq("EVALUATION_DEADLINE_EXCEEDED"))).thenReturn(3);
+        when(runMapper.failStale(
+                any(LocalDateTime.class), eq(3), eq("EVALUATION_MAX_ATTEMPTS_EXCEEDED"))).thenReturn(1);
+        when(runMapper.recoverStale(
+                any(LocalDateTime.class), eq(3), any(LocalDateTime.class))).thenReturn(2);
 
-        service.recoverStaleRuns();
+        SreQueueRecoveryResult result = service.recoverStaleRuns();
+
+        assertThat(result.recovered()).isEqualTo(2);
+        assertThat(result.terminalFailures()).isEqualTo(1);
+        assertThat(result.deadlineExceeded()).isEqualTo(3);
 
         verify(runMapper).failExpired(
                 any(LocalDateTime.class), eq("EVALUATION_DEADLINE_EXCEEDED"));

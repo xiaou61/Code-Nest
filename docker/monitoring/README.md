@@ -25,7 +25,8 @@ process that intentionally listens only on `127.0.0.1:9999`. Every monitoring
 service explicitly listens on loopback: Prometheus `19090`, Alertmanager
 `19093` and `19094`, node-exporter `19100`, blackbox-exporter `19115`, and
 Grafana `3000`. Do not expose those ports in the cloud security group or host
-firewall. The public entry points remain Nginx on `80` and `81`.
+firewall. The public entry points remain Nginx on user ports `80`/`81` and
+administrator port `82`.
 
 Blocking `/api/actuator/` in Nginx is only one layer. It does not protect a
 directly exposed backend port. Verify that the server's security group does
@@ -94,6 +95,56 @@ chmod +x scripts/compose.sh
 Prometheus and Grafana bind to `127.0.0.1` by default. Access them through an
 SSH tunnel or an authenticated reverse proxy; do not expose their configured
 ports directly to the public internet.
+
+## v2.5.1 Production Governance
+
+The release bundle owns the checked-in Nginx, Prometheus, Grafana, systemd and
+governance-script assets. Local `.env`, Alertmanager receiver configuration,
+targets and secret files remain host-owned and are preserved across deploy and
+rollback. Grafana provisions the `Code Nest Application` and `Code Nest SRE`
+dashboards into the `Code Nest` folder with the fixed `prometheus` datasource.
+
+Run the bounded capacity tool in report mode before applying any cleanup. It
+keeps the newest release/database backups and build bundles according to its
+configured limits; generated build outputs require a separate explicit flag.
+It never performs a global container-image prune.
+
+```bash
+/opt/code-nest/bin/server-capacity-governance.sh
+/opt/code-nest/bin/server-capacity-governance.sh \
+  --apply --include-build-outputs --include-runner-cache
+systemctl status code-nest-capacity-governance.timer
+```
+
+After each production deployment, require the complete baseline. This checks
+the application and Nginx services, both public frontends, private-path 404
+boundaries, all four Prometheus targets, Grafana, release version/SHA, secret
+ownership and modes, free capacity, and drift for every managed asset.
+
+```bash
+/opt/code-nest/bin/verify-production-baseline.sh \
+  --require-grafana \
+  --expected-version v2.5.1 \
+  --expected-sha <full-release-sha> \
+  --min-free-gb 8
+```
+
+GitHub's `External Uptime` workflow probes the user endpoint on `:81` and the
+administrator endpoint on `:82` every five minutes from a hosted runner. It
+maintains one incident issue while either endpoint is unavailable and closes it
+after recovery.
+
+The synthetic Alertmanager drill sends real QQ firing and resolved
+notifications. Run it only with explicit confirmation and a temporary
+administrator token file owned by root with mode `0600`; the script validates
+deduplication, evidence snapshots, resolution and active-alert cleanup through
+the administrator API without reading the database.
+
+```bash
+/opt/code-nest/bin/sre-alertmanager-e2e.py \
+  --confirm-notification \
+  --admin-token-file /etc/code-nest/sre-e2e-admin-token
+```
 
 ## First Acceptance Drill
 

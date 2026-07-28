@@ -63,6 +63,53 @@ def copy_tree_contents(source: Path, target: Path) -> None:
             shutil.copy2(item, destination)
 
 
+def copy_release_file(source: Path, target: Path) -> None:
+    require_file(source, f"release asset for {target}")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, target)
+
+
+def assemble_operational_assets(stage: Path) -> None:
+    copy_release_file(
+        REPO_ROOT / "deploy" / "nginx" / "code-nest-production.conf",
+        stage / "ops" / "nginx" / "code-nest-production.conf",
+    )
+    for filename in ("docker-compose.yml", "prometheus.yml", "alert_rules.yml"):
+        copy_release_file(
+            REPO_ROOT / "docker" / "monitoring" / filename,
+            stage / "ops" / "monitoring" / filename,
+        )
+    copy_tree_contents(
+        REPO_ROOT / "docker" / "monitoring" / "grafana",
+        stage / "ops" / "monitoring" / "grafana",
+    )
+    for filename in ("compose.sh", "validate-config.sh"):
+        copy_release_file(
+            REPO_ROOT / "docker" / "monitoring" / "scripts" / filename,
+            stage / "ops" / "monitoring" / "scripts" / filename,
+        )
+    for filename in (
+        "code-nest-capacity-governance.service",
+        "code-nest-capacity-governance.timer",
+    ):
+        copy_release_file(
+            REPO_ROOT / "deploy" / "systemd" / filename,
+            stage / "ops" / "systemd" / filename,
+        )
+    for filename in (
+        "server-capacity-governance.sh",
+        "sre-alertmanager-e2e.py",
+        "verify-production-baseline.sh",
+    ):
+        source = REPO_ROOT / "scripts" / filename
+        copy_release_file(source, stage / "scripts" / filename)
+        copy_release_file(source, stage / "ops" / "scripts" / filename)
+    copy_release_file(
+        REPO_ROOT / "scripts" / "deploy-release.sh",
+        stage / "scripts" / "deploy-release.sh",
+    )
+
+
 def build_artifacts(args: argparse.Namespace) -> None:
     if args.skip_build:
         return
@@ -91,11 +138,9 @@ def assemble_bundle(args: argparse.Namespace) -> Path:
         backend_dir = stage / "backend"
         admin_dir = stage / "admin"
         user_dir = stage / "user"
-        scripts_dir = stage / "scripts"
         backend_dir.mkdir(parents=True)
         admin_dir.mkdir()
         user_dir.mkdir()
-        scripts_dir.mkdir()
 
         backend_jar = Path(args.jar) if args.jar else discover_backend_jar()
         require_file(backend_jar, "backend jar")
@@ -103,18 +148,20 @@ def assemble_bundle(args: argparse.Namespace) -> Path:
 
         copy_tree_contents(REPO_ROOT / "vue3-admin-front" / "dist", admin_dir)
         copy_tree_contents(REPO_ROOT / "vue3-user-front" / "dist", user_dir)
-        shutil.copy2(REPO_ROOT / "scripts" / "deploy-release.sh", scripts_dir / "deploy-release.sh")
+        assemble_operational_assets(stage)
 
         try:
             sha = capture(["git", "rev-parse", "HEAD"])
         except (subprocess.CalledProcessError, FileNotFoundError):
             sha = "unknown"
+        build_id = os.getenv("CODE_NEST_BUILD_ID") or f"{safe_version}-{sha[:7]}"
 
         (stage / "RELEASE").write_text(
             "\n".join(
                 [
                     f"version={safe_version}",
                     f"sha={sha}",
+                    f"build_id={build_id}",
                     f"built_at={datetime.now(timezone.utc).isoformat()}",
                     "",
                 ]
@@ -127,7 +174,7 @@ def assemble_bundle(args: argparse.Namespace) -> Path:
         with tarfile.open(bundle, "w:gz") as archive:
             for item in stage.rglob("*"):
                 tar_info = archive.gettarinfo(str(item), arcname=str(item.relative_to(stage)))
-                if item.name == "deploy-release.sh":
+                if item.suffix in {".sh", ".py"}:
                     tar_info.mode = 0o755
                 if item.is_file():
                     with item.open("rb") as handle:

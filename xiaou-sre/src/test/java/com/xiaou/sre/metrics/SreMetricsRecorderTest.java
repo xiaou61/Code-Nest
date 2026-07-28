@@ -15,6 +15,53 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SreMetricsRecorderTest {
 
     @Test
+    void shouldRegisterZeroTrafficMetricFamiliesAtStartup() {
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+
+        new SreMetricsRecorder(registry);
+
+        Timer ingestion = registry.find("xiaou.sre.alert.ingestion.duration")
+                .tag("outcome", "succeeded")
+                .timer();
+        Timer evidence = registry.find("xiaou.sre.evidence.collection.duration")
+                .tag("outcome", "failed")
+                .timer();
+        Timer evaluation = registry.find("xiaou.sre.evaluation.duration")
+                .tag("outcome", "degraded")
+                .timer();
+        Timer investigation = registry.find("xiaou.sre.investigation.duration")
+                .tag("outcome", "skipped")
+                .tag("generation_mode", "fallback")
+                .timer();
+        DistributionSummary rounds = registry.find("xiaou.sre.investigation.rounds")
+                .tag("outcome", "unavailable")
+                .summary();
+        Counter toolCalls = registry.find("xiaou.sre.investigation.tool.calls")
+                .tag("tool", "unknown")
+                .tag("outcome", "succeeded")
+                .counter();
+        Counter recoveries = registry.find("xiaou.sre.queue.events")
+                .tag("queue", "evaluation")
+                .tag("event", "lease_recovered")
+                .counter();
+
+        assertNotNull(ingestion);
+        assertNotNull(evidence);
+        assertNotNull(evaluation);
+        assertNotNull(investigation);
+        assertNotNull(rounds);
+        assertNotNull(toolCalls);
+        assertNotNull(recoveries);
+        assertEquals(0, ingestion.count());
+        assertEquals(0, evidence.count());
+        assertEquals(0, evaluation.count());
+        assertEquals(0, investigation.count());
+        assertEquals(0, rounds.count());
+        assertEquals(0D, toolCalls.count());
+        assertEquals(0D, recoveries.count());
+    }
+
+    @Test
     void shouldRecordBoundedInvestigationAndQueueMetrics() {
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         SreMetricsRecorder recorder = new SreMetricsRecorder(registry);
