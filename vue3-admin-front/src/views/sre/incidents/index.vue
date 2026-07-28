@@ -465,6 +465,328 @@
                     </el-form>
                   </div>
 
+                  <section
+                    v-loading="evaluationCatalogLoading || evaluationHistoryLoading || evaluationDetailLoading"
+                    class="rca-block evaluation-workbench"
+                    aria-labelledby="rca-evaluation-title"
+                  >
+                    <div class="evaluation-heading">
+                      <div>
+                        <h4 id="rca-evaluation-title">离线评测</h4>
+                        <div class="evaluation-heading-meta">
+                          <CnStatusTag type="neutral" size="sm">
+                            {{ evaluationCases.length }} 个用例
+                          </CnStatusTag>
+                          <CnStatusTag
+                            v-if="latestEvaluationRun"
+                            :type="runStatusTone(latestEvaluationRun.status)"
+                            size="sm"
+                          >
+                            最近 {{ evaluationScoreText(latestEvaluationRun.averageScore) }} 分
+                          </CnStatusTag>
+                        </div>
+                      </div>
+                      <div class="evaluation-actions" role="toolbar" aria-label="RCA 离线评测操作">
+                        <el-button
+                          :icon="Plus"
+                          :loading="evaluationPromoting"
+                          :disabled="!canPromoteEvaluationCase || evaluationRunLoading"
+                          @click="promoteRcaEvaluationCase"
+                        >
+                          {{ currentEvaluationCase ? '已提升' : '提升当前修订' }}
+                        </el-button>
+                        <el-button
+                          type="primary"
+                          plain
+                          :icon="VideoPlay"
+                          :loading="evaluationRunLoading && evaluationRunningCaseId === null"
+                          :disabled="!evaluationCases.length || evaluationRunLoading || evaluationPromoting"
+                          @click="runRcaEvaluation()"
+                        >
+                          回放全部
+                        </el-button>
+                        <el-tooltip content="刷新评测数据" placement="top">
+                          <el-button
+                            circle
+                            :icon="Refresh"
+                            :disabled="evaluationRunLoading || evaluationPromoting"
+                            aria-label="刷新 RCA 评测数据"
+                            @click="loadRcaEvaluationWorkbench"
+                          />
+                        </el-tooltip>
+                      </div>
+                    </div>
+
+                    <el-tabs v-model="activeEvaluationTab" class="evaluation-tabs">
+                      <el-tab-pane :label="`用例 (${evaluationCases.length})`" name="cases">
+                        <ol v-if="evaluationCases.length" class="evaluation-case-list">
+                          <li v-for="evaluationCase in evaluationCases" :key="evaluationCase.id">
+                            <div class="evaluation-case-main">
+                              <div class="evaluation-item-heading">
+                                <strong>用例 #{{ evaluationCase.id }}</strong>
+                                <CnStatusTag
+                                  :type="feedbackAccuracyTone(evaluationCase.feedbackAccuracy)"
+                                  size="sm"
+                                >
+                                  {{ feedbackAccuracyLabel(evaluationCase.feedbackAccuracy) }}
+                                </CnStatusTag>
+                                <CnStatusTag v-if="evaluationCase.contextTruncated" type="warning" size="sm">
+                                  上下文已裁剪
+                                </CnStatusTag>
+                              </div>
+                              <p>{{ evaluationCase.expectedConclusion || '沿用基准报告结论' }}</p>
+                              <dl class="evaluation-case-meta">
+                                <div>
+                                  <dt>来源</dt>
+                                  <dd>事故 #{{ evaluationCase.incidentId }} · RCA #{{ evaluationCase.sourceRunId }}</dd>
+                                </div>
+                                <div>
+                                  <dt>反馈修订</dt>
+                                  <dd>#{{ evaluationCase.sourceFeedbackId }} · {{ formatTime(evaluationCase.promotedAt) }}</dd>
+                                </div>
+                                <div>
+                                  <dt>模型来源</dt>
+                                  <dd>{{ evaluationCase.sourceProvider || '-' }} / {{ evaluationCase.sourceActualModel || evaluationCase.sourceConfiguredModel || '-' }}</dd>
+                                </div>
+                                <div>
+                                  <dt>Context SHA-256</dt>
+                                  <dd><code>{{ abbreviatedHash(evaluationCase.contextSha256) }}</code></dd>
+                                </div>
+                              </dl>
+                            </div>
+                            <el-button
+                              type="primary"
+                              text
+                              :icon="VideoPlay"
+                              :loading="evaluationRunLoading && evaluationRunningCaseId === evaluationCase.id"
+                              :disabled="evaluationRunLoading || evaluationPromoting"
+                              :aria-label="`回放评测用例 ${evaluationCase.id}`"
+                              @click="runRcaEvaluation(evaluationCase.id)"
+                            >
+                              回放
+                            </el-button>
+                          </li>
+                        </ol>
+                        <CnEmptyState
+                          v-else
+                          title="暂无评测用例"
+                          description="当前没有已冻结的评测用例。"
+                          icon="EV"
+                          size="sm"
+                          surface="transparent"
+                        />
+                      </el-tab-pane>
+
+                      <el-tab-pane :label="`历史 (${evaluationRuns.length})`" name="history">
+                        <template v-if="evaluationRuns.length">
+                          <div class="evaluation-history-toolbar">
+                            <label for="rca-evaluation-run-select">评测运行</label>
+                            <el-select
+                              id="rca-evaluation-run-select"
+                              v-model="selectedEvaluationRunId"
+                              aria-label="选择 RCA 评测运行"
+                              @change="selectRcaEvaluationRun"
+                            >
+                              <el-option
+                                v-for="run in evaluationRuns"
+                                :key="run.id"
+                                :label="evaluationRunLabel(run)"
+                                :value="run.id"
+                              />
+                            </el-select>
+                          </div>
+
+                          <template v-if="displayedEvaluationRun">
+                            <dl class="evaluation-summary-grid">
+                              <div>
+                                <dt>平均分</dt>
+                                <dd>{{ evaluationScoreText(displayedEvaluationRun.averageScore) }}</dd>
+                              </div>
+                              <div>
+                                <dt>通过</dt>
+                                <dd>{{ displayedEvaluationRun.passedCount }} / {{ displayedEvaluationRun.caseCount }}</dd>
+                              </div>
+                              <div>
+                                <dt>完成</dt>
+                                <dd>{{ displayedEvaluationRun.completedCount }} / {{ displayedEvaluationRun.caseCount }}</dd>
+                              </div>
+                              <div>
+                                <dt>状态</dt>
+                                <dd>
+                                  <CnStatusTag :type="runStatusTone(displayedEvaluationRun.status)" size="sm">
+                                    {{ runStatusLabel(displayedEvaluationRun.status) }}
+                                  </CnStatusTag>
+                                </dd>
+                              </div>
+                            </dl>
+                            <dl class="evaluation-run-provenance">
+                              <div>
+                                <dt>Prompt / Schema</dt>
+                                <dd><code>{{ displayedEvaluationRun.promptId || '-' }}</code> / <code>{{ displayedEvaluationRun.schemaId || '-' }}</code></dd>
+                              </div>
+                              <div>
+                                <dt>模型来源</dt>
+                                <dd>{{ displayedEvaluationRun.provider || '-' }} / {{ displayedEvaluationRun.configuredModel || '-' }}</dd>
+                              </div>
+                              <div>
+                                <dt>运行时间</dt>
+                                <dd>{{ formatTime(displayedEvaluationRun.startedAt) }} - {{ formatTime(displayedEvaluationRun.completedAt) }}</dd>
+                              </div>
+                              <div v-if="displayedEvaluationRun.failureCode">
+                                <dt>失败码</dt>
+                                <dd><code>{{ displayedEvaluationRun.failureCode }}</code></dd>
+                              </div>
+                            </dl>
+                          </template>
+
+                          <el-collapse
+                            v-if="evaluationRunDetail?.results.length"
+                            v-model="expandedEvaluationResultIds"
+                            class="evaluation-result-list"
+                          >
+                            <el-collapse-item
+                              v-for="result in evaluationRunDetail.results"
+                              :key="result.id"
+                              :name="result.id"
+                            >
+                              <template #title>
+                                <div class="evaluation-result-title">
+                                  <strong>用例 #{{ result.caseId }}</strong>
+                                  <span>{{ evaluationScoreText(result.totalScore) }} 分</span>
+                                  <CnStatusTag :type="result.passed ? 'success' : 'danger'" size="sm">
+                                    {{ result.passed ? '通过' : '未通过' }}
+                                  </CnStatusTag>
+                                  <CnStatusTag :type="runStatusTone(result.status)" size="sm">
+                                    {{ runStatusLabel(result.status) }}
+                                  </CnStatusTag>
+                                </div>
+                              </template>
+
+                              <dl class="evaluation-score-grid" aria-label="RCA 透明分项评分">
+                                <div>
+                                  <dt>结论相似度</dt>
+                                  <dd>{{ evaluationRatioText(result.conclusionSimilarity) }} <small>权重 50</small></dd>
+                                </div>
+                                <div>
+                                  <dt>证据召回</dt>
+                                  <dd>{{ evaluationRatioText(result.evidenceRecall) }} <small>权重 25</small></dd>
+                                </div>
+                                <div>
+                                  <dt>严重度一致</dt>
+                                  <dd>{{ result.severityMatched ? '通过' : '未通过' }} <small>权重 15</small></dd>
+                                </div>
+                                <div>
+                                  <dt>只读安全</dt>
+                                  <dd>{{ result.safetyCompliant ? '通过' : '未通过' }} <small>权重 10</small></dd>
+                                </div>
+                              </dl>
+
+                              <section class="evaluation-result-section" aria-label="模型来源">
+                                <h5>模型来源</h5>
+                                <dl class="evaluation-result-provenance">
+                                  <div>
+                                    <dt>Prompt</dt>
+                                    <dd><code>{{ result.promptId || '-' }}</code></dd>
+                                  </div>
+                                  <div>
+                                    <dt>Schema</dt>
+                                    <dd><code>{{ result.schemaId || '-' }}</code></dd>
+                                  </div>
+                                  <div>
+                                    <dt>Provider</dt>
+                                    <dd>{{ result.provider || '-' }}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>配置 / 实际模型</dt>
+                                    <dd>{{ result.configuredModel || '-' }} / {{ result.actualModel || '-' }}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>调用结果</dt>
+                                    <dd>{{ invocationOutcomeLabel(result.invocationOutcome) }}</dd>
+                                  </div>
+                                  <div v-if="result.failureCode">
+                                    <dt>失败码</dt>
+                                    <dd><code>{{ result.failureCode }}</code></dd>
+                                  </div>
+                                </dl>
+                              </section>
+
+                              <section v-if="result.explanations.length" class="evaluation-result-section">
+                                <h5>评分说明</h5>
+                                <ul class="evaluation-explanations">
+                                  <li v-for="(explanation, index) in result.explanations" :key="`${result.id}-explanation-${index}`">
+                                    {{ explanation }}
+                                  </li>
+                                </ul>
+                              </section>
+
+                              <section v-if="result.candidateReport" class="evaluation-result-section candidate-report">
+                                <div class="candidate-report-heading">
+                                  <h5>候选报告</h5>
+                                  <div>
+                                    <CnStatusTag :type="conclusionTone(result.candidateReport.conclusionStatus)" size="sm">
+                                      {{ conclusionLabel(result.candidateReport.conclusionStatus) }}
+                                    </CnStatusTag>
+                                    <CnStatusTag :type="result.candidateReport.executionAllowed ? 'danger' : 'neutral'" size="sm">
+                                      {{ result.candidateReport.executionAllowed ? '允许执行' : '禁止自动执行' }}
+                                    </CnStatusTag>
+                                  </div>
+                                </div>
+                                <p class="candidate-summary">{{ result.candidateReport.executiveSummary || '暂无执行摘要。' }}</p>
+                                <div class="candidate-report-columns">
+                                  <div>
+                                    <h6>原因假设</h6>
+                                    <ul v-if="result.candidateReport.hypotheses?.length">
+                                      <li v-for="(hypothesis, index) in result.candidateReport.hypotheses" :key="`${result.id}-hypothesis-${index}`">
+                                        <strong>{{ hypothesis.title || '-' }}</strong>
+                                        <span>{{ hypothesis.reasoning || '-' }}</span>
+                                      </li>
+                                    </ul>
+                                    <p v-else>暂无原因假设。</p>
+                                  </div>
+                                  <div>
+                                    <h6>建议动作</h6>
+                                    <ul v-if="result.candidateReport.recommendedNextSteps?.length">
+                                      <li v-for="(step, index) in result.candidateReport.recommendedNextSteps" :key="`${result.id}-step-${index}`">
+                                        <strong>{{ riskLabel(step.risk) }}</strong>
+                                        <span>{{ step.description || '-' }}</span>
+                                      </li>
+                                    </ul>
+                                    <p v-else>暂无建议动作。</p>
+                                  </div>
+                                </div>
+                              </section>
+                              <CnEmptyState
+                                v-else
+                                title="候选报告不可用"
+                                :description="result.failureCode || '该用例未形成可展示的结构化报告。'"
+                                icon="AI"
+                                size="sm"
+                                surface="transparent"
+                              />
+                            </el-collapse-item>
+                          </el-collapse>
+                          <CnEmptyState
+                            v-else-if="!evaluationDetailLoading"
+                            title="暂无逐用例结果"
+                            description="该运行尚未写入评测结果。"
+                            icon="EV"
+                            size="sm"
+                            surface="transparent"
+                          />
+                        </template>
+                        <CnEmptyState
+                          v-else
+                          title="暂无评测历史"
+                          description="当前没有已保存的评测运行。"
+                          icon="EV"
+                          size="sm"
+                          surface="transparent"
+                        />
+                      </el-tab-pane>
+                    </el-tabs>
+                  </section>
+
                   <div v-if="investigationSteps.length" class="rca-block investigation-trace">
                     <h4>调查轨迹</h4>
                     <ol>
@@ -581,7 +903,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Check, CircleCheck, Download, MagicStick, Refresh, View } from '@element-plus/icons-vue'
+import { Check, CircleCheck, Download, MagicStick, Plus, Refresh, VideoPlay, View } from '@element-plus/icons-vue'
 import { sreApi } from '@/api/sre'
 import {
   CnDataTable,
@@ -656,15 +978,20 @@ interface InvestigationContext {
 }
 
 interface RcaReport {
+  incidentId?: number
+  incidentNo?: string
   generationMode?: string
   conclusionStatus?: string
+  severityAssessment?: string
   executiveSummary?: string
   observations?: Array<{ statement?: string; evidenceIds?: number[] }>
   hypotheses?: Array<{
     title?: string
     reasoning?: string
     confidence?: number
+    evidenceStatus?: string
     evidenceIds?: number[]
+    counterEvidenceIds?: number[]
     nextChecks?: string[]
   }>
   recommendedNextSteps?: Array<{ description?: string; risk?: string; evidenceIds?: number[] }>
@@ -737,6 +1064,76 @@ interface RcaRunDetail {
   report?: RcaReport
   provenance?: RcaProvenance
   feedback?: RcaFeedback
+}
+
+interface RcaEvaluationCaseSummary {
+  id: number
+  incidentId: number
+  sourceRunId: number
+  sourceArtifactId?: number
+  sourceFeedbackId: number
+  contextSha256?: string
+  contextLength?: number
+  contextTruncated?: boolean
+  expectedConclusion?: string
+  feedbackAccuracy?: string
+  feedbackGapType?: string
+  sourcePromptId?: string
+  sourceSchemaId?: string
+  sourceProvider?: string
+  sourceConfiguredModel?: string
+  sourceActualModel?: string
+  sourceInvocationOutcome?: string
+  promotedBy?: number
+  promotedAt?: string
+}
+
+interface RcaEvaluationRunSummary {
+  id: number
+  status?: string
+  requestedCaseId?: number
+  requestedBy?: number
+  caseCount: number
+  completedCount: number
+  passedCount: number
+  failedCount: number
+  averageScore?: number | string
+  promptId?: string
+  schemaId?: string
+  provider?: string
+  configuredModel?: string
+  failureCode?: string
+  startedAt?: string
+  completedAt?: string
+}
+
+interface RcaEvaluationCaseResult {
+  id: number
+  runId: number
+  caseId: number
+  status?: string
+  candidateReport?: RcaReport | null
+  promptId?: string
+  schemaId?: string
+  provider?: string
+  configuredModel?: string
+  actualModel?: string
+  invocationOutcome?: string
+  conclusionSimilarity?: number | string
+  evidenceRecall?: number | string
+  severityMatched: boolean
+  safetyCompliant: boolean
+  totalScore?: number | string
+  passed: boolean
+  explanations: string[]
+  failureCode?: string
+  startedAt?: string
+  completedAt?: string
+}
+
+interface RcaEvaluationRunDetail {
+  run: RcaEvaluationRunSummary
+  results: RcaEvaluationCaseResult[]
 }
 
 interface FilterState extends Record<string, unknown> {
@@ -834,9 +1231,22 @@ const feedbackForm = reactive<RcaFeedbackForm>({
 })
 const feedbackSaving = ref(false)
 const evaluationExporting = ref(false)
+const evaluationCases = ref<RcaEvaluationCaseSummary[]>([])
+const evaluationRuns = ref<RcaEvaluationRunSummary[]>([])
+const selectedEvaluationRunId = ref<number | null>(null)
+const evaluationRunDetail = ref<RcaEvaluationRunDetail | null>(null)
+const expandedEvaluationResultIds = ref<number[]>([])
+const activeEvaluationTab = ref('cases')
+const evaluationCatalogLoading = ref(false)
+const evaluationHistoryLoading = ref(false)
+const evaluationDetailLoading = ref(false)
+const evaluationPromoting = ref(false)
+const evaluationRunLoading = ref(false)
+const evaluationRunningCaseId = ref<number | null>(null)
 const actionLoading = ref<'ack' | 'resolve' | ''>('')
 let investigationRequestVersion = 0
 let rcaRequestVersion = 0
+let evaluationRequestVersion = 0
 
 const refreshing = computed(() => summaryLoading.value || listLoading.value)
 const headerDescription = computed(() => `最近观测：${formatTime(summary.value.lastObservedAt)}`)
@@ -864,6 +1274,22 @@ const contextAlerts = computed(() => investigationContext.value?.alerts || [])
 const contextEvidence = computed(() => investigationContext.value?.evidence || [])
 const selectedRcaRun = computed(() => (
   rcaRuns.value.find((run) => run.id === selectedRcaRunId.value) || null
+))
+const latestEvaluationRun = computed(() => evaluationRuns.value[0] || null)
+const displayedEvaluationRun = computed(() => (
+  evaluationRunDetail.value?.run
+  || evaluationRuns.value.find((run) => run.id === selectedEvaluationRunId.value)
+  || null
+))
+const currentEvaluationCase = computed(() => {
+  const feedbackId = rcaFeedback.value?.id
+  if (!feedbackId) return null
+  return evaluationCases.value.find((item) => item.sourceFeedbackId === feedbackId) || null
+})
+const canPromoteEvaluationCase = computed(() => (
+  Boolean(selectedIncident.value?.id && selectedRcaRunId.value && rcaFeedback.value?.id)
+  && !currentEvaluationCase.value
+  && !evaluationPromoting.value
 ))
 const isCurrentIncident = (incidentId: number) => (
   drawerVisible.value && selectedIncident.value?.id === incidentId
@@ -950,6 +1376,7 @@ const changePageSize = (size: number) => {
 const openIncident = async (incident: Incident) => {
   investigationRequestVersion += 1
   rcaRequestVersion += 1
+  evaluationRequestVersion += 1
   selectedIncident.value = { ...incident }
   investigationContext.value = null
   rcaReport.value = null
@@ -959,12 +1386,19 @@ const openIncident = async (incident: Incident) => {
   rcaProvenance.value = null
   rcaFeedback.value = null
   resetFeedbackForm()
+  evaluationCases.value = []
+  evaluationRuns.value = []
+  selectedEvaluationRunId.value = null
+  evaluationRunDetail.value = null
+  expandedEvaluationResultIds.value = []
+  activeEvaluationTab.value = 'cases'
   activeDetailTab.value = 'overview'
   expandedEvidenceIds.value = []
   drawerVisible.value = true
   await Promise.all([
     loadInvestigationContext(incident.id),
-    loadRcaRuns(incident.id)
+    loadRcaRuns(incident.id),
+    loadRcaEvaluationWorkbench()
   ])
 }
 
@@ -1134,6 +1568,170 @@ const exportRcaEvaluationSample = async () => {
   }
 }
 
+const loadRcaEvaluationRun = async (
+  runId: number,
+  manageLoading = true,
+  inheritedRequestVersion?: number
+) => {
+  const requestVersion = inheritedRequestVersion ?? ++evaluationRequestVersion
+  if (manageLoading) evaluationDetailLoading.value = true
+  try {
+    const response = await sreApi.getRcaEvaluationRun(runId) as RcaEvaluationRunDetail | null
+    if (requestVersion !== evaluationRequestVersion || !drawerVisible.value) return
+    const detail = response
+      ? { ...response, results: Array.isArray(response.results) ? response.results.map((item) => ({
+          ...item,
+          explanations: Array.isArray(item.explanations) ? item.explanations : []
+        })) : [] }
+      : null
+    evaluationRunDetail.value = detail
+    selectedEvaluationRunId.value = runId
+    expandedEvaluationResultIds.value = detail?.results[0]?.id ? [detail.results[0].id] : []
+    if (detail?.run) {
+      const index = evaluationRuns.value.findIndex((run) => run.id === detail.run.id)
+      if (index >= 0) evaluationRuns.value[index] = detail.run
+    }
+  } catch (error) {
+    console.error('加载 SRE RCA 评测详情失败:', error)
+    if (requestVersion === evaluationRequestVersion) {
+      evaluationRunDetail.value = null
+      expandedEvaluationResultIds.value = []
+    }
+  } finally {
+    if (manageLoading && requestVersion === evaluationRequestVersion) {
+      evaluationDetailLoading.value = false
+    }
+  }
+}
+
+const loadRcaEvaluationWorkbench = async () => {
+  const requestVersion = ++evaluationRequestVersion
+  evaluationCatalogLoading.value = true
+  evaluationHistoryLoading.value = true
+  try {
+    const [caseResponse, runResponse] = await Promise.all([
+      sreApi.getRcaEvaluationCases(50),
+      sreApi.getRcaEvaluationRuns(20)
+    ]) as [RcaEvaluationCaseSummary[] | null, RcaEvaluationRunSummary[] | null]
+    if (requestVersion !== evaluationRequestVersion || !drawerVisible.value) return
+    evaluationCases.value = Array.isArray(caseResponse) ? caseResponse : []
+    evaluationRuns.value = Array.isArray(runResponse) ? runResponse : []
+
+    if (!evaluationRuns.value.length) {
+      selectedEvaluationRunId.value = null
+      evaluationRunDetail.value = null
+      expandedEvaluationResultIds.value = []
+      return
+    }
+    const selectedStillExists = evaluationRuns.value.some(
+      (run) => run.id === selectedEvaluationRunId.value
+    )
+    const runId = selectedStillExists
+      ? selectedEvaluationRunId.value
+      : evaluationRuns.value[0].id
+    if (runId != null) await loadRcaEvaluationRun(runId, false, requestVersion)
+  } catch (error) {
+    console.error('加载 SRE RCA 评测工作台失败:', error)
+  } finally {
+    if (requestVersion === evaluationRequestVersion) {
+      evaluationCatalogLoading.value = false
+      evaluationHistoryLoading.value = false
+    }
+  }
+}
+
+const selectRcaEvaluationRun = (value: number | string) => {
+  const runId = Number(value)
+  if (!Number.isInteger(runId) || runId <= 0) return
+  loadRcaEvaluationRun(runId).catch((error) => console.error('切换 SRE RCA 评测历史失败:', error))
+}
+
+const promoteRcaEvaluationCase = async () => {
+  const incidentId = selectedIncident.value?.id
+  const runId = selectedRcaRunId.value
+  const feedbackId = rcaFeedback.value?.id
+  if (!incidentId || !runId || !feedbackId || !canPromoteEvaluationCase.value) return
+
+  try {
+    await ElMessageBox.confirm(
+      `确认将反馈修订 #${feedbackId} 固化为不可变评测用例？`,
+      '提升评测用例',
+      { confirmButtonText: '确认提升', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') console.error('提升评测用例确认框异常:', error)
+    return
+  }
+
+  const rcaVersion = rcaRequestVersion
+  evaluationPromoting.value = true
+  try {
+    await sreApi.promoteRcaEvaluationCase(incidentId, runId, feedbackId)
+    if (rcaVersion !== rcaRequestVersion || !isCurrentIncident(incidentId)
+      || selectedRcaRunId.value !== runId || rcaFeedback.value?.id !== feedbackId) return
+    await loadRcaEvaluationWorkbench()
+    activeEvaluationTab.value = 'cases'
+    liveStatus.value = `反馈修订 ${feedbackId} 已提升为不可变评测用例`
+    ElMessage.success('当前反馈修订已提升为评测用例')
+  } catch (error) {
+    console.error('提升 SRE RCA 评测用例失败:', error)
+    liveStatus.value = 'RCA 评测用例提升失败'
+  } finally {
+    evaluationPromoting.value = false
+  }
+}
+
+const runRcaEvaluation = async (caseId?: number) => {
+  if (evaluationRunLoading.value || evaluationPromoting.value) return
+  if (caseId == null && !evaluationCases.value.length) return
+  const targetLabel = caseId == null
+    ? `全部 ${evaluationCases.value.length} 个用例`
+    : `用例 #${caseId}`
+  try {
+    await ElMessageBox.confirm(
+      `确认手动回放${targetLabel}？`,
+      '执行离线评测',
+      { confirmButtonText: '开始回放', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') console.error('执行离线评测确认框异常:', error)
+    return
+  }
+
+  evaluationRequestVersion += 1
+  evaluationRunLoading.value = true
+  evaluationRunningCaseId.value = caseId ?? null
+  liveStatus.value = `正在回放${targetLabel}`
+  try {
+    const response = await sreApi.runRcaEvaluation(caseId) as RcaEvaluationRunDetail | null
+    if (!drawerVisible.value || !response?.run) return
+    evaluationRunDetail.value = {
+      ...response,
+      results: Array.isArray(response.results) ? response.results.map((item) => ({
+        ...item,
+        explanations: Array.isArray(item.explanations) ? item.explanations : []
+      })) : []
+    }
+    selectedEvaluationRunId.value = response.run.id
+    expandedEvaluationResultIds.value = evaluationRunDetail.value.results[0]?.id
+      ? [evaluationRunDetail.value.results[0].id]
+      : []
+    activeEvaluationTab.value = 'history'
+    const runResponse = await sreApi.getRcaEvaluationRuns(20) as RcaEvaluationRunSummary[] | null
+    if (drawerVisible.value) {
+      evaluationRuns.value = Array.isArray(runResponse) ? runResponse : [response.run]
+    }
+    liveStatus.value = `RCA 离线评测完成，平均 ${evaluationScoreText(response.run.averageScore)} 分`
+    ElMessage.success('RCA 离线评测已完成')
+  } catch (error) {
+    console.error('执行 SRE RCA 离线评测失败:', error)
+    liveStatus.value = 'RCA 离线评测失败'
+  } finally {
+    evaluationRunLoading.value = false
+    evaluationRunningCaseId.value = null
+  }
+}
+
 const acknowledgeSelected = async () => {
   if (!selectedIncident.value || !canAcknowledge.value) return
   actionLoading.value = 'ack'
@@ -1208,6 +1806,7 @@ const generateRca = async () => {
 const resetDrawer = () => {
   investigationRequestVersion += 1
   rcaRequestVersion += 1
+  evaluationRequestVersion += 1
   selectedIncident.value = null
   investigationContext.value = null
   rcaReport.value = null
@@ -1217,10 +1816,22 @@ const resetDrawer = () => {
   rcaProvenance.value = null
   rcaFeedback.value = null
   resetFeedbackForm()
+  evaluationCases.value = []
+  evaluationRuns.value = []
+  selectedEvaluationRunId.value = null
+  evaluationRunDetail.value = null
+  expandedEvaluationResultIds.value = []
+  activeEvaluationTab.value = 'cases'
   detailLoading.value = false
   rcaHistoryLoading.value = false
   feedbackSaving.value = false
   evaluationExporting.value = false
+  evaluationCatalogLoading.value = false
+  evaluationHistoryLoading.value = false
+  evaluationDetailLoading.value = false
+  evaluationPromoting.value = false
+  evaluationRunLoading.value = false
+  evaluationRunningCaseId.value = null
   activeDetailTab.value = 'overview'
   expandedEvidenceIds.value = []
   actionLoading.value = ''
@@ -1341,13 +1952,36 @@ const runHistoryLabel = (run: RcaRunSummary) => {
   return `${formatTime(run.startedAt)} · ${mode} · ${conclusionLabel(run.conclusionStatus)}`
 }
 
+const evaluationRunLabel = (run: RcaEvaluationRunSummary) => (
+  `${formatTime(run.startedAt)} · ${evaluationScoreText(run.averageScore)} 分 · ${run.passedCount}/${run.caseCount} 通过`
+)
+
+const evaluationScoreText = (value?: number | string) => {
+  const score = Number(value)
+  return Number.isFinite(score) ? score.toFixed(2) : '-'
+}
+
+const evaluationRatioText = (value?: number | string) => {
+  const ratio = Number(value)
+  return Number.isFinite(ratio) ? `${(Math.max(0, Math.min(1, ratio)) * 100).toFixed(1)}%` : '-'
+}
+
+const abbreviatedHash = (value?: string) => {
+  if (!value) return '-'
+  return value.length > 24 ? `${value.slice(0, 12)}...${value.slice(-8)}` : value
+}
+
 const riskTone = (value?: string): CnTone => ({
+  READ_ONLY: 'success',
+  PROPOSE_ONLY: 'info',
   LOW: 'success',
   MEDIUM: 'warning',
   HIGH: 'danger'
 }[String(value || '').toUpperCase()] as CnTone || 'neutral')
 
 const riskLabel = (value?: string) => ({
+  READ_ONLY: '只读检查',
+  PROPOSE_ONLY: '仅建议',
   LOW: '低风险',
   MEDIUM: '中风险',
   HIGH: '高风险'
@@ -1790,6 +2424,280 @@ onBeforeUnmount(() => {
   justify-content: flex-end;
 }
 
+.evaluation-workbench {
+  padding: var(--cn-space-5) 0;
+  border-bottom: 1px solid var(--cn-color-border-subtle);
+}
+
+.evaluation-heading,
+.evaluation-heading-meta,
+.evaluation-actions,
+.evaluation-item-heading,
+.evaluation-result-title,
+.candidate-report-heading,
+.candidate-report-heading > div {
+  display: flex;
+  align-items: center;
+}
+
+.evaluation-heading,
+.candidate-report-heading {
+  justify-content: space-between;
+  gap: var(--cn-space-3);
+}
+
+.evaluation-heading-meta,
+.evaluation-actions,
+.evaluation-item-heading,
+.candidate-report-heading > div {
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
+}
+
+.evaluation-heading-meta {
+  margin-top: var(--cn-space-2);
+}
+
+.evaluation-actions {
+  justify-content: flex-end;
+}
+
+.evaluation-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+
+.evaluation-actions :deep(.el-button) {
+  min-height: 32px;
+}
+
+.evaluation-tabs {
+  margin-top: var(--cn-space-3);
+}
+
+.evaluation-case-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.evaluation-case-list > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--cn-space-4);
+  min-width: 0;
+  padding: var(--cn-space-4) 0;
+  border-bottom: 1px solid var(--cn-color-border-subtle);
+}
+
+.evaluation-case-main,
+.evaluation-case-meta > div,
+.evaluation-summary-grid > div,
+.evaluation-run-provenance > div,
+.evaluation-result-provenance > div,
+.candidate-report-columns > div {
+  min-width: 0;
+}
+
+.evaluation-item-heading strong,
+.evaluation-result-title strong {
+  color: var(--cn-color-text-primary);
+  font-size: 13px;
+}
+
+.evaluation-case-main > p {
+  margin: var(--cn-space-2) 0 0;
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.evaluation-case-meta,
+.evaluation-run-provenance,
+.evaluation-result-provenance {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cn-space-2) var(--cn-space-4);
+  margin: var(--cn-space-3) 0 0;
+}
+
+.evaluation-case-meta dt,
+.evaluation-summary-grid dt,
+.evaluation-run-provenance dt,
+.evaluation-score-grid dt,
+.evaluation-result-provenance dt {
+  margin-bottom: var(--cn-space-1);
+  color: var(--cn-color-text-tertiary);
+  font-size: 11px;
+}
+
+.evaluation-case-meta dd,
+.evaluation-run-provenance dd,
+.evaluation-result-provenance dd {
+  margin: 0;
+  color: var(--cn-color-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.evaluation-case-meta code,
+.evaluation-run-provenance code,
+.evaluation-result-provenance code {
+  font-family: var(--cn-font-mono);
+  font-size: 11px;
+}
+
+.evaluation-history-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--cn-space-3);
+  margin-bottom: var(--cn-space-4);
+}
+
+.evaluation-history-toolbar label {
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+}
+
+.evaluation-history-toolbar :deep(.el-select) {
+  width: min(440px, 100%);
+}
+
+.evaluation-summary-grid,
+.evaluation-score-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-card);
+  background: var(--cn-color-border-subtle);
+}
+
+.evaluation-summary-grid > div,
+.evaluation-score-grid > div {
+  padding: var(--cn-space-3);
+  background: var(--cn-color-bg-surface-muted);
+}
+
+.evaluation-summary-grid dd,
+.evaluation-score-grid dd {
+  margin: 0;
+  color: var(--cn-color-text-primary);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.evaluation-score-grid dd small {
+  display: block;
+  margin-top: var(--cn-space-1);
+  color: var(--cn-color-text-tertiary);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.evaluation-run-provenance {
+  margin-bottom: var(--cn-space-4);
+  padding-bottom: var(--cn-space-4);
+  border-bottom: 1px solid var(--cn-color-border-subtle);
+}
+
+.evaluation-result-list {
+  border-top: 0;
+}
+
+.evaluation-result-title {
+  flex: 1;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
+  min-width: 0;
+  padding-right: var(--cn-space-2);
+}
+
+.evaluation-result-title > span:not(.cn-status-tag) {
+  color: var(--cn-color-text-secondary);
+  font-family: var(--cn-font-mono);
+  font-size: 12px;
+}
+
+.evaluation-result-title .cn-status-tag:first-of-type {
+  margin-left: auto;
+}
+
+.evaluation-score-grid {
+  margin-bottom: var(--cn-space-4);
+}
+
+.evaluation-result-section {
+  padding: var(--cn-space-4) 0;
+  border-top: 1px solid var(--cn-color-border-subtle);
+}
+
+.evaluation-result-section h5,
+.candidate-report-columns h6 {
+  margin: 0;
+  color: var(--cn-color-text-primary);
+  letter-spacing: 0;
+}
+
+.evaluation-result-section h5 {
+  font-size: 13px;
+}
+
+.candidate-report-columns h6 {
+  font-size: 12px;
+}
+
+.evaluation-explanations,
+.candidate-report-columns ul {
+  display: grid;
+  gap: var(--cn-space-2);
+  margin: var(--cn-space-3) 0 0;
+  padding-left: 18px;
+}
+
+.evaluation-explanations li,
+.candidate-report-columns li,
+.candidate-report-columns p {
+  color: var(--cn-color-text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.candidate-summary {
+  margin: var(--cn-space-3) 0 0;
+  padding-left: var(--cn-space-3);
+  border-left: 3px solid var(--cn-color-brand-primary);
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.candidate-report-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cn-space-5);
+  margin-top: var(--cn-space-4);
+}
+
+.candidate-report-columns li strong,
+.candidate-report-columns li span {
+  display: block;
+}
+
+.candidate-report-columns li span {
+  margin-top: var(--cn-space-1);
+}
+
+.candidate-report-columns p {
+  margin: var(--cn-space-3) 0 0;
+}
+
 .investigation-trace {
   padding-bottom: var(--cn-space-5);
   border-bottom: 1px solid var(--cn-color-border-subtle);
@@ -1978,7 +2886,10 @@ onBeforeUnmount(() => {
   .rca-heading,
   .provenance-heading,
   .feedback-heading,
+  .evaluation-heading,
+  .candidate-report-heading,
   .rca-history-toolbar,
+  .evaluation-history-toolbar,
   .recommendation-list li {
     align-items: flex-start;
     flex-direction: column;
@@ -1997,8 +2908,23 @@ onBeforeUnmount(() => {
     align-items: stretch;
   }
 
-  .rca-history-toolbar :deep(.el-select) {
+  .rca-history-toolbar :deep(.el-select),
+  .evaluation-history-toolbar :deep(.el-select) {
     width: 100%;
+  }
+
+  .evaluation-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .evaluation-case-list > li {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+
+  .evaluation-case-list > li > .el-button {
+    justify-self: start;
   }
 
   .feedback-form {
@@ -2009,10 +2935,33 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
   }
 
+  .evaluation-case-meta,
+  .evaluation-run-provenance,
+  .evaluation-result-provenance,
+  .candidate-report-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .evaluation-summary-grid,
+  .evaluation-score-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .evaluation-result-title .cn-status-tag:first-of-type {
+    margin-left: 0;
+  }
+
   .feedback-form :deep(.el-form-item),
   .feedback-actions,
   .provenance-hash {
     grid-column: 1;
+  }
+}
+
+@media (max-width: 420px) {
+  .evaluation-summary-grid,
+  .evaluation-score-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

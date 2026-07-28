@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.sre.mapper.SreRcaEvaluationCaseMapper">
+
+    <resultMap id="SreRcaEvaluationCaseResult" type="com.xiaou.sre.domain.SreRcaEvaluationCase">
+        <id property="id" column="id"/>
+        <result property="incidentId" column="incident_id"/>
+        <result property="sourceRunId" column="source_run_id"/>
+        <result property="sourceArtifactId" column="source_artifact_id"/>
+        <result property="sourceFeedbackId" column="source_feedback_id"/>
+        <result property="contextJson" column="context_json"/>
+        <result property="contextSha256" column="context_sha256"/>
+        <result property="contextLength" column="context_length"/>
+        <result property="contextTruncated" column="context_truncated"/>
+        <result property="baselineReportJson" column="baseline_report_json"/>
+        <result property="expectedConclusion" column="expected_conclusion"/>
+        <result property="feedbackAccuracy" column="feedback_accuracy"/>
+        <result property="feedbackGapType" column="feedback_gap_type"/>
+        <result property="sourcePromptId" column="source_prompt_id"/>
+        <result property="sourceSchemaId" column="source_schema_id"/>
+        <result property="sourceProvider" column="source_provider"/>
+        <result property="sourceConfiguredModel" column="source_configured_model"/>
+        <result property="sourceActualModel" column="source_actual_model"/>
+        <result property="sourceInvocationOutcome" column="source_invocation_outcome"/>
+        <result property="promotedBy" column="promoted_by"/>
+        <result property="promotedAt" column="promoted_at"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <sql id="allColumns">
+        id, incident_id, source_run_id, source_artifact_id, source_feedback_id,
+        context_json, context_sha256, context_length, context_truncated, baseline_report_json,
+        expected_conclusion, feedback_accuracy, feedback_gap_type, source_prompt_id,
+        source_schema_id, source_provider, source_configured_model, source_actual_model,
+        source_invocation_outcome, promoted_by, promoted_at, create_time
+    </sql>
+
+    <sql id="summaryColumns">
+        id, incident_id, source_run_id, source_artifact_id, source_feedback_id,
+        context_sha256, context_length, context_truncated, expected_conclusion,
+        feedback_accuracy, feedback_gap_type, source_prompt_id, source_schema_id,
+        source_provider, source_configured_model, source_actual_model,
+        source_invocation_outcome, promoted_by, promoted_at, create_time
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sre_rca_evaluation_case (
+            incident_id, source_run_id, source_artifact_id, source_feedback_id,
+            context_json, context_sha256, context_length, context_truncated,
+            baseline_report_json, expected_conclusion, feedback_accuracy, feedback_gap_type,
+            source_prompt_id, source_schema_id, source_provider, source_configured_model,
+            source_actual_model, source_invocation_outcome, promoted_by, promoted_at, create_time
+        ) VALUES (
+            #{incidentId}, #{sourceRunId}, #{sourceArtifactId}, #{sourceFeedbackId},
+            #{contextJson}, #{contextSha256}, #{contextLength}, #{contextTruncated},
+            #{baselineReportJson}, #{expectedConclusion}, #{feedbackAccuracy}, #{feedbackGapType},
+            #{sourcePromptId}, #{sourceSchemaId}, #{sourceProvider}, #{sourceConfiguredModel},
+            #{sourceActualModel}, #{sourceInvocationOutcome}, #{promotedBy}, #{promotedAt}, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <select id="selectById" resultMap="SreRcaEvaluationCaseResult">
+        SELECT <include refid="allColumns"/>
+        FROM sre_rca_evaluation_case
+        WHERE id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="selectBySourceFeedbackId" resultMap="SreRcaEvaluationCaseResult">
+        SELECT <include refid="allColumns"/>
+        FROM sre_rca_evaluation_case
+        WHERE source_feedback_id = #{sourceFeedbackId}
+        LIMIT 1
+    </select>
+
+    <select id="selectRecent" resultMap="SreRcaEvaluationCaseResult">
+        SELECT <include refid="summaryColumns"/>
+        FROM sre_rca_evaluation_case
+        ORDER BY promoted_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+</mapper>

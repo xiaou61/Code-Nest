@@ -6,7 +6,7 @@
 
 ## 表统计总览
 
-当前主库基线包含 154 张表，按业务域分布：
+当前主库基线包含 157 张表，按业务域分布：
 
 | 业务域 | 表数量 | 模块 | 表前缀 |
 | --- | --- | --- | --- |
@@ -30,7 +30,7 @@
 | 敏感词 | 11 | xiaou-sensitive | `sensitive_*` |
 | 摸鱼工具 | 7 | xiaou-moyu | `developer_calendar_*`, `daily_content`, `user_calendar_*`, `user_salary_*`, `work_record`, `bug_*`, `user_bug_*` |
 | 版本历史 | 1 | xiaou-version | `version_history` |
-| SRE 运维 | 9 | xiaou-sre, xiaou-system | `sre_*` |
+| SRE 运维 | 12 | xiaou-sre, xiaou-system | `sre_*` |
 
 ## 索引策略
 
@@ -286,12 +286,20 @@
 | `sre_investigation_artifact` | run_id, context_sha256, prompt_id, schema_id, actual_model, invocation_outcome | xiaou-sre, xiaou-system |
 | `sre_investigation_step` | run_id, step_order, step_code, status, detail | xiaou-sre, xiaou-system |
 | `sre_investigation_feedback` | run_id, accuracy, gap_type, expected_conclusion, reviewed_by | xiaou-sre, xiaou-system |
+| `sre_rca_evaluation_case` | source_run_id, source_artifact_id, source_feedback_id, context_sha256 | xiaou-sre, xiaou-system |
+| `sre_rca_evaluation_run` | status, requested_case_id, case_count, passed_count, average_score | xiaou-sre, xiaou-system |
+| `sre_rca_evaluation_result` | evaluation_run_id, case_id, invocation_outcome, total_score, passed | xiaou-sre, xiaou-system |
 
 `sre_investigation_run.report_json` 只保存经过后端脱敏和结构校验的报告；调查步骤只保存
 受控摘要与失败码，不保存异常正文。`sre_investigation_artifact` 每个 run 最多一行，保存模型
 实际接收的 60k 内脱敏上下文、SHA-256 和 Prompt/Schema/模型来源，详情接口只返回来源摘要，
 不返回 `context_json`。反馈表采用追加式修订，每次编辑新增一行；备注和期望结论在入库前清理
 控制字符及常见凭据，当前评测样本仍不导出模型输入、备注和管理员身份。
+
+`sre_rca_evaluation_case` 只由管理员从指定 run、artifact 和反馈修订显式提升，按
+`source_feedback_id` 幂等冻结。`sre_rca_evaluation_run` 与 `sre_rca_evaluation_result`
+分别保存一次手动回放的聚合结果和逐用例候选报告、模型来源及透明分项评分。普通 API 不返回
+冻结 `context_json` 或 `baseline_report_json`，失败记录只保存受控失败码。
 
 ## 数据库视图
 
@@ -319,7 +327,7 @@
 | `sql/v1.8.2` | 成长自动驾驶、求职闭环、岗位匹配、OJ 评论、SQL 优化、驾驶舱排行 |
 | `sql/v1.8.3` | 学习资产候选 |
 | `sql/v1.8.4` | 学习资产转化 |
-| `sql/v2.5.0` | SRE 告警、事故、证据、调查运行、回放产物、步骤与反馈修订 |
+| `sql/v2.5.0` | SRE 告警、事故、证据、调查运行、回放产物、反馈修订和 RCA 离线评测 |
 
 ## Mapper 定位规则
 
@@ -359,7 +367,7 @@ grep -r "user_points_balance" --include="*.xml" xiaou-*/
 
 | 文件 | 说明 |
 | --- | --- |
-| `sql/MySql/code_nest.sql` | 当前完整主库基线脚本（154 表） |
+| `sql/MySql/code_nest.sql` | 当前完整主库基线脚本（157 表） |
 | `sql/v1.2.0/` ~ `sql/v2.5.0/` | 版本增量脚本 |
 | `xiaou-*/src/main/java/**/domain/` | 实体类目录 |
 | `xiaou-*/src/main/java/**/mapper/` | Mapper 接口目录 |

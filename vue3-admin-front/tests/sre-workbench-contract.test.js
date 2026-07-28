@@ -9,11 +9,16 @@ const apiSource = readFileSync(resolve(projectRoot, 'src/api/sre.js'), 'utf8')
 const routerSource = readFileSync(resolve(projectRoot, 'src/router/index.js'), 'utf8')
 const layoutSource = readFileSync(resolve(projectRoot, 'src/layout/index.vue'), 'utf8')
 const workbenchSource = readFileSync(resolve(projectRoot, 'src/views/sre/incidents/index.vue'), 'utf8')
+const globalStylesSource = readFileSync(resolve(projectRoot, 'src/styles/index.scss'), 'utf8')
 const alertRulesSource = readFileSync(resolve(repositoryRoot, 'docker/monitoring/alert_rules.yml'), 'utf8')
 const monitoringReadmeSource = readFileSync(resolve(repositoryRoot, 'docker/monitoring/README.md'), 'utf8')
 const databaseBaselineSource = readFileSync(resolve(repositoryRoot, 'sql/MySql/code_nest.sql'), 'utf8')
 const investigationMigrationSource = readFileSync(
   resolve(repositoryRoot, 'sql/v2.5.0/sre_investigation_run.sql'),
+  'utf8'
+)
+const evaluationMigrationSource = readFileSync(
+  resolve(repositoryRoot, 'sql/v2.5.0/sre_rca_evaluation.sql'),
   'utf8'
 )
 
@@ -28,6 +33,11 @@ test('SRE API client should expose the complete administrator incident workflow'
   assert.match(apiSource, /`\/admin\/sre\/incidents\/\$\{id\}\/rca-runs\/\$\{runId\}`/)
   assert.match(apiSource, /`\/admin\/sre\/incidents\/\$\{id\}\/rca-runs\/\$\{runId\}\/feedback`/)
   assert.match(apiSource, /`\/admin\/sre\/incidents\/\$\{id\}\/rca-runs\/\$\{runId\}\/evaluation-sample`/)
+  assert.match(apiSource, /`\/admin\/sre\/incidents\/\$\{id\}\/rca-runs\/\$\{runId\}\/evaluation-cases`/)
+  assert.match(apiSource, /request\.get\('\/admin\/sre\/rca-evaluations\/cases'/)
+  assert.match(apiSource, /request\.post\(\s*'\/admin\/sre\/rca-evaluations\/runs'/)
+  assert.match(apiSource, /request\.get\('\/admin\/sre\/rca-evaluations\/runs'/)
+  assert.match(apiSource, /`\/admin\/sre\/rca-evaluations\/runs\/\$\{runId\}`/)
   assert.match(apiSource, /timeout:\s*180000/)
 })
 
@@ -54,6 +64,19 @@ test('SRE workbench should keep incident actions, evidence and AI output inspect
   assert.match(workbenchSource, /分析反馈/)
   assert.match(workbenchSource, /saveRcaFeedback/)
   assert.match(workbenchSource, /exportRcaEvaluationSample/)
+  assert.match(workbenchSource, /promoteRcaEvaluationCase/)
+  assert.match(workbenchSource, /runRcaEvaluation/)
+  assert.match(workbenchSource, /getRcaEvaluationRun/)
+  assert.match(workbenchSource, /提升当前修订/)
+  assert.match(workbenchSource, /回放全部/)
+  assert.match(workbenchSource, /结论相似度/)
+  assert.match(workbenchSource, /证据召回/)
+  assert.match(workbenchSource, /模型来源/)
+  assert.match(workbenchSource, /候选报告/)
+  assert.match(workbenchSource, /READ_ONLY:\s*'只读检查'/)
+  assert.match(workbenchSource, /PROPOSE_ONLY:\s*'仅建议'/)
+  assert.doesNotMatch(workbenchSource, /evaluationCase\.contextJson/)
+  assert.doesNotMatch(workbenchSource, /baselineReportJson/)
   assert.match(workbenchSource, /isCurrentIncident/)
   assert.match(workbenchSource, /rcaRequestVersion/)
   assert.match(workbenchSource, /aria-live="polite"/)
@@ -64,6 +87,13 @@ test('SRE incident drawer should use a splitter-compatible responsive size', () 
   assert.match(workbenchSource, /:size="drawerSize"/)
   assert.match(workbenchSource, /window\.addEventListener\('resize', syncViewportWidth\)/)
   assert.doesNotMatch(workbenchSource, /size="min\(/)
+})
+
+test('primary button overrides should preserve plain, text and link variants', () => {
+  assert.match(
+    globalStylesSource,
+    /\.el-button--primary:not\(\.is-plain\):not\(\.is-text\):not\(\.is-link\)/
+  )
 })
 
 test('admin shell should expose the full content width behind mobile navigation', () => {
@@ -98,4 +128,19 @@ test('persistent RCA tables should be present in both fresh and incremental data
   assert.match(investigationMigrationSource, /`context_sha256` CHAR\(64\)/)
   assert.match(investigationMigrationSource, /UNIQUE KEY `uk_sre_artifact_run` \(`run_id`\)/)
   assert.match(monitoringReadmeSource, /sql\/v2\.5\.0\/sre_investigation_run\.sql/)
+})
+
+test('immutable RCA evaluation tables should be present in fresh and incremental database paths', () => {
+  for (const table of [
+    'sre_rca_evaluation_case',
+    'sre_rca_evaluation_run',
+    'sre_rca_evaluation_result'
+  ]) {
+    const createTable = 'CREATE TABLE IF NOT EXISTS `' + table + '`'
+    assert.ok(databaseBaselineSource.includes(createTable))
+    assert.ok(evaluationMigrationSource.includes(createTable))
+  }
+  assert.match(evaluationMigrationSource, /UNIQUE KEY `uk_sre_rca_eval_case_feedback` \(`source_feedback_id`\)/)
+  assert.match(evaluationMigrationSource, /`context_json` MEDIUMTEXT NOT NULL/)
+  assert.match(evaluationMigrationSource, /`candidate_report_json` MEDIUMTEXT/)
 })

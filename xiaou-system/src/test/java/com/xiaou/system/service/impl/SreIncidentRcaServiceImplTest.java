@@ -296,7 +296,7 @@ class SreIncidentRcaServiceImplTest {
                 .thenReturn(Optional.of(artifact()));
         return new SreIncidentRcaServiceImpl(
                 investigationFacade,
-                aiExecutionSupport,
+                new SreRcaAnalyzerImpl(aiExecutionSupport),
                 new ObjectMapper().findAndRegisterModules(),
                 investigationRunService,
                 investigationFeedbackService,

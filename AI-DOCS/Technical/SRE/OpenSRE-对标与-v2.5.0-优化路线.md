@@ -34,8 +34,8 @@ Code-Nest 的优势是事故、证据、权限、事务 Outbox 和管理后台�
 | 有界 Agent 循环 | 工具 schema 最多 32 个、循环最多 20 次；重复调用复用缓存，连续两次停滞后移除工具并强制收敛 | 未来做动态只读取证时必须先具备同类预算和停滞保护 |
 | 会话持久化 | JSONL Session Repo 支持最近会话、调查历史、按前缀恢复调查；REPL 暴露 `/sessions` 和 `/resume` | Code-Nest 页面刷新后应继续看到原 RCA 和调查轨迹 |
 | 工具元数据 | `ToolMetadata` 声明 evidence type 和 `none/read_only/mutating/external` 副作用等级 | 与 Code-Nest 已有 Agent 风险模型方向一致 |
-| 反馈闭环 | `partial/inaccurate` 结果会按 retrieval/reasoning/tool/routing 等 taxonomy 记录为 miss，并可导出为 benchmark case | Code-Nest v2.5.0 已补齐评价、缺口分类、追加审计和脱敏样本导出；自动跑分器仍待实现 |
-| 评测体系 | benchmark 保存报告、单 case 原始产物和代码/配置/模型 provenance；官方文档当前提到 452 个 CloudOpsBench 场景 | 在扩大模型自主取证之前，应先建立离线回放和可比较评分 |
+| 反馈闭环 | `partial/inaccurate` 结果会按 retrieval/reasoning/tool/routing 等 taxonomy 记录为 miss，并可导出为 benchmark case | Code-Nest v2.5.0 已补齐评价、缺口分类、追加审计，并支持将指定反馈修订人工提升为不可变评测用例 |
+| 评测体系 | benchmark 保存报告、单 case 原始产物和代码/配置/模型 provenance；官方文档当前提到 452 个 CloudOpsBench 场景 | v2.5.0 已实现手动离线回放、逐用例产物、模型 provenance 和固定规则评分；场景规模、代码提交 provenance 与 CI 门禁仍未对齐 |
 | 数据安全 | README 声明可逆标识符掩码、结构化审计 Prompt、本地 transcript；遥测默认 opt-out | Code-Nest 已有双层脱敏，但仍需持续检查持久化报告和日志边界 |
 
 ### 已核对的反向证据
@@ -75,6 +75,18 @@ Code-Nest 的优势是事故、证据、权限、事务 Outbox 和管理后台�
     PARSER_FAILURE` 调用结果；
 12. RCA 详情接口和管理端只展示 provenance 摘要，不返回 `context_json`；明显未脱敏的 Bearer、
     常见云密钥和敏感 JSON 字段会被持久化边界拒绝。
+13. 新增 `sre_rca_evaluation_case`，管理员只能从指定终态 run、对应 artifact 和指定反馈修订
+    显式提升；`source_feedback_id` 唯一，重复提升返回同一不可变用例；
+14. 新增 `sre_rca_evaluation_run` 与 `sre_rca_evaluation_result`，保存单用例或当前全部用例的
+    手动回放、候选报告、Prompt/Schema、provider、配置/实际模型、调用结果及聚合得分；
+15. 线上 RCA 与离线回放共用 `SreRcaAnalyzer`，保证 Prompt、结构化契约、证据引用白名单、
+    危险建议降级和确定性 fallback 语义一致；
+16. 透明评分不调用模型裁判：期望结论 Dice 相似度 50、证据引用召回 25、严重度一致 15、
+    只读安全 10。总分至少 70、模型成功返回 AI 报告且只读安全通过时才算通过；
+17. 管理端支持提升当前反馈修订、查看用例目录、单用例/全量手动回放、历史聚合和逐项评分。
+    API DTO 不包含冻结上下文或基准报告 JSON，失败记录不保存异常正文；
+18. artifact 提升和实际回放都会重新执行大小、哈希和未脱敏凭据校验，防止数据库内容被改写
+    并重算哈希后进入模型。
 
 ## 4. 差距和优先级
 
@@ -84,7 +96,7 @@ Code-Nest 的优势是事故、证据、权限、事务 Outbox 和管理后台�
 | --- | --- | --- | --- |
 | P0 | RCA 运行不可恢复、不可审计 | 刷新即丢、无法判断 AI/降级过程 | 本次已完成 |
 | 已完成 | 没有准确/部分准确/不准确反馈 | 无法知道模型是否真的帮助定位 | v2.5.0 已增加评价、缺口分类、追加审计和期望结论 |
-| P1 | 尚无自动离线回放与可比较评分 | 改 Prompt/模型后仍不能自动量化差异 | 已有精确脱敏输入与 provenance；下一步将反馈 + artifact 提升为不可变 case，再持久化单 case 评分和聚合得分 |
+| 已完成 | 缺少可控离线回放与可比较评分 | 改 Prompt/模型后无法量化差异 | v2.5.0 已实现人工提升、单用例/全量手动回放、逐用例透明评分和聚合得分；不从生产事故自动调用模型 |
 | P1 | 缺少发布和 Runbook 证据 | 根因容易停留在指标/日志层 | 先接入最近发布、版本和只读 Runbook，仍走证据表 |
 | P1 | SRE 自身指标不完整 | 无法发现调查失败率、降级率和积压 | 暴露 run duration、status、generation mode、outbox backlog 指标 |
 | P2 | 固定查询不能按假设追加取证 | 复杂事故证据覆盖有限 | 只在白名单工具上实现最多 3-5 轮的有界调查，不开放任意命令或查询 |
@@ -95,7 +107,7 @@ Code-Nest 的优势是事故、证据、权限、事务 Outbox 和管理后台�
 
 ### 5.1 RCA 反馈与回归评测
 
-反馈、精确输入与 provenance 基础已经落地：
+反馈、精确输入、不可变用例与手动回放已经落地：
 
 - `ACCURATE / PARTIAL / INACCURATE` 评价；
 - `RETRIEVAL_GAP / REASONING_GAP / TOOL_FAILURE / ROUTING_GAP / UNKNOWN` 分类；
@@ -103,11 +115,16 @@ Code-Nest 的优势是事故、证据、权限、事务 Outbox 和管理后台�
 - 只导出结构化报告和评价结论，不导出原始模型输入、日志、备注、身份或异常正文。
 - 服务端按 run 保存模型实际接收的脱敏上下文、SHA-256、Prompt/Schema ID、配置与实际模型、
   调用结果；管理端不回显上下文正文。
+- 管理员通过显式动作将指定 run、artifact 和反馈修订冻结为不可变 case；前端不能提交或
+  修改上下文，重复提升同一反馈修订保持幂等；
+- 离线 runner 只读取这些已审核 case，支持单用例或当前最多 100 个用例的手动回放；
+- 每个结果保存结构化候选报告、Prompt/Schema、provider、配置/实际模型、调用结果、分项分数、
+  总分和受控失败码，运行保存通过数、失败数和平均分；
+- 固定权重评分可由人工复核，不使用模型 judge，也不会依据得分自动切换或发布模型。
 
-下一步不是让生产表被定时任务直接拿去调用模型，而是增加显式管理员“提升为评测 case”动作，
-把反馈与 artifact 复制成不可变、可禁用、可版本化的评测用例。离线 runner 只读取这些已审核
-case，保存候选模型、Prompt/Schema、代码提交、单 case 原始结果、评分和聚合得分。完成自动
-回放与可比较评分前，仍不能宣称“模型升级后真的更好”。
+这完成了“反馈 -> 审核用例 -> 回放 -> 可比较结果”的最小闭环，但不等于完全对齐 OpenSRE：
+当前没有 CloudOpsBench 同等规模的场景集、代码提交 provenance、版本化套件和 CI 自动门禁。
+后续扩展这些能力时仍应读取隔离的审核用例集，不能让定时任务扫描生产事故并直接调用模型。
 
 ### 5.2 发布和 Runbook 证据
 
@@ -132,6 +149,10 @@ case，保存候选模型、Prompt/Schema、代码提交、单 case 原始结果
 - 不引入 Neo4j 作为当前版本依赖；
 - 不追求一次接入 60+ 工具，只接当前服务器真实存在的数据源；
 - 不允许模型执行 Shell、Docker、任意 PromQL/LogQL 或修复动作；
+- 不设定时任务从生产事故自动调用模型；
+- 不使用模型裁判替代可复核评分规则；
+- 不根据评测结果自动切换、发布或回滚模型；
+- 不通过管理 API 返回冻结上下文或基准报告 JSON；
 - 不让 AI、Loki、Grafana 或 MySQL 故障阻塞 Alertmanager 的 QQ 邮件链路。
 
 ## 7. 官方来源

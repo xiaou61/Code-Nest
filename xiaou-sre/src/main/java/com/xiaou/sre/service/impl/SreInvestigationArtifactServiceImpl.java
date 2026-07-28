@@ -6,6 +6,7 @@ import com.xiaou.sre.dto.request.SreInvestigationArtifactCapture;
 import com.xiaou.sre.mapper.SreInvestigationArtifactMapper;
 import com.xiaou.sre.mapper.SreInvestigationRunMapper;
 import com.xiaou.sre.service.SreInvestigationArtifactService;
+import com.xiaou.sre.service.SreReplayContextPolicy;
 import com.xiaou.sre.service.SreValidationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -35,13 +36,6 @@ public class SreInvestigationArtifactServiceImpl implements SreInvestigationArti
     private static final Set<String> INVOCATION_OUTCOMES = Set.of(
             "SUCCESS", "MODEL_UNAVAILABLE", "EMPTY_RESPONSE", "INVOCATION_EXCEPTION", "PARSER_FAILURE");
     private static final Pattern CONTROL_PATTERN = Pattern.compile("[\\p{Cntrl}&&[^\\r\\n\\t]]");
-    private static final Pattern BEARER_PATTERN = Pattern.compile(
-            "(?i)\\bBearer\\s+(?!\\[REDACTED])[-A-Za-z0-9._~+/=]{6,}");
-    private static final Pattern STANDALONE_CREDENTIAL_PATTERN = Pattern.compile(
-            "(?i)\\b(?:sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})\\b");
-    private static final Pattern JSON_SECRET_VALUE_PATTERN = Pattern.compile(
-            "(?i)\\\"[A-Za-z0-9_.-]*(?:authorization|password|passwd|token|secret|apikey|cookie|credential|privatekey)\\\""
-                    + "\\s*:\\s*\\\"(?!\\[REDACTED])[^\\\"]{4,}\\\"");
 
     private final SreInvestigationRunMapper runMapper;
     private final SreInvestigationArtifactMapper artifactMapper;
@@ -96,10 +90,7 @@ public class SreInvestigationArtifactServiceImpl implements SreInvestigationArti
         if (!StringUtils.hasText(contextJson) || contextJson.length() > MAX_CONTEXT_LENGTH) {
             throw new SreValidationException("调查回放上下文大小不合法");
         }
-        if (CONTROL_PATTERN.matcher(contextJson).find()
-                || BEARER_PATTERN.matcher(contextJson).find()
-                || STANDALONE_CREDENTIAL_PATTERN.matcher(contextJson).find()
-                || JSON_SECRET_VALUE_PATTERN.matcher(contextJson).find()) {
+        if (SreReplayContextPolicy.containsUnsafeContent(contextJson)) {
             throw new SreValidationException("调查回放上下文包含未脱敏凭据");
         }
     }

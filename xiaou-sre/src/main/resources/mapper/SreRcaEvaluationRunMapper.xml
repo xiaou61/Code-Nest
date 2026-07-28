@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.sre.mapper.SreRcaEvaluationRunMapper">
+
+    <resultMap id="SreRcaEvaluationRunResult" type="com.xiaou.sre.domain.SreRcaEvaluationRun">
+        <id property="id" column="id"/>
+        <result property="status" column="status"/>
+        <result property="requestedCaseId" column="requested_case_id"/>
+        <result property="requestedBy" column="requested_by"/>
+        <result property="caseCount" column="case_count"/>
+        <result property="completedCount" column="completed_count"/>
+        <result property="passedCount" column="passed_count"/>
+        <result property="failedCount" column="failed_count"/>
+        <result property="averageScore" column="average_score"/>
+        <result property="promptId" column="prompt_id"/>
+        <result property="schemaId" column="schema_id"/>
+        <result property="provider" column="provider"/>
+        <result property="configuredModel" column="configured_model"/>
+        <result property="failureCode" column="failure_code"/>
+        <result property="startedAt" column="started_at"/>
+        <result property="completedAt" column="completed_at"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="allColumns">
+        id, status, requested_case_id, requested_by, case_count, completed_count,
+        passed_count, failed_count, average_score, prompt_id, schema_id, provider,
+        configured_model, failure_code, started_at, completed_at, create_time, update_time
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sre_rca_evaluation_run (
+            status, requested_case_id, requested_by, case_count, completed_count,
+            passed_count, failed_count, prompt_id, schema_id, started_at, create_time, update_time
+        ) VALUES (
+            #{status}, #{requestedCaseId}, #{requestedBy}, #{caseCount}, #{completedCount},
+            #{passedCount}, #{failedCount}, #{promptId}, #{schemaId}, #{startedAt},
+            CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <update id="updateCompletion">
+        UPDATE sre_rca_evaluation_run
+        SET status = #{status}, completed_count = #{completedCount}, passed_count = #{passedCount},
+            failed_count = #{failedCount}, average_score = #{averageScore}, provider = #{provider},
+            configured_model = #{configuredModel}, failure_code = NULL,
+            completed_at = #{completedAt}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND status = 'RUNNING'
+    </update>
+
+    <update id="updateFailed">
+        UPDATE sre_rca_evaluation_run
+        SET status = 'FAILED', failure_code = #{failureCode}, completed_at = #{completedAt},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND status = 'RUNNING'
+    </update>
+
+    <select id="selectById" resultMap="SreRcaEvaluationRunResult">
+        SELECT <include refid="allColumns"/>
+        FROM sre_rca_evaluation_run
+        WHERE id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="selectRecent" resultMap="SreRcaEvaluationRunResult">
+        SELECT <include refid="allColumns"/>
+        FROM sre_rca_evaluation_run
+        ORDER BY started_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+</mapper>

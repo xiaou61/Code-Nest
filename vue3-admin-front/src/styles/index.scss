@@ -114,13 +114,13 @@ h6 {
   transform: translateY(-1px);
 }
 
-.el-button--primary {
+.el-button--primary:not(.is-plain):not(.is-text):not(.is-link) {
   border-color: var(--cn-button-primary-bg);
   background: var(--cn-button-primary-bg);
   box-shadow: 0 8px 18px color-mix(in srgb, var(--cn-color-brand-primary) 22%, transparent);
 }
 
-.el-button--primary:not(.is-disabled):hover {
+.el-button--primary:not(.is-plain):not(.is-text):not(.is-link):not(.is-disabled):hover {
   border-color: var(--cn-button-primary-hover-bg);
   background: var(--cn-button-primary-hover-bg);
   box-shadow: 0 10px 22px color-mix(in srgb, var(--cn-color-brand-hover) 24%, transparent);

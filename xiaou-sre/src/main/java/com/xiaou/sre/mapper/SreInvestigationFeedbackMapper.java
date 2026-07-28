@@ -15,4 +15,7 @@ public interface SreInvestigationFeedbackMapper {
     int insert(SreInvestigationFeedback feedback);
 
     SreInvestigationFeedback selectLatestByRunId(@Param("runId") Long runId);
+
+    SreInvestigationFeedback selectByIdAndRunId(@Param("id") Long id,
+                                                @Param("runId") Long runId);
 }

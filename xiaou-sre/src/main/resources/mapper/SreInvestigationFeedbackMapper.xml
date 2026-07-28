@@ -31,4 +31,13 @@
         ORDER BY id DESC
         LIMIT 1
     </select>
+
+    <select id="selectByIdAndRunId" resultMap="SreInvestigationFeedbackResult">
+        SELECT id, run_id, accuracy, gap_type, note, expected_conclusion,
+               reviewed_by, reviewed_at, create_time
+        FROM sre_investigation_feedback
+        WHERE id = #{id}
+          AND run_id = #{runId}
+        LIMIT 1
+    </select>
 </mapper>

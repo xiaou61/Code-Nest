@@ -2,9 +2,9 @@
 
 > 文档类型：技术架构设计
 >
-> 版本：v1.3（P3.4 脱敏回放输入与 provenance 已落地）
+> 版本：v1.4（P3.5 不可变评测用例与手动离线回放已落地）
 >
-> 日期：2026-07-23
+> 日期：2026-07-28
 >
 > 关联方案：[Code-Nest 24x7 SRE 能力建设方案](./Code-Nest-24x7-SRE-方案.md)
 >
@@ -38,6 +38,7 @@
 - P1 的日志、MySQL、Redis、异地探针扩展点。
 - P2 的告警入库、事故聚合、证据时间线和后台管理接口。
 - P3 的只读 AI RCA、工具权限和证据引用。
+- P3.5 的人工审核评测用例、手动离线回放和透明评分。
 - P4 自动修复的安全准入边界。
 
 ### 2.2 明确不做
@@ -57,7 +58,7 @@
 | 根 `pom.xml` | Java 17、多模块 Maven 聚合 | 新 SRE 模块应加入根聚合，不另建独立后端仓库。 |
 | `xiaou-application` | Spring Boot 启动模块，端口 `9999`，context path `/api` | 业务模块和未来 `xiaou-sre` 由它统一装配。 |
 | `xiaou-common` | Web、MyBatis、Druid、Redis、Sa-Token、Actuator、Micrometer | SRE 使用公共能力，但不把事故领域模型放进 common。 |
-| `xiaou-system` | 管理员、系统配置和现有 Admin Agent | P3 已放置薄的 RCA 编排服务和 AgentTool，`xiaou-sre` 不反向依赖 system。 |
+| `xiaou-system` | 管理员、系统配置和现有 Admin Agent | P3 已放置薄的 RCA/离线评测编排服务和 AgentTool，`xiaou-sre` 不反向依赖 system。 |
 | `xiaou-ai` | LangChain4j/LangGraph4j 和统一 AI facade | P0 不依赖；P3 复用统一 Prompt、结构化输出、超时、重试和成本指标。 |
 | `xiaou-notification` | 业务通知模块 | 不替代 Alertmanager 的 critical 邮件链；P2 可用于站内事件提醒。 |
 | `vue3-admin-front` | Vue 3 管理端，路由和 API 目录按模块组织 | P2 新增 SRE 菜单、页面和 API，不开新前端应用。 |
@@ -200,6 +201,8 @@ P3 已通过 `xiaou-system` 的薄编排层接入 `xiaou-ai` 统一运行时：
   不变量强制为 `false`；
 - 模型不可用、超时、异常或输出不符合结构化契约时，返回确定性的 `FALLBACK` 证据报告，
   不影响 P0/P1/P2 告警链路。
+- 线上 RCA 与管理员手动离线回放复用同一分析器；离线结果只进入评测表，不改变生产事故、
+  Prompt 配置或模型发布状态。
 
 ## 5. P0 单机部署架构
 
@@ -385,6 +388,19 @@ POST /api/admin/sre/action-proposals/{proposalId}/approve
 P2 只开放事件确认、指派、关闭、证据查看和 Runbook 管理。`approve` 接口先只记录审批，
 不执行动作；真正的 execute API 留到 P4，并且需要更高权限和二次确认。
 
+P3.5 已落地的 RCA 评测管理 API：
+
+```text
+POST /api/admin/sre/incidents/{incidentId}/rca-runs/{runId}/evaluation-cases
+GET  /api/admin/sre/rca-evaluations/cases
+POST /api/admin/sre/rca-evaluations/runs
+GET  /api/admin/sre/rca-evaluations/runs
+GET  /api/admin/sre/rca-evaluations/runs/{evaluationRunId}
+```
+
+所有接口要求管理员权限。提升和回放接口不保存请求/响应正文审计；请求只能指定反馈修订 ID
+或用例 ID，不能提交模型上下文、基准报告、Prompt、模型或任意查询参数。
+
 #### 未来只读查询接口
 
 ```text
@@ -441,6 +457,9 @@ SreOutboxWorker (bounded executor)
 | `SreActionProposal` | `incidentId`、`actionType`、`risk`、`reason`、`rollbackPlan`、`state` | 提案版本递增 | P3 AI 只能创建该实体。 |
 | `SreActionExecution` | `proposalId`、`approvalId`、`executor`、`result`、`auditTrail` | 一个提案可多次尝试但每次有 executionId | P4 才启用。 |
 | `SreOutboxEvent` | `aggregateType`、`aggregateId`、`eventType`、`payload`、`state`、`nextAttemptAt` | `eventId` 唯一 | 异步证据采集和通知任务。 |
+| `SreRcaEvaluationCase` | 来源 run/artifact/feedback、上下文哈希、基准报告、期望结论、来源模型 | `sourceFeedbackId` 唯一 | 只允许管理员显式冻结，API 不返回上下文或基准报告正文。 |
+| `SreRcaEvaluationRun` | 请求用例、状态、完成/通过/失败数、平均分、Prompt/Schema/模型 | 每次手动触发一条 | 不由定时任务创建，不自动切换模型。 |
+| `SreRcaEvaluationResult` | run、case、候选报告、调用结果、四项分数、总分、失败码 | `(evaluationRunId, caseId)` 唯一 | 保存可复核逐用例结果，不保存异常正文。 |
 
 ### 7.2 状态机
 
@@ -731,7 +750,21 @@ Docker、任意 PromQL/LogQL 或数据库写操作。
     未脱敏的 Bearer、常见云密钥和敏感 JSON 字段。
 12. RCA 详情新增 provenance 摘要，管理端展示 Prompt/Schema、配置与实际模型、调用结果、
     上下文规模和哈希，但 DTO 不含 `context_json`，因此页面和普通详情 API 都不能回显模型输入。
-    这为后续“人工提升为不可变评测 case”提供精确输入，但当前尚未实现自动回放和评分器。
+13. P3.5 新增 `sre_rca_evaluation_case`：管理员从指定终态 run、唯一 artifact 和指定反馈修订
+    显式提升不可变用例。事故/run/feedback 归属、上下文长度、SHA-256 和未脱敏凭据在提升时
+    重新校验；同一 `source_feedback_id` 保持幂等。
+14. P3.5 新增 `sre_rca_evaluation_run` 与 `sre_rca_evaluation_result`：支持指定单 case 或当前
+    最多 100 个已审核 case 的手动回放，持久化候选报告、Prompt/Schema、provider、配置/实际
+    模型、调用结果、逐项分数、总分、通过状态和聚合结果。
+15. 线上生成和离线回放共用 `SreRcaAnalyzer`，证据 ID 白名单、结构化解析、危险建议降级、
+    确定性 fallback 及输入上限没有第二套实现。模型 fallback 会把评测 run 标记为 `DEGRADED`，
+    即使规则总分达到阈值也不能判定通过。
+16. 评分器不使用模型 judge：期望结论 Dice 相似度权重 50、基准证据引用召回 25、严重度一致
+    15、只读安全 10。通过条件是总分至少 70、模型成功返回 AI 报告且只读安全门槛通过。
+17. 管理端 RCA 页提供当前反馈修订提升、用例目录、单用例/全量回放、历史平均分和通过数、
+    逐 case 分项评分、模型来源与候选报告。页面不绑定 `context_json` 或 `baseline_report_json`。
+18. 实际回放再次校验冻结 case 的大小、哈希和凭据模式，防止评测表被改写并重算哈希后把
+    未脱敏内容发送给模型。失败只落受控失败码。
 
 相对初稿的调整：不再为模型提供直接的 PromQL/Loki 查询工具。P2 采集器使用固定查询白名单
 生成可审计快照，P3 只分析这些已入库证据。发布记录和 Runbook 证据可以后续通过同一 facade
@@ -740,7 +773,7 @@ Docker、任意 PromQL/LogQL 或数据库写操作。
 完成标准已满足：AI 不可用不影响 P0/P1/P2；每个结论都有有效事实引用或明确的“证据不足”
 标记；接口、AgentTool、权限种子、统一入口、提示词注入、脱敏、非法证据、降级路径、
 报告恢复、调查轨迹、反馈组合校验、artifact 跨事故归属、上下文大小与凭据拒绝、详情不回显
-输入以及脱敏样本边界均有测试。
+输入、不可变用例、手动回放、透明评分、fallback 降级以及脱敏样本边界均有测试。
 
 ### P4：受控动作
 
@@ -757,6 +790,7 @@ Docker、任意 PromQL/LogQL 或数据库写操作。
 | 邮件 | Alertmanager 直连 QQ SMTP | Java 中转邮件 | 缩短 critical 路径，避免业务服务故障影响通知。 |
 | P2 异步 | MySQL transactional outbox + 有界线程池 | Kafka/RabbitMQ | 单机规模优先降低运维面，保留以后替换点。 |
 | AI 位置 | 告警后只读调查 | AI 放在告警热路径 | 模型不稳定、成本和安全风险不能影响告警。 |
+| 离线评测 | 管理员审核用例 + 手动回放 + 固定规则评分 | 定时扫描生产事故、模型 judge、自动发布 | 控制成本与数据边界，评分可复核且不改变线上状态。 |
 | OpenSRE | 独立可选 adapter | 直接 fork/embed | 它是 Python public alpha，且范围大于当前单机需求。 |
 | 自动修复 | P4 审批后执行 | P0 自动重启 | 当前没有成熟证据、回滚、审计和异地验证。 |
 
@@ -776,6 +810,8 @@ Docker、任意 PromQL/LogQL 或数据库写操作。
 - [ ] webhook 使用机器凭据，不使用浏览器 Token。
 - [ ] P1 exporter 使用最小权限账号。
 - [x] AI 输入和日志快照经过脱敏。
+- [x] 评测用例在提升和回放边界重复校验哈希、大小和未脱敏凭据。
+- [x] 评测 API 不返回冻结上下文、基准报告 JSON 或异常正文。
 
 ### 可靠性
 

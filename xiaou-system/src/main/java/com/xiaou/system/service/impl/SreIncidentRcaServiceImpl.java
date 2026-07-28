@@ -1,15 +1,8 @@
 package com.xiaou.system.service.impl;
 
-import cn.hutool.json.JSONArray;
-import cn.hutool.json.JSONObject;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.xiaou.ai.prompt.sre.SreRcaPromptSpecs;
-import com.xiaou.ai.structured.AiStructuredOutputValidator;
-import com.xiaou.ai.structured.sre.SreRcaStructuredOutputSpecs;
 import com.xiaou.ai.support.AiExecutionResult;
-import com.xiaou.ai.support.AiExecutionSupport;
-import com.xiaou.ai.util.AiJsonResponseParser;
 import com.xiaou.sre.domain.SreInvestigationArtifact;
 import com.xiaou.sre.domain.SreInvestigationRun;
 import com.xiaou.sre.domain.SreInvestigationStep;
@@ -27,6 +20,8 @@ import com.xiaou.system.dto.SreRcaFeedbackRequest;
 import com.xiaou.system.dto.SreRcaReport;
 import com.xiaou.system.dto.SreRcaRunDetail;
 import com.xiaou.system.dto.SreRcaRunSummary;
+import com.xiaou.system.service.SreRcaAnalysisInput;
+import com.xiaou.system.service.SreRcaAnalyzer;
 import com.xiaou.system.service.SreIncidentRcaService;
 import com.xiaou.system.service.SreRcaTriggerSource;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +29,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -44,7 +38,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 
 /**
@@ -57,7 +50,6 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
 
-    private static final String SCENE = "sre.incident.rca";
     private static final String EVALUATION_SCHEMA_VERSION = "code-nest.sre.rca-eval.v1";
     private static final int MAX_CONTEXT_LENGTH = 60_000;
     private static final int MAX_ALERTS = 10;
@@ -83,7 +75,7 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
     private static final Pattern CONTROL_PATTERN = Pattern.compile("[\\p{Cntrl}&&[^\\r\\n\\t]]");
 
     private final SreInvestigationFacade investigationFacade;
-    private final AiExecutionSupport aiExecutionSupport;
+    private final SreRcaAnalyzer rcaAnalyzer;
     private final ObjectMapper objectMapper;
     private final SreInvestigationRunService investigationRunService;
     private final SreInvestigationFeedbackService investigationFeedbackService;
@@ -124,7 +116,7 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
         } catch (RuntimeException exception) {
             log.warn("SRE RCA 上下文构建失败，返回证据不足报告: incidentId={}, reason={}",
                     incidentId, exception.getClass().getSimpleName());
-            SreRcaReport report = fallbackReport(context, references(context, Set.of()), true);
+            SreRcaReport report = rcaAnalyzer.fallback(analysisInput(context, "{}", Set.of(), true));
             try {
                 investigationRunService.recordStep(
                         run.getId(), 2, "MODEL_CONTEXT_BUILT", "DEGRADED", "上下文构建失败，已进入确定性降级。"
@@ -151,18 +143,11 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
         }
 
         try {
-            AiExecutionResult<SreRcaReport> execution = aiExecutionSupport.chatWithFallbackResult(
-                    SCENE,
-                    SreRcaPromptSpecs.INVESTIGATE,
-                    Map.of("incidentContextJson", modelContext.json()),
-                    response -> parseReport(response, context, modelContext),
-                    () -> fallbackReport(context, references(context, modelContext.evidenceIds()),
-                            modelContext.truncated())
-            );
+            SreRcaAnalysisInput analysisInput = analysisInput(context, modelContext);
+            AiExecutionResult<SreRcaReport> execution = rcaAnalyzer.analyze(analysisInput);
             SreRcaReport report = execution.value();
             if (report == null) {
-                report = fallbackReport(context, references(context, modelContext.evidenceIds()),
-                        modelContext.truncated());
+                report = rcaAnalyzer.fallback(analysisInput);
             }
 
             captureArtifact(incidentId, run.getId(), modelContext, execution);
@@ -526,173 +511,6 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
         return "[REDACTED]";
     }
 
-    private SreRcaReport parseReport(String response,
-                                     SreInvestigationContext context,
-                                     ModelContext modelContext) {
-        JSONObject json = AiJsonResponseParser.parse(response);
-        AiStructuredOutputValidator.ValidationResult validation =
-                SreRcaStructuredOutputSpecs.REPORT.validateObject(json);
-        if (!validation.valid()) {
-            throw new IllegalArgumentException("SRE RCA 输出不符合结构化契约: " + validation.reason());
-        }
-
-        ParseState state = new ParseState();
-        List<SreRcaReport.Observation> observations = parseObjects(
-                json.getJSONArray("observations"),
-                MAX_OBSERVATIONS,
-                item -> observation(item, modelContext.evidenceIds(), state)
-        ).stream().filter(java.util.Objects::nonNull).toList();
-        List<SreRcaReport.Hypothesis> hypotheses = parseObjects(
-                json.getJSONArray("hypotheses"),
-                MAX_HYPOTHESES,
-                item -> hypothesis(item, modelContext.evidenceIds(), state)
-        );
-        List<SreRcaReport.RecommendedNextStep> recommendations = parseObjects(
-                json.getJSONArray("recommendedNextSteps"),
-                MAX_RECOMMENDATIONS,
-                item -> recommendation(item, modelContext.evidenceIds(), state)
-        );
-        List<String> limitations = stringList(json.getJSONArray("limitations"), MAX_LIMITATIONS, 500);
-        if (state.invalidReference) {
-            limitations = appendDistinct(limitations, "模型输出包含无有效证据引用，已由后端移除或降级。",
-                    MAX_LIMITATIONS);
-        }
-        if (modelContext.truncated()) {
-            limitations = appendDistinct(limitations, "输入模型的事故上下文已按安全上限裁剪。",
-                    MAX_LIMITATIONS);
-        }
-
-        String conclusionStatus = normalizeConclusion(
-                json.getStr("conclusionStatus"), observations, hypotheses);
-        return new SreRcaReport(
-                context.incident().id(),
-                safeText(context.incident().incidentNo(), 64, "UNKNOWN"),
-                "AI",
-                conclusionStatus,
-                json.getStr("severityAssessment"),
-                safeText(json.getStr("executiveSummary"), 2_000, "未生成有效摘要。"),
-                observations,
-                hypotheses,
-                recommendations,
-                references(context, modelContext.evidenceIds()),
-                limitations,
-                modelContext.truncated(),
-                false,
-                LocalDateTime.now()
-        );
-    }
-
-    private SreRcaReport.Observation observation(JSONObject item,
-                                                 Set<Long> allowedEvidenceIds,
-                                                 ParseState state) {
-        List<Long> evidenceIds = evidenceIds(item.getJSONArray("evidenceIds"), allowedEvidenceIds, state);
-        if (evidenceIds.isEmpty()) {
-            return null;
-        }
-        return new SreRcaReport.Observation(
-                safeText(item.getStr("statement"), 1_000, "未提供观察描述。"),
-                evidenceIds
-        );
-    }
-
-    private SreRcaReport.Hypothesis hypothesis(JSONObject item,
-                                               Set<Long> allowedEvidenceIds,
-                                               ParseState state) {
-        List<Long> evidenceIds = evidenceIds(item.getJSONArray("evidenceIds"), allowedEvidenceIds, state);
-        List<Long> counterEvidenceIds = evidenceIds(
-                item.getJSONArray("counterEvidenceIds"), allowedEvidenceIds, state);
-        boolean supported = !evidenceIds.isEmpty();
-        Double rawConfidence = item.getDouble("confidence", 0D);
-        double confidence = rawConfidence == null ? 0D : Math.max(0D, Math.min(1D, rawConfidence));
-        if (!supported) {
-            confidence = Math.min(confidence, 0.2D);
-        }
-        return new SreRcaReport.Hypothesis(
-                safeText(item.getStr("title"), 200, "未命名假设"),
-                safeText(item.getStr("reasoning"), 2_000, "证据不足。"),
-                confidence,
-                supported ? "SUPPORTED" : "INSUFFICIENT",
-                evidenceIds,
-                counterEvidenceIds,
-                stringList(item.getJSONArray("nextChecks"), 5, 500)
-        );
-    }
-
-    private SreRcaReport.RecommendedNextStep recommendation(JSONObject item,
-                                                            Set<Long> allowedEvidenceIds,
-                                                            ParseState state) {
-        return new SreRcaReport.RecommendedNextStep(
-                safeText(item.getStr("description"), 1_000, "人工复核事故证据。"),
-                item.getStr("risk"),
-                evidenceIds(item.getJSONArray("evidenceIds"), allowedEvidenceIds, state)
-        );
-    }
-
-    private String normalizeConclusion(String requested,
-                                       List<SreRcaReport.Observation> observations,
-                                       List<SreRcaReport.Hypothesis> hypotheses) {
-        long supportedHypotheses = hypotheses.stream()
-                .filter(item -> "SUPPORTED".equals(item.evidenceStatus()))
-                .count();
-        if (observations.isEmpty() && supportedHypotheses == 0) {
-            return "INSUFFICIENT_EVIDENCE";
-        }
-        if (hypotheses.isEmpty()) {
-            return "PARTIAL";
-        }
-        if (supportedHypotheses < hypotheses.size() && "SUPPORTED".equals(requested)) {
-            return "PARTIAL";
-        }
-        return requested;
-    }
-
-    private SreRcaReport fallbackReport(SreInvestigationContext context,
-                                        List<SreRcaReport.EvidenceReference> references,
-                                        boolean contextTruncated) {
-        List<SreRcaReport.Observation> observations = references.stream()
-                .limit(MAX_OBSERVATIONS)
-                .map(item -> new SreRcaReport.Observation(
-                        "已采集 " + safeText(item.sourceType(), 64, "UNKNOWN")
-                                + " 证据，状态为 " + safeText(item.status(), 32, "UNKNOWN") + "。",
-                        List.of(item.id())
-                ))
-                .toList();
-        List<Long> referenceIds = references.stream()
-                .map(SreRcaReport.EvidenceReference::id)
-                .filter(java.util.Objects::nonNull)
-                .limit(5)
-                .toList();
-        List<String> limitations = new ArrayList<>(List.of(
-                "AI 运行时不可用、超时或输出不符合结构化契约。",
-                "当前仅返回已采集事实，未形成自动根因结论。"
-        ));
-        if (contextTruncated) {
-            limitations.add("事故上下文已按安全上限裁剪。");
-        }
-        String summary = "事故 " + safeText(context.incident().incidentNo(), 64, "UNKNOWN")
-                + " 已收集 " + references.size() + " 条可引用证据；当前证据不足以生成可靠自动根因结论。";
-        return new SreRcaReport(
-                context.incident().id(),
-                safeText(context.incident().incidentNo(), 64, "UNKNOWN"),
-                "FALLBACK",
-                "INSUFFICIENT_EVIDENCE",
-                severity(context.incident().severity()),
-                summary,
-                observations,
-                List.of(),
-                List.of(new SreRcaReport.RecommendedNextStep(
-                        "由管理员人工复核现有事故证据和监控时间窗口。",
-                        "READ_ONLY",
-                        referenceIds
-                )),
-                references,
-                limitations,
-                contextTruncated,
-                false,
-                LocalDateTime.now()
-        );
-    }
-
     private List<SreRcaReport.EvidenceReference> references(SreInvestigationContext context,
                                                             Set<Long> allowedEvidenceIds) {
         return context.evidence().stream()
@@ -707,56 +525,27 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
                 .toList();
     }
 
-    private List<Long> evidenceIds(JSONArray array, Set<Long> allowed, ParseState state) {
-        LinkedHashSet<Long> result = new LinkedHashSet<>();
-        if (array == null) {
-            state.invalidReference = true;
-            return List.of();
-        }
-        for (int i = 0; i < array.size() && result.size() < MAX_EVIDENCE; i++) {
-            try {
-                Long id = Long.valueOf(String.valueOf(array.get(i)).trim());
-                if (allowed.contains(id)) {
-                    result.add(id);
-                } else {
-                    state.invalidReference = true;
-                }
-            } catch (RuntimeException ignored) {
-                state.invalidReference = true;
-            }
-        }
-        return List.copyOf(result);
+    private SreRcaAnalysisInput analysisInput(SreInvestigationContext context, ModelContext modelContext) {
+        return analysisInput(
+                context,
+                modelContext.json(),
+                modelContext.evidenceIds(),
+                modelContext.truncated()
+        );
     }
 
-    private List<String> stringList(JSONArray array, int maxItems, int maxLength) {
-        if (array == null) {
-            return List.of();
-        }
-        LinkedHashSet<String> result = new LinkedHashSet<>();
-        for (int i = 0; i < array.size() && result.size() < maxItems; i++) {
-            String value = safeText(String.valueOf(array.get(i)), maxLength, "");
-            if (StringUtils.hasText(value)) {
-                result.add(value);
-            }
-        }
-        return List.copyOf(result);
-    }
-
-    private <T> List<T> parseObjects(JSONArray array, int maxItems, Function<JSONObject, T> mapper) {
-        List<T> result = new ArrayList<>();
-        for (int i = 0; array != null && i < array.size() && result.size() < maxItems; i++) {
-            JSONObject item = array.getJSONObject(i);
-            if (item != null) {
-                result.add(mapper.apply(item));
-            }
-        }
-        return result;
-    }
-
-    private List<String> appendDistinct(List<String> values, String value, int maxItems) {
-        LinkedHashSet<String> result = new LinkedHashSet<>(values);
-        result.add(value);
-        return result.stream().limit(maxItems).toList();
+    private SreRcaAnalysisInput analysisInput(SreInvestigationContext context,
+                                              String contextJson,
+                                              Set<Long> evidenceIds,
+                                              boolean contextTruncated) {
+        return new SreRcaAnalysisInput(
+                contextJson,
+                context.incident().id(),
+                context.incident().incidentNo(),
+                context.incident().severity(),
+                references(context, evidenceIds),
+                contextTruncated
+        );
     }
 
     private String contextStepDetail(SreInvestigationContext context) {
@@ -791,8 +580,8 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
                 runId,
                 modelContext.json(),
                 modelContext.truncated(),
-                SreRcaPromptSpecs.INVESTIGATE.promptId(),
-                SreRcaStructuredOutputSpecs.REPORT.schemaId(),
+                rcaAnalyzer.promptId(),
+                rcaAnalyzer.schemaId(),
                 execution.provider(),
                 execution.configuredModel(),
                 execution.actualModel(),
@@ -907,26 +696,11 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
         return sanitized.length() <= maxLength ? sanitized : sanitized.substring(0, maxLength);
     }
 
-    private String severity(String value) {
-        String normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
-        return switch (normalized) {
-            case "critical" -> "CRITICAL";
-            case "high" -> "HIGH";
-            case "warning", "medium" -> "MEDIUM";
-            case "low", "info" -> "LOW";
-            default -> "UNKNOWN";
-        };
-    }
-
     private String text(Object value) {
         return value == null ? null : String.valueOf(value);
     }
 
     private record ModelContext(String json, Set<Long> evidenceIds, boolean truncated) {
-    }
-
-    private static final class ParseState {
-        private boolean invalidReference;
     }
 
     private static final class MutableFlag {

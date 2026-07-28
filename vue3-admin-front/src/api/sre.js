@@ -39,6 +39,33 @@ export const sreApi = {
 
   getRcaEvaluationSample(id, runId) {
     return request.get(`/admin/sre/incidents/${id}/rca-runs/${runId}/evaluation-sample`)
+  },
+
+  promoteRcaEvaluationCase(id, runId, feedbackId) {
+    return request.post(
+      `/admin/sre/incidents/${id}/rca-runs/${runId}/evaluation-cases`,
+      { feedbackId }
+    )
+  },
+
+  getRcaEvaluationCases(limit = 50) {
+    return request.get('/admin/sre/rca-evaluations/cases', { limit })
+  },
+
+  runRcaEvaluation(caseId) {
+    return request.post(
+      '/admin/sre/rca-evaluations/runs',
+      caseId == null ? {} : { caseId },
+      { timeout: 1800000 }
+    )
+  },
+
+  getRcaEvaluationRuns(limit = 20) {
+    return request.get('/admin/sre/rca-evaluations/runs', { limit })
+  },
+
+  getRcaEvaluationRun(runId) {
+    return request.get(`/admin/sre/rca-evaluations/runs/${runId}`)
   }
 }
 
