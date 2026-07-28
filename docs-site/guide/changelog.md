@@ -12,6 +12,7 @@
 
 | 版本 | 日期 | 主要变更 |
 |------|------|---------|
+| v2.5.0 | 2026-07-28 | 24x7 SRE 监控、事故工作台、最多 5 轮只读 RCA、回放反馈、持久化评测队列与自身指标 |
 | v2.4.3 | 2026-07-16 | 首次登录首周任务引导、首页聚合接口、自动同步状态、首页行动优先与 Element Plus 按需引入 |
 | v2.4.2 | 2026-07-16 | 移动端导航和认证首屏修复、目标导向导航、行动优先页面顺序、首页故障提示降噪 |
 | v2.4.1 | 2026-07-15 | 共享设计系统、缓存与线程池治理、热点链路优化、文档中心重构 |
@@ -25,6 +26,35 @@
 | v2.1.1 | - | WebSocket 票据机制、CORS 配置化 |
 | v2.1.0 | - | AI 学习成长驾驶舱、AI Runtime 治理中心 |
 | v2.0.0 | - | AI 基础设施切换到 LangChain4j/LangGraph4j/LlamaIndex |
+
+---
+
+## v2.5.0 (2026-07-28)
+
+### Added
+
+- 新增 Prometheus、Alertmanager、Blackbox Exporter 和 Grafana 24x7 监控栈，以及独立 token 保护的私网 Webhook
+- 新增告警、事故、证据和事务 Outbox 持久化，并提供可重试 Worker 与失败记录
+- 新增管理端事故工作台、摘要、状态操作、RCA 历史、阶段轨迹、回放来源和人工反馈
+- 新增最多 5 轮的固定 Prometheus/Loki 只读调查；每条新证据在最终分析前持久化
+- 新增不可变 RCA 评测用例、版本化套件、质量门禁和支持租约恢复的持久化评测队列
+- 新增积压、任务年龄、运行耗时、调查轮数、重试、租约恢复和终态失败等 SRE 自身指标
+
+### Security
+
+- 模型只能选择后端固定 tool key，不接受模型生成的 PromQL、LogQL、Shell 或 SQL
+- 当前没有自动修复或其他系统写操作，也没有金额、Token 或模型成本预算闸门
+- Webhook 只允许监控私网直连，不得通过公网 Nginx 暴露
+
+### Migration
+
+- 新环境直接使用 `sql/MySql/code_nest.sql` 和最新权限种子
+- 已部署环境严格按 [发布说明](https://github.com/xiaou61/Code-Nest/blob/master/RELEASE.md#v250) 执行 `sql/v2.5.0` 脚本；suite、queue 和早期调查轮次迁移不可重复执行
+- 表结构和私网端点确认前保持 SRE Worker、数据库 gauge 与只读数据源关闭，最后再启用评测 Worker
+
+### Notes
+
+- 本版本建立 Code Nest 当前范围内的只读 SRE 调查和质量评测闭环，不宣称与 OpenSRE 完全对齐
 
 ---
 

@@ -1,6 +1,6 @@
 # Code Nest
 
-![Version](https://img.shields.io/badge/version-v2.4.3-blue.svg)
+![Version](https://img.shields.io/badge/version-v2.5.0-blue.svg)
 ![Java](https://img.shields.io/badge/java-17-orange.svg)
 ![Spring Boot](https://img.shields.io/badge/spring%20boot-3.4.4-brightgreen.svg)
 ![Vue](https://img.shields.io/badge/vue-3.x-4fc08d.svg)
@@ -15,6 +15,21 @@ Code Nest 是一个面向开发者的成长型社区与知识运营平台，采�
 - **vue3-admin-front**：面向运营/管理员的后台，覆盖菜单/角色、内容审核、题库管理、版本追踪、任务配置、观测看板等能力。
 - **vue3-user-front**：面向开发者的用户端，提供刷题、简历制作、动态广场、博客阅读、代码分享、学习资产沉淀、通知消息等场景。
 - **xiaou-application**：多模块聚合的 Spring Boot API，整合 `xiaou-*` 业务模块，对外暴露统一的 `/api` 网关、鉴权、日志与监控。
+
+## v2.5.0 Read-Only SRE Investigation And Evaluation
+
+`v2.5.0` 新增从 24x7 告警到事故、证据、只读 RCA、反馈和离线评测的完整 SRE 工作流。
+
+### 本次版本完成
+
+- **24x7 监控与告警接入**：提供 Prometheus、Alertmanager、Blackbox Exporter、Grafana 部署配置，以及独立 token 保护的私网 Webhook。
+- **事故与证据持久化**：新增 `xiaou-sre`，保存告警、事故聚合、状态、证据和事务 Outbox，Worker 支持重试与失败记录。
+- **管理端事故工作台**：支持事故摘要、状态操作、时间线、RCA 历史、调查轨迹、回放来源和人工反馈。
+- **有界只读 RCA**：模型只能选择固定 Prometheus/Loki tool key，后端最多执行 5 轮并持久化新证据，再生成一次结构化报告。
+- **RCA 质量闭环**：不可变用例、版本化套件和持久化评测队列支持进度、心跳、租约恢复、退避、deadline、质量门禁和构建溯源。
+- **SRE 自身指标**：覆盖积压、任务年龄、运行耗时、调查轮数、重试、租约恢复和终态失败。
+- **明确能力边界**：不接受模型生成的 PromQL、LogQL、Shell 或 SQL，不执行自动修复；没有金额、Token 或模型成本预算闸门，也不宣称完全对齐 OpenSRE。
+- **数据库迁移**：新环境使用主 schema；旧环境严格按 [v2.5.0 发布说明](./RELEASE.md#v250) 中的顺序执行 `sql/v2.5.0` 脚本，并在迁移完成后分阶段启用 Worker。
 
 ## v2.4.3 Guided First Week And Home Overview
 
@@ -385,7 +400,7 @@ mvn clean package -DskipTests
 mvn -pl xiaou-application -am spring-boot:run
 
 # 或直接运行打包后的 jar
-java -jar xiaou-application/target/xiaou-application-v2.4.3.jar --spring.profiles.active=prod
+java -jar xiaou-application/target/xiaou-application-v2.5.0.jar --spring.profiles.active=prod
 ```
 
 - API 根地址：`http://localhost:9999/api`
@@ -553,7 +568,7 @@ management:
 
 ```bash
 # 构建镜像
-docker build -t code-nest:v2.4.3 -f docker/Dockerfile .
+docker build -t code-nest:v2.5.0 -f docker/Dockerfile .
 
 # 运行容器
 docker run -d \
@@ -561,7 +576,7 @@ docker run -d \
   -p 9999:9999 \
   -e SPRING_PROFILES_ACTIVE=prod \
   --env-file docker/env/example.env \
-  code-nest:v2.4.3
+  code-nest:v2.5.0
 ```
 
 如果要把 MySQL / Redis / Java 主服务 / `llamaindex-service` 一起编排起来，推荐使用：
@@ -630,6 +645,14 @@ server {
 ## 📝 更新日志
 
 仅列出最近版本，更多历史可查看 `git log`。
+
+### v2.5.0 Read-Only SRE Investigation And Evaluation
+
+- **告警到事故闭环**：24x7 监控、私网 Webhook、事故聚合、证据快照和事务 Outbox 形成可恢复链路。
+- **只读 RCA 工作台**：管理端可查看事故、最多 5 轮固定查询、运行轨迹、历史报告、回放来源和反馈修订。
+- **评测与质量门禁**：不可变评测用例、版本化套件和持久化队列提供构建溯源、租约恢复与终态治理。
+- **可观测性**：暴露 SRE 积压、任务年龄、运行耗时、调查轮数、重试、租约恢复和失败指标。
+- **安全边界**：无任意查询、无系统写操作、无自动修复、无成本预算闸门；当前能力不等同于完整 OpenSRE。
 
 ### v2.4.3 Guided First Week And Home Overview
 

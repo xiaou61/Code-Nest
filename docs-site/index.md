@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: Code Nest
-  text: v2.4.3 工程文档中心
+  text: v2.5.0 工程文档中心
   tagline: 按角色、任务和系统边界组织的开发、接口、操作与运维手册。
   image:
     src: /code-nest-mark.svg
