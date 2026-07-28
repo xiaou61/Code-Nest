@@ -133,12 +133,12 @@ cp "$monitoring_dir/scripts/compose.sh" "$ops_root/monitoring/scripts/compose.sh
 printf 'new-jar\n' >"$stage/backend/app.jar"
 printf 'new-user\n' >"$stage/user/index.html"
 printf 'new-admin\n' >"$stage/admin/index.html"
-cat >"$stage/RELEASE" <<'EOF'
-version=v2.5.1
-sha=1111111111111111111111111111111111111111
-build_id=release-251-1111111
-built_at=2026-07-28T12:00:00Z
-EOF
+printf '%s\r\n' \
+  'version=v2.5.1' \
+  'sha=1111111111111111111111111111111111111111' \
+  'build_id=release-251-1111111' \
+  'built_at=2026-07-28T12:00:00Z' \
+  >"$stage/RELEASE"
 cp "$deploy_script" "$stage/scripts/deploy-release.sh"
 
 cat >"$stage/scripts/server-capacity-governance.sh" <<'EOF'
