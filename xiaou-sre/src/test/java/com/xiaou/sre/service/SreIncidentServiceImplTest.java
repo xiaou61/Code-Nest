@@ -1,6 +1,7 @@
 package com.xiaou.sre.service;
 
 import com.xiaou.sre.domain.SreIncident;
+import com.xiaou.sre.dto.response.SreIncidentSummary;
 import com.xiaou.sre.mapper.SreIncidentMapper;
 import com.xiaou.sre.service.impl.SreIncidentServiceImpl;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,16 @@ class SreIncidentServiceImplTest {
 
     @InjectMocks
     private SreIncidentServiceImpl service;
+
+    @Test
+    void summaryReturnsMapperAggregation() {
+        SreIncidentSummary summary = new SreIncidentSummary();
+        summary.setActiveCount(2L);
+        when(incidentMapper.selectSummary()).thenReturn(summary);
+
+        assertThat(service.summary()).isSameAs(summary);
+        verify(incidentMapper).selectSummary();
+    }
 
     @Test
     void acknowledgeMovesOpenIncidentToAcknowledged() {

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.sre.mapper.SreInvestigationRunMapper">
+
+    <resultMap id="SreInvestigationRunResult" type="com.xiaou.sre.domain.SreInvestigationRun">
+        <id property="id" column="id"/>
+        <result property="incidentId" column="incident_id"/>
+        <result property="status" column="status"/>
+        <result property="triggerSource" column="trigger_source"/>
+        <result property="requestedBy" column="requested_by"/>
+        <result property="generationMode" column="generation_mode"/>
+        <result property="conclusionStatus" column="conclusion_status"/>
+        <result property="alertCount" column="alert_count"/>
+        <result property="evidenceCount" column="evidence_count"/>
+        <result property="contextTruncated" column="context_truncated"/>
+        <result property="reportJson" column="report_json"/>
+        <result property="failureCode" column="failure_code"/>
+        <result property="startedAt" column="started_at"/>
+        <result property="completedAt" column="completed_at"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="summaryColumns">
+        id, incident_id, status, trigger_source, requested_by, generation_mode,
+        conclusion_status, alert_count, evidence_count, context_truncated,
+        failure_code, started_at, completed_at, create_time, update_time
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sre_investigation_run (
+            incident_id, status, trigger_source, requested_by, alert_count,
+            evidence_count, context_truncated, started_at, create_time, update_time
+        ) VALUES (
+            #{incidentId}, #{status}, #{triggerSource}, #{requestedBy}, #{alertCount},
+            #{evidenceCount}, #{contextTruncated}, #{startedAt}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <update id="updateCompletion">
+        UPDATE sre_investigation_run
+        SET status = #{status}, generation_mode = #{generationMode},
+            conclusion_status = #{conclusionStatus}, context_truncated = #{contextTruncated},
+            report_json = #{reportJson},
+            failure_code = NULL, completed_at = #{completedAt}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND status = 'RUNNING'
+    </update>
+
+    <update id="updateFailed">
+        UPDATE sre_investigation_run
+        SET status = 'FAILED', failure_code = #{failureCode}, completed_at = #{completedAt},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND status = 'RUNNING'
+    </update>
+
+    <select id="selectByIncidentId" resultMap="SreInvestigationRunResult">
+        SELECT <include refid="summaryColumns"/>
+        FROM sre_investigation_run
+        WHERE incident_id = #{incidentId}
+        ORDER BY started_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectByIncidentIdAndId" resultMap="SreInvestigationRunResult">
+        SELECT <include refid="summaryColumns"/>, report_json
+        FROM sre_investigation_run
+        WHERE incident_id = #{incidentId}
+          AND id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="selectByIncidentIdAndIdForUpdate" resultMap="SreInvestigationRunResult">
+        SELECT <include refid="summaryColumns"/>
+        FROM sre_investigation_run
+        WHERE incident_id = #{incidentId}
+          AND id = #{id}
+        LIMIT 1
+        FOR UPDATE
+    </select>
+</mapper>

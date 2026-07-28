@@ -15,6 +15,8 @@ public class SreIncidentEvidence {
     private Long id;
     private Long incidentId;
     private Long outboxEventId;
+    private Long investigationRunId;
+    private String queryFingerprint;
     private String sourceType;
     private String sourceRef;
     private String query;

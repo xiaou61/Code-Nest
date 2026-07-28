@@ -1,5 +1,71 @@
 # 发布流程
 
+## v2.5.0
+
+`v2.5.0` 将 24x7 告警、事故聚合、证据留存、只读 RCA、人工反馈和离线质量评测收敛为一条可恢复、可审计的 SRE 工作流。它不会执行自动修复，也不代表已经完全对齐 OpenSRE。
+
+### Highlights
+
+- 部署 Prometheus、Alertmanager、Blackbox Exporter 与 Grafana 监控栈，通过独立 token 保护的私网 Webhook 接收告警。
+- 使用事故、告警关系、证据和事务 Outbox 持久化告警处理；Worker 支持原子领取、重试和失败记录。
+- 管理端 `/sre/incidents` 提供事故摘要、状态操作、时间线、RCA 历史、阶段轨迹、回放来源和反馈修订。
+- RCA 只读取服务端固定的 Prometheus/Loki 查询，最多调查 5 轮；每条新证据先持久化，再生成一次最终结构化报告。
+- 不可变评测用例和版本化套件通过持久化队列异步运行，具备心跳、租约恢复、指数退避、deadline、质量门禁和构建溯源。
+- SRE 自身指标覆盖积压、最老任务年龄、运行耗时、调查轮数、重试、租约恢复、deadline 与终态失败。
+
+### Scope And Safety Boundary
+
+- 模型只能选择后端注册的固定 tool key；后端再次执行白名单、去重和最多 5 轮截断。
+- 不接受模型生成的 PromQL、LogQL、Shell 或 SQL，不执行自动修复或其他系统写操作。
+- 没有金额、Token 或模型成本预算闸门；资源边界由客户端超时、响应/上下文上限、轮数上限和查询指纹幂等控制。
+- Prometheus/Loki 不可用时记录受控的 unavailable 证据，不阻塞 Alertmanager 原有 QQ 告警链路。
+
+### Database Migration
+
+新环境：
+
+- 直接使用 `sql/MySql/code_nest.sql`，其中已经包含最终结构的 16 张 SRE 表；权限种子使用最新 `sql/MySql/code_nest_data.sql`。
+- 不执行面向早期 v2.5.0 预览环境的增量 `ALTER TABLE` 脚本。
+
+已部署且尚无 SRE 表的环境：
+
+1. 保持 `XIAOU_SRE_OUTBOX_ENABLED=false`、`XIAOU_SRE_METRICS_ENABLED=false` 和 `XIAOU_SRE_EVALUATION_ENABLED=false`。
+2. 执行 `sql/v2.5.0/sre_incident.sql`。
+3. 执行 `sql/v2.5.0/sre_investigation_run.sql`，创建运行、轨迹、反馈和回放来源表。
+4. 依次执行 `sql/v2.5.0/sre_rca_evaluation.sql`、`sre_rca_evaluation_suite.sql`、`sre_rca_evaluation_queue.sql`。
+5. 执行 `sql/v2.5.0/sre_agent_permissions.sql`，为 `SUPER_ADMIN` 增加只读 Agent 调查权限。
+
+从早期 v2.5.0 预览表结构升级：
+
+1. 先执行当前 `sre_incident_evidence.sql` 和 `sre_investigation_run.sql`，补齐缺失表；二者使用 `CREATE TABLE IF NOT EXISTS`。
+2. 停止 RCA 流量，执行一次 `sre_investigation_loop.sql`，为旧证据表增加调查运行 ID 与查询指纹。最终主 schema 或已包含这些列的环境不能重复执行。
+3. 在评测 Worker 关闭时依次执行 evaluation、suite、queue 三个脚本。suite 与 queue 含不可重复的 `ALTER TABLE`，必须按顺序各执行一次；queue 会将没有可信租约的旧 `RUNNING` 记录标记为失败。
+4. 执行 `sre_agent_permissions.sql` 后再恢复流量。
+
+### Configuration Enablement
+
+1. 先验证 Prometheus/Alertmanager 配置和目标可达性；Prometheus API 与后续 Loki API 只允许监控网络访问。
+2. 创建独立 `XIAOU_SRE_WEBHOOK_TOKEN`，让 Alertmanager 私网直连 `/api/internal/sre/alertmanager/v1/alerts`，再开启 `XIAOU_SRE_WEBHOOK_ENABLED=true`。该路径不能发布到公网 Nginx。
+3. 证据表验证完成后开启 `XIAOU_SRE_OUTBOX_ENABLED=true`；只在对应 API 和保留策略验证后开启 `XIAOU_SRE_PROMETHEUS_ENABLED` / `XIAOU_SRE_LOKI_ENABLED`。
+4. 所有事故、调查和评测表存在后开启 `XIAOU_SRE_METRICS_ENABLED=true`。
+5. 注入不可变的 `XIAOU_SRE_EVALUATION_SOURCE_REVISION`、`XIAOU_SRE_EVALUATION_BUILD_ID` 和 `XIAOU_SRE_EVALUATION_BUILD_VERSION=2.5.0`，最后开启 `XIAOU_SRE_EVALUATION_ENABLED=true`。未开启时创建评测运行返回业务码 `503`，不会遗留无人消费的任务。
+
+### Verification
+
+- `mvn -pl xiaou-sre,xiaou-system -am test`：`xiaou-ai` 93 个、`xiaou-system` 298 个测试通过（3 个 opt-in 用例跳过），`xiaou-sre` 测试通过。
+- `scripts/code-nest-eval.ps1 -Tier sre`：固定脱敏样本的 SRE 回归门禁通过，不读取生产数据或调用在线模型。
+- 管理端 30 个契约测试、ESLint 与生产构建通过；文档站 129 页面审计和 VitePress 构建通过。
+- `scripts/code-nest-eval.ps1 -Tier release` 已通过：30 模块后端打包、双前端生产构建、129 页文档审计/VitePress 构建和部署脚本语法检查成功，产出 `xiaou-application-v2.5.0.jar`。
+- `scripts/code-nest-eval.ps1 -Tier hygiene` 已通过：空白、敏感信息占位符和文本 NUL 字节检查无阻断项。
+
+### Risks And Rollback
+
+- Webhook、Outbox、数据库 gauge、Prometheus/Loki 采集和评测 Worker 均有独立开关；出现异常时先关闭对应开关，保留原 QQ 告警链路。
+- 数据库变更以新增表、列和索引为主。应用回滚时保留 SRE 表和队列记录，不执行破坏性降级；恢复旧应用构建物后再评估离线清理。
+- suite/queue 和早期调查轮次迁移不是可重复脚本，生产执行前必须备份数据库并记录已执行版本。
+- 评测队列异常时关闭 Worker，保留 `QUEUED/RUNNING` 记录和构建溯源，修复后通过租约恢复继续处理。
+- 合并发布 PR 后再创建并推送 `v2.5.0` tag；tag 会触发生产部署，不能在 PR 合并前创建。
+
 ## v2.4.3
 
 `v2.4.3` 在 `v2.4.2` 的移动端与行动优先修复基础上，补齐首次登录到首周任务的闭环，并把首页浏览器侧的多请求收敛为可部分降级的聚合接口。

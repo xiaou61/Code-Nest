@@ -35,7 +35,7 @@ cd Code-Nest
 
 ```powershell
 git branch
-# 当前文档工作线应看到 * v2.4.3，其他版本按实际分支判断
+# 当前发布工作线应看到 * release/v2.5.0，其他版本按实际分支判断
 ```
 
 ## 第 2 步：初始化数据库
@@ -67,7 +67,7 @@ dir /s /b sql\MySql\code_nest.sql
 ```sql
 USE code_nest;
 SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'code_nest';
--- 预期：145 张表
+-- 预期：161 张表
 ```
 
 ## 第 3 步：配置后端

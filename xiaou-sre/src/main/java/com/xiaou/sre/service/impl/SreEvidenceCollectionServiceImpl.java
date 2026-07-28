@@ -10,6 +10,7 @@ import com.xiaou.sre.client.SrePrometheusEvidence;
 import com.xiaou.sre.mapper.SreAlertEventMapper;
 import com.xiaou.sre.mapper.SreIncidentEvidenceMapper;
 import com.xiaou.sre.mapper.SreIncidentMapper;
+import com.xiaou.sre.metrics.SreMetricsRecorder;
 import com.xiaou.sre.service.SreEvidenceCollectionService;
 import com.xiaou.sre.service.SreLokiEvidenceCollector;
 import com.xiaou.sre.service.SrePrometheusEvidenceCollector;
@@ -41,9 +42,20 @@ public class SreEvidenceCollectionServiceImpl implements SreEvidenceCollectionSe
     private final SreIncidentEvidenceMapper evidenceMapper;
     private final SrePrometheusEvidenceCollector prometheusEvidenceCollector;
     private final SreLokiEvidenceCollector lokiEvidenceCollector;
+    private final SreMetricsRecorder metricsRecorder;
 
     @Override
     public void collect(SreOutboxEvent event) {
+        long startNanos = System.nanoTime();
+        String outcome = "failed";
+        try {
+            outcome = collectInternal(event);
+        } finally {
+            recordCollectionMetric(outcome, System.nanoTime() - startNanos);
+        }
+    }
+
+    private String collectInternal(SreOutboxEvent event) {
         if (!EVIDENCE_EVENT_TYPE.equals(event.getEventType())) {
             throw new IllegalArgumentException("不支持的 SRE Outbox 事件类型");
         }
@@ -56,7 +68,7 @@ public class SreEvidenceCollectionServiceImpl implements SreEvidenceCollectionSe
         boolean externalEvidenceEnabled = prometheusEnabled || lokiEnabled;
         boolean snapshotExists = evidenceMapper.selectByOutboxEventAndSource(event.getId(), SOURCE_TYPE) != null;
         if (snapshotExists && !externalEvidenceEnabled) {
-            return;
+            return "duplicate";
         }
         if (!JsonUtils.isValidJson(event.getPayloadJson())) {
             throw new IllegalArgumentException("证据任务载荷不是合法 JSON");
@@ -115,6 +127,15 @@ public class SreEvidenceCollectionServiceImpl implements SreEvidenceCollectionSe
                 event.getId(), SreLokiEvidenceCollector.UNAVAILABLE_SOURCE_TYPE) == null) {
             SreLokiEvidence lokiEvidence = lokiEvidenceCollector.collect(event, alertEvent, incident);
             insertExternalEvidence(incidentId, event.getId(), lokiEvidence);
+        }
+        return "succeeded";
+    }
+
+    private void recordCollectionMetric(String outcome, long durationNanos) {
+        try {
+            metricsRecorder.recordEvidenceCollection(outcome, durationNanos);
+        } catch (RuntimeException ignored) {
+            // 指标不可用不能改变 Outbox 证据事务结果。
         }
     }
 

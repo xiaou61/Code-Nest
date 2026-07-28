@@ -6,6 +6,39 @@
 
 ## [Unreleased]
 
+## [v2.5.0] - 2026-07-28
+
+### Added
+
+- 新增由 Prometheus、Alertmanager、Blackbox Exporter 和 Grafana 组成的 24x7 监控栈，以及使用独立令牌鉴权的私网告警 Webhook。
+- 新增 `xiaou-sre` 模块，持久化原始告警、事故聚合、事故状态、证据快照、事务 Outbox 和处理重试。
+- 新增管理端 SRE 事故工作台，支持事故摘要、状态操作、时间线、RCA 历史、调查轨迹、回放来源和人工反馈。
+- 新增只读 AI RCA：固定 Prompt/Schema、脱敏上下文、结构化报告校验和可审计运行记录均由后端控制。
+- 新增不可变 RCA 评测用例、版本化评测套件、质量门禁和持久化评测队列，支持进度、心跳、租约恢复、指数退避和构建溯源。
+- 新增最多 5 轮的有界只读调查；模型只能选择服务端固定的 Prometheus/Loki tool key，重复证据会提前停止。
+- 新增 SRE 自身指标，覆盖事故数、Outbox/评测积压、最老任务年龄、运行耗时、调查轮数、重试、租约恢复、deadline 和终态失败。
+
+### Changed
+
+- 告警接收、证据采集、RCA 分析和离线评测从同步页面动作收敛为持久化、可恢复且可观测的后端流程。
+- 后端 Maven、共享设计系统、双前端和文档站统一升级到 `v2.5.0`。
+
+### Security
+
+- Webhook 使用独立 token、请求体上限和速率限制，并要求仅通过监控私网直连，不能暴露到公网 Nginx。
+- 调查链路不接受模型生成的 PromQL、LogQL、Shell 或 SQL，不提供自动修复及其他系统写操作。
+
+### Migration
+
+- 新环境直接使用已包含 16 张 SRE 表的 `sql/MySql/code_nest.sql` 和最新 `sql/MySql/code_nest_data.sql`。
+- 已部署环境按 `sre_incident.sql`、`sre_investigation_run.sql`、`sre_rca_evaluation.sql`、`sre_rca_evaluation_suite.sql`、`sre_rca_evaluation_queue.sql` 的依赖顺序升级，并执行 `sre_agent_permissions.sql`；早期 v2.5.0 预览表结构另需停 RCA 流量后执行一次 `sre_investigation_loop.sql`。
+- 迁移期间保持 SRE Worker 和数据库型指标关闭；表结构、私网端点、Webhook token 及评测构建溯源配置确认后，再依次启用对应开关。
+
+### Notes
+
+- 本版本没有金额、Token 或模型成本预算闸门；硬边界由工具白名单、最多 5 轮、客户端超时、响应/上下文上限和查询指纹幂等提供。
+- `v2.5.0` 建立的是 Code Nest 当前范围内的只读 SRE 调查与评测闭环，不宣称与 OpenSRE 完全对齐。
+
 ## [v2.4.3] - 2026-07-16
 
 ### Added

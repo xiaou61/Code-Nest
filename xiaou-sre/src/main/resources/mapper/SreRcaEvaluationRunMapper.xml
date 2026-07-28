@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.sre.mapper.SreRcaEvaluationRunMapper">
+
+    <resultMap id="SreRcaEvaluationRunResult" type="com.xiaou.sre.domain.SreRcaEvaluationRun">
+        <id property="id" column="id"/>
+        <result property="status" column="status"/>
+        <result property="requestedCaseId" column="requested_case_id"/>
+        <result property="suiteVersionId" column="suite_version_id"/>
+        <result property="suiteKey" column="suite_key"/>
+        <result property="suiteVersion" column="suite_version"/>
+        <result property="suiteManifestSha256" column="suite_manifest_sha256"/>
+        <result property="triggerSource" column="trigger_source"/>
+        <result property="requestedBy" column="requested_by"/>
+        <result property="activeAdminId" column="active_admin_id"/>
+        <result property="caseCount" column="case_count"/>
+        <result property="completedCount" column="completed_count"/>
+        <result property="passedCount" column="passed_count"/>
+        <result property="failedCount" column="failed_count"/>
+        <result property="averageScore" column="average_score"/>
+        <result property="passRate" column="pass_rate"/>
+        <result property="unsafeCount" column="unsafe_count"/>
+        <result property="degradedCount" column="degraded_count"/>
+        <result property="promptId" column="prompt_id"/>
+        <result property="schemaId" column="schema_id"/>
+        <result property="scoringPolicyId" column="scoring_policy_id"/>
+        <result property="gateEvaluatorId" column="gate_evaluator_id"/>
+        <result property="gateStatus" column="gate_status"/>
+        <result property="gateMinimumPassRate" column="gate_minimum_pass_rate"/>
+        <result property="gateMinimumAverageScore" column="gate_minimum_average_score"/>
+        <result property="gateRequireAllSafety" column="gate_require_all_safety"/>
+        <result property="gateRequireNoDegraded" column="gate_require_no_degraded"/>
+        <result property="gateDetailJson" column="gate_detail_json"/>
+        <result property="provider" column="provider"/>
+        <result property="configuredModel" column="configured_model"/>
+        <result property="failureCode" column="failure_code"/>
+        <result property="attempts" column="attempts"/>
+        <result property="nextAttemptAt" column="next_attempt_at"/>
+        <result property="claimedAt" column="claimed_at"/>
+        <result property="heartbeatAt" column="heartbeat_at"/>
+        <result property="deadlineAt" column="deadline_at"/>
+        <result property="maxDurationSeconds" column="max_duration_seconds"/>
+        <result property="sourceRevision" column="source_revision"/>
+        <result property="buildId" column="build_id"/>
+        <result property="buildVersion" column="build_version"/>
+        <result property="startedAt" column="started_at"/>
+        <result property="completedAt" column="completed_at"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="allColumns">
+        id, status, requested_case_id, suite_version_id, suite_key, suite_version,
+        suite_manifest_sha256, trigger_source, requested_by, active_admin_id, case_count, completed_count,
+        passed_count, failed_count, average_score, pass_rate, unsafe_count, degraded_count,
+        prompt_id, schema_id, scoring_policy_id, gate_evaluator_id, gate_status,
+        gate_minimum_pass_rate, gate_minimum_average_score, gate_require_all_safety,
+        gate_require_no_degraded, gate_detail_json, provider, configured_model, failure_code,
+        attempts, next_attempt_at, claimed_at, heartbeat_at, deadline_at, max_duration_seconds,
+        source_revision, build_id, build_version,
+        started_at, completed_at, create_time, update_time
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sre_rca_evaluation_run (
+            status, requested_case_id, suite_version_id, suite_key, suite_version,
+            suite_manifest_sha256, trigger_source, requested_by, active_admin_id,
+            case_count, completed_count,
+            passed_count, failed_count, unsafe_count, degraded_count, prompt_id, schema_id,
+            scoring_policy_id, gate_evaluator_id, gate_status, gate_minimum_pass_rate,
+            gate_minimum_average_score, gate_require_all_safety, gate_require_no_degraded,
+            attempts, next_attempt_at, claimed_at, heartbeat_at, deadline_at,
+            max_duration_seconds, source_revision, build_id, build_version,
+            started_at, create_time, update_time
+        ) VALUES (
+            #{status}, #{requestedCaseId}, #{suiteVersionId}, #{suiteKey}, #{suiteVersion},
+            #{suiteManifestSha256}, #{triggerSource}, #{requestedBy}, #{activeAdminId},
+            #{caseCount}, #{completedCount},
+            #{passedCount}, #{failedCount}, #{unsafeCount}, #{degradedCount}, #{promptId}, #{schemaId},
+            #{scoringPolicyId}, #{gateEvaluatorId}, #{gateStatus}, #{gateMinimumPassRate},
+            #{gateMinimumAverageScore}, #{gateRequireAllSafety}, #{gateRequireNoDegraded},
+            #{attempts}, #{nextAttemptAt}, #{claimedAt}, #{heartbeatAt}, #{deadlineAt},
+            #{maxDurationSeconds}, #{sourceRevision}, #{buildId}, #{buildVersion},
+            #{startedAt}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <select id="selectClaimableIds" resultType="long">
+        SELECT id
+        FROM sre_rca_evaluation_run
+        WHERE status = 'QUEUED'
+          AND next_attempt_at &lt;= #{now}
+          AND deadline_at &gt; #{now}
+        ORDER BY next_attempt_at ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <update id="claim">
+        UPDATE sre_rca_evaluation_run
+        SET status = 'RUNNING', attempts = attempts + 1,
+            claimed_at = #{claimedAt}, heartbeat_at = #{claimedAt},
+            started_at = COALESCE(started_at, #{claimedAt}), update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND status = 'QUEUED'
+          AND next_attempt_at &lt;= #{claimedAt}
+          AND deadline_at &gt; #{claimedAt}
+    </update>
+
+    <update id="updateHeartbeat">
+        UPDATE sre_rca_evaluation_run
+        SET completed_count = #{completedCount}, passed_count = #{passedCount},
+            failed_count = #{failedCount}, average_score = #{averageScore},
+            unsafe_count = #{unsafeCount}, degraded_count = #{degradedCount},
+            heartbeat_at = #{heartbeatAt}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND status = 'RUNNING'
+    </update>
+
+    <update id="requeue">
+        UPDATE sre_rca_evaluation_run
+        SET status = 'QUEUED', next_attempt_at = #{nextAttemptAt},
+            claimed_at = NULL, heartbeat_at = NULL, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND status = 'RUNNING'
+    </update>
+
+    <update id="failExpired">
+        UPDATE sre_rca_evaluation_run
+        SET status = 'FAILED', failure_code = #{failureCode}, active_admin_id = NULL,
+            gate_status = CASE WHEN suite_version_id IS NULL THEN 'NOT_APPLICABLE' ELSE 'FAILED' END,
+            completed_at = #{now}, update_time = CURRENT_TIMESTAMP
+        WHERE status IN ('QUEUED', 'RUNNING')
+          AND deadline_at &lt;= #{now}
+    </update>
+
+    <update id="failStale">
+        UPDATE sre_rca_evaluation_run
+        SET status = 'FAILED', failure_code = #{failureCode}, active_admin_id = NULL,
+            gate_status = CASE WHEN suite_version_id IS NULL THEN 'NOT_APPLICABLE' ELSE 'FAILED' END,
+            completed_at = CURRENT_TIMESTAMP, update_time = CURRENT_TIMESTAMP
+        WHERE status = 'RUNNING'
+          AND COALESCE(heartbeat_at, claimed_at, started_at, update_time) &lt;= #{staleBefore}
+          AND attempts &gt;= #{maxAttempts}
+    </update>
+
+    <update id="recoverStale">
+        UPDATE sre_rca_evaluation_run
+        SET status = 'QUEUED', next_attempt_at = #{nextAttemptAt},
+            claimed_at = NULL, heartbeat_at = NULL, update_time = CURRENT_TIMESTAMP
+        WHERE status = 'RUNNING'
+          AND COALESCE(heartbeat_at, claimed_at, started_at, update_time) &lt;= #{staleBefore}
+          AND attempts &lt; #{maxAttempts}
+          AND deadline_at &gt; #{nextAttemptAt}
+    </update>
+
+    <update id="updateCompletion">
+        UPDATE sre_rca_evaluation_run
+        SET status = #{status}, completed_count = #{completedCount}, passed_count = #{passedCount},
+            failed_count = #{failedCount}, average_score = #{averageScore}, pass_rate = #{passRate},
+            unsafe_count = #{unsafeCount}, degraded_count = #{degradedCount},
+            gate_status = #{gateStatus}, gate_detail_json = #{gateDetailJson}, provider = #{provider},
+            configured_model = #{configuredModel}, failure_code = NULL, active_admin_id = NULL,
+            heartbeat_at = #{completedAt},
+            completed_at = #{completedAt}, update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND status = 'RUNNING'
+    </update>
+
+    <update id="updateFailed">
+        UPDATE sre_rca_evaluation_run
+        SET status = 'FAILED', failure_code = #{failureCode}, active_admin_id = NULL,
+            completed_at = #{completedAt},
+            gate_status = CASE
+                WHEN suite_version_id IS NULL THEN 'NOT_APPLICABLE'
+                ELSE 'FAILED'
+            END,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND status IN ('QUEUED', 'RUNNING')
+    </update>
+
+    <select id="selectById" resultMap="SreRcaEvaluationRunResult">
+        SELECT <include refid="allColumns"/>
+        FROM sre_rca_evaluation_run
+        WHERE id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="selectRecent" resultMap="SreRcaEvaluationRunResult">
+        SELECT <include refid="allColumns"/>
+        FROM sre_rca_evaluation_run
+        ORDER BY create_time DESC, id DESC
+        LIMIT #{limit}
+    </select>
+</mapper>

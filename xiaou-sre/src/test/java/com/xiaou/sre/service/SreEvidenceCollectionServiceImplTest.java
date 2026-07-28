@@ -11,6 +11,7 @@ import com.xiaou.sre.service.SreLokiEvidenceCollector;
 import com.xiaou.sre.mapper.SreAlertEventMapper;
 import com.xiaou.sre.mapper.SreIncidentEvidenceMapper;
 import com.xiaou.sre.mapper.SreIncidentMapper;
+import com.xiaou.sre.metrics.SreMetricsRecorder;
 import com.xiaou.sre.service.impl.SreEvidenceCollectionServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,10 +48,14 @@ class SreEvidenceCollectionServiceImplTest {
     @Mock
     private SreLokiEvidenceCollector lokiEvidenceCollector;
 
+    @Mock
+    private SreMetricsRecorder metricsRecorder;
+
     @Test
     void collectCreatesBoundedAlertSnapshot() {
         SreEvidenceCollectionServiceImpl service = new SreEvidenceCollectionServiceImpl(
-                alertEventMapper, incidentMapper, evidenceMapper, prometheusEvidenceCollector, lokiEvidenceCollector);
+                alertEventMapper, incidentMapper, evidenceMapper, prometheusEvidenceCollector,
+                lokiEvidenceCollector, metricsRecorder);
         SreOutboxEvent event = event(100L, 11L, 21L);
         SreIncident incident = new SreIncident();
         incident.setId(11L);
@@ -82,12 +87,15 @@ class SreEvidenceCollectionServiceImplTest {
         assertThat(evidence.getQuery()).isEqualTo("sre_alert_event.id=21");
         assertThat(evidence.getSnapshotJson()).contains("TargetDown", "target down");
         assertThat(evidence.getSnapshotJson()).doesNotContain("rawPayload");
+        verify(metricsRecorder).recordEvidenceCollection(
+                org.mockito.ArgumentMatchers.eq("succeeded"), anyLong());
     }
 
     @Test
     void existingSnapshotIsIdempotent() {
         SreEvidenceCollectionServiceImpl service = new SreEvidenceCollectionServiceImpl(
-                alertEventMapper, incidentMapper, evidenceMapper, prometheusEvidenceCollector, lokiEvidenceCollector);
+                alertEventMapper, incidentMapper, evidenceMapper, prometheusEvidenceCollector,
+                lokiEvidenceCollector, metricsRecorder);
         SreOutboxEvent event = event(100L, 11L, 21L);
         when(evidenceMapper.selectByOutboxEventAndSource(100L, "ALERT_SNAPSHOT"))
                 .thenReturn(new SreIncidentEvidence());
@@ -97,12 +105,15 @@ class SreEvidenceCollectionServiceImplTest {
         verify(alertEventMapper, never()).selectById(any());
         verify(incidentMapper, never()).selectById(any());
         verify(evidenceMapper, never()).insert(any());
+        verify(metricsRecorder).recordEvidenceCollection(
+                org.mockito.ArgumentMatchers.eq("duplicate"), anyLong());
     }
 
     @Test
     void malformedPayloadIsRejectedWithoutPersistence() {
         SreEvidenceCollectionServiceImpl service = new SreEvidenceCollectionServiceImpl(
-                alertEventMapper, incidentMapper, evidenceMapper, prometheusEvidenceCollector, lokiEvidenceCollector);
+                alertEventMapper, incidentMapper, evidenceMapper, prometheusEvidenceCollector,
+                lokiEvidenceCollector, metricsRecorder);
         SreOutboxEvent event = event(100L, 11L, 21L);
         event.setPayloadJson("{not-json}");
         when(evidenceMapper.selectByOutboxEventAndSource(100L, "ALERT_SNAPSHOT")).thenReturn(null);
@@ -117,7 +128,8 @@ class SreEvidenceCollectionServiceImplTest {
     @Test
     void enabledPrometheusCollectorAddsSecondEvidenceRecord() {
         SreEvidenceCollectionServiceImpl service = new SreEvidenceCollectionServiceImpl(
-                alertEventMapper, incidentMapper, evidenceMapper, prometheusEvidenceCollector, lokiEvidenceCollector);
+                alertEventMapper, incidentMapper, evidenceMapper, prometheusEvidenceCollector,
+                lokiEvidenceCollector, metricsRecorder);
         SreOutboxEvent event = event(100L, 11L, 21L);
         SreIncident incident = new SreIncident();
         incident.setId(11L);
@@ -147,7 +159,8 @@ class SreEvidenceCollectionServiceImplTest {
     @Test
     void enabledLokiCollectorAddsLogEvidenceAfterAlertSnapshot() {
         SreEvidenceCollectionServiceImpl service = new SreEvidenceCollectionServiceImpl(
-                alertEventMapper, incidentMapper, evidenceMapper, prometheusEvidenceCollector, lokiEvidenceCollector);
+                alertEventMapper, incidentMapper, evidenceMapper, prometheusEvidenceCollector,
+                lokiEvidenceCollector, metricsRecorder);
         SreOutboxEvent event = event(100L, 11L, 21L);
         SreIncident incident = new SreIncident();
         incident.setId(11L);

@@ -3,7 +3,11 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import router from '@/router'
 import NProgress from 'nprogress'
-import { normalizeBodyRequestConfig, normalizeQueryRequestConfig } from '@/utils/request-options'
+import {
+  isSuccessfulHttpStatus,
+  normalizeBodyRequestConfig,
+  normalizeQueryRequestConfig
+} from '@/utils/request-options'
 
 // 创建axios实例
 const service = axios.create({
@@ -48,7 +52,7 @@ service.interceptors.response.use(
     const { data, status } = response
     
     // HTTP状态码检查
-    if (status !== 200) {
+    if (!isSuccessfulHttpStatus(status)) {
       ElMessage.error(`HTTP错误: ${status}`)
       return Promise.reject(new Error(`HTTP Error: ${status}`))
     }

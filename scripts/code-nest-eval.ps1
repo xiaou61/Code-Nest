@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("smoke", "hygiene", "agent", "ai", "rag", "frontend", "backend", "release", "all")]
+    [ValidateSet("smoke", "hygiene", "agent", "ai", "sre", "rag", "frontend", "backend", "release", "all")]
     [string]$Tier = "smoke",
     [switch]$LiveAi,
     [switch]$LiveWrite,
@@ -47,6 +47,27 @@ $aiRegressionTests = @(
     "LlamaIndexClientTest"
 )
 
+$sreRegressionTests = @(
+    "SreInvestigationPromptContractTest",
+    "SreInvestigationPlannerImplTest",
+    "SreReadOnlyInvestigationToolServiceImplTest",
+    "SreMetricsRecorderTest",
+    "SreOperationalMetricsPublisherTest",
+    "SreRcaReportTest",
+    "SreRcaAnalyzerImplTest",
+    "SreIncidentRcaServiceImplTest",
+    "SreRcaEvaluationCaseServiceImplTest",
+    "SreRcaEvaluationSuiteServiceImplTest",
+    "SreRcaEvaluationRunServiceImplTest",
+    "SreRcaEvaluationQueueServiceImplTest",
+    "SreRcaEvaluationScorerTest",
+    "SreRcaEvaluationGateEvaluatorTest",
+    "SreRcaEvaluationSuiteGateTest",
+    "SreRcaEvaluationServiceImplTest",
+    "SreRcaEvaluationAdminControllerTest",
+    "SreRcaEvaluationWorkerTest"
+)
+
 $frontendTests = @(
     "vue3-admin-front/tests/admin-api-contract.test.js",
     "vue3-admin-front/tests/admin-agent-chat-ui.test.js",
@@ -54,6 +75,7 @@ $frontendTests = @(
     "vue3-admin-front/tests/no-debug-console.test.js",
     "vue3-admin-front/tests/request-options.test.js",
     "vue3-admin-front/tests/sidebar-routes.test.js",
+    "vue3-admin-front/tests/sre-workbench-contract.test.js",
     "vue3-user-front/tests/captcha-api-contract.test.js",
     "vue3-user-front/tests/career-loop-adapter.test.js",
     "vue3-user-front/tests/design-system-demo-routes.test.js",
@@ -273,6 +295,18 @@ function Invoke-Ai {
     }
 }
 
+function Invoke-Sre {
+    Invoke-Step "deterministic SRE RCA quality gate" {
+        Invoke-Maven @(
+            "-pl", "xiaou-system",
+            "-am",
+            "-Dtest=$($sreRegressionTests -join ',')",
+            "-Dsurefire.failIfNoSpecifiedTests=false",
+            "test"
+        )
+    }
+}
+
 function Invoke-Frontend {
     Invoke-Step "frontend node contract tests" {
         Invoke-Native -Command "node" -Arguments (@("--test") + $frontendTests)
@@ -366,6 +400,9 @@ switch ($Tier) {
     "ai" {
         Invoke-Ai
     }
+    "sre" {
+        Invoke-Sre
+    }
     "frontend" {
         Invoke-Frontend
     }
@@ -383,6 +420,7 @@ switch ($Tier) {
         Invoke-Frontend
         Invoke-Rag
         Invoke-Ai
+        Invoke-Sre
         Invoke-Backend
         Invoke-Agent
     }

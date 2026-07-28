@@ -4,6 +4,7 @@ import com.xiaou.sre.config.SreOutboxProperties;
 import com.xiaou.sre.domain.SreOutboxEvent;
 import com.xiaou.sre.mapper.SreOutboxEventMapper;
 import com.xiaou.sre.service.SreOutboxClaimService;
+import com.xiaou.sre.service.SreQueueRecoveryResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,11 +46,12 @@ public class SreOutboxClaimServiceImpl implements SreOutboxClaimService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void recoverStaleProcessing() {
+    public SreQueueRecoveryResult recoverStaleProcessing() {
         LocalDateTime staleBefore = LocalDateTime.now().minusSeconds(properties.normalizedLeaseSeconds());
         int maxAttempts = properties.normalizedMaxAttempts();
-        outboxEventMapper.failStaleProcessing(staleBefore, maxAttempts);
-        outboxEventMapper.recoverStaleProcessing(staleBefore, maxAttempts);
+        int terminalFailures = outboxEventMapper.failStaleProcessing(staleBefore, maxAttempts);
+        int recovered = outboxEventMapper.recoverStaleProcessing(staleBefore, maxAttempts);
+        return new SreQueueRecoveryResult(recovered, terminalFailures, 0);
     }
 
     @Override

@@ -114,6 +114,8 @@
 | 摸鱼工具用户侧 | `/moyu/**` | 多个 Moyu Controller | `xiaou-moyu` |
 | 摸鱼工具管理侧 | `/admin/moyu/**` | 多个 Admin Moyu Controller | `xiaou-moyu` |
 | Bug 商店管理 | `/admin/moyu/bug-store` | `AdminBugStoreController` | `xiaou-moyu` |
+| SRE 事故、证据、RCA 和评测工作台 | `/admin/sre/incidents`、`/admin/sre/rca-evaluations` | `SreIncidentAdminController`、`SreRcaAdminController`、`SreRcaEvaluationAdminController` | `xiaou-sre`、`xiaou-system` |
+| Alertmanager 私有接入 | `/internal/sre/alertmanager/v1` | `AlertmanagerWebhookController` | `xiaou-sre` |
 
 ## AI Runtime 管理接口
 
@@ -470,6 +472,45 @@
 | `AdminBugStoreController` | `/admin/moyu/bug-store` | Bug 商店 CRUD、批量导入 |
 | `AdminDeveloperCalendarController` | `/admin/moyu/developer-calendar` | 开发者日历管理 |
 
+### `/admin/sre/incidents` — SRE 事故工作台
+
+除 Alertmanager 私有接入外，以下接口都要求管理员登录态。RCA 生成与反馈接口的操作日志
+不保存请求或响应正文，历史接口只读取已脱敏的结构化报告、受控步骤摘要和当前反馈。
+
+| 方法 | 路径 | 用途 |
+| --- | --- | --- |
+| GET | `/admin/sre/incidents/summary` | 事故数量和严重级别汇总 |
+| GET | `/admin/sre/incidents` | 按状态、级别和服务分页查询事故 |
+| GET | `/admin/sre/incidents/{id}` | 事故详情 |
+| GET | `/admin/sre/incidents/{id}/evidence` | 已入库证据列表 |
+| GET | `/admin/sre/incidents/{id}/investigation-context` | 受限且脱敏的调查上下文 |
+| POST | `/admin/sre/incidents/{id}/ack` | 确认事故 |
+| POST | `/admin/sre/incidents/{id}/resolve` | 关闭事故 |
+| POST | `/admin/sre/incidents/{id}/rca` | 生成只读 RCA 报告 |
+| GET | `/admin/sre/incidents/{id}/rca-runs` | 查询最近 RCA 运行摘要，最多 50 条 |
+| GET | `/admin/sre/incidents/{id}/rca-runs/{runId}` | 恢复单次 RCA 报告和调查轨迹 |
+| PUT | `/admin/sre/incidents/{id}/rca-runs/{runId}/feedback` | 追加准确度、缺口、备注和期望结论反馈 |
+| GET | `/admin/sre/incidents/{id}/rca-runs/{runId}/evaluation-sample` | 导出不含原始输入、备注和管理员身份的评测样本 |
+| POST | `/admin/sre/incidents/{id}/rca-runs/{runId}/evaluation-cases` | 将指定反馈修订提升为不可变评测用例 |
+| GET | `/admin/sre/rca-evaluations/cases` | 查询不可变评测用例目录，最多 100 条 |
+| POST | `/admin/sre/rca-evaluations/suites` | 创建稳定评测套件身份 |
+| GET | `/admin/sre/rca-evaluations/suites` | 查询稳定评测套件，最多 50 条 |
+| POST | `/admin/sre/rca-evaluations/suites/{suiteId}/versions` | 按成员和门禁策略发布不可变套件版本 |
+| GET | `/admin/sre/rca-evaluations/suites/{suiteId}/versions` | 查询套件版本历史，最多 50 条 |
+| GET | `/admin/sre/rca-evaluations/suite-versions/{versionId}` | 查询版本 manifest、策略和有序成员摘要 |
+| POST | `/admin/sre/rca-evaluations/runs` | 将单 case、临时全量或指定套件版本回放加入队列，成功返回 HTTP `202`；仅套件版本适用质量门禁 |
+| GET | `/admin/sre/rca-evaluations/runs` | 查询最近评测运行，最多 50 条 |
+| GET | `/admin/sre/rca-evaluations/runs/{runId}` | 查询聚合结果和逐用例透明评分 |
+| GET | `/admin/sre/rca-evaluations/runs/{runId}/gate` | 查询冻结门槛、通过率和固定失败码 |
+| POST | `/internal/sre/alertmanager/v1/alerts` | Alertmanager 私网 Webhook，独立共享密钥认证 |
+
+评测变更接口要求管理员权限，并关闭操作日志的请求/响应正文保存。所有用例、套件和运行 DTO
+只返回摘要、哈希、策略与评分，不返回冻结 `context_json`、`baseline_report_json` 或异常正文。
+运行创建会立即返回 `QUEUED` 摘要，客户端通过详情接口轮询
+`QUEUED -> RUNNING -> SUCCEEDED / DEGRADED / FAILED`。同一管理员已有活动运行时返回业务码
+`409`；数据库队列迁移完成并显式启用 Worker 前返回业务码 `503`。业务异常沿用项目统一契约，
+HTTP 状态仍为 `200`，应读取响应体 `code`；成功入队是 HTTP `202`。
+
 ## 通用请求模式
 
 ### 分页
@@ -532,6 +573,7 @@
 | `xiaou-moyu` | 5 | 5+ | 0 | 10+ |
 | `xiaou-system` | 0 | 9 | 0 | 9 |
 | `xiaou-ai` | 0 | 9 | 0 | 9 |
+| `xiaou-sre`、`xiaou-system` | 0 | 10 | 1 个私有机器接口 | 11 |
 | 其余模块 | — | — | — | ~50 |
 | **合计** | — | — | — | **~370** |
 

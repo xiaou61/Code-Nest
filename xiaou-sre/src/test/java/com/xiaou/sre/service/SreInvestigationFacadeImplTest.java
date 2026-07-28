@@ -79,6 +79,8 @@ class SreInvestigationFacadeImplTest {
                 .doesNotContain("Bearer abcdefghijklmnop")
                 .doesNotContain("abcdefghijklmnop")
                 .contains("[REDACTED]");
+        assertThat(first.snapshot().get("note").toString())
+                .isEqualTo("[REDACTED]");
         assertThat(first.snapshot().get("detail").toString()).hasSize(1_000);
         assertThat(first.snapshotTruncated()).isTrue();
     }
@@ -156,15 +158,17 @@ class SreInvestigationFacadeImplTest {
         evidence.setSourceType("LOKI_SNAPSHOT");
         evidence.setSourceRef("application_errors");
         evidence.setQuery("q".repeat(600));
+        String standaloneCredential = "sk-" + "x".repeat(24);
         evidence.setSnapshotJson("""
                 {
                   "status": "success",
                   "rawPayload": "must-not-leak",
                   "password": "database-password",
                   "message": "request failed Authorization: Bearer abcdefghijklmnop",
+                  "note": "%s",
                   "detail": "%s"
                 }
-                """.formatted("d".repeat(1_100)));
+                """.formatted(standaloneCredential, "d".repeat(1_100)));
         evidence.setCapturedAt(LocalDateTime.of(2026, 7, 23, 1, 6));
         return evidence;
     }

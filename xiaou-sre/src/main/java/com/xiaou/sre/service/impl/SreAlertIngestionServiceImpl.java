@@ -12,6 +12,7 @@ import com.xiaou.sre.mapper.SreAlertEventMapper;
 import com.xiaou.sre.mapper.SreIncidentAlertRelationMapper;
 import com.xiaou.sre.mapper.SreIncidentMapper;
 import com.xiaou.sre.mapper.SreOutboxEventMapper;
+import com.xiaou.sre.metrics.SreMetricsRecorder;
 import com.xiaou.sre.service.SreAlertIngestionService;
 import com.xiaou.sre.service.SreValidationException;
 import lombok.RequiredArgsConstructor;
@@ -60,18 +61,47 @@ public class SreAlertIngestionServiceImpl implements SreAlertIngestionService {
     private final SreIncidentMapper incidentMapper;
     private final SreIncidentAlertRelationMapper relationMapper;
     private final SreOutboxEventMapper outboxEventMapper;
+    private final SreMetricsRecorder metricsRecorder;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SreIngestionResult ingest(AlertmanagerWebhookRequest request) {
-        validateRequest(request);
+        long startNanos = System.nanoTime();
+        int alertCount = request == null || request.getAlerts() == null ? 0 : request.getAlerts().size();
+        String outcome = "failed";
+        try {
+            validateRequest(request);
 
-        SreIngestionResult result = new SreIngestionResult();
-        for (AlertmanagerAlert alert : request.getAlerts()) {
-            result.incrementReceived();
-            processAlert(alert, result);
+            SreIngestionResult result = new SreIngestionResult();
+            for (AlertmanagerAlert alert : request.getAlerts()) {
+                result.incrementReceived();
+                processAlert(alert, result);
+            }
+            int enqueued = result.getCreatedEvents() + result.getUpdatedEvents();
+            incrementQueueMetric("outbox", "enqueued", enqueued);
+            outcome = result.getReceived() > 0 && result.getDuplicates() == result.getReceived()
+                    ? "duplicate"
+                    : "succeeded";
+            return result;
+        } finally {
+            recordIngestionMetric(outcome, alertCount, System.nanoTime() - startNanos);
         }
-        return result;
+    }
+
+    private void recordIngestionMetric(String outcome, int alertCount, long durationNanos) {
+        try {
+            metricsRecorder.recordAlertIngestion(outcome, alertCount, durationNanos);
+        } catch (RuntimeException exception) {
+            log.warn("SRE 告警接收指标记录失败: reason={}", exception.getClass().getSimpleName());
+        }
+    }
+
+    private void incrementQueueMetric(String queue, String event, long amount) {
+        try {
+            metricsRecorder.incrementQueueEvent(queue, event, amount);
+        } catch (RuntimeException exception) {
+            log.warn("SRE 队列指标记录失败: reason={}", exception.getClass().getSimpleName());
+        }
     }
 
     private void processAlert(AlertmanagerAlert alert, SreIngestionResult result) {

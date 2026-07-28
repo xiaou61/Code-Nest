@@ -20,6 +20,17 @@
         <result property="updateTime" column="update_time"/>
     </resultMap>
 
+    <resultMap id="SreIncidentSummaryResult" type="com.xiaou.sre.dto.response.SreIncidentSummary">
+        <result property="totalCount" column="total_count"/>
+        <result property="activeCount" column="active_count"/>
+        <result property="openCount" column="open_count"/>
+        <result property="acknowledgedCount" column="acknowledged_count"/>
+        <result property="criticalActiveCount" column="critical_active_count"/>
+        <result property="warningActiveCount" column="warning_active_count"/>
+        <result property="resolvedCount" column="resolved_count"/>
+        <result property="lastObservedAt" column="last_observed_at"/>
+    </resultMap>
+
     <sql id="selectColumns">
         id, incident_no, incident_key, service, alert_name, severity, state,
         summary, first_seen, last_seen, acknowledged_by, acknowledged_at,
@@ -59,6 +70,18 @@
             CASE severity WHEN 'critical' THEN 1 WHEN 'warning' THEN 2 ELSE 3 END,
             CASE state WHEN 'OPEN' THEN 1 WHEN 'ACKNOWLEDGED' THEN 2 WHEN 'INVESTIGATING' THEN 3 ELSE 4 END,
             last_seen DESC
+    </select>
+
+    <select id="selectSummary" resultMap="SreIncidentSummaryResult">
+        SELECT COUNT(*) AS total_count,
+               COALESCE(SUM(CASE WHEN state IN ('OPEN', 'ACKNOWLEDGED', 'INVESTIGATING', 'MITIGATED') THEN 1 ELSE 0 END), 0) AS active_count,
+               COALESCE(SUM(CASE WHEN state = 'OPEN' THEN 1 ELSE 0 END), 0) AS open_count,
+               COALESCE(SUM(CASE WHEN state = 'ACKNOWLEDGED' THEN 1 ELSE 0 END), 0) AS acknowledged_count,
+               COALESCE(SUM(CASE WHEN state IN ('OPEN', 'ACKNOWLEDGED', 'INVESTIGATING', 'MITIGATED') AND severity = 'critical' THEN 1 ELSE 0 END), 0) AS critical_active_count,
+               COALESCE(SUM(CASE WHEN state IN ('OPEN', 'ACKNOWLEDGED', 'INVESTIGATING', 'MITIGATED') AND severity = 'warning' THEN 1 ELSE 0 END), 0) AS warning_active_count,
+               COALESCE(SUM(CASE WHEN state IN ('RESOLVED', 'CLOSED') THEN 1 ELSE 0 END), 0) AS resolved_count,
+               MAX(last_seen) AS last_observed_at
+        FROM sre_incident
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.sre.mapper.SreRcaEvaluationSuiteCaseMapper">
+
+    <resultMap id="SreRcaEvaluationSuiteCaseResult" type="com.xiaou.sre.domain.SreRcaEvaluationSuiteCase">
+        <id property="id" column="id"/>
+        <result property="suiteVersionId" column="suite_version_id"/>
+        <result property="caseId" column="case_id"/>
+        <result property="caseOrdinal" column="case_ordinal"/>
+        <result property="caseContentSha256" column="case_content_sha256"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <insert id="insertBatch">
+        INSERT INTO sre_rca_evaluation_suite_case (
+            suite_version_id, case_id, case_ordinal, case_content_sha256, create_time
+        ) VALUES
+        <foreach collection="members" item="member" separator=",">
+            (
+                #{member.suiteVersionId}, #{member.caseId}, #{member.caseOrdinal},
+                #{member.caseContentSha256}, CURRENT_TIMESTAMP
+            )
+        </foreach>
+    </insert>
+
+    <select id="selectBySuiteVersionId" resultMap="SreRcaEvaluationSuiteCaseResult">
+        SELECT id, suite_version_id, case_id, case_ordinal, case_content_sha256, create_time
+        FROM sre_rca_evaluation_suite_case
+        WHERE suite_version_id = #{suiteVersionId}
+        ORDER BY case_ordinal ASC, id ASC
+    </select>
+
+    <select id="countBySuiteVersionIdAndCaseId" resultType="int">
+        SELECT COUNT(1)
+        FROM sre_rca_evaluation_suite_case
+        WHERE suite_version_id = #{suiteVersionId}
+          AND case_id = #{caseId}
+    </select>
+
+    <select id="countBySuiteVersionId" resultType="int">
+        SELECT COUNT(1)
+        FROM sre_rca_evaluation_suite_case
+        WHERE suite_version_id = #{suiteVersionId}
+    </select>
+</mapper>

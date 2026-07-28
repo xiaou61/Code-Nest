@@ -2,8 +2,10 @@ package com.xiaou.sre.worker;
 
 import com.xiaou.sre.config.SreOutboxProperties;
 import com.xiaou.sre.domain.SreOutboxEvent;
+import com.xiaou.sre.metrics.SreMetricsRecorder;
 import com.xiaou.sre.service.SreOutboxClaimService;
 import com.xiaou.sre.service.SreOutboxEventProcessor;
+import com.xiaou.sre.service.SreQueueRecoveryResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -28,6 +30,7 @@ public class SreOutboxWorker {
     private final SreOutboxProperties properties;
     private final SreOutboxClaimService claimService;
     private final SreOutboxEventProcessor eventProcessor;
+    private final SreMetricsRecorder metricsRecorder;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
     @Scheduled(
@@ -40,7 +43,7 @@ public class SreOutboxWorker {
         }
 
         try {
-            claimService.recoverStaleProcessing();
+            recordRecovery(claimService.recoverStaleProcessing());
             List<Long> pendingIds = claimService.listPendingIds(properties.normalizedBatchSize());
             if (pendingIds == null || pendingIds.isEmpty()) {
                 return;
@@ -66,6 +69,7 @@ public class SreOutboxWorker {
         if (event == null) {
             return;
         }
+        incrementQueueEvent("claimed", 1);
 
         try {
             eventProcessor.process(event);
@@ -80,6 +84,7 @@ public class SreOutboxWorker {
         if (attempts >= properties.normalizedMaxAttempts()) {
             try {
                 claimService.markFailed(event.getId());
+                incrementQueueEvent("terminal_failure", 1);
             } catch (RuntimeException stateException) {
                 log.error("SRE Outbox 标记失败状态异常: eventId={}, reason={}",
                         event.getId(), stateException.getClass().getSimpleName(), stateException);
@@ -92,6 +97,7 @@ public class SreOutboxWorker {
         long delaySeconds = retryDelaySeconds(attempts);
         try {
             claimService.markRetry(event.getId(), delaySeconds);
+            incrementQueueEvent("retry", 1);
         } catch (RuntimeException stateException) {
             log.error("SRE Outbox 标记重试异常: eventId={}, reason={}",
                     event.getId(), stateException.getClass().getSimpleName(), stateException);
@@ -108,5 +114,21 @@ public class SreOutboxWorker {
             delay = Math.min(maxDelay, delay * 2L);
         }
         return delay;
+    }
+
+    private void recordRecovery(SreQueueRecoveryResult result) {
+        if (result == null) {
+            return;
+        }
+        incrementQueueEvent("lease_recovered", result.recovered());
+        incrementQueueEvent("terminal_failure", result.terminalFailures());
+    }
+
+    private void incrementQueueEvent(String event, long amount) {
+        try {
+            metricsRecorder.incrementQueueEvent("outbox", event, amount);
+        } catch (RuntimeException exception) {
+            log.warn("SRE Outbox 指标记录失败: reason={}", exception.getClass().getSimpleName());
+        }
     }
 }

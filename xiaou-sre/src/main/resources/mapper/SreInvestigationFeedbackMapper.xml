@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.sre.mapper.SreInvestigationFeedbackMapper">
+
+    <resultMap id="SreInvestigationFeedbackResult" type="com.xiaou.sre.domain.SreInvestigationFeedback">
+        <id property="id" column="id"/>
+        <result property="runId" column="run_id"/>
+        <result property="accuracy" column="accuracy"/>
+        <result property="gapType" column="gap_type"/>
+        <result property="note" column="note"/>
+        <result property="expectedConclusion" column="expected_conclusion"/>
+        <result property="reviewedBy" column="reviewed_by"/>
+        <result property="reviewedAt" column="reviewed_at"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sre_investigation_feedback (
+            run_id, accuracy, gap_type, note, expected_conclusion, reviewed_by, reviewed_at, create_time
+        ) VALUES (
+            #{runId}, #{accuracy}, #{gapType}, #{note}, #{expectedConclusion},
+            #{reviewedBy}, #{reviewedAt}, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <select id="selectLatestByRunId" resultMap="SreInvestigationFeedbackResult">
+        SELECT id, run_id, accuracy, gap_type, note, expected_conclusion,
+               reviewed_by, reviewed_at, create_time
+        FROM sre_investigation_feedback
+        WHERE run_id = #{runId}
+        ORDER BY id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectByIdAndRunId" resultMap="SreInvestigationFeedbackResult">
+        SELECT id, run_id, accuracy, gap_type, note, expected_conclusion,
+               reviewed_by, reviewed_at, create_time
+        FROM sre_investigation_feedback
+        WHERE id = #{id}
+          AND run_id = #{runId}
+        LIMIT 1
+    </select>
+</mapper>

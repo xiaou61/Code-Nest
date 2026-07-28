@@ -7,6 +7,7 @@ import com.xiaou.system.agent.AgentToolDefinition;
 import com.xiaou.system.agent.AgentToolResult;
 import com.xiaou.system.dto.SreRcaReport;
 import com.xiaou.system.service.SreIncidentRcaService;
+import com.xiaou.system.service.SreRcaTriggerSource;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -52,7 +53,7 @@ class SreIncidentRcaAgentToolTest {
     void executeReturnsNonExecutableRcaArtifact() {
         SreIncidentRcaService service = mock(SreIncidentRcaService.class);
         SreIncidentRcaAgentTool tool = new SreIncidentRcaAgentTool(service);
-        when(service.investigate(11L)).thenReturn(Optional.of(report()));
+        when(service.investigate(11L, SreRcaTriggerSource.AGENT_TOOL, 7L)).thenReturn(Optional.of(report()));
         AgentToolCall call = new AgentToolCall();
         call.setInput(Map.of("incidentId", 11L));
 
@@ -65,14 +66,14 @@ class SreIncidentRcaAgentToolTest {
                     assertThat(artifact.getType()).isEqualTo("sreIncidentRca");
                     assertThat(artifact.getData()).containsEntry("executionAllowed", false);
                 });
-        verify(service).investigate(11L);
+        verify(service).investigate(11L, SreRcaTriggerSource.AGENT_TOOL, 7L);
     }
 
     @Test
     void missingIncidentReturnsRecoverableToolError() {
         SreIncidentRcaService service = mock(SreIncidentRcaService.class);
         SreIncidentRcaAgentTool tool = new SreIncidentRcaAgentTool(service);
-        when(service.investigate(404L)).thenReturn(Optional.empty());
+        when(service.investigate(404L, SreRcaTriggerSource.AGENT_TOOL, 7L)).thenReturn(Optional.empty());
         AgentToolCall call = new AgentToolCall();
         call.setInput(Map.of("incidentId", 404L));
 

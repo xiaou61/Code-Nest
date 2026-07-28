@@ -4,6 +4,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -18,7 +20,10 @@ public class SreLokiQueryCatalog {
 
     private static final String DEFAULT_ALERT = "__default__";
 
+    private static final String TOOL_PREFIX = "loki_";
+
     private final Map<String, QuerySpec> specs = createSpecs();
+    private final Map<String, QuerySpec> toolSpecs = createToolSpecs(specs);
 
     public QuerySpec find(String alertName) {
         if (StringUtils.hasText(alertName)) {
@@ -32,6 +37,22 @@ public class SreLokiQueryCatalog {
 
     public boolean isAllowed(QuerySpec querySpec) {
         return querySpec != null && specs.containsValue(querySpec);
+    }
+
+    public QuerySpec findByToolKey(String toolKey) {
+        if (!StringUtils.hasText(toolKey)) {
+            return null;
+        }
+        return toolSpecs.get(toolKey.trim().toLowerCase(Locale.ROOT));
+    }
+
+    public List<String> toolKeys() {
+        return List.copyOf(toolSpecs.keySet());
+    }
+
+    public String toolKeyForAlert(String alertName) {
+        QuerySpec querySpec = find(alertName);
+        return querySpec == null ? null : TOOL_PREFIX + querySpec.sourceRef();
     }
 
     private Map<String, QuerySpec> createSpecs() {
@@ -54,6 +75,12 @@ public class SreLokiQueryCatalog {
         result.put(DEFAULT_ALERT, new QuerySpec(
                 "application_errors", "{job=\"code-nest\"} |~ \"(?i)(error|exception|timeout)\""));
         return result;
+    }
+
+    private Map<String, QuerySpec> createToolSpecs(Map<String, QuerySpec> alertSpecs) {
+        Map<String, QuerySpec> result = new LinkedHashMap<>();
+        alertSpecs.values().forEach(spec -> result.putIfAbsent(TOOL_PREFIX + spec.sourceRef(), spec));
+        return java.util.Collections.unmodifiableMap(new LinkedHashMap<>(result));
     }
 
     public record QuerySpec(String sourceRef, String logQl) {

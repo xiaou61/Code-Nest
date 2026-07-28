@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: Code Nest
-  text: v2.4.3 工程文档中心
+  text: v2.5.0 工程文档中心
   tagline: 按角色、任务和系统边界组织的开发、接口、操作与运维手册。
   image:
     src: /code-nest-mark.svg
@@ -56,7 +56,7 @@ features:
 | 维度 | 当前值 | 权威来源 |
 | --- | --- | --- |
 | 后端 | Spring Boot 3.4.4、JDK 17、28 个 Maven 子模块 | 根 `pom.xml` |
-| 数据库 | MySQL 8.0+、主库基线 145 张表 | `sql/MySql/code_nest.sql` |
+| 数据库 | MySQL 8.0+、主库基线 161 张表 | `sql/MySql/code_nest.sql` |
 | 缓存与会话 | Redis 7.x + Redisson，业务缓存和 Sa-Token 分库 | 应用配置 |
 | 前端 | Vue 3 用户端、管理端、共享设计系统、Electron 构建 | 双前端工程 |
 | AI | LangChain4j + LangGraph4j + LlamaIndex Sidecar | `xiaou-ai`、`llamaindex-service` |

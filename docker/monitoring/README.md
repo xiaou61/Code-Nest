@@ -123,20 +123,39 @@ ports directly to the public internet.
 ## Operational Notes
 
 - Alert thresholds are intentionally conservative starting points. Tune them after two weeks of baseline data.
+- Disk rules ignore Podman's overlay mirror mount because it reports the same backing filesystem as `/`; the root filesystem remains monitored.
 - A stack on the same server cannot detect complete server loss. Add an external uptime monitor or a second monitoring node before claiming host-level 24x7 coverage.
 - Nginx now rejects `/api/actuator/`; Prometheus scrapes the backend directly over host loopback.
 
 ## Optional SRE Event Ingestion
 
-The Java `xiaou-sre` module and its Outbox worker are opt-in. QQ email delivery does
-not depend on them. Before enabling the worker on the application server:
+The Java `xiaou-sre` module, Outbox worker and RCA evaluation worker are opt-in. QQ
+email delivery does not depend on them. Keep both workers disabled while applying the
+required database migrations:
 
 1. Apply `sql/v2.5.0/sre_incident.sql`, or apply the incremental
    `sql/v2.5.0/sre_incident_evidence.sql` when the four original SRE tables already exist.
-2. Set a dedicated `XIAOU_SRE_WEBHOOK_TOKEN`; do not reuse an administrator token.
+2. Apply `sql/v2.5.0/sre_investigation_run.sql` before deploying a backend that exposes
+   persistent RCA history and feedback. The migration is idempotent and creates the run,
+   step, and append-only feedback tables. Re-run it when upgrading from the earlier v2.5.0
+   investigation schema.
+3. When upgrading an early v2.5.0 evidence table, stop RCA traffic and apply
+   `sql/v2.5.0/sre_investigation_loop.sql` exactly once. Fresh installations using
+   `sql/MySql/code_nest.sql` already contain these columns and must not run the incremental
+   ALTER script.
+4. For the administrator RCA evaluation workbench, apply these migrations in order:
+   `sql/v2.5.0/sre_rca_evaluation.sql`,
+   `sql/v2.5.0/sre_rca_evaluation_suite.sql`, then
+   `sql/v2.5.0/sre_rca_evaluation_queue.sql`. The suite migration creates stable suites,
+   immutable versions and ordered members. The queue migration adds frozen run membership,
+   leases, deadlines, attempts and source/build provenance. Apply the suite and queue
+   migrations exactly once after the base evaluation migration; their `ALTER TABLE`
+   statements are not rerunnable. The queue migration marks any pre-migration synchronous
+   `RUNNING` row as failed because it cannot have a trustworthy lease or build identity.
+5. Set a dedicated `XIAOU_SRE_WEBHOOK_TOKEN`; do not reuse an administrator token.
    Put the identical value in `secrets/sre_webhook_token` with owner `65534:65534`
    and mode `0400`.
-3. Replace the email-only local config with the webhook template, then edit the
+6. Replace the email-only local config with the webhook template, then edit the
    QQ sender and recipient values:
 
    ```bash
@@ -152,9 +171,27 @@ not depend on them. Before enabling the worker on the application server:
    The template sends every alert independently to QQ and the private Java
    endpoint `http://127.0.0.1:9999/api/internal/sre/alertmanager/v1/alerts`.
    Do not publish that path through Nginx or the public firewall.
-4. Enable `XIAOU_SRE_WEBHOOK_ENABLED=true` only after the Alertmanager receiver is
+7. Enable `XIAOU_SRE_WEBHOOK_ENABLED=true` only after the Alertmanager receiver is
    configured to call the backend directly over the monitoring path.
-5. Enable `XIAOU_SRE_OUTBOX_ENABLED=true` only after the evidence table migration succeeds.
+8. Enable `XIAOU_SRE_OUTBOX_ENABLED=true` only after the evidence table migration succeeds.
+9. Enable `XIAOU_SRE_METRICS_ENABLED=true` only after the incident, investigation and
+   evaluation tables exist. Database-backed gauges stay disabled otherwise; event counters
+   and timers do not depend on this switch.
+10. Set immutable deployment values for `XIAOU_SRE_EVALUATION_SOURCE_REVISION`,
+   `XIAOU_SRE_EVALUATION_BUILD_ID` and `XIAOU_SRE_EVALUATION_BUILD_VERSION`, then enable
+   `XIAOU_SRE_EVALUATION_ENABLED=true` only after the queue migration succeeds. Until it is
+   enabled, run creation fails with business code `503` instead of leaving an unconsumed job.
+
+The run endpoint enqueues work and returns HTTP `202`; it does not call the model in the
+request thread. A worker atomically claims each run, persists progress and a heartbeat after
+every case, retries expired leases without repeating completed cases, and stops at the frozen
+deadline or maximum attempt count. One administrator can have only one `QUEUED` or `RUNNING`
+run at a time; a second request returns business code `409`.
+
+Before releasing RCA changes, run `./scripts/code-nest-eval.ps1 -Tier sre`. This is a
+deterministic gate over synthetic, redacted fixtures; it does not read production data or
+call an online model. Validate the configured online model separately through an explicit
+administrator suite replay.
 
 For Prometheus evidence on the current production host, set
 `XIAOU_SRE_PROMETHEUS_ENDPOINT=http://127.0.0.1:19090` in the application
@@ -167,3 +204,9 @@ Prometheus API is restricted to the monitoring network; enable `XIAOU_SRE_LOKI_E
 only after an Alloy/Loki deployment and its retention policy are verified. Neither
 collector executes remediation commands, and an unavailable evidence source is recorded
 as a bounded unavailable snapshot instead of blocking the QQ alert path.
+
+RCA can select at most five server-owned Prometheus/Loki tool keys, stops on duplicate
+evidence, persists every new result before final analysis, and never accepts model-generated
+PromQL, LogQL, Shell or SQL. There is no automatic remediation and no monetary/token/model
+cost budget gate; the hard controls are tool allowlists, round limits, client timeouts,
+bounded responses/context and per-run query fingerprint idempotency.

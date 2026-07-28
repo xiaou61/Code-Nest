@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.sre.mapper.SreRcaEvaluationSuiteVersionMapper">
+
+    <resultMap id="SreRcaEvaluationSuiteVersionResult" type="com.xiaou.sre.domain.SreRcaEvaluationSuiteVersion">
+        <id property="id" column="id"/>
+        <result property="suiteId" column="suite_id"/>
+        <result property="versionNo" column="version_no"/>
+        <result property="caseCount" column="case_count"/>
+        <result property="manifestSha256" column="manifest_sha256"/>
+        <result property="manifestSchemaId" column="manifest_schema_id"/>
+        <result property="scoringPolicyId" column="scoring_policy_id"/>
+        <result property="gateEvaluatorId" column="gate_evaluator_id"/>
+        <result property="minimumPassRate" column="minimum_pass_rate"/>
+        <result property="minimumAverageScore" column="minimum_average_score"/>
+        <result property="requireAllSafety" column="require_all_safety"/>
+        <result property="requireNoDegraded" column="require_no_degraded"/>
+        <result property="publishedBy" column="published_by"/>
+        <result property="publishedAt" column="published_at"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <sql id="allColumns">
+        id, suite_id, version_no, case_count, manifest_sha256, manifest_schema_id,
+        scoring_policy_id, gate_evaluator_id, minimum_pass_rate, minimum_average_score,
+        require_all_safety, require_no_degraded, published_by, published_at, create_time
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sre_rca_evaluation_suite_version (
+            suite_id, version_no, case_count, manifest_sha256, manifest_schema_id,
+            scoring_policy_id, gate_evaluator_id, minimum_pass_rate, minimum_average_score,
+            require_all_safety, require_no_degraded, published_by, published_at, create_time
+        ) VALUES (
+            #{suiteId}, #{versionNo}, #{caseCount}, #{manifestSha256}, #{manifestSchemaId},
+            #{scoringPolicyId}, #{gateEvaluatorId}, #{minimumPassRate}, #{minimumAverageScore},
+            #{requireAllSafety}, #{requireNoDegraded}, #{publishedBy}, #{publishedAt}, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <select id="selectById" resultMap="SreRcaEvaluationSuiteVersionResult">
+        SELECT <include refid="allColumns"/>
+        FROM sre_rca_evaluation_suite_version
+        WHERE id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="selectBySuiteIdAndManifestSha256" resultMap="SreRcaEvaluationSuiteVersionResult">
+        SELECT <include refid="allColumns"/>
+        FROM sre_rca_evaluation_suite_version
+        WHERE suite_id = #{suiteId}
+          AND manifest_sha256 = #{manifestSha256}
+        LIMIT 1
+    </select>
+
+    <select id="selectLatestVersionNo" resultType="java.lang.Integer">
+        SELECT MAX(version_no)
+        FROM sre_rca_evaluation_suite_version
+        WHERE suite_id = #{suiteId}
+    </select>
+
+    <select id="selectBySuiteId" resultMap="SreRcaEvaluationSuiteVersionResult">
+        SELECT <include refid="allColumns"/>
+        FROM sre_rca_evaluation_suite_version
+        WHERE suite_id = #{suiteId}
+        ORDER BY version_no DESC, id DESC
+        LIMIT #{limit}
+    </select>
+</mapper>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.sre.mapper.SreInvestigationStepMapper">
+
+    <resultMap id="SreInvestigationStepResult" type="com.xiaou.sre.domain.SreInvestigationStep">
+        <id property="id" column="id"/>
+        <result property="runId" column="run_id"/>
+        <result property="stepOrder" column="step_order"/>
+        <result property="stepCode" column="step_code"/>
+        <result property="status" column="status"/>
+        <result property="detail" column="detail"/>
+        <result property="recordedAt" column="recorded_at"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sre_investigation_step (
+            run_id, step_order, step_code, status, detail, recorded_at, create_time
+        ) VALUES (
+            #{runId}, #{stepOrder}, #{stepCode}, #{status}, #{detail}, #{recordedAt}, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <select id="selectByRunId" resultMap="SreInvestigationStepResult">
+        SELECT id, run_id, step_order, step_code, status, detail, recorded_at, create_time
+        FROM sre_investigation_step
+        WHERE run_id = #{runId}
+        ORDER BY step_order ASC, id ASC
+        LIMIT 100
+    </select>
+</mapper>
