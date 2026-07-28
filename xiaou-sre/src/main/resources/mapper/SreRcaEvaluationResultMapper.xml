@@ -50,4 +50,10 @@
         WHERE evaluation_run_id = #{runId}
         ORDER BY id ASC
     </select>
+
+    <select id="countByRunId" resultType="int">
+        SELECT COUNT(1)
+        FROM sre_rca_evaluation_result
+        WHERE evaluation_run_id = #{runId}
+    </select>
 </mapper>

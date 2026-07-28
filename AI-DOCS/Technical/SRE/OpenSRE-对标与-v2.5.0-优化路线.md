@@ -35,7 +35,7 @@ Code-Nest 的优势是事故、证据、权限、事务 Outbox 和管理后台�
 | 会话持久化 | JSONL Session Repo 支持最近会话、调查历史、按前缀恢复调查；REPL 暴露 `/sessions` 和 `/resume` | Code-Nest 页面刷新后应继续看到原 RCA 和调查轨迹 |
 | 工具元数据 | `ToolMetadata` 声明 evidence type 和 `none/read_only/mutating/external` 副作用等级 | 与 Code-Nest 已有 Agent 风险模型方向一致 |
 | 反馈闭环 | `partial/inaccurate` 结果会按 retrieval/reasoning/tool/routing 等 taxonomy 记录为 miss，并可导出为 benchmark case | Code-Nest v2.5.0 已补齐评价、缺口分类、追加审计，并支持将指定反馈修订人工提升为不可变评测用例 |
-| 评测体系 | benchmark 保存报告、单 case 原始产物和代码/配置/模型 provenance；官方文档当前提到 452 个 CloudOpsBench 场景 | v2.5.0 已实现手动离线回放、逐用例产物、模型 provenance 和固定规则评分；场景规模、代码提交 provenance 与 CI 门禁仍未对齐 |
+| 评测体系 | benchmark 保存报告、单 case 原始产物和代码/配置/模型 provenance；官方文档当前提到 452 个 CloudOpsBench 场景 | v2.5.0 已实现版本化套件、逐用例产物、模型 provenance、固定规则评分和确定性 CI 门禁；场景规模、代码提交 provenance 与真实模型 CI 仍未对齐 |
 | 数据安全 | README 声明可逆标识符掩码、结构化审计 Prompt、本地 transcript；遥测默认 opt-out | Code-Nest 已有双层脱敏，但仍需持续检查持久化报告和日志边界 |
 
 ### 已核对的反向证据
@@ -87,6 +87,18 @@ Code-Nest 的优势是事故、证据、权限、事务 Outbox 和管理后台�
     API DTO 不包含冻结上下文或基准报告 JSON，失败记录不保存异常正文；
 18. artifact 提升和实际回放都会重新执行大小、哈希和未脱敏凭据校验，防止数据库内容被改写
     并重算哈希后进入模型。
+19. 新增稳定套件、不可变套件版本和有序成员三层模型；同一内容与策略重复发布会复用版本，
+    成员、评分策略和门禁策略任一变化都会生成新的 manifest；
+20. 每个成员冻结 `context_json + baseline_report_json + expected_conclusion` 内容指纹，读取套件
+    版本和执行回放时重新校验成员指纹与 manifest，发生漂移时拒绝执行；
+21. 套件版本冻结最低通过率、最低平均分、全部只读安全和禁止降级策略。门禁结果保存
+    `PENDING / PASSED / FAILED` 及固定失败码；临时单用例/全量回放为 `NOT_APPLICABLE`；
+22. 管理端评测工作台拆分为用例、套件、历史三个视图，支持创建稳定套件、发布版本、按版本
+    回放，并展示 manifest、门槛、通过率、安全/降级计数和失败码；
+23. `sre-rca-core:1.0.0` 使用三组纯合成事故冻结上下文哈希、case 指纹和 manifest，覆盖脱敏、
+    Prompt/Schema、透明评分、危险建议、fallback 和聚合门槛，不读取生产数据库或调用在线模型；
+24. `scripts/code-nest-eval.ps1 -Tier sre` 运行 41 个关键 RCA 测试，GitHub CI 将其作为独立必需
+    作业。线上模型质量仍由管理员显式套件回放验证，CI 不自动切换、发布或回滚模型。
 
 ## 4. 差距和优先级
 
@@ -97,6 +109,7 @@ Code-Nest 的优势是事故、证据、权限、事务 Outbox 和管理后台�
 | P0 | RCA 运行不可恢复、不可审计 | 刷新即丢、无法判断 AI/降级过程 | 本次已完成 |
 | 已完成 | 没有准确/部分准确/不准确反馈 | 无法知道模型是否真的帮助定位 | v2.5.0 已增加评价、缺口分类、追加审计和期望结论 |
 | 已完成 | 缺少可控离线回放与可比较评分 | 改 Prompt/模型后无法量化差异 | v2.5.0 已实现人工提升、单用例/全量手动回放、逐用例透明评分和聚合得分；不从生产事故自动调用模型 |
+| 已完成 | 缺少可复现的版本化套件和确定性 CI 门禁 | 用例集合或阈值漂移，回归结果不可比较 | v2.5.0 已冻结成员指纹、manifest、评分/门禁策略，并提供独立 `sre` CI tier；CI 使用合成响应，不冒充真实模型评测 |
 | P1 | 缺少发布和 Runbook 证据 | 根因容易停留在指标/日志层 | 先接入最近发布、版本和只读 Runbook，仍走证据表 |
 | P1 | SRE 自身指标不完整 | 无法发现调查失败率、降级率和积压 | 暴露 run duration、status、generation mode、outbox backlog 指标 |
 | P2 | 固定查询不能按假设追加取证 | 复杂事故证据覆盖有限 | 只在白名单工具上实现最多 3-5 轮的有界调查，不开放任意命令或查询 |
@@ -121,10 +134,16 @@ Code-Nest 的优势是事故、证据、权限、事务 Outbox 和管理后台�
 - 每个结果保存结构化候选报告、Prompt/Schema、provider、配置/实际模型、调用结果、分项分数、
   总分和受控失败码，运行保存通过数、失败数和平均分；
 - 固定权重评分可由人工复核，不使用模型 judge，也不会依据得分自动切换或发布模型。
+- 稳定套件可以发布不可变版本；成员按 case ID 规范排序，版本冻结 manifest、评分策略、最低
+  通过率、最低平均分、全部安全和禁止降级要求；
+- 套件回放保存 `PASSED / FAILED` 和固定失败码；临时回放明确标记为 `NOT_APPLICABLE`；
+- 仓库内置合成 `sre-rca-core:1.0.0`，通过独立 CI tier 校验脱敏、Prompt/Schema、上下文哈希、
+  指纹、评分、安全、fallback 和聚合门槛，全程不访问生产数据或在线模型。
 
 这完成了“反馈 -> 审核用例 -> 回放 -> 可比较结果”的最小闭环，但不等于完全对齐 OpenSRE：
-当前没有 CloudOpsBench 同等规模的场景集、代码提交 provenance、版本化套件和 CI 自动门禁。
-后续扩展这些能力时仍应读取隔离的审核用例集，不能让定时任务扫描生产事故并直接调用模型。
+当前没有 CloudOpsBench 同等规模的场景集、代码提交/构建 provenance，也没有使用真实模型的
+受控 CI 验证。后续扩展这些能力时仍应读取隔离的审核用例集，不能让定时任务扫描生产事故并
+直接调用模型；真实模型验证应保持显式触发、预算受控且不具备自动发布或回滚权限。
 
 ### 5.2 发布和 Runbook 证据
 

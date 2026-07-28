@@ -138,10 +138,16 @@ not depend on them. Before enabling the worker on the application server:
    persistent RCA history and feedback. The migration is idempotent and creates the run,
    step, and append-only feedback tables. Re-run it when upgrading from the earlier v2.5.0
    investigation schema.
-3. Set a dedicated `XIAOU_SRE_WEBHOOK_TOKEN`; do not reuse an administrator token.
+3. For the administrator RCA evaluation workbench, apply
+   `sql/v2.5.0/sre_rca_evaluation.sql` and then
+   `sql/v2.5.0/sre_rca_evaluation_suite.sql`. The second migration creates stable suites,
+   immutable versions and ordered members, then extends evaluation runs with frozen gate
+   policy and results. Apply it once after the base evaluation migration; its `ALTER TABLE`
+   statements are not rerunnable.
+4. Set a dedicated `XIAOU_SRE_WEBHOOK_TOKEN`; do not reuse an administrator token.
    Put the identical value in `secrets/sre_webhook_token` with owner `65534:65534`
    and mode `0400`.
-4. Replace the email-only local config with the webhook template, then edit the
+5. Replace the email-only local config with the webhook template, then edit the
    QQ sender and recipient values:
 
    ```bash
@@ -157,9 +163,14 @@ not depend on them. Before enabling the worker on the application server:
    The template sends every alert independently to QQ and the private Java
    endpoint `http://127.0.0.1:9999/api/internal/sre/alertmanager/v1/alerts`.
    Do not publish that path through Nginx or the public firewall.
-5. Enable `XIAOU_SRE_WEBHOOK_ENABLED=true` only after the Alertmanager receiver is
+6. Enable `XIAOU_SRE_WEBHOOK_ENABLED=true` only after the Alertmanager receiver is
    configured to call the backend directly over the monitoring path.
-6. Enable `XIAOU_SRE_OUTBOX_ENABLED=true` only after the evidence table migration succeeds.
+7. Enable `XIAOU_SRE_OUTBOX_ENABLED=true` only after the evidence table migration succeeds.
+
+Before releasing RCA changes, run `./scripts/code-nest-eval.ps1 -Tier sre`. This is a
+deterministic gate over synthetic, redacted fixtures; it does not read production data or
+call an online model. Validate the configured online model separately through an explicit
+administrator suite replay.
 
 For Prometheus evidence on the current production host, set
 `XIAOU_SRE_PROMETHEUS_ENDPOINT=http://127.0.0.1:19090` in the application

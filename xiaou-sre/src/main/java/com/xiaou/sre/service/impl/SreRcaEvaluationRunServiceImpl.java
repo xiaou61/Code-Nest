@@ -3,9 +3,12 @@ package com.xiaou.sre.service.impl;
 import com.xiaou.sre.domain.SreRcaEvaluationResult;
 import com.xiaou.sre.domain.SreRcaEvaluationRun;
 import com.xiaou.sre.dto.request.SreRcaEvaluationResultCapture;
+import com.xiaou.sre.dto.request.SreRcaEvaluationRunCompletion;
+import com.xiaou.sre.dto.request.SreRcaEvaluationRunStart;
 import com.xiaou.sre.mapper.SreRcaEvaluationCaseMapper;
 import com.xiaou.sre.mapper.SreRcaEvaluationResultMapper;
 import com.xiaou.sre.mapper.SreRcaEvaluationRunMapper;
+import com.xiaou.sre.mapper.SreRcaEvaluationSuiteCaseMapper;
 import com.xiaou.sre.service.SreRcaEvaluationRunService;
 import com.xiaou.sre.service.SreValidationException;
 import lombok.RequiredArgsConstructor;
@@ -35,42 +38,59 @@ public class SreRcaEvaluationRunServiceImpl implements SreRcaEvaluationRunServic
     private static final int MAX_HISTORY_LIMIT = 50;
     private static final int MAX_REPORT_LENGTH = 1_000_000;
     private static final int MAX_SCORE_DETAIL_LENGTH = 10_000;
+    private static final int MAX_GATE_DETAIL_LENGTH = 5_000;
     private static final Set<String> RESULT_STATUSES = Set.of("SUCCEEDED", "DEGRADED", "FAILED");
     private static final Set<String> RUN_TERMINAL_STATUSES = Set.of("SUCCEEDED", "DEGRADED");
+    private static final Set<String> TRIGGER_SOURCES = Set.of("MANUAL", "CI");
+    private static final Set<String> GATE_TERMINAL_STATUSES = Set.of(
+            "NOT_APPLICABLE", "PASSED", "FAILED");
     private static final Set<String> INVOCATION_OUTCOMES = Set.of(
             "SUCCESS", "MODEL_UNAVAILABLE", "EMPTY_RESPONSE", "INVOCATION_EXCEPTION",
             "PARSER_FAILURE", "UNEXPECTED_FAILURE");
     private static final Pattern FAILURE_CODE_PATTERN = Pattern.compile("[A-Z][A-Z0-9_]{0,127}");
+    private static final Pattern SHA256_PATTERN = Pattern.compile("[a-fA-F0-9]{64}");
 
     private final SreRcaEvaluationRunMapper runMapper;
     private final SreRcaEvaluationResultMapper resultMapper;
     private final SreRcaEvaluationCaseMapper caseMapper;
+    private final SreRcaEvaluationSuiteCaseMapper suiteCaseMapper;
 
     @Override
     @Transactional
-    public SreRcaEvaluationRun start(Long requestedCaseId,
-                                     Long requestedBy,
-                                     int caseCount,
-                                     String promptId,
-                                     String schemaId) {
-        if (requestedCaseId != null && requestedCaseId <= 0) {
+    public SreRcaEvaluationRun start(SreRcaEvaluationRunStart start) {
+        if (start == null) {
+            throw new SreValidationException("评测运行启动参数不能为空");
+        }
+        if (start.requestedCaseId() != null && start.requestedCaseId() <= 0) {
             throw new SreValidationException("指定评测用例 ID 不合法");
         }
-        requirePositive(requestedBy, "评测发起管理员 ID 不合法");
-        if (caseCount <= 0 || caseCount > MAX_CASES_PER_RUN) {
+        if (start.requestedCaseId() != null && start.suiteVersionId() != null) {
+            throw new SreValidationException("单用例与套件版本不能同时指定");
+        }
+        requirePositive(start.requestedBy(), "评测发起管理员 ID 不合法");
+        if (start.caseCount() <= 0 || start.caseCount() > MAX_CASES_PER_RUN) {
             throw new SreValidationException("评测用例数量不合法");
         }
 
         SreRcaEvaluationRun run = new SreRcaEvaluationRun();
         run.setStatus("RUNNING");
-        run.setRequestedCaseId(requestedCaseId);
-        run.setRequestedBy(requestedBy);
-        run.setCaseCount(caseCount);
+        run.setRequestedCaseId(start.requestedCaseId());
+        run.setSuiteVersionId(start.suiteVersionId());
+        run.setTriggerSource(normalizedIn(start.triggerSource(), TRIGGER_SOURCES, "评测触发来源不合法"));
+        run.setRequestedBy(start.requestedBy());
+        run.setCaseCount(start.caseCount());
         run.setCompletedCount(0);
         run.setPassedCount(0);
         run.setFailedCount(0);
-        run.setPromptId(requiredText(promptId, 128, "评测 Prompt ID 不合法"));
-        run.setSchemaId(requiredText(schemaId, 255, "评测 Schema ID 不合法"));
+        run.setUnsafeCount(0);
+        run.setDegradedCount(0);
+        run.setPromptId(requiredText(start.promptId(), 128, "评测 Prompt ID 不合法"));
+        run.setSchemaId(requiredText(start.schemaId(), 255, "评测 Schema ID 不合法"));
+        if (start.suiteVersionId() == null) {
+            run.setGateStatus("NOT_APPLICABLE");
+        } else {
+            initializeSuiteSnapshot(run, start);
+        }
         run.setStartedAt(LocalDateTime.now());
         if (runMapper.insert(run) != 1 || run.getId() == null) {
             throw new IllegalStateException("SRE RCA 评测运行创建失败");
@@ -93,6 +113,7 @@ public class SreRcaEvaluationRunServiceImpl implements SreRcaEvaluationRunServic
         if (caseMapper.selectById(capture.caseId()) == null) {
             throw new SreValidationException("评测用例不存在");
         }
+        validateRunMembership(run, capture.caseId());
 
         String status = normalizedIn(capture.status(), RESULT_STATUSES, "评测结果状态不合法");
         String reportJson = optionalText(capture.candidateReportJson(), MAX_REPORT_LENGTH, "候选报告大小不合法");
@@ -146,40 +167,51 @@ public class SreRcaEvaluationRunServiceImpl implements SreRcaEvaluationRunServic
 
     @Override
     @Transactional
-    public void complete(Long runId,
-                         String status,
-                         int completedCount,
-                         int passedCount,
-                         int failedCount,
-                         BigDecimal averageScore,
-                         String provider,
-                         String configuredModel) {
-        requirePositive(runId, "评测运行 ID 不合法");
-        SreRcaEvaluationRun run = runMapper.selectById(runId);
+    public void complete(SreRcaEvaluationRunCompletion completion) {
+        if (completion == null) {
+            throw new SreValidationException("评测完成参数不能为空");
+        }
+        requirePositive(completion.runId(), "评测运行 ID 不合法");
+        SreRcaEvaluationRun run = runMapper.selectById(completion.runId());
         if (run == null || !"RUNNING".equals(run.getStatus())) {
             throw new SreValidationException("评测运行不存在或已结束");
         }
-        if (completedCount != run.getCaseCount()
-                || passedCount < 0
-                || failedCount < 0
-                || passedCount + failedCount != completedCount) {
+        int persistedCount = resultMapper.countByRunId(run.getId());
+        if (completion.completedCount() != run.getCaseCount()
+                || persistedCount != completion.completedCount()
+                || completion.passedCount() < 0
+                || completion.failedCount() < 0
+                || completion.passedCount() + completion.failedCount() != completion.completedCount()
+                || completion.unsafeCount() < 0
+                || completion.degradedCount() < 0
+                || completion.unsafeCount() > completion.completedCount()
+                || completion.degradedCount() > completion.completedCount()) {
             throw new SreValidationException("评测运行计数不一致");
         }
-        String terminalStatus = normalizedIn(status, RUN_TERMINAL_STATUSES, "评测完成状态不合法");
-        BigDecimal normalizedAverage = score(averageScore);
-        String normalizedProvider = requiredText(provider, 64, "AI provider 不合法");
-        String normalizedModel = optionalText(configuredModel, 128, "配置模型名称不合法");
-        if (runMapper.updateCompletion(
-                runId,
-                terminalStatus,
-                completedCount,
-                passedCount,
-                failedCount,
-                normalizedAverage,
-                normalizedProvider,
-                normalizedModel,
-                LocalDateTime.now()
-        ) != 1) {
+        String gateStatus = normalizedIn(
+                completion.gateStatus(), GATE_TERMINAL_STATUSES, "质量门禁状态不合法");
+        if ((run.getSuiteVersionId() == null && !"NOT_APPLICABLE".equals(gateStatus))
+                || (run.getSuiteVersionId() != null && "NOT_APPLICABLE".equals(gateStatus))) {
+            throw new SreValidationException("质量门禁状态与运行类型不一致");
+        }
+
+        run.setStatus(normalizedIn(
+                completion.status(), RUN_TERMINAL_STATUSES, "评测完成状态不合法"));
+        run.setCompletedCount(completion.completedCount());
+        run.setPassedCount(completion.passedCount());
+        run.setFailedCount(completion.failedCount());
+        run.setAverageScore(score(completion.averageScore()));
+        run.setPassRate(percentage(completion.passRate(), "评测通过率不合法"));
+        run.setUnsafeCount(completion.unsafeCount());
+        run.setDegradedCount(completion.degradedCount());
+        run.setGateStatus(gateStatus);
+        run.setGateDetailJson(optionalText(
+                completion.gateDetailJson(), MAX_GATE_DETAIL_LENGTH, "质量门禁说明大小不合法"));
+        run.setProvider(requiredText(completion.provider(), 64, "AI provider 不合法"));
+        run.setConfiguredModel(optionalText(
+                completion.configuredModel(), 128, "配置模型名称不合法"));
+        run.setCompletedAt(LocalDateTime.now());
+        if (runMapper.updateCompletion(run) != 1) {
             throw new SreValidationException("评测运行不存在或已结束");
         }
     }
@@ -221,6 +253,49 @@ public class SreRcaEvaluationRunServiceImpl implements SreRcaEvaluationRunServic
         return results == null ? List.of() : List.copyOf(results);
     }
 
+    private void initializeSuiteSnapshot(SreRcaEvaluationRun run, SreRcaEvaluationRunStart start) {
+        requirePositive(start.suiteVersionId(), "评测套件版本 ID 不合法");
+        if (start.suiteVersion() == null || start.suiteVersion() <= 0) {
+            throw new SreValidationException("评测套件版本号不合法");
+        }
+        String manifest = requiredText(
+                start.suiteManifestSha256(), 64, "评测套件 manifest 不合法");
+        if (!SHA256_PATTERN.matcher(manifest).matches()) {
+            throw new SreValidationException("评测套件 manifest 不合法");
+        }
+        if (suiteCaseMapper.countBySuiteVersionId(start.suiteVersionId()) != start.caseCount()) {
+            throw new SreValidationException("评测套件版本成员数量不一致");
+        }
+        if (start.gateRequireAllSafety() == null || start.gateRequireNoDegraded() == null) {
+            throw new SreValidationException("质量门禁策略不完整");
+        }
+
+        run.setSuiteKey(requiredText(start.suiteKey(), 64, "评测套件 Key 不合法"));
+        run.setSuiteVersion(start.suiteVersion());
+        run.setSuiteManifestSha256(manifest.toLowerCase(Locale.ROOT));
+        run.setScoringPolicyId(requiredText(
+                start.scoringPolicyId(), 128, "评分策略 ID 不合法"));
+        run.setGateEvaluatorId(requiredText(
+                start.gateEvaluatorId(), 128, "质量门禁评估器 ID 不合法"));
+        run.setGateMinimumPassRate(percentage(
+                start.gateMinimumPassRate(), "质量门禁最低通过率不合法"));
+        run.setGateMinimumAverageScore(percentage(
+                start.gateMinimumAverageScore(), "质量门禁最低平均分不合法"));
+        run.setGateRequireAllSafety(start.gateRequireAllSafety());
+        run.setGateRequireNoDegraded(start.gateRequireNoDegraded());
+        run.setGateStatus("PENDING");
+    }
+
+    private void validateRunMembership(SreRcaEvaluationRun run, Long caseId) {
+        if (run.getSuiteVersionId() != null
+                && suiteCaseMapper.countBySuiteVersionIdAndCaseId(run.getSuiteVersionId(), caseId) != 1) {
+            throw new SreValidationException("评测用例不属于本次套件版本");
+        }
+        if (run.getRequestedCaseId() != null && !run.getRequestedCaseId().equals(caseId)) {
+            throw new SreValidationException("评测用例不属于本次单用例运行");
+        }
+    }
+
     private BigDecimal ratio(BigDecimal value, String message) {
         if (value == null || value.compareTo(BigDecimal.ZERO) < 0 || value.compareTo(BigDecimal.ONE) > 0) {
             throw new SreValidationException(message);
@@ -233,6 +308,15 @@ public class SreRcaEvaluationRunServiceImpl implements SreRcaEvaluationRunServic
                 || value.compareTo(BigDecimal.ZERO) < 0
                 || value.compareTo(BigDecimal.valueOf(100)) > 0) {
             throw new SreValidationException("评测总分不合法");
+        }
+        return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal percentage(BigDecimal value, String message) {
+        if (value == null
+                || value.compareTo(BigDecimal.ZERO) < 0
+                || value.compareTo(BigDecimal.valueOf(100)) > 0) {
+            throw new SreValidationException(message);
         }
         return value.setScale(2, RoundingMode.HALF_UP);
     }

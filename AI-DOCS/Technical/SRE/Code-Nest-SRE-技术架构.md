@@ -2,7 +2,7 @@
 
 > 文档类型：技术架构设计
 >
-> 版本：v1.4（P3.5 不可变评测用例与手动离线回放已落地）
+> 版本：v1.5（P3.5 版本化评测套件与确定性质量门禁已落地）
 >
 > 日期：2026-07-28
 >
@@ -38,7 +38,7 @@
 - P1 的日志、MySQL、Redis、异地探针扩展点。
 - P2 的告警入库、事故聚合、证据时间线和后台管理接口。
 - P3 的只读 AI RCA、工具权限和证据引用。
-- P3.5 的人工审核评测用例、手动离线回放和透明评分。
+- P3.5 的人工审核评测用例、版本化套件、手动回放、透明评分和确定性 CI 门禁。
 - P4 自动修复的安全准入边界。
 
 ### 2.2 明确不做
@@ -201,8 +201,8 @@ P3 已通过 `xiaou-system` 的薄编排层接入 `xiaou-ai` 统一运行时：
   不变量强制为 `false`；
 - 模型不可用、超时、异常或输出不符合结构化契约时，返回确定性的 `FALLBACK` 证据报告，
   不影响 P0/P1/P2 告警链路。
-- 线上 RCA 与管理员手动离线回放复用同一分析器；离线结果只进入评测表，不改变生产事故、
-  Prompt 配置或模型发布状态。
+- 线上 RCA 与管理员手动离线回放复用同一分析器；版本化套件冻结成员指纹、manifest、评分与
+  门禁策略。离线结果只进入评测表，不改变生产事故、Prompt 配置或模型发布状态。
 
 ## 5. P0 单机部署架构
 
@@ -393,13 +393,20 @@ P3.5 已落地的 RCA 评测管理 API：
 ```text
 POST /api/admin/sre/incidents/{incidentId}/rca-runs/{runId}/evaluation-cases
 GET  /api/admin/sre/rca-evaluations/cases
+POST /api/admin/sre/rca-evaluations/suites
+GET  /api/admin/sre/rca-evaluations/suites
+POST /api/admin/sre/rca-evaluations/suites/{suiteId}/versions
+GET  /api/admin/sre/rca-evaluations/suites/{suiteId}/versions
+GET  /api/admin/sre/rca-evaluations/suite-versions/{versionId}
 POST /api/admin/sre/rca-evaluations/runs
 GET  /api/admin/sre/rca-evaluations/runs
 GET  /api/admin/sre/rca-evaluations/runs/{evaluationRunId}
+GET  /api/admin/sre/rca-evaluations/runs/{evaluationRunId}/gate
 ```
 
 所有接口要求管理员权限。提升和回放接口不保存请求/响应正文审计；请求只能指定反馈修订 ID
-或用例 ID，不能提交模型上下文、基准报告、Prompt、模型或任意查询参数。
+、用例 ID、套件元数据、成员 case ID、门槛或套件版本 ID，不能提交模型上下文、基准报告、
+Prompt、模型或任意查询参数。所有响应 DTO 都不返回冻结上下文或基准报告 JSON。
 
 #### 未来只读查询接口
 
@@ -765,6 +772,17 @@ Docker、任意 PromQL/LogQL 或数据库写操作。
     逐 case 分项评分、模型来源与候选报告。页面不绑定 `context_json` 或 `baseline_report_json`。
 18. 实际回放再次校验冻结 case 的大小、哈希和凭据模式，防止评测表被改写并重算哈希后把
     未脱敏内容发送给模型。失败只落受控失败码。
+19. P3.5 新增 `sre_rca_evaluation_suite`、`sre_rca_evaluation_suite_version` 和
+    `sre_rca_evaluation_suite_case`。稳定套件身份与不可变成员/策略版本分离；成员按 case ID
+    规范排序，同一 manifest 重复发布保持幂等。
+20. case 内容指纹覆盖冻结上下文、基准报告和期望结论；suite manifest 进一步覆盖 suite key、
+    有序成员指纹、评分策略、门禁评估器和四项门槛。读取与回放均重新校验并在漂移时拒绝执行。
+21. 套件回放冻结最低通过率、最低平均分、全部只读安全和禁止降级要求，保存通过率、安全数、
+    降级数、`PASSED / FAILED` 以及固定失败码。临时回放只能是 `NOT_APPLICABLE`。
+22. 管理端以用例、套件、历史三个视图覆盖创建套件、发布版本、按版本门禁回放及失败码检查。
+23. 合成 `sre-rca-core:1.0.0` 固定套件和 `code-nest-eval.ps1 -Tier sre` 不访问生产数据库、
+    不调用在线模型；GitHub CI 将其作为独立必需作业，锁定脱敏、Prompt/Schema、哈希、评分、
+    fallback、安全和聚合门槛。
 
 相对初稿的调整：不再为模型提供直接的 PromQL/Loki 查询工具。P2 采集器使用固定查询白名单
 生成可审计快照，P3 只分析这些已入库证据。发布记录和 Runbook 证据可以后续通过同一 facade
@@ -773,7 +791,9 @@ Docker、任意 PromQL/LogQL 或数据库写操作。
 完成标准已满足：AI 不可用不影响 P0/P1/P2；每个结论都有有效事实引用或明确的“证据不足”
 标记；接口、AgentTool、权限种子、统一入口、提示词注入、脱敏、非法证据、降级路径、
 报告恢复、调查轨迹、反馈组合校验、artifact 跨事故归属、上下文大小与凭据拒绝、详情不回显
-输入、不可变用例、手动回放、透明评分、fallback 降级以及脱敏样本边界均有测试。
+输入、不可变用例、版本化套件、manifest 漂移拒绝、手动回放、透明评分、聚合门禁、fallback
+降级以及脱敏样本边界均有测试。该完成标准不包含真实模型 CI、代码提交 provenance 或
+CloudOpsBench 同等规模覆盖。
 
 ### P4：受控动作
 
@@ -790,7 +810,7 @@ Docker、任意 PromQL/LogQL 或数据库写操作。
 | 邮件 | Alertmanager 直连 QQ SMTP | Java 中转邮件 | 缩短 critical 路径，避免业务服务故障影响通知。 |
 | P2 异步 | MySQL transactional outbox + 有界线程池 | Kafka/RabbitMQ | 单机规模优先降低运维面，保留以后替换点。 |
 | AI 位置 | 告警后只读调查 | AI 放在告警热路径 | 模型不稳定、成本和安全风险不能影响告警。 |
-| 离线评测 | 管理员审核用例 + 手动回放 + 固定规则评分 | 定时扫描生产事故、模型 judge、自动发布 | 控制成本与数据边界，评分可复核且不改变线上状态。 |
+| 离线评测 | 管理员审核用例 + 版本化套件 + 手动回放 + 确定性 CI 门禁 | 定时扫描生产事故、模型 judge、自动发布 | 控制成本与数据边界，成员和策略可追溯，评分可复核且不改变线上状态。 |
 | OpenSRE | 独立可选 adapter | 直接 fork/embed | 它是 Python public alpha，且范围大于当前单机需求。 |
 | 自动修复 | P4 审批后执行 | P0 自动重启 | 当前没有成熟证据、回滚、审计和异地验证。 |
 
@@ -812,6 +832,7 @@ Docker、任意 PromQL/LogQL 或数据库写操作。
 - [x] AI 输入和日志快照经过脱敏。
 - [x] 评测用例在提升和回放边界重复校验哈希、大小和未脱敏凭据。
 - [x] 评测 API 不返回冻结上下文、基准报告 JSON 或异常正文。
+- [x] 套件版本冻结成员指纹、manifest、评分策略和门禁策略，读取漂移时拒绝执行。
 
 ### 可靠性
 
@@ -820,6 +841,7 @@ Docker、任意 PromQL/LogQL 或数据库写操作。
 - [ ] PromQL/Loki 查询有超时、限量和失败降级。
 - [ ] P0 告警在 Java、MySQL、Grafana 或 LLM 故障时仍尽可能工作。
 - [ ] P1 增加了不同故障域的探针。
+- [x] 合成固定套件通过独立 SRE CI tier 验证，且 fallback、危险建议或聚合阈值下降会失败。
 
 ### 可运营性
 

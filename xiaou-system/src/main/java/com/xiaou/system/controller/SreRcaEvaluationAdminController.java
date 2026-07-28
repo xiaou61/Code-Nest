@@ -6,10 +6,16 @@ import com.xiaou.common.core.domain.Result;
 import com.xiaou.common.core.domain.ResultCode;
 import com.xiaou.common.satoken.StpAdminUtil;
 import com.xiaou.system.dto.SreRcaEvaluationCaseSummary;
+import com.xiaou.system.dto.SreRcaEvaluationGateSummary;
 import com.xiaou.system.dto.SreRcaEvaluationPromotionRequest;
 import com.xiaou.system.dto.SreRcaEvaluationRunDetail;
 import com.xiaou.system.dto.SreRcaEvaluationRunRequest;
 import com.xiaou.system.dto.SreRcaEvaluationRunSummary;
+import com.xiaou.system.dto.SreRcaEvaluationSuiteCreateRequest;
+import com.xiaou.system.dto.SreRcaEvaluationSuiteSummary;
+import com.xiaou.system.dto.SreRcaEvaluationSuiteVersionDetail;
+import com.xiaou.system.dto.SreRcaEvaluationSuiteVersionPublishRequest;
+import com.xiaou.system.dto.SreRcaEvaluationSuiteVersionSummary;
 import com.xiaou.system.service.SreRcaEvaluationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -60,6 +66,52 @@ public class SreRcaEvaluationAdminController {
         return Result.success(evaluationService.listCases(Math.min(limit, 100)));
     }
 
+    @PostMapping("/rca-evaluations/suites")
+    @RequireAdmin(message = "创建 SRE RCA 评测套件需要管理员权限")
+    @Log(module = "SRE RCA 评测", type = Log.OperationType.INSERT, description = "创建 RCA 评测套件",
+            saveRequestData = false, saveResponseData = false)
+    public Result<SreRcaEvaluationSuiteSummary> createSuite(
+            @Valid @RequestBody SreRcaEvaluationSuiteCreateRequest request) {
+        return Result.success(evaluationService.createSuite(
+                request, StpAdminUtil.getLoginIdAsLong()));
+    }
+
+    @GetMapping("/rca-evaluations/suites")
+    @RequireAdmin(message = "查询 SRE RCA 评测套件需要管理员权限")
+    public Result<List<SreRcaEvaluationSuiteSummary>> suites(
+            @RequestParam(defaultValue = "20") @Min(1) Integer limit) {
+        return Result.success(evaluationService.listSuites(Math.min(limit, 50)));
+    }
+
+    @PostMapping("/rca-evaluations/suites/{suiteId}/versions")
+    @RequireAdmin(message = "发布 SRE RCA 评测套件版本需要管理员权限")
+    @Log(module = "SRE RCA 评测", type = Log.OperationType.INSERT, description = "发布 RCA 评测套件版本",
+            saveRequestData = false, saveResponseData = false)
+    public Result<SreRcaEvaluationSuiteVersionDetail> publishSuiteVersion(
+            @PathVariable @Min(1) Long suiteId,
+            @Valid @RequestBody SreRcaEvaluationSuiteVersionPublishRequest request) {
+        return Result.success(evaluationService.publishSuiteVersion(
+                suiteId, request, StpAdminUtil.getLoginIdAsLong()));
+    }
+
+    @GetMapping("/rca-evaluations/suites/{suiteId}/versions")
+    @RequireAdmin(message = "查询 SRE RCA 评测套件版本需要管理员权限")
+    public Result<List<SreRcaEvaluationSuiteVersionSummary>> suiteVersions(
+            @PathVariable @Min(1) Long suiteId,
+            @RequestParam(defaultValue = "20") @Min(1) Integer limit) {
+        return Result.success(evaluationService.listSuiteVersions(suiteId, Math.min(limit, 50)));
+    }
+
+    @GetMapping("/rca-evaluations/suite-versions/{versionId}")
+    @RequireAdmin(message = "查询 SRE RCA 评测套件版本详情需要管理员权限")
+    public Result<SreRcaEvaluationSuiteVersionDetail> suiteVersionDetail(
+            @PathVariable @Min(1) Long versionId) {
+        return evaluationService.getSuiteVersion(versionId)
+                .map(Result::success)
+                .orElseGet(() -> Result.error(
+                        ResultCode.DATA_NOT_EXIST.getCode(), "RCA 评测套件版本不存在"));
+    }
+
     @PostMapping("/rca-evaluations/runs")
     @RequireAdmin(message = "执行 SRE RCA 离线评测需要管理员权限")
     @Log(module = "SRE RCA 评测", type = Log.OperationType.OTHER, description = "手动执行 RCA 离线评测",
@@ -67,7 +119,9 @@ public class SreRcaEvaluationAdminController {
     public Result<SreRcaEvaluationRunDetail> run(
             @Valid @RequestBody(required = false) SreRcaEvaluationRunRequest request) {
         Long caseId = request == null ? null : request.caseId();
-        return Result.success(evaluationService.run(caseId, StpAdminUtil.getLoginIdAsLong()));
+        Long suiteVersionId = request == null ? null : request.suiteVersionId();
+        return Result.success(evaluationService.run(
+                caseId, suiteVersionId, StpAdminUtil.getLoginIdAsLong()));
     }
 
     @GetMapping("/rca-evaluations/runs")
@@ -81,6 +135,14 @@ public class SreRcaEvaluationAdminController {
     @RequireAdmin(message = "查询 SRE RCA 评测详情需要管理员权限")
     public Result<SreRcaEvaluationRunDetail> runDetail(@PathVariable @Min(1) Long runId) {
         return evaluationService.getRun(runId)
+                .map(Result::success)
+                .orElseGet(() -> Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "RCA 评测运行不存在"));
+    }
+
+    @GetMapping("/rca-evaluations/runs/{runId}/gate")
+    @RequireAdmin(message = "查询 SRE RCA 质量门禁需要管理员权限")
+    public Result<SreRcaEvaluationGateSummary> gate(@PathVariable @Min(1) Long runId) {
+        return evaluationService.getGate(runId)
                 .map(Result::success)
                 .orElseGet(() -> Result.error(ResultCode.DATA_NOT_EXIST.getCode(), "RCA 评测运行不存在"));
     }

@@ -3,6 +3,8 @@ package com.xiaou.sre.service;
 import com.xiaou.sre.domain.SreRcaEvaluationResult;
 import com.xiaou.sre.domain.SreRcaEvaluationRun;
 import com.xiaou.sre.dto.request.SreRcaEvaluationResultCapture;
+import com.xiaou.sre.dto.request.SreRcaEvaluationRunCompletion;
+import com.xiaou.sre.dto.request.SreRcaEvaluationRunStart;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -15,22 +17,11 @@ import java.util.Optional;
  */
 public interface SreRcaEvaluationRunService {
 
-    SreRcaEvaluationRun start(Long requestedCaseId,
-                              Long requestedBy,
-                              int caseCount,
-                              String promptId,
-                              String schemaId);
+    SreRcaEvaluationRun start(SreRcaEvaluationRunStart start);
 
     SreRcaEvaluationResult record(SreRcaEvaluationResultCapture capture);
 
-    void complete(Long runId,
-                  String status,
-                  int completedCount,
-                  int passedCount,
-                  int failedCount,
-                  BigDecimal averageScore,
-                  String provider,
-                  String configuredModel);
+    void complete(SreRcaEvaluationRunCompletion completion);
 
     void fail(Long runId, String failureCode);
 

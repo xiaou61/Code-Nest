@@ -6,7 +6,7 @@
 
 ## 表统计总览
 
-当前主库基线包含 157 张表，按业务域分布：
+当前主库基线包含 160 张表，按业务域分布：
 
 | 业务域 | 表数量 | 模块 | 表前缀 |
 | --- | --- | --- | --- |
@@ -30,7 +30,7 @@
 | 敏感词 | 11 | xiaou-sensitive | `sensitive_*` |
 | 摸鱼工具 | 7 | xiaou-moyu | `developer_calendar_*`, `daily_content`, `user_calendar_*`, `user_salary_*`, `work_record`, `bug_*`, `user_bug_*` |
 | 版本历史 | 1 | xiaou-version | `version_history` |
-| SRE 运维 | 12 | xiaou-sre, xiaou-system | `sre_*` |
+| SRE 运维 | 15 | xiaou-sre, xiaou-system | `sre_*` |
 
 ## 索引策略
 
@@ -287,7 +287,10 @@
 | `sre_investigation_step` | run_id, step_order, step_code, status, detail | xiaou-sre, xiaou-system |
 | `sre_investigation_feedback` | run_id, accuracy, gap_type, expected_conclusion, reviewed_by | xiaou-sre, xiaou-system |
 | `sre_rca_evaluation_case` | source_run_id, source_artifact_id, source_feedback_id, context_sha256 | xiaou-sre, xiaou-system |
-| `sre_rca_evaluation_run` | status, requested_case_id, case_count, passed_count, average_score | xiaou-sre, xiaou-system |
+| `sre_rca_evaluation_suite` | suite_key, name, created_by, created_at | xiaou-sre, xiaou-system |
+| `sre_rca_evaluation_suite_version` | suite_id, version_no, manifest_sha256, scoring_policy_id, gate_evaluator_id | xiaou-sre, xiaou-system |
+| `sre_rca_evaluation_suite_case` | suite_version_id, case_id, case_ordinal, case_content_sha256 | xiaou-sre, xiaou-system |
+| `sre_rca_evaluation_run` | status, requested_case_id, suite_version_id, suite_manifest_sha256, pass_rate, gate_status | xiaou-sre, xiaou-system |
 | `sre_rca_evaluation_result` | evaluation_run_id, case_id, invocation_outcome, total_score, passed | xiaou-sre, xiaou-system |
 
 `sre_investigation_run.report_json` 只保存经过后端脱敏和结构校验的报告；调查步骤只保存
@@ -300,6 +303,11 @@
 `source_feedback_id` 幂等冻结。`sre_rca_evaluation_run` 与 `sre_rca_evaluation_result`
 分别保存一次手动回放的聚合结果和逐用例候选报告、模型来源及透明分项评分。普通 API 不返回
 冻结 `context_json` 或 `baseline_report_json`，失败记录只保存受控失败码。
+
+`sre_rca_evaluation_suite` 是稳定身份，`suite_version` 冻结 manifest、评分策略和门禁策略，
+`suite_case` 保存有序成员及 case 内容指纹。同一内容和策略重复发布保持幂等；每次读取版本和
+执行回放都会重新校验成员指纹与 manifest。套件运行保存通过率、安全/降级数、门禁状态及固定
+失败码；临时单 case/全量运行的门禁状态固定为 `NOT_APPLICABLE`。
 
 ## 数据库视图
 
@@ -327,7 +335,7 @@
 | `sql/v1.8.2` | 成长自动驾驶、求职闭环、岗位匹配、OJ 评论、SQL 优化、驾驶舱排行 |
 | `sql/v1.8.3` | 学习资产候选 |
 | `sql/v1.8.4` | 学习资产转化 |
-| `sql/v2.5.0` | SRE 告警、事故、证据、调查运行、回放产物、反馈修订和 RCA 离线评测 |
+| `sql/v2.5.0` | SRE 告警、事故、证据、调查运行、回放产物、反馈修订、RCA 离线评测和版本化套件门禁 |
 
 ## Mapper 定位规则
 
@@ -367,7 +375,7 @@ grep -r "user_points_balance" --include="*.xml" xiaou-*/
 
 | 文件 | 说明 |
 | --- | --- |
-| `sql/MySql/code_nest.sql` | 当前完整主库基线脚本（157 表） |
+| `sql/MySql/code_nest.sql` | 当前完整主库基线脚本（160 表） |
 | `sql/v1.2.0/` ~ `sql/v2.5.0/` | 版本增量脚本 |
 | `xiaou-*/src/main/java/**/domain/` | 实体类目录 |
 | `xiaou-*/src/main/java/**/mapper/` | Mapper 接口目录 |

@@ -5,20 +5,19 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * RCA 离线评测运行摘要。
+ * Narrow machine-readable gate response without candidate reports or case payloads.
  *
  * @author xiaou
  */
-public record SreRcaEvaluationRunSummary(
-        Long id,
-        String status,
-        Long requestedCaseId,
+public record SreRcaEvaluationGateSummary(
+        Long runId,
+        String runStatus,
+        String gateStatus,
         Long suiteVersionId,
         String suiteKey,
         Integer suiteVersion,
         String suiteManifestSha256,
         String triggerSource,
-        Long requestedBy,
         int caseCount,
         int completedCount,
         int passedCount,
@@ -27,24 +26,20 @@ public record SreRcaEvaluationRunSummary(
         BigDecimal passRate,
         int unsafeCount,
         int degradedCount,
+        BigDecimal minimumPassRate,
+        BigDecimal minimumAverageScore,
+        boolean requireAllSafety,
+        boolean requireNoDegraded,
+        List<String> failureCodes,
         String promptId,
         String schemaId,
-        String scoringPolicyId,
-        String gateEvaluatorId,
-        String gateStatus,
-        BigDecimal gateMinimumPassRate,
-        BigDecimal gateMinimumAverageScore,
-        boolean gateRequireAllSafety,
-        boolean gateRequireNoDegraded,
-        List<String> gateFailureCodes,
         String provider,
         String configuredModel,
-        String failureCode,
         LocalDateTime startedAt,
         LocalDateTime completedAt
 ) {
 
-    public SreRcaEvaluationRunSummary {
-        gateFailureCodes = gateFailureCodes == null ? List.of() : List.copyOf(gateFailureCodes);
+    public SreRcaEvaluationGateSummary {
+        failureCodes = failureCodes == null ? List.of() : List.copyOf(failureCodes);
     }
 }

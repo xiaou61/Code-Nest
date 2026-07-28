@@ -21,6 +21,10 @@ const evaluationMigrationSource = readFileSync(
   resolve(repositoryRoot, 'sql/v2.5.0/sre_rca_evaluation.sql'),
   'utf8'
 )
+const evaluationSuiteMigrationSource = readFileSync(
+  resolve(repositoryRoot, 'sql/v2.5.0/sre_rca_evaluation_suite.sql'),
+  'utf8'
+)
 
 test('SRE API client should expose the complete administrator incident workflow', () => {
   assert.match(apiSource, /request\.get\('\/admin\/sre\/incidents\/summary'\)/)
@@ -35,10 +39,19 @@ test('SRE API client should expose the complete administrator incident workflow'
   assert.match(apiSource, /`\/admin\/sre\/incidents\/\$\{id\}\/rca-runs\/\$\{runId\}\/evaluation-sample`/)
   assert.match(apiSource, /`\/admin\/sre\/incidents\/\$\{id\}\/rca-runs\/\$\{runId\}\/evaluation-cases`/)
   assert.match(apiSource, /request\.get\('\/admin\/sre\/rca-evaluations\/cases'/)
+  assert.match(apiSource, /request\.post\('\/admin\/sre\/rca-evaluations\/suites'/)
+  assert.match(apiSource, /request\.get\('\/admin\/sre\/rca-evaluations\/suites'/)
+  assert.match(apiSource, /publishRcaEvaluationSuiteVersion\(suiteId, data\)/)
+  assert.match(apiSource, /getRcaEvaluationSuiteVersions\(suiteId, limit = 20\)/)
+  assert.match(apiSource, /`\/admin\/sre\/rca-evaluations\/suites\/\$\{suiteId\}\/versions`/)
+  assert.match(apiSource, /`\/admin\/sre\/rca-evaluations\/suite-versions\/\$\{versionId\}`/)
   assert.match(apiSource, /request\.post\(\s*'\/admin\/sre\/rca-evaluations\/runs'/)
   assert.match(apiSource, /request\.get\('\/admin\/sre\/rca-evaluations\/runs'/)
   assert.match(apiSource, /`\/admin\/sre\/rca-evaluations\/runs\/\$\{runId\}`/)
-  assert.match(apiSource, /timeout:\s*180000/)
+  assert.match(apiSource, /`\/admin\/sre\/rca-evaluations\/runs\/\$\{runId\}\/gate`/)
+  assert.match(apiSource, /caseId != null \? \{ caseId \} : \(suiteVersionId != null \? \{ suiteVersionId \} : \{\}\)/)
+  assert.match(apiSource, /timeout:\s*180000\b/)
+  assert.match(apiSource, /timeout:\s*1800000\b/)
 })
 
 test('SRE workbench should be reachable from both router and sidebar', () => {
@@ -67,6 +80,13 @@ test('SRE workbench should keep incident actions, evidence and AI output inspect
   assert.match(workbenchSource, /promoteRcaEvaluationCase/)
   assert.match(workbenchSource, /runRcaEvaluation/)
   assert.match(workbenchSource, /getRcaEvaluationRun/)
+  assert.match(workbenchSource, /evaluationSuites/)
+  assert.match(workbenchSource, /name="cases"/)
+  assert.match(workbenchSource, /name="suites"/)
+  assert.match(workbenchSource, /name="history"/)
+  assert.match(workbenchSource, /publishEvaluationSuiteVersion/)
+  assert.match(workbenchSource, /门禁回放/)
+  assert.match(workbenchSource, /gateFailureCodes/)
   assert.match(workbenchSource, /提升当前修订/)
   assert.match(workbenchSource, /回放全部/)
   assert.match(workbenchSource, /结论相似度/)
@@ -79,6 +99,9 @@ test('SRE workbench should keep incident actions, evidence and AI output inspect
   assert.doesNotMatch(workbenchSource, /baselineReportJson/)
   assert.match(workbenchSource, /isCurrentIncident/)
   assert.match(workbenchSource, /rcaRequestVersion/)
+  assert.match(workbenchSource, /const requestVersion = \+\+evaluationRequestVersion/)
+  assert.match(workbenchSource, /requestVersion !== evaluationRequestVersion\s*\|\| !isCurrentIncident\(incidentId\)/)
+  assert.match(workbenchSource, /if \(value == null \|\| value === ''\) return '-'/)
   assert.match(workbenchSource, /aria-live="polite"/)
   assert.doesNotMatch(workbenchSource, /v-html/)
 })
@@ -143,4 +166,27 @@ test('immutable RCA evaluation tables should be present in fresh and incremental
   assert.match(evaluationMigrationSource, /UNIQUE KEY `uk_sre_rca_eval_case_feedback` \(`source_feedback_id`\)/)
   assert.match(evaluationMigrationSource, /`context_json` MEDIUMTEXT NOT NULL/)
   assert.match(evaluationMigrationSource, /`candidate_report_json` MEDIUMTEXT/)
+
+  for (const table of [
+    'sre_rca_evaluation_suite',
+    'sre_rca_evaluation_suite_version',
+    'sre_rca_evaluation_suite_case'
+  ]) {
+    const createTable = 'CREATE TABLE IF NOT EXISTS `' + table + '`'
+    assert.ok(databaseBaselineSource.includes(createTable))
+    assert.ok(evaluationSuiteMigrationSource.includes(createTable))
+  }
+  assert.match(evaluationSuiteMigrationSource, /`case_content_sha256` CHAR\(64\)/)
+  assert.match(evaluationSuiteMigrationSource, /`manifest_schema_id` VARCHAR\(128\)/)
+  assert.match(evaluationSuiteMigrationSource, /`scoring_policy_id` VARCHAR\(128\)/)
+  assert.match(evaluationSuiteMigrationSource, /`gate_evaluator_id` VARCHAR\(128\)/)
+  assert.match(evaluationSuiteMigrationSource, /`minimum_pass_rate` DECIMAL\(5,2\)/)
+  assert.match(evaluationSuiteMigrationSource, /`minimum_average_score` DECIMAL\(6,2\)/)
+  assert.match(evaluationSuiteMigrationSource, /UNIQUE KEY `uk_sre_rca_eval_suite_manifest`/)
+  assert.match(evaluationSuiteMigrationSource, /ADD COLUMN `suite_version_id` BIGINT/)
+  assert.match(evaluationSuiteMigrationSource, /ADD COLUMN `trigger_source` VARCHAR\(16\)/)
+  assert.match(evaluationSuiteMigrationSource, /ADD COLUMN `gate_status` VARCHAR\(16\)/)
+  assert.match(databaseBaselineSource, /`suite_manifest_sha256` CHAR\(64\)/)
+  assert.match(databaseBaselineSource, /`gate_detail_json` TEXT/)
+  assert.match(monitoringReadmeSource, /sql\/v2\.5\.0\/sre_rca_evaluation_suite\.sql/)
 })

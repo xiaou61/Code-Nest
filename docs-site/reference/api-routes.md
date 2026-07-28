@@ -114,7 +114,7 @@
 | 摸鱼工具用户侧 | `/moyu/**` | 多个 Moyu Controller | `xiaou-moyu` |
 | 摸鱼工具管理侧 | `/admin/moyu/**` | 多个 Admin Moyu Controller | `xiaou-moyu` |
 | Bug 商店管理 | `/admin/moyu/bug-store` | `AdminBugStoreController` | `xiaou-moyu` |
-| SRE 事故、证据和 RCA 工作台 | `/admin/sre/incidents` | `SreIncidentAdminController`、`SreRcaAdminController` | `xiaou-sre`、`xiaou-system` |
+| SRE 事故、证据、RCA 和评测工作台 | `/admin/sre/incidents`、`/admin/sre/rca-evaluations` | `SreIncidentAdminController`、`SreRcaAdminController`、`SreRcaEvaluationAdminController` | `xiaou-sre`、`xiaou-system` |
 | Alertmanager 私有接入 | `/internal/sre/alertmanager/v1` | `AlertmanagerWebhookController` | `xiaou-sre` |
 
 ## AI Runtime 管理接口
@@ -491,7 +491,21 @@
 | GET | `/admin/sre/incidents/{id}/rca-runs/{runId}` | 恢复单次 RCA 报告和调查轨迹 |
 | PUT | `/admin/sre/incidents/{id}/rca-runs/{runId}/feedback` | 追加准确度、缺口、备注和期望结论反馈 |
 | GET | `/admin/sre/incidents/{id}/rca-runs/{runId}/evaluation-sample` | 导出不含原始输入、备注和管理员身份的评测样本 |
+| POST | `/admin/sre/incidents/{id}/rca-runs/{runId}/evaluation-cases` | 将指定反馈修订提升为不可变评测用例 |
+| GET | `/admin/sre/rca-evaluations/cases` | 查询不可变评测用例目录，最多 100 条 |
+| POST | `/admin/sre/rca-evaluations/suites` | 创建稳定评测套件身份 |
+| GET | `/admin/sre/rca-evaluations/suites` | 查询稳定评测套件，最多 50 条 |
+| POST | `/admin/sre/rca-evaluations/suites/{suiteId}/versions` | 按成员和门禁策略发布不可变套件版本 |
+| GET | `/admin/sre/rca-evaluations/suites/{suiteId}/versions` | 查询套件版本历史，最多 50 条 |
+| GET | `/admin/sre/rca-evaluations/suite-versions/{versionId}` | 查询版本 manifest、策略和有序成员摘要 |
+| POST | `/admin/sre/rca-evaluations/runs` | 回放单 case、临时全量或指定套件版本；仅套件版本适用质量门禁 |
+| GET | `/admin/sre/rca-evaluations/runs` | 查询最近评测运行，最多 50 条 |
+| GET | `/admin/sre/rca-evaluations/runs/{runId}` | 查询聚合结果和逐用例透明评分 |
+| GET | `/admin/sre/rca-evaluations/runs/{runId}/gate` | 查询冻结门槛、通过率和固定失败码 |
 | POST | `/internal/sre/alertmanager/v1/alerts` | Alertmanager 私网 Webhook，独立共享密钥认证 |
+
+评测变更接口要求管理员权限，并关闭操作日志的请求/响应正文保存。所有用例、套件和运行 DTO
+只返回摘要、哈希、策略与评分，不返回冻结 `context_json`、`baseline_report_json` 或异常正文。
 
 ## 通用请求模式
 

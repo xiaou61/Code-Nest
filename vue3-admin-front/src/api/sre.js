@@ -52,10 +52,30 @@ export const sreApi = {
     return request.get('/admin/sre/rca-evaluations/cases', { limit })
   },
 
-  runRcaEvaluation(caseId) {
+  createRcaEvaluationSuite(data) {
+    return request.post('/admin/sre/rca-evaluations/suites', data)
+  },
+
+  getRcaEvaluationSuites(limit = 20) {
+    return request.get('/admin/sre/rca-evaluations/suites', { limit })
+  },
+
+  publishRcaEvaluationSuiteVersion(suiteId, data) {
+    return request.post(`/admin/sre/rca-evaluations/suites/${suiteId}/versions`, data)
+  },
+
+  getRcaEvaluationSuiteVersions(suiteId, limit = 20) {
+    return request.get(`/admin/sre/rca-evaluations/suites/${suiteId}/versions`, { limit })
+  },
+
+  getRcaEvaluationSuiteVersion(versionId) {
+    return request.get(`/admin/sre/rca-evaluations/suite-versions/${versionId}`)
+  },
+
+  runRcaEvaluation(caseId, suiteVersionId) {
     return request.post(
       '/admin/sre/rca-evaluations/runs',
-      caseId == null ? {} : { caseId },
+      caseId != null ? { caseId } : (suiteVersionId != null ? { suiteVersionId } : {}),
       { timeout: 1800000 }
     )
   },
@@ -66,6 +86,10 @@ export const sreApi = {
 
   getRcaEvaluationRun(runId) {
     return request.get(`/admin/sre/rca-evaluations/runs/${runId}`)
+  },
+
+  getRcaEvaluationGate(runId) {
+    return request.get(`/admin/sre/rca-evaluations/runs/${runId}/gate`)
   }
 }
 

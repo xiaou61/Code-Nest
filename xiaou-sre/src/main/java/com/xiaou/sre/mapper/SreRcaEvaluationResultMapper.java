@@ -17,4 +17,6 @@ public interface SreRcaEvaluationResultMapper {
     int insert(SreRcaEvaluationResult result);
 
     List<SreRcaEvaluationResult> selectByRunId(@Param("runId") Long runId);
+
+    int countByRunId(@Param("runId") Long runId);
 }

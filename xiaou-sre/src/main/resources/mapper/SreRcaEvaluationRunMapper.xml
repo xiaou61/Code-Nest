@@ -6,14 +6,30 @@
         <id property="id" column="id"/>
         <result property="status" column="status"/>
         <result property="requestedCaseId" column="requested_case_id"/>
+        <result property="suiteVersionId" column="suite_version_id"/>
+        <result property="suiteKey" column="suite_key"/>
+        <result property="suiteVersion" column="suite_version"/>
+        <result property="suiteManifestSha256" column="suite_manifest_sha256"/>
+        <result property="triggerSource" column="trigger_source"/>
         <result property="requestedBy" column="requested_by"/>
         <result property="caseCount" column="case_count"/>
         <result property="completedCount" column="completed_count"/>
         <result property="passedCount" column="passed_count"/>
         <result property="failedCount" column="failed_count"/>
         <result property="averageScore" column="average_score"/>
+        <result property="passRate" column="pass_rate"/>
+        <result property="unsafeCount" column="unsafe_count"/>
+        <result property="degradedCount" column="degraded_count"/>
         <result property="promptId" column="prompt_id"/>
         <result property="schemaId" column="schema_id"/>
+        <result property="scoringPolicyId" column="scoring_policy_id"/>
+        <result property="gateEvaluatorId" column="gate_evaluator_id"/>
+        <result property="gateStatus" column="gate_status"/>
+        <result property="gateMinimumPassRate" column="gate_minimum_pass_rate"/>
+        <result property="gateMinimumAverageScore" column="gate_minimum_average_score"/>
+        <result property="gateRequireAllSafety" column="gate_require_all_safety"/>
+        <result property="gateRequireNoDegraded" column="gate_require_no_degraded"/>
+        <result property="gateDetailJson" column="gate_detail_json"/>
         <result property="provider" column="provider"/>
         <result property="configuredModel" column="configured_model"/>
         <result property="failureCode" column="failure_code"/>
@@ -24,26 +40,39 @@
     </resultMap>
 
     <sql id="allColumns">
-        id, status, requested_case_id, requested_by, case_count, completed_count,
-        passed_count, failed_count, average_score, prompt_id, schema_id, provider,
-        configured_model, failure_code, started_at, completed_at, create_time, update_time
+        id, status, requested_case_id, suite_version_id, suite_key, suite_version,
+        suite_manifest_sha256, trigger_source, requested_by, case_count, completed_count,
+        passed_count, failed_count, average_score, pass_rate, unsafe_count, degraded_count,
+        prompt_id, schema_id, scoring_policy_id, gate_evaluator_id, gate_status,
+        gate_minimum_pass_rate, gate_minimum_average_score, gate_require_all_safety,
+        gate_require_no_degraded, gate_detail_json, provider, configured_model, failure_code,
+        started_at, completed_at, create_time, update_time
     </sql>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO sre_rca_evaluation_run (
-            status, requested_case_id, requested_by, case_count, completed_count,
-            passed_count, failed_count, prompt_id, schema_id, started_at, create_time, update_time
+            status, requested_case_id, suite_version_id, suite_key, suite_version,
+            suite_manifest_sha256, trigger_source, requested_by, case_count, completed_count,
+            passed_count, failed_count, unsafe_count, degraded_count, prompt_id, schema_id,
+            scoring_policy_id, gate_evaluator_id, gate_status, gate_minimum_pass_rate,
+            gate_minimum_average_score, gate_require_all_safety, gate_require_no_degraded,
+            started_at, create_time, update_time
         ) VALUES (
-            #{status}, #{requestedCaseId}, #{requestedBy}, #{caseCount}, #{completedCount},
-            #{passedCount}, #{failedCount}, #{promptId}, #{schemaId}, #{startedAt},
-            CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            #{status}, #{requestedCaseId}, #{suiteVersionId}, #{suiteKey}, #{suiteVersion},
+            #{suiteManifestSha256}, #{triggerSource}, #{requestedBy}, #{caseCount}, #{completedCount},
+            #{passedCount}, #{failedCount}, #{unsafeCount}, #{degradedCount}, #{promptId}, #{schemaId},
+            #{scoringPolicyId}, #{gateEvaluatorId}, #{gateStatus}, #{gateMinimumPassRate},
+            #{gateMinimumAverageScore}, #{gateRequireAllSafety}, #{gateRequireNoDegraded},
+            #{startedAt}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
         )
     </insert>
 
     <update id="updateCompletion">
         UPDATE sre_rca_evaluation_run
         SET status = #{status}, completed_count = #{completedCount}, passed_count = #{passedCount},
-            failed_count = #{failedCount}, average_score = #{averageScore}, provider = #{provider},
+            failed_count = #{failedCount}, average_score = #{averageScore}, pass_rate = #{passRate},
+            unsafe_count = #{unsafeCount}, degraded_count = #{degradedCount},
+            gate_status = #{gateStatus}, gate_detail_json = #{gateDetailJson}, provider = #{provider},
             configured_model = #{configuredModel}, failure_code = NULL,
             completed_at = #{completedAt}, update_time = CURRENT_TIMESTAMP
         WHERE id = #{id}
@@ -53,6 +82,10 @@
     <update id="updateFailed">
         UPDATE sre_rca_evaluation_run
         SET status = 'FAILED', failure_code = #{failureCode}, completed_at = #{completedAt},
+            gate_status = CASE
+                WHEN suite_version_id IS NULL THEN 'NOT_APPLICABLE'
+                ELSE 'FAILED'
+            END,
             update_time = CURRENT_TIMESTAMP
         WHERE id = #{id}
           AND status = 'RUNNING'

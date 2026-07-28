@@ -3399,18 +3399,82 @@ CREATE TABLE IF NOT EXISTS `sre_rca_evaluation_case` (
   KEY `idx_sre_rca_eval_case_context_hash` (`context_sha256`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='SRE RCA不可变离线评测用例';
 
+CREATE TABLE IF NOT EXISTS `sre_rca_evaluation_suite` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '稳定评测套件ID',
+  `suite_key` VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '稳定且唯一的套件Key',
+  `name` VARCHAR(128) NOT NULL COMMENT '套件名称',
+  `description` VARCHAR(500) NULL COMMENT '套件用途说明',
+  `created_by` BIGINT NOT NULL COMMENT '创建管理员ID',
+  `created_at` DATETIME NOT NULL COMMENT '创建时间',
+  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '入库时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_sre_rca_eval_suite_key` (`suite_key`),
+  KEY `idx_sre_rca_eval_suite_created` (`created_at`, `id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='SRE RCA稳定评测套件';
+
+CREATE TABLE IF NOT EXISTS `sre_rca_evaluation_suite_version` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '不可变套件版本ID',
+  `suite_id` BIGINT NOT NULL COMMENT '稳定套件ID',
+  `version_no` INT UNSIGNED NOT NULL COMMENT '套件内递增版本号',
+  `case_count` INT UNSIGNED NOT NULL COMMENT '冻结用例数量，最大100',
+  `manifest_sha256` CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '成员和策略清单SHA-256',
+  `manifest_schema_id` VARCHAR(128) NOT NULL COMMENT 'manifest规范ID',
+  `scoring_policy_id` VARCHAR(128) NOT NULL COMMENT '透明评分策略ID',
+  `gate_evaluator_id` VARCHAR(128) NOT NULL COMMENT '聚合门禁评估器ID',
+  `minimum_pass_rate` DECIMAL(5,2) NOT NULL COMMENT '最低通过率，0到100',
+  `minimum_average_score` DECIMAL(6,2) NOT NULL COMMENT '最低平均分，0到100',
+  `require_all_safety` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否要求全部结果满足只读安全',
+  `require_no_degraded` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否禁止降级或失败结果',
+  `published_by` BIGINT NOT NULL COMMENT '发布管理员ID',
+  `published_at` DATETIME NOT NULL COMMENT '发布时间',
+  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '入库时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_sre_rca_eval_suite_version` (`suite_id`, `version_no`),
+  UNIQUE KEY `uk_sre_rca_eval_suite_manifest` (`suite_id`, `manifest_sha256`),
+  KEY `idx_sre_rca_eval_suite_version_published` (`suite_id`, `published_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='SRE RCA不可变评测套件版本';
+
+CREATE TABLE IF NOT EXISTS `sre_rca_evaluation_suite_case` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '套件版本成员ID',
+  `suite_version_id` BIGINT NOT NULL COMMENT '不可变套件版本ID',
+  `case_id` BIGINT NOT NULL COMMENT '不可变评测用例ID',
+  `case_ordinal` INT UNSIGNED NOT NULL COMMENT '规范成员顺序，从1开始',
+  `case_content_sha256` CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '上下文、基准报告与期望结论指纹',
+  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '入库时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_sre_rca_eval_suite_case` (`suite_version_id`, `case_id`),
+  UNIQUE KEY `uk_sre_rca_eval_suite_ordinal` (`suite_version_id`, `case_ordinal`),
+  KEY `idx_sre_rca_eval_suite_case_lookup` (`case_id`, `suite_version_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='SRE RCA评测套件不可变成员';
+
 CREATE TABLE IF NOT EXISTS `sre_rca_evaluation_run` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '评测运行ID',
   `status` VARCHAR(16) NOT NULL COMMENT 'RUNNING/SUCCEEDED/DEGRADED/FAILED',
   `requested_case_id` BIGINT NULL COMMENT '指定单用例ID，为空表示回放当前全部用例',
+  `suite_version_id` BIGINT NULL COMMENT '不可变套件版本ID，临时回放为空',
+  `suite_key` VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL COMMENT '运行时冻结的套件Key',
+  `suite_version` INT UNSIGNED NULL COMMENT '运行时冻结的套件版本号',
+  `suite_manifest_sha256` CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL COMMENT '运行时冻结的套件manifest',
+  `trigger_source` VARCHAR(16) NOT NULL DEFAULT 'MANUAL' COMMENT 'MANUAL/CI',
   `requested_by` BIGINT NOT NULL COMMENT '手动发起评测的管理员ID',
   `case_count` INT UNSIGNED NOT NULL COMMENT '本次冻结选择的用例数，最大100',
   `completed_count` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '已完成结果数',
   `passed_count` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '达到评分门槛的用例数',
   `failed_count` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '未达到评分门槛的用例数',
   `average_score` DECIMAL(6,2) NULL COMMENT '透明规则聚合平均分，0到100',
+  `pass_rate` DECIMAL(5,2) NULL COMMENT '本次通过率，0到100',
+  `unsafe_count` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '未通过只读安全的结果数',
+  `degraded_count` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '降级或失败结果数',
   `prompt_id` VARCHAR(128) NOT NULL COMMENT '本次回放Prompt ID',
   `schema_id` VARCHAR(255) NOT NULL COMMENT '本次回放结构化Schema ID',
+  `scoring_policy_id` VARCHAR(128) NULL COMMENT '套件冻结的评分策略ID',
+  `gate_evaluator_id` VARCHAR(128) NULL COMMENT '套件冻结的门禁评估器ID',
+  `gate_status` VARCHAR(16) NOT NULL DEFAULT 'NOT_APPLICABLE' COMMENT 'NOT_APPLICABLE/PENDING/PASSED/FAILED',
+  `gate_minimum_pass_rate` DECIMAL(5,2) NULL COMMENT '冻结的最低通过率',
+  `gate_minimum_average_score` DECIMAL(6,2) NULL COMMENT '冻结的最低平均分',
+  `gate_require_all_safety` TINYINT(1) NULL COMMENT '冻结的全部安全要求',
+  `gate_require_no_degraded` TINYINT(1) NULL COMMENT '冻结的无降级要求',
+  `gate_detail_json` TEXT NULL COMMENT '固定门禁失败码JSON，不含报告正文',
   `provider` VARCHAR(64) NULL COMMENT '本次回放配置提供商',
   `configured_model` VARCHAR(128) NULL COMMENT '本次回放配置模型',
   `failure_code` VARCHAR(128) NULL COMMENT '受控运行失败码，不保存异常正文',
@@ -3420,7 +3484,9 @@ CREATE TABLE IF NOT EXISTS `sre_rca_evaluation_run` (
   `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   KEY `idx_sre_rca_eval_run_status_started` (`status`, `started_at`),
-  KEY `idx_sre_rca_eval_run_case_started` (`requested_case_id`, `started_at`)
+  KEY `idx_sre_rca_eval_run_case_started` (`requested_case_id`, `started_at`),
+  KEY `idx_sre_rca_eval_run_suite_started` (`suite_version_id`, `started_at`),
+  KEY `idx_sre_rca_eval_run_gate_started` (`gate_status`, `started_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='SRE RCA管理员手动离线评测运行';
 
 CREATE TABLE IF NOT EXISTS `sre_rca_evaluation_result` (

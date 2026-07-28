@@ -67,6 +67,7 @@ dump.rdb
 /nul
 /docs-site/build_output.txt
 /.codegraph/
+/.playwright-cli/
 /.codex-mihomo-geo/
 /findings.md
 /progress.md

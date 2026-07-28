@@ -6,11 +6,20 @@ import com.xiaou.ai.support.AiExecutionResult;
 import com.xiaou.sre.domain.SreRcaEvaluationCase;
 import com.xiaou.sre.domain.SreRcaEvaluationResult;
 import com.xiaou.sre.domain.SreRcaEvaluationRun;
+import com.xiaou.sre.domain.SreRcaEvaluationSuite;
+import com.xiaou.sre.domain.SreRcaEvaluationSuiteVersion;
+import com.xiaou.sre.domain.SreRcaEvaluationSuiteVersionSnapshot;
 import com.xiaou.sre.dto.request.SreRcaEvaluationResultCapture;
+import com.xiaou.sre.dto.request.SreRcaEvaluationRunCompletion;
+import com.xiaou.sre.dto.request.SreRcaEvaluationRunStart;
 import com.xiaou.sre.service.SreRcaEvaluationCaseService;
 import com.xiaou.sre.service.SreRcaEvaluationRunService;
+import com.xiaou.sre.service.SreRcaEvaluationSuiteService;
 import com.xiaou.system.dto.SreRcaEvaluationCaseSummary;
 import com.xiaou.system.dto.SreRcaEvaluationRunDetail;
+import com.xiaou.system.dto.SreRcaEvaluationSuiteCreateRequest;
+import com.xiaou.system.dto.SreRcaEvaluationSuiteVersionDetail;
+import com.xiaou.system.dto.SreRcaEvaluationSuiteVersionPublishRequest;
 import com.xiaou.system.dto.SreRcaReport;
 import com.xiaou.system.service.SreRcaAnalysisInput;
 import com.xiaou.system.service.SreRcaAnalyzer;
@@ -42,6 +51,9 @@ class SreRcaEvaluationServiceImplTest {
     private SreRcaEvaluationRunService runService;
 
     @Mock
+    private SreRcaEvaluationSuiteService suiteService;
+
+    @Mock
     private SreRcaAnalyzer analyzer;
 
     @Test
@@ -69,12 +81,12 @@ class SreRcaEvaluationServiceImplTest {
         when(analyzer.schemaId()).thenReturn("xiaou://schema/v1");
         when(analyzer.analyze(any(SreRcaAnalysisInput.class))).thenReturn(new AiExecutionResult<>(
                 candidate, "SUCCESS", "openai-compatible", "configured-model", "runtime-model"));
-        when(runService.start(301L, 7L, 1, "sre.incident.rca:v1", "xiaou://schema/v1"))
+        when(runService.start(any(SreRcaEvaluationRunStart.class)))
                 .thenReturn(runningRun());
         when(runService.record(any(SreRcaEvaluationResultCapture.class)))
                 .thenAnswer(invocation -> persistedResult(invocation.getArgument(0)));
 
-        SreRcaEvaluationRunDetail detail = service.run(301L, 7L);
+        SreRcaEvaluationRunDetail detail = service.run(301L, null, 7L);
 
         assertThat(detail.run().status()).isEqualTo("SUCCEEDED");
         assertThat(detail.run().passedCount()).isEqualTo(1);
@@ -97,9 +109,11 @@ class SreRcaEvaluationServiceImplTest {
         verify(runService).record(capture.capture());
         assertThat(capture.getValue().candidateReportJson()).contains("executiveSummary");
         assertThat(capture.getValue().scoreDetailJson()).contains("Dice", "只读安全契约");
-        verify(runService).complete(
-                401L, "SUCCEEDED", 1, 1, 0, new java.math.BigDecimal("100.00"),
-                "openai-compatible", "configured-model");
+        ArgumentCaptor<SreRcaEvaluationRunCompletion> completion =
+                ArgumentCaptor.forClass(SreRcaEvaluationRunCompletion.class);
+        verify(runService).complete(completion.capture());
+        assertThat(completion.getValue().gateStatus()).isEqualTo("NOT_APPLICABLE");
+        assertThat(completion.getValue().passRate()).isEqualByComparingTo("100.00");
     }
 
     @Test
@@ -107,11 +121,11 @@ class SreRcaEvaluationServiceImplTest {
         SreRcaEvaluationServiceImpl service = service();
         when(caseService.listRecent(100)).thenReturn(List.of());
 
-        assertThatThrownBy(() -> service.run(null, 7L))
+        assertThatThrownBy(() -> service.run(null, null, 7L))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("评测用例");
 
-        verify(runService, never()).start(any(), any(), anyInt(), any(), any());
+        verify(runService, never()).start(any());
     }
 
     @Test
@@ -125,12 +139,12 @@ class SreRcaEvaluationServiceImplTest {
         when(caseService.findById(301L)).thenReturn(Optional.of(evaluationCase));
         when(analyzer.promptId()).thenReturn("sre.incident.rca:v1");
         when(analyzer.schemaId()).thenReturn("xiaou://schema/v1");
-        when(runService.start(301L, 7L, 1, "sre.incident.rca:v1", "xiaou://schema/v1"))
+        when(runService.start(any(SreRcaEvaluationRunStart.class)))
                 .thenReturn(runningRun());
         when(runService.record(any(SreRcaEvaluationResultCapture.class)))
                 .thenAnswer(invocation -> persistedResult(invocation.getArgument(0)));
 
-        SreRcaEvaluationRunDetail detail = service.run(301L, 7L);
+        SreRcaEvaluationRunDetail detail = service.run(301L, null, 7L);
 
         assertThat(detail.run().status()).isEqualTo("DEGRADED");
         assertThat(detail.results()).singleElement().satisfies(result -> {
@@ -152,12 +166,12 @@ class SreRcaEvaluationServiceImplTest {
         when(analyzer.schemaId()).thenReturn("xiaou://schema/v1");
         when(analyzer.analyze(any(SreRcaAnalysisInput.class))).thenReturn(new AiExecutionResult<>(
                 fallback, "MODEL_UNAVAILABLE", "openai-compatible", "configured-model", null));
-        when(runService.start(301L, 7L, 1, "sre.incident.rca:v1", "xiaou://schema/v1"))
+        when(runService.start(any(SreRcaEvaluationRunStart.class)))
                 .thenReturn(runningRun());
         when(runService.record(any(SreRcaEvaluationResultCapture.class)))
                 .thenAnswer(invocation -> persistedResult(invocation.getArgument(0)));
 
-        SreRcaEvaluationRunDetail detail = service.run(301L, 7L);
+        SreRcaEvaluationRunDetail detail = service.run(301L, null, 7L);
 
         assertThat(detail.run().status()).isEqualTo("DEGRADED");
         assertThat(detail.run().passedCount()).isZero();
@@ -168,19 +182,124 @@ class SreRcaEvaluationServiceImplTest {
             assertThat(result.totalScore()).isEqualByComparingTo("100.00");
             assertThat(result.passed()).isFalse();
         });
-        verify(runService).complete(
-                401L, "DEGRADED", 1, 0, 1, new java.math.BigDecimal("100.00"),
-                "openai-compatible", "configured-model");
+        ArgumentCaptor<SreRcaEvaluationRunCompletion> completion =
+                ArgumentCaptor.forClass(SreRcaEvaluationRunCompletion.class);
+        verify(runService).complete(completion.capture());
+        assertThat(completion.getValue().status()).isEqualTo("DEGRADED");
+        assertThat(completion.getValue().degradedCount()).isEqualTo(1);
+    }
+
+    @Test
+    void suiteReplayUsesOnlyTheImmutableVersionAndPersistsItsQualityGate() {
+        SreRcaEvaluationServiceImpl service = service();
+        SreRcaEvaluationCase first = evaluationCase();
+        SreRcaEvaluationCase second = evaluationCase();
+        second.setId(302L);
+        SreRcaEvaluationSuite suite = new SreRcaEvaluationSuite();
+        suite.setId(601L);
+        suite.setSuiteKey("release-readiness");
+        suite.setName("发布准入");
+        SreRcaEvaluationSuiteVersion version = new SreRcaEvaluationSuiteVersion();
+        version.setId(701L);
+        version.setSuiteId(601L);
+        version.setVersionNo(3);
+        version.setCaseCount(2);
+        version.setManifestSha256("c".repeat(64));
+        version.setMinimumPassRate(new java.math.BigDecimal("100.00"));
+        version.setMinimumAverageScore(new java.math.BigDecimal("70.00"));
+        version.setRequireAllSafety(true);
+        version.setRequireNoDegraded(true);
+        when(suiteService.findVersionById(701L))
+                .thenReturn(Optional.of(new SreRcaEvaluationSuiteVersionSnapshot(
+                        suite, version, List.of(first, second))));
+        when(analyzer.promptId()).thenReturn("sre.incident.rca:v1");
+        when(analyzer.schemaId()).thenReturn("xiaou://schema/v1");
+        when(analyzer.analyze(any(SreRcaAnalysisInput.class))).thenReturn(new AiExecutionResult<>(
+                report("发布变更导致故障", "AI"),
+                "SUCCESS", "openai-compatible", "configured-model", "runtime-model"));
+        when(runService.start(any())).thenReturn(runningSuiteRun());
+        when(runService.record(any(SreRcaEvaluationResultCapture.class)))
+                .thenAnswer(invocation -> persistedResult(invocation.getArgument(0)));
+
+        SreRcaEvaluationRunDetail detail = service.run(null, 701L, 7L);
+
+        assertThat(detail.run().suiteVersionId()).isEqualTo(701L);
+        assertThat(detail.run().suiteKey()).isEqualTo("release-readiness");
+        assertThat(detail.run().suiteVersion()).isEqualTo(3);
+        assertThat(detail.run().gateStatus()).isEqualTo("PASSED");
+        assertThat(detail.run().passRate()).isEqualByComparingTo("100.00");
+        assertThat(detail.results()).hasSize(2);
+        verify(caseService, never()).listRecent(anyInt());
+        verify(runService).complete(any());
+    }
+
+    @Test
+    void publishedSuiteVersionDetailNeverReturnsFrozenCasePayloads() throws Exception {
+        SreRcaEvaluationServiceImpl service = service();
+        SreRcaEvaluationSuite suite = new SreRcaEvaluationSuite();
+        suite.setId(601L);
+        suite.setSuiteKey("release-readiness");
+        suite.setName("发布准入");
+        suite.setCreatedBy(7L);
+        SreRcaEvaluationSuiteVersion version = new SreRcaEvaluationSuiteVersion();
+        version.setId(701L);
+        version.setSuiteId(601L);
+        version.setVersionNo(1);
+        version.setCaseCount(1);
+        version.setManifestSha256("c".repeat(64));
+        version.setManifestSchemaId("code-nest.sre.rca-suite-manifest:v1");
+        version.setScoringPolicyId("code-nest.sre.rca-score:v1");
+        version.setGateEvaluatorId("code-nest.sre.rca-gate:v1");
+        version.setMinimumPassRate(new java.math.BigDecimal("100.00"));
+        version.setMinimumAverageScore(new java.math.BigDecimal("70.00"));
+        version.setRequireAllSafety(true);
+        version.setRequireNoDegraded(true);
+        when(suiteService.create(any())).thenReturn(suite);
+        when(suiteService.publishVersion(any())).thenReturn(
+                new SreRcaEvaluationSuiteVersionSnapshot(suite, version, List.of(evaluationCase())));
+
+        service.createSuite(new SreRcaEvaluationSuiteCreateRequest(
+                "release-readiness", "发布准入", "发布前回归"), 7L);
+        SreRcaEvaluationSuiteVersionDetail detail = service.publishSuiteVersion(
+                601L,
+                new SreRcaEvaluationSuiteVersionPublishRequest(
+                        List.of(301L), new java.math.BigDecimal("100"),
+                        new java.math.BigDecimal("70"), true, true),
+                7L
+        );
+        String json = objectMapper().writeValueAsString(detail);
+
+        assertThat(detail.version().version()).isEqualTo(1);
+        assertThat(detail.cases()).extracting(SreRcaEvaluationCaseSummary::id)
+                .containsExactly(301L);
+        assertThat(json).doesNotContain("contextJson", "baselineReportJson", "frozen-model-input");
     }
 
     private SreRcaEvaluationServiceImpl service() {
         return new SreRcaEvaluationServiceImpl(
                 caseService,
                 runService,
+                suiteService,
                 analyzer,
                 new SreRcaEvaluationScorer(),
+                new SreRcaEvaluationGateEvaluator(),
                 objectMapper()
         );
+    }
+
+    private SreRcaEvaluationRun runningSuiteRun() {
+        SreRcaEvaluationRun run = runningRun();
+        run.setRequestedCaseId(null);
+        run.setCaseCount(2);
+        run.setSuiteVersionId(701L);
+        run.setSuiteKey("release-readiness");
+        run.setSuiteVersion(3);
+        run.setSuiteManifestSha256("c".repeat(64));
+        run.setGateMinimumPassRate(new java.math.BigDecimal("100.00"));
+        run.setGateMinimumAverageScore(new java.math.BigDecimal("70.00"));
+        run.setGateRequireAllSafety(true);
+        run.setGateRequireNoDegraded(true);
+        return run;
     }
 
     private ObjectMapper objectMapper() {
@@ -225,6 +344,8 @@ class SreRcaEvaluationServiceImplTest {
         run.setRequestedCaseId(301L);
         run.setRequestedBy(7L);
         run.setCaseCount(1);
+        run.setTriggerSource("MANUAL");
+        run.setGateStatus("NOT_APPLICABLE");
         run.setStartedAt(LocalDateTime.of(2026, 7, 27, 13, 0));
         return run;
     }

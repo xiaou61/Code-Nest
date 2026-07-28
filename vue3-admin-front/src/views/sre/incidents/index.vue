@@ -466,7 +466,7 @@
                   </div>
 
                   <section
-                    v-loading="evaluationCatalogLoading || evaluationHistoryLoading || evaluationDetailLoading"
+                    v-loading="evaluationCatalogLoading || evaluationHistoryLoading || evaluationDetailLoading || evaluationSuiteLoading"
                     class="rca-block evaluation-workbench"
                     aria-labelledby="rca-evaluation-title"
                   >
@@ -476,6 +476,9 @@
                         <div class="evaluation-heading-meta">
                           <CnStatusTag type="neutral" size="sm">
                             {{ evaluationCases.length }} 个用例
+                          </CnStatusTag>
+                          <CnStatusTag type="info" size="sm">
+                            {{ evaluationSuites.length }} 个套件
                           </CnStatusTag>
                           <CnStatusTag
                             v-if="latestEvaluationRun"
@@ -496,6 +499,13 @@
                           {{ currentEvaluationCase ? '已提升' : '提升当前修订' }}
                         </el-button>
                         <el-button
+                          :icon="Collection"
+                          :disabled="!evaluationCases.length || evaluationRunLoading || evaluationPromoting"
+                          @click="openEvaluationSuiteDialog"
+                        >
+                          发布套件
+                        </el-button>
+                        <el-button
                           type="primary"
                           plain
                           :icon="VideoPlay"
@@ -503,7 +513,7 @@
                           :disabled="!evaluationCases.length || evaluationRunLoading || evaluationPromoting"
                           @click="runRcaEvaluation()"
                         >
-                          回放全部
+                          临时回放全部
                         </el-button>
                         <el-tooltip content="刷新评测数据" placement="top">
                           <el-button
@@ -577,6 +587,88 @@
                         />
                       </el-tab-pane>
 
+                      <el-tab-pane :label="`套件 (${evaluationSuites.length})`" name="suites">
+                        <template v-if="evaluationSuites.length">
+                          <div class="evaluation-suite-toolbar">
+                            <label for="rca-evaluation-suite-select">评测套件</label>
+                            <el-select
+                              id="rca-evaluation-suite-select"
+                              v-model="selectedEvaluationSuiteId"
+                              aria-label="选择 RCA 评测套件"
+                              @change="selectRcaEvaluationSuite"
+                            >
+                              <el-option
+                                v-for="suite in evaluationSuites"
+                                :key="suite.id"
+                                :label="`${suite.name} (${suite.suiteKey})`"
+                                :value="suite.id"
+                              />
+                            </el-select>
+                            <el-button :icon="Plus" @click="openEvaluationSuiteDialog">
+                              发布版本
+                            </el-button>
+                          </div>
+
+                          <ol v-if="evaluationSuiteVersions.length" class="evaluation-suite-list">
+                            <li v-for="version in evaluationSuiteVersions" :key="version.id">
+                              <div class="evaluation-suite-main">
+                                <div class="evaluation-item-heading">
+                                  <strong>{{ selectedEvaluationSuite?.name || '评测套件' }} v{{ version.version }}</strong>
+                                  <CnStatusTag type="neutral" size="sm">
+                                    {{ version.caseCount }} 个用例
+                                  </CnStatusTag>
+                                </div>
+                                <dl class="evaluation-suite-meta">
+                                  <div>
+                                    <dt>质量门槛</dt>
+                                    <dd>通过率 {{ evaluationScoreText(version.minimumPassRate) }}% · 均分 {{ evaluationScoreText(version.minimumAverageScore) }}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>安全策略</dt>
+                                    <dd>{{ version.requireAllSafety ? '全部只读安全' : '允许安全未通过' }} · {{ version.requireNoDegraded ? '禁止降级' : '允许降级' }}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Manifest SHA-256</dt>
+                                    <dd><code>{{ abbreviatedHash(version.manifestSha256) }}</code></dd>
+                                  </div>
+                                  <div>
+                                    <dt>发布时间</dt>
+                                    <dd>{{ formatTime(version.publishedAt) }}</dd>
+                                  </div>
+                                </dl>
+                              </div>
+                              <el-button
+                                type="primary"
+                                text
+                                :icon="VideoPlay"
+                                :loading="evaluationRunLoading && evaluationRunningSuiteVersionId === version.id"
+                                :disabled="evaluationRunLoading || evaluationPromoting"
+                                :aria-label="`按套件版本 ${version.version} 执行质量门禁`"
+                                @click="runRcaEvaluation(undefined, version.id)"
+                              >
+                                门禁回放
+                              </el-button>
+                            </li>
+                          </ol>
+                          <CnEmptyState
+                            v-else-if="!evaluationSuiteLoading"
+                            title="暂无套件版本"
+                            description="当前套件还没有已发布版本。"
+                            icon="EV"
+                            size="sm"
+                            surface="transparent"
+                          />
+                        </template>
+                        <CnEmptyState
+                          v-else
+                          title="暂无评测套件"
+                          description="当前没有已发布的版本化评测套件。"
+                          icon="EV"
+                          size="sm"
+                          surface="transparent"
+                        />
+                      </el-tab-pane>
+
                       <el-tab-pane :label="`历史 (${evaluationRuns.length})`" name="history">
                         <template v-if="evaluationRuns.length">
                           <div class="evaluation-history-toolbar">
@@ -618,8 +710,28 @@
                                   </CnStatusTag>
                                 </dd>
                               </div>
+                              <div>
+                                <dt>质量门禁</dt>
+                                <dd>
+                                  <CnStatusTag :type="gateStatusTone(displayedEvaluationRun.gateStatus)" size="sm">
+                                    {{ gateStatusLabel(displayedEvaluationRun.gateStatus) }}
+                                  </CnStatusTag>
+                                </dd>
+                              </div>
+                              <div>
+                                <dt>通过率</dt>
+                                <dd>{{ evaluationScoreText(displayedEvaluationRun.passRate) }}%</dd>
+                              </div>
                             </dl>
                             <dl class="evaluation-run-provenance">
+                              <div v-if="displayedEvaluationRun.suiteVersionId">
+                                <dt>套件版本</dt>
+                                <dd>{{ displayedEvaluationRun.suiteKey || '-' }} v{{ displayedEvaluationRun.suiteVersion || '-' }}</dd>
+                              </div>
+                              <div v-if="displayedEvaluationRun.suiteManifestSha256">
+                                <dt>Manifest SHA-256</dt>
+                                <dd><code>{{ abbreviatedHash(displayedEvaluationRun.suiteManifestSha256) }}</code></dd>
+                              </div>
                               <div>
                                 <dt>Prompt / Schema</dt>
                                 <dd><code>{{ displayedEvaluationRun.promptId || '-' }}</code> / <code>{{ displayedEvaluationRun.schemaId || '-' }}</code></dd>
@@ -635,6 +747,10 @@
                               <div v-if="displayedEvaluationRun.failureCode">
                                 <dt>失败码</dt>
                                 <dd><code>{{ displayedEvaluationRun.failureCode }}</code></dd>
+                              </div>
+                              <div v-if="displayedEvaluationRun.gateFailureCodes?.length">
+                                <dt>门禁失败码</dt>
+                                <dd><code>{{ displayedEvaluationRun.gateFailureCodes.join(', ') }}</code></dd>
                               </div>
                             </dl>
                           </template>
@@ -897,13 +1013,112 @@
         </template>
       </div>
     </el-drawer>
+
+    <el-dialog
+      v-model="evaluationSuiteDialogVisible"
+      class="evaluation-suite-dialog"
+      title="发布评测套件版本"
+      :width="evaluationSuiteDialogWidth"
+      destroy-on-close
+      :close-on-click-modal="false"
+      @closed="resetEvaluationSuiteForm"
+    >
+      <el-form label-position="top" @submit.prevent="publishEvaluationSuiteVersion">
+        <el-form-item label="套件来源" required>
+          <el-radio-group v-model="evaluationSuiteForm.mode" aria-label="选择套件来源">
+            <el-radio-button v-if="evaluationSuites.length" value="existing">现有套件</el-radio-button>
+            <el-radio-button value="new">新建套件</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+
+        <el-form-item v-if="evaluationSuiteForm.mode === 'existing'" label="评测套件" required>
+          <el-select v-model="evaluationSuiteForm.suiteId" aria-label="选择要发布版本的评测套件">
+            <el-option
+              v-for="suite in evaluationSuites"
+              :key="suite.id"
+              :label="`${suite.name} (${suite.suiteKey})`"
+              :value="suite.id"
+            />
+          </el-select>
+        </el-form-item>
+
+        <div v-else class="evaluation-suite-create-fields">
+          <el-form-item label="套件 Key" required>
+            <el-input v-model.trim="evaluationSuiteForm.suiteKey" maxlength="64" placeholder="release-readiness" />
+          </el-form-item>
+          <el-form-item label="套件名称" required>
+            <el-input v-model.trim="evaluationSuiteForm.name" maxlength="128" placeholder="发布准入" />
+          </el-form-item>
+          <el-form-item class="evaluation-suite-wide" label="套件说明">
+            <el-input v-model.trim="evaluationSuiteForm.description" maxlength="500" />
+          </el-form-item>
+        </div>
+
+        <fieldset class="evaluation-suite-cases">
+          <legend>冻结用例</legend>
+          <el-checkbox-group v-model="evaluationSuiteForm.caseIds">
+            <el-checkbox
+              v-for="evaluationCase in evaluationCases"
+              :key="evaluationCase.id"
+              :label="evaluationCase.id"
+            >
+              #{{ evaluationCase.id }} · {{ evaluationCase.expectedConclusion || '沿用基准报告结论' }}
+            </el-checkbox>
+          </el-checkbox-group>
+        </fieldset>
+
+        <div class="evaluation-suite-policy-grid">
+          <el-form-item label="最低通过率 (%)" required>
+            <el-input-number
+              v-model="evaluationSuiteForm.minimumPassRate"
+              :min="0"
+              :max="100"
+              :step="1"
+              controls-position="right"
+            />
+          </el-form-item>
+          <el-form-item label="最低平均分" required>
+            <el-input-number
+              v-model="evaluationSuiteForm.minimumAverageScore"
+              :min="0"
+              :max="100"
+              :step="1"
+              controls-position="right"
+            />
+          </el-form-item>
+        </div>
+
+        <div class="evaluation-suite-switches">
+          <label>
+            <span>全部结果只读安全</span>
+            <el-switch v-model="evaluationSuiteForm.requireAllSafety" />
+          </label>
+          <label>
+            <span>禁止降级或失败</span>
+            <el-switch v-model="evaluationSuiteForm.requireNoDegraded" />
+          </label>
+        </div>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="evaluationSuiteDialogVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="evaluationSuitePublishing"
+          :disabled="!canPublishEvaluationSuiteVersion"
+          @click="publishEvaluationSuiteVersion"
+        >
+          发布版本
+        </el-button>
+      </template>
+    </el-dialog>
   </CnPage>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Check, CircleCheck, Download, MagicStick, Plus, Refresh, VideoPlay, View } from '@element-plus/icons-vue'
+import { Check, CircleCheck, Collection, Download, MagicStick, Plus, Refresh, VideoPlay, View } from '@element-plus/icons-vue'
 import { sreApi } from '@/api/sre'
 import {
   CnDataTable,
@@ -1092,14 +1307,30 @@ interface RcaEvaluationRunSummary {
   id: number
   status?: string
   requestedCaseId?: number
+  suiteVersionId?: number
+  suiteKey?: string
+  suiteVersion?: number
+  suiteManifestSha256?: string
+  triggerSource?: string
   requestedBy?: number
   caseCount: number
   completedCount: number
   passedCount: number
   failedCount: number
-  averageScore?: number | string
+  averageScore?: number | string | null
+  passRate?: number | string | null
+  unsafeCount: number
+  degradedCount: number
   promptId?: string
   schemaId?: string
+  scoringPolicyId?: string
+  gateEvaluatorId?: string
+  gateStatus?: string
+  gateMinimumPassRate?: number | string | null
+  gateMinimumAverageScore?: number | string | null
+  gateRequireAllSafety: boolean
+  gateRequireNoDegraded: boolean
+  gateFailureCodes?: string[]
   provider?: string
   configuredModel?: string
   failureCode?: string
@@ -1134,6 +1365,45 @@ interface RcaEvaluationCaseResult {
 interface RcaEvaluationRunDetail {
   run: RcaEvaluationRunSummary
   results: RcaEvaluationCaseResult[]
+}
+
+interface RcaEvaluationSuiteSummary {
+  id: number
+  suiteKey: string
+  name: string
+  description?: string
+  createdBy?: number
+  createdAt?: string
+}
+
+interface RcaEvaluationSuiteVersionSummary {
+  id: number
+  suiteId: number
+  version: number
+  caseCount: number
+  manifestSha256?: string
+  manifestSchemaId?: string
+  scoringPolicyId?: string
+  gateEvaluatorId?: string
+  minimumPassRate?: number | string | null
+  minimumAverageScore?: number | string | null
+  requireAllSafety: boolean
+  requireNoDegraded: boolean
+  publishedBy?: number
+  publishedAt?: string
+}
+
+interface RcaEvaluationSuiteForm {
+  mode: 'existing' | 'new'
+  suiteId: number | null
+  suiteKey: string
+  name: string
+  description: string
+  caseIds: number[]
+  minimumPassRate: number
+  minimumAverageScore: number
+  requireAllSafety: boolean
+  requireNoDegraded: boolean
 }
 
 interface FilterState extends Record<string, unknown> {
@@ -1232,6 +1502,9 @@ const feedbackForm = reactive<RcaFeedbackForm>({
 const feedbackSaving = ref(false)
 const evaluationExporting = ref(false)
 const evaluationCases = ref<RcaEvaluationCaseSummary[]>([])
+const evaluationSuites = ref<RcaEvaluationSuiteSummary[]>([])
+const evaluationSuiteVersions = ref<RcaEvaluationSuiteVersionSummary[]>([])
+const selectedEvaluationSuiteId = ref<number | null>(null)
 const evaluationRuns = ref<RcaEvaluationRunSummary[]>([])
 const selectedEvaluationRunId = ref<number | null>(null)
 const evaluationRunDetail = ref<RcaEvaluationRunDetail | null>(null)
@@ -1243,6 +1516,22 @@ const evaluationDetailLoading = ref(false)
 const evaluationPromoting = ref(false)
 const evaluationRunLoading = ref(false)
 const evaluationRunningCaseId = ref<number | null>(null)
+const evaluationRunningSuiteVersionId = ref<number | null>(null)
+const evaluationSuiteLoading = ref(false)
+const evaluationSuiteDialogVisible = ref(false)
+const evaluationSuitePublishing = ref(false)
+const evaluationSuiteForm = reactive<RcaEvaluationSuiteForm>({
+  mode: 'new',
+  suiteId: null,
+  suiteKey: '',
+  name: '',
+  description: '',
+  caseIds: [],
+  minimumPassRate: 100,
+  minimumAverageScore: 70,
+  requireAllSafety: true,
+  requireNoDegraded: true
+})
 const actionLoading = ref<'ack' | 'resolve' | ''>('')
 let investigationRequestVersion = 0
 let rcaRequestVersion = 0
@@ -1269,6 +1558,7 @@ const tablePagination = computed<CnPagination>(() => ({
   background: true
 }))
 const drawerSize = computed(() => Math.min(780, Math.max(280, Math.floor(viewportWidth.value * 0.94))))
+const evaluationSuiteDialogWidth = computed(() => `${Math.min(640, Math.max(280, viewportWidth.value - 32))}px`)
 const drawerTitle = computed(() => selectedIncident.value?.incidentNo || '事故详情')
 const contextAlerts = computed(() => investigationContext.value?.alerts || [])
 const contextEvidence = computed(() => investigationContext.value?.evidence || [])
@@ -1276,6 +1566,9 @@ const selectedRcaRun = computed(() => (
   rcaRuns.value.find((run) => run.id === selectedRcaRunId.value) || null
 ))
 const latestEvaluationRun = computed(() => evaluationRuns.value[0] || null)
+const selectedEvaluationSuite = computed(() => (
+  evaluationSuites.value.find((suite) => suite.id === selectedEvaluationSuiteId.value) || null
+))
 const displayedEvaluationRun = computed(() => (
   evaluationRunDetail.value?.run
   || evaluationRuns.value.find((run) => run.id === selectedEvaluationRunId.value)
@@ -1291,6 +1584,12 @@ const canPromoteEvaluationCase = computed(() => (
   && !currentEvaluationCase.value
   && !evaluationPromoting.value
 ))
+const canPublishEvaluationSuiteVersion = computed(() => {
+  if (!evaluationSuiteForm.caseIds.length || evaluationSuitePublishing.value) return false
+  if (evaluationSuiteForm.mode === 'existing') return Boolean(evaluationSuiteForm.suiteId)
+  return /^[a-z][a-z0-9-]{2,63}$/.test(evaluationSuiteForm.suiteKey)
+    && Boolean(evaluationSuiteForm.name.trim())
+})
 const isCurrentIncident = (incidentId: number) => (
   drawerVisible.value && selectedIncident.value?.id === incidentId
 )
@@ -1387,6 +1686,9 @@ const openIncident = async (incident: Incident) => {
   rcaFeedback.value = null
   resetFeedbackForm()
   evaluationCases.value = []
+  evaluationSuites.value = []
+  evaluationSuiteVersions.value = []
+  selectedEvaluationSuiteId.value = null
   evaluationRuns.value = []
   selectedEvaluationRunId.value = null
   evaluationRunDetail.value = null
@@ -1604,18 +1906,57 @@ const loadRcaEvaluationRun = async (
   }
 }
 
+const loadRcaEvaluationSuiteVersions = async (
+  suiteId: number,
+  inheritedRequestVersion?: number
+) => {
+  const requestVersion = inheritedRequestVersion ?? ++evaluationRequestVersion
+  evaluationSuiteLoading.value = true
+  try {
+    const response = await sreApi.getRcaEvaluationSuiteVersions(suiteId, 20) as RcaEvaluationSuiteVersionSummary[] | null
+    if (requestVersion !== evaluationRequestVersion || !drawerVisible.value
+      || selectedEvaluationSuiteId.value !== suiteId) return
+    evaluationSuiteVersions.value = Array.isArray(response) ? response : []
+  } catch (error) {
+    console.error('加载 SRE RCA 评测套件版本失败:', error)
+    if (requestVersion === evaluationRequestVersion && selectedEvaluationSuiteId.value === suiteId) {
+      evaluationSuiteVersions.value = []
+    }
+  } finally {
+    if (requestVersion === evaluationRequestVersion) evaluationSuiteLoading.value = false
+  }
+}
+
 const loadRcaEvaluationWorkbench = async () => {
   const requestVersion = ++evaluationRequestVersion
   evaluationCatalogLoading.value = true
   evaluationHistoryLoading.value = true
   try {
-    const [caseResponse, runResponse] = await Promise.all([
+    const [caseResponse, runResponse, suiteResponse] = await Promise.all([
       sreApi.getRcaEvaluationCases(50),
-      sreApi.getRcaEvaluationRuns(20)
-    ]) as [RcaEvaluationCaseSummary[] | null, RcaEvaluationRunSummary[] | null]
+      sreApi.getRcaEvaluationRuns(20),
+      sreApi.getRcaEvaluationSuites(20)
+    ]) as [
+      RcaEvaluationCaseSummary[] | null,
+      RcaEvaluationRunSummary[] | null,
+      RcaEvaluationSuiteSummary[] | null
+    ]
     if (requestVersion !== evaluationRequestVersion || !drawerVisible.value) return
     evaluationCases.value = Array.isArray(caseResponse) ? caseResponse : []
     evaluationRuns.value = Array.isArray(runResponse) ? runResponse : []
+    evaluationSuites.value = Array.isArray(suiteResponse) ? suiteResponse : []
+
+    const selectedSuiteStillExists = evaluationSuites.value.some(
+      (suite) => suite.id === selectedEvaluationSuiteId.value
+    )
+    selectedEvaluationSuiteId.value = selectedSuiteStillExists
+      ? selectedEvaluationSuiteId.value
+      : (evaluationSuites.value[0]?.id || null)
+    if (selectedEvaluationSuiteId.value != null) {
+      await loadRcaEvaluationSuiteVersions(selectedEvaluationSuiteId.value, requestVersion)
+    } else {
+      evaluationSuiteVersions.value = []
+    }
 
     if (!evaluationRuns.value.length) {
       selectedEvaluationRunId.value = null
@@ -1638,6 +1979,15 @@ const loadRcaEvaluationWorkbench = async () => {
       evaluationHistoryLoading.value = false
     }
   }
+}
+
+const selectRcaEvaluationSuite = (value: number | string) => {
+  const suiteId = Number(value)
+  if (!Number.isInteger(suiteId) || suiteId <= 0) return
+  selectedEvaluationSuiteId.value = suiteId
+  evaluationSuiteVersions.value = []
+  loadRcaEvaluationSuiteVersions(suiteId)
+    .catch((error) => console.error('切换 SRE RCA 评测套件失败:', error))
 }
 
 const selectRcaEvaluationRun = (value: number | string) => {
@@ -1681,12 +2031,73 @@ const promoteRcaEvaluationCase = async () => {
   }
 }
 
-const runRcaEvaluation = async (caseId?: number) => {
+const resetEvaluationSuiteForm = () => {
+  Object.assign(evaluationSuiteForm, {
+    mode: evaluationSuites.value.length ? 'existing' : 'new',
+    suiteId: selectedEvaluationSuiteId.value || evaluationSuites.value[0]?.id || null,
+    suiteKey: '',
+    name: '',
+    description: '',
+    caseIds: evaluationCases.value.map((item) => item.id),
+    minimumPassRate: 100,
+    minimumAverageScore: 70,
+    requireAllSafety: true,
+    requireNoDegraded: true
+  })
+}
+
+const openEvaluationSuiteDialog = () => {
+  if (!evaluationCases.value.length || evaluationRunLoading.value) return
+  resetEvaluationSuiteForm()
+  evaluationSuiteDialogVisible.value = true
+}
+
+const publishEvaluationSuiteVersion = async () => {
+  if (!canPublishEvaluationSuiteVersion.value) return
+  evaluationSuitePublishing.value = true
+  try {
+    let suiteId = evaluationSuiteForm.suiteId
+    if (evaluationSuiteForm.mode === 'new') {
+      const created = await sreApi.createRcaEvaluationSuite({
+        suiteKey: evaluationSuiteForm.suiteKey.trim().toLowerCase(),
+        name: evaluationSuiteForm.name.trim(),
+        description: evaluationSuiteForm.description.trim() || undefined
+      }) as RcaEvaluationSuiteSummary | null
+      suiteId = created?.id || null
+    }
+    if (!suiteId) throw new Error('RCA evaluation suite was not created')
+
+    const detail = await sreApi.publishRcaEvaluationSuiteVersion(suiteId, {
+      caseIds: [...evaluationSuiteForm.caseIds],
+      minimumPassRate: evaluationSuiteForm.minimumPassRate,
+      minimumAverageScore: evaluationSuiteForm.minimumAverageScore,
+      requireAllSafety: evaluationSuiteForm.requireAllSafety,
+      requireNoDegraded: evaluationSuiteForm.requireNoDegraded
+    }) as { version?: RcaEvaluationSuiteVersionSummary } | null
+    selectedEvaluationSuiteId.value = suiteId
+    evaluationSuiteDialogVisible.value = false
+    await loadRcaEvaluationWorkbench()
+    activeEvaluationTab.value = 'suites'
+    const versionLabel = detail?.version?.version ? ` v${detail.version.version}` : ''
+    liveStatus.value = `RCA 评测套件${versionLabel}已发布`
+    ElMessage.success(`评测套件${versionLabel}已发布`)
+  } catch (error) {
+    console.error('发布 SRE RCA 评测套件版本失败:', error)
+    liveStatus.value = 'RCA 评测套件版本发布失败'
+  } finally {
+    evaluationSuitePublishing.value = false
+  }
+}
+
+const runRcaEvaluation = async (caseId?: number, suiteVersionId?: number) => {
   if (evaluationRunLoading.value || evaluationPromoting.value) return
-  if (caseId == null && !evaluationCases.value.length) return
-  const targetLabel = caseId == null
-    ? `全部 ${evaluationCases.value.length} 个用例`
-    : `用例 #${caseId}`
+  if (caseId == null && suiteVersionId == null && !evaluationCases.value.length) return
+  const incidentId = selectedIncident.value?.id
+  if (!incidentId) return
+  const suiteVersion = evaluationSuiteVersions.value.find((item) => item.id === suiteVersionId)
+  const targetLabel = suiteVersionId != null
+    ? `${selectedEvaluationSuite.value?.name || '评测套件'} v${suiteVersion?.version || '-'} 的 ${suiteVersion?.caseCount || 0} 个用例`
+    : (caseId == null ? `全部 ${evaluationCases.value.length} 个用例` : `用例 #${caseId}`)
   try {
     await ElMessageBox.confirm(
       `确认手动回放${targetLabel}？`,
@@ -1698,13 +2109,15 @@ const runRcaEvaluation = async (caseId?: number) => {
     return
   }
 
-  evaluationRequestVersion += 1
+  const requestVersion = ++evaluationRequestVersion
   evaluationRunLoading.value = true
   evaluationRunningCaseId.value = caseId ?? null
+  evaluationRunningSuiteVersionId.value = suiteVersionId ?? null
   liveStatus.value = `正在回放${targetLabel}`
   try {
-    const response = await sreApi.runRcaEvaluation(caseId) as RcaEvaluationRunDetail | null
-    if (!drawerVisible.value || !response?.run) return
+    const response = await sreApi.runRcaEvaluation(caseId, suiteVersionId) as RcaEvaluationRunDetail | null
+    if (requestVersion !== evaluationRequestVersion
+      || !isCurrentIncident(incidentId) || !response?.run) return
     evaluationRunDetail.value = {
       ...response,
       results: Array.isArray(response.results) ? response.results.map((item) => ({
@@ -1718,17 +2131,20 @@ const runRcaEvaluation = async (caseId?: number) => {
       : []
     activeEvaluationTab.value = 'history'
     const runResponse = await sreApi.getRcaEvaluationRuns(20) as RcaEvaluationRunSummary[] | null
-    if (drawerVisible.value) {
-      evaluationRuns.value = Array.isArray(runResponse) ? runResponse : [response.run]
-    }
-    liveStatus.value = `RCA 离线评测完成，平均 ${evaluationScoreText(response.run.averageScore)} 分`
-    ElMessage.success('RCA 离线评测已完成')
+    if (requestVersion !== evaluationRequestVersion || !isCurrentIncident(incidentId)) return
+    evaluationRuns.value = Array.isArray(runResponse) ? runResponse : [response.run]
+    const gateLabel = gateStatusLabel(response.run.gateStatus)
+    liveStatus.value = `RCA 离线评测完成，平均 ${evaluationScoreText(response.run.averageScore)} 分，${gateLabel}`
+    ElMessage.success(suiteVersionId == null ? 'RCA 离线评测已完成' : `质量门禁${gateLabel}`)
   } catch (error) {
     console.error('执行 SRE RCA 离线评测失败:', error)
     liveStatus.value = 'RCA 离线评测失败'
   } finally {
-    evaluationRunLoading.value = false
-    evaluationRunningCaseId.value = null
+    if (requestVersion === evaluationRequestVersion) {
+      evaluationRunLoading.value = false
+      evaluationRunningCaseId.value = null
+      evaluationRunningSuiteVersionId.value = null
+    }
   }
 }
 
@@ -1817,6 +2233,9 @@ const resetDrawer = () => {
   rcaFeedback.value = null
   resetFeedbackForm()
   evaluationCases.value = []
+  evaluationSuites.value = []
+  evaluationSuiteVersions.value = []
+  selectedEvaluationSuiteId.value = null
   evaluationRuns.value = []
   selectedEvaluationRunId.value = null
   evaluationRunDetail.value = null
@@ -1832,6 +2251,11 @@ const resetDrawer = () => {
   evaluationPromoting.value = false
   evaluationRunLoading.value = false
   evaluationRunningCaseId.value = null
+  evaluationRunningSuiteVersionId.value = null
+  evaluationSuiteLoading.value = false
+  evaluationSuiteDialogVisible.value = false
+  evaluationSuitePublishing.value = false
+  resetEvaluationSuiteForm()
   activeDetailTab.value = 'overview'
   expandedEvidenceIds.value = []
   actionLoading.value = ''
@@ -1903,6 +2327,20 @@ const runStatusLabel = (value?: string) => ({
   SKIPPED: '已跳过'
 }[String(value || '').toUpperCase()] || value || '-')
 
+const gateStatusTone = (value?: string): CnTone => ({
+  PASSED: 'success',
+  FAILED: 'danger',
+  PENDING: 'info',
+  NOT_APPLICABLE: 'neutral'
+}[String(value || '').toUpperCase()] as CnTone || 'neutral')
+
+const gateStatusLabel = (value?: string) => ({
+  PASSED: '通过',
+  FAILED: '未通过',
+  PENDING: '评估中',
+  NOT_APPLICABLE: '临时运行'
+}[String(value || '').toUpperCase()] || value || '临时运行')
+
 const invocationOutcomeTone = (value?: string): CnTone => ({
   SUCCESS: 'success',
   MODEL_UNAVAILABLE: 'warning',
@@ -1953,10 +2391,11 @@ const runHistoryLabel = (run: RcaRunSummary) => {
 }
 
 const evaluationRunLabel = (run: RcaEvaluationRunSummary) => (
-  `${formatTime(run.startedAt)} · ${evaluationScoreText(run.averageScore)} 分 · ${run.passedCount}/${run.caseCount} 通过`
+  `${formatTime(run.startedAt)} · ${evaluationScoreText(run.averageScore)} 分 · ${run.passedCount}/${run.caseCount} 通过 · ${gateStatusLabel(run.gateStatus)}`
 )
 
-const evaluationScoreText = (value?: number | string) => {
+const evaluationScoreText = (value?: number | string | null) => {
+  if (value == null || value === '') return '-'
   const score = Number(value)
   return Number.isFinite(score) ? score.toFixed(2) : '-'
 }
@@ -2474,13 +2913,15 @@ onBeforeUnmount(() => {
   margin-top: var(--cn-space-3);
 }
 
-.evaluation-case-list {
+.evaluation-case-list,
+.evaluation-suite-list {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.evaluation-case-list > li {
+.evaluation-case-list > li,
+.evaluation-suite-list > li {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -2491,7 +2932,9 @@ onBeforeUnmount(() => {
 }
 
 .evaluation-case-main,
+.evaluation-suite-main,
 .evaluation-case-meta > div,
+.evaluation-suite-meta > div,
 .evaluation-summary-grid > div,
 .evaluation-run-provenance > div,
 .evaluation-result-provenance > div,
@@ -2514,6 +2957,7 @@ onBeforeUnmount(() => {
 }
 
 .evaluation-case-meta,
+.evaluation-suite-meta,
 .evaluation-run-provenance,
 .evaluation-result-provenance {
   display: grid;
@@ -2523,6 +2967,7 @@ onBeforeUnmount(() => {
 }
 
 .evaluation-case-meta dt,
+.evaluation-suite-meta dt,
 .evaluation-summary-grid dt,
 .evaluation-run-provenance dt,
 .evaluation-score-grid dt,
@@ -2533,6 +2978,7 @@ onBeforeUnmount(() => {
 }
 
 .evaluation-case-meta dd,
+.evaluation-suite-meta dd,
 .evaluation-run-provenance dd,
 .evaluation-result-provenance dd {
   margin: 0;
@@ -2543,13 +2989,15 @@ onBeforeUnmount(() => {
 }
 
 .evaluation-case-meta code,
+.evaluation-suite-meta code,
 .evaluation-run-provenance code,
 .evaluation-result-provenance code {
   font-family: var(--cn-font-mono);
   font-size: 11px;
 }
 
-.evaluation-history-toolbar {
+.evaluation-history-toolbar,
+.evaluation-suite-toolbar {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -2557,25 +3005,107 @@ onBeforeUnmount(() => {
   margin-bottom: var(--cn-space-4);
 }
 
-.evaluation-history-toolbar label {
+.evaluation-history-toolbar label,
+.evaluation-suite-toolbar label {
   color: var(--cn-color-text-tertiary);
   font-size: 12px;
 }
 
-.evaluation-history-toolbar :deep(.el-select) {
+.evaluation-history-toolbar :deep(.el-select),
+.evaluation-suite-toolbar :deep(.el-select) {
   width: min(440px, 100%);
+}
+
+.evaluation-suite-toolbar :deep(.el-button) {
+  margin-left: 0;
+}
+
+.evaluation-suite-create-fields,
+.evaluation-suite-policy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 var(--cn-space-4);
+}
+
+.evaluation-suite-wide {
+  grid-column: 1 / -1;
+}
+
+.evaluation-suite-dialog :deep(.el-select),
+.evaluation-suite-dialog :deep(.el-input-number) {
+  width: 100%;
+}
+
+.evaluation-suite-cases {
+  min-width: 0;
+  margin: 0 0 var(--cn-space-5);
+  padding: var(--cn-space-3) var(--cn-space-4) var(--cn-space-4);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-control);
+}
+
+.evaluation-suite-cases legend {
+  padding: 0 var(--cn-space-2);
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.evaluation-suite-cases :deep(.el-checkbox-group) {
+  display: grid;
+  gap: var(--cn-space-2);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.evaluation-suite-cases :deep(.el-checkbox) {
+  align-items: flex-start;
+  height: auto;
+  margin-right: 0;
+  white-space: normal;
+}
+
+.evaluation-suite-cases :deep(.el-checkbox__label) {
+  min-width: 0;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.evaluation-suite-switches {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cn-space-3);
+}
+
+.evaluation-suite-switches > label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cn-space-3);
+  min-width: 0;
+  padding: var(--cn-space-3) 0;
+  border-top: 1px solid var(--cn-color-border-subtle);
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
 }
 
 .evaluation-summary-grid,
 .evaluation-score-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1px;
   margin: 0;
   overflow: hidden;
   border: 1px solid var(--cn-color-border-subtle);
   border-radius: var(--cn-radius-card);
   background: var(--cn-color-border-subtle);
+}
+
+.evaluation-summary-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.evaluation-score-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .evaluation-summary-grid > div,
@@ -2890,6 +3420,7 @@ onBeforeUnmount(() => {
   .candidate-report-heading,
   .rca-history-toolbar,
   .evaluation-history-toolbar,
+  .evaluation-suite-toolbar,
   .recommendation-list li {
     align-items: flex-start;
     flex-direction: column;
@@ -2909,7 +3440,8 @@ onBeforeUnmount(() => {
   }
 
   .rca-history-toolbar :deep(.el-select),
-  .evaluation-history-toolbar :deep(.el-select) {
+  .evaluation-history-toolbar :deep(.el-select),
+  .evaluation-suite-toolbar :deep(.el-select) {
     width: 100%;
   }
 
@@ -2918,12 +3450,14 @@ onBeforeUnmount(() => {
     width: 100%;
   }
 
-  .evaluation-case-list > li {
+  .evaluation-case-list > li,
+  .evaluation-suite-list > li {
     grid-template-columns: 1fr;
     align-items: flex-start;
   }
 
-  .evaluation-case-list > li > .el-button {
+  .evaluation-case-list > li > .el-button,
+  .evaluation-suite-list > li > .el-button {
     justify-self: start;
   }
 
@@ -2936,6 +3470,7 @@ onBeforeUnmount(() => {
   }
 
   .evaluation-case-meta,
+  .evaluation-suite-meta,
   .evaluation-run-provenance,
   .evaluation-result-provenance,
   .candidate-report-columns {
@@ -2954,6 +3489,16 @@ onBeforeUnmount(() => {
   .feedback-form :deep(.el-form-item),
   .feedback-actions,
   .provenance-hash {
+    grid-column: 1;
+  }
+
+  .evaluation-suite-create-fields,
+  .evaluation-suite-policy-grid,
+  .evaluation-suite-switches {
+    grid-template-columns: 1fr;
+  }
+
+  .evaluation-suite-wide {
     grid-column: 1;
   }
 }
