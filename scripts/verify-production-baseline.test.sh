@@ -146,7 +146,7 @@ run_baseline() {
   CODE_NEST_EXPECTED_VERSION="v2.5.1" \
   CODE_NEST_EXPECTED_SHA="1111111111111111111111111111111111111111" \
   CODE_NEST_GRAFANA_REQUIRED="true" \
-  "$baseline_script"
+  bash "$baseline_script"
 }
 
 healthy_output="$(run_baseline)"
