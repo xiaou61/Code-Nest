@@ -70,4 +70,13 @@
           AND id = #{id}
         LIMIT 1
     </select>
+
+    <select id="selectByIncidentIdAndIdForUpdate" resultMap="SreInvestigationRunResult">
+        SELECT <include refid="summaryColumns"/>
+        FROM sre_investigation_run
+        WHERE incident_id = #{incidentId}
+          AND id = #{id}
+        LIMIT 1
+        FOR UPDATE
+    </select>
 </mapper>

@@ -637,18 +637,25 @@ P2 开始，SRE 模块必须暴露自己的指标，让“监控系统也被监�
 
 | 指标 | 类型 | 目的 |
 | --- | --- | --- |
-| `sre_alert_ingestion_total` | Counter | 按 source/status/severity 统计接收量。 |
-| `sre_alert_ingestion_errors_total` | Counter | webhook 校验、解析和持久化错误。 |
-| `sre_alert_duplicate_total` | Counter | fingerprint 幂等命中，发现重复投递。 |
-| `sre_incident_open_total` | Gauge | 当前未关闭事故数。 |
-| `sre_evidence_collection_duration_seconds` | Timer/Histogram | Prometheus、Loki、部署查询耗时。 |
-| `sre_evidence_collection_errors_total` | Counter | 证据源失败和超时。 |
-| `sre_ai_investigation_total` | Counter | AI 调查成功、失败、超时和成本。 |
-| `sre_action_proposal_total` | Counter | 提案按 risk/state 统计。 |
-| `sre_outbox_pending_total` | Gauge | 异步任务堆积量。 |
+| `xiaou_sre_alert_ingestion_requests_total` | Counter | 按低基数 outcome 统计 Webhook 接收。 |
+| `xiaou_sre_alert_ingestion_duration_seconds` | Timer | 告警校验、聚合和 Outbox 写入耗时。 |
+| `xiaou_sre_alert_ingestion_alerts` | DistributionSummary | 每次 Webhook 的告警条数。 |
+| `xiaou_sre_incidents_open` | Gauge | 当前未关闭事故数。 |
+| `xiaou_sre_evidence_collection_runs_total` | Counter | 证据采集成功、重复和失败次数。 |
+| `xiaou_sre_evidence_collection_duration_seconds` | Timer | 本地快照和外部证据固化耗时。 |
+| `xiaou_sre_investigation_runs_total` | Counter | RCA 调查成功、降级、失败与跳过次数。 |
+| `xiaou_sre_investigation_duration_seconds` | Timer | 计划、只读取证和最终分析总耗时。 |
+| `xiaou_sre_investigation_rounds` | DistributionSummary | 每次调查实际尝试的固定只读工具轮数。 |
+| `xiaou_sre_investigation_tool_calls_total` | Counter | 按固定 tool key/outcome 统计工具调用。 |
+| `xiaou_sre_investigation_tool_duration_seconds` | Timer | 固定 Prometheus/Loki 工具耗时。 |
+| `xiaou_sre_outbox_backlog` / `xiaou_sre_outbox_oldest_age_seconds` | Gauge | Outbox 积压和最老任务年龄。 |
+| `xiaou_sre_evaluation_backlog` / `xiaou_sre_evaluation_oldest_age_seconds` | Gauge | RCA 评测积压和最老任务年龄。 |
+| `xiaou_sre_investigation_active` | Gauge | 当前 RUNNING 调查数。 |
+| `xiaou_sre_queue_events_total` | Counter | 按 queue/event 统计入队、领取、重试、租约恢复、deadline 和终态失败。 |
 
 这些指标由 Prometheus 采集，仍由 Alertmanager 告警；不要在 SRE 模块里实现第二套告警
-引擎。
+引擎。数据库 Gauge 使用定时快照，scrape 线程不直接访问 MySQL；完整迁移前保持
+`XIAOU_SRE_METRICS_ENABLED=false`。Counter/Timer 不依赖这个开关。
 
 ## 12. 管理端工作台
 
@@ -808,10 +815,17 @@ Docker、任意 PromQL/LogQL 或数据库写操作。
     最大运行时长已经落地；同一管理员通过 nullable 唯一键最多保留一个活动运行。
 28. 管理端独立轮询评测状态并显示排队、进度、deadline、attempts 和构建来源；切换事故、
     关闭抽屉或组件卸载会取消旧轮询，避免过期响应覆盖当前页面。
+29. P3.6 已增加有界只读取证循环：模型先生成一次结构化调查计划，只能从后端提供的固定
+    Prometheus/Loki tool key 中选择；planner 和编排器分别执行白名单过滤、去重与最多 5 轮
+    截断。每轮结果先写入 `sre_incident_evidence` 并获得 evidence ID，同一 run + 查询指纹
+    保持幂等；重复证据立即停止，新增证据重载后只执行一次最终 RCA 分析。
+30. 调查执行器不接受模型生成的 PromQL、LogQL、Shell 或 SQL，也不提供写操作。当前没有
+    自动修复能力，不设置金额、Token 或模型成本预算闸门；技术边界由固定工具、轮数、客户端
+    超时、时间窗口、响应大小、上下文上限和查询去重构成。
 
-相对初稿的调整：不再为模型提供直接的 PromQL/Loki 查询工具。P2 采集器使用固定查询白名单
-生成可审计快照，P3 只分析这些已入库证据。发布记录和 Runbook 证据可以后续通过同一 facade
-扩充，但仍不得给模型增加执行能力。
+相对初稿的调整：模型只能选择服务端 catalog 中有稳定 key 的固定 Prometheus/Loki 查询，
+不能提交查询文本。P2 采集器和 P3 调查轮次都先生成可审计快照，最终报告只分析这些已入库
+证据。发布记录和 Runbook 证据可以后续通过同一 facade 扩充，但仍不得给模型增加写能力。
 
 完成标准已满足：AI 不可用不影响 P0/P1/P2；每个结论都有有效事实引用或明确的“证据不足”
 标记；接口、AgentTool、权限种子、统一入口、提示词注入、脱敏、非法证据、降级路径、

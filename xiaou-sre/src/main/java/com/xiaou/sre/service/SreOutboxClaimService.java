@@ -15,7 +15,7 @@ public interface SreOutboxClaimService {
 
     SreOutboxEvent claim(Long id);
 
-    void recoverStaleProcessing();
+    SreQueueRecoveryResult recoverStaleProcessing();
 
     void markSucceeded(Long id);
 

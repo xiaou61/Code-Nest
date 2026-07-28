@@ -9,15 +9,20 @@ import com.xiaou.sre.domain.SreInvestigationRun;
 import com.xiaou.sre.domain.SreInvestigationFeedback;
 import com.xiaou.sre.dto.request.SreInvestigationArtifactCapture;
 import com.xiaou.sre.dto.response.SreInvestigationContext;
+import com.xiaou.sre.metrics.SreMetricsRecorder;
 import com.xiaou.sre.service.SreInvestigationArtifactService;
 import com.xiaou.sre.service.SreInvestigationFacade;
 import com.xiaou.sre.service.SreInvestigationFeedbackService;
 import com.xiaou.sre.service.SreInvestigationRunService;
+import com.xiaou.sre.service.SreReadOnlyInvestigationToolService;
+import com.xiaou.sre.service.SreReadOnlyToolResult;
 import com.xiaou.system.dto.SreRcaEvaluationSample;
 import com.xiaou.system.dto.SreRcaFeedback;
 import com.xiaou.system.dto.SreRcaFeedbackRequest;
 import com.xiaou.system.dto.SreRcaReport;
 import com.xiaou.system.dto.SreRcaRunDetail;
+import com.xiaou.system.service.SreInvestigationPlan;
+import com.xiaou.system.service.SreInvestigationPlanner;
 import com.xiaou.system.service.SreRcaTriggerSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -60,6 +65,15 @@ class SreIncidentRcaServiceImplTest {
 
     @Mock
     private SreInvestigationArtifactService investigationArtifactService;
+
+    @Mock
+    private SreInvestigationPlanner investigationPlanner;
+
+    @Mock
+    private SreReadOnlyInvestigationToolService readOnlyToolService;
+
+    @Mock
+    private SreMetricsRecorder metricsRecorder;
 
     @Test
     void missingIncidentDoesNotInvokeModel() {
@@ -191,6 +205,84 @@ class SreIncidentRcaServiceImplTest {
     }
 
     @Test
+    void boundedPlanExecutesFiveReadOnlyRoundsAndReloadsEvidenceBeforeAnalysis() {
+        SreIncidentRcaServiceImpl service = service();
+        SreInvestigationContext initial = context();
+        SreInvestigationContext enriched = contextWithEvidenceIds(31L, 301L, 302L, 303L, 304L, 305L);
+        when(investigationFacade.findByIncidentId(11L))
+                .thenReturn(Optional.of(initial), Optional.of(enriched));
+        List<String> tools = List.of(
+                "prom_target_up",
+                "prom_target_up",
+                "prom_http_5xx_rate",
+                "loki_application_errors",
+                "prom_http_latency_p95",
+                "prom_jvm_heap_usage",
+                "prom_host_cpu_usage"
+        );
+        when(readOnlyToolService.availableToolKeys()).thenReturn(tools);
+        when(readOnlyToolService.fallbackToolKeys("CodeNestTargetDown"))
+                .thenReturn(List.of("prom_target_up", "loki_application_errors"));
+        when(investigationPlanner.plan(any())).thenReturn(new SreInvestigationPlan(
+                "INVESTIGATE", "补充证据", tools, "AI", "SUCCESS"));
+        when(readOnlyToolService.execute(11L, 91L, "prom_target_up"))
+                .thenReturn(new SreReadOnlyToolResult("prom_target_up", 301L, true, "AVAILABLE"));
+        when(readOnlyToolService.execute(11L, 91L, "prom_http_5xx_rate"))
+                .thenReturn(new SreReadOnlyToolResult("prom_http_5xx_rate", 302L, true, "AVAILABLE"));
+        when(readOnlyToolService.execute(11L, 91L, "loki_application_errors"))
+                .thenReturn(new SreReadOnlyToolResult("loki_application_errors", 303L, true, "AVAILABLE"));
+        when(readOnlyToolService.execute(11L, 91L, "prom_http_latency_p95"))
+                .thenReturn(new SreReadOnlyToolResult("prom_http_latency_p95", 304L, true, "AVAILABLE"));
+        when(readOnlyToolService.execute(11L, 91L, "prom_jvm_heap_usage"))
+                .thenReturn(new SreReadOnlyToolResult("prom_jvm_heap_usage", 305L, true, "AVAILABLE"));
+        stubModelResponse(validModelReport("305", "READ_ONLY"));
+
+        SreRcaReport report = service.investigate(11L).orElseThrow();
+
+        assertThat(report.evidenceReferences()).extracting(SreRcaReport.EvidenceReference::id)
+                .contains(305L);
+        verify(readOnlyToolService, never()).execute(11L, 91L, "prom_host_cpu_usage");
+        verify(investigationFacade, org.mockito.Mockito.times(2)).findByIncidentId(11L);
+        verify(investigationRunService).recordStep(
+                eq(91L), eq(2), eq("INVESTIGATION_PLAN"), eq("SUCCEEDED"),
+                org.mockito.ArgumentMatchers.argThat(detail -> detail.contains("计划轮数=5")
+                        && detail.contains("prom_target_up")
+                        && detail.contains("补充证据")));
+        verify(investigationRunService).recordStep(
+                eq(91L), eq(8), eq("EVIDENCE_RELOADED"), eq("SUCCEEDED"), any());
+        verify(metricsRecorder).recordInvestigation(
+                eq("succeeded"), eq("ai"), eq(5), any(Long.class));
+    }
+
+    @Test
+    void duplicateEvidenceStopsRemainingRoundsWithoutReloadingContext() {
+        SreIncidentRcaServiceImpl service = service();
+        when(investigationFacade.findByIncidentId(11L)).thenReturn(Optional.of(context()));
+        when(readOnlyToolService.availableToolKeys())
+                .thenReturn(List.of("prom_target_up", "loki_application_errors"));
+        when(investigationPlanner.plan(any())).thenReturn(new SreInvestigationPlan(
+                "INVESTIGATE",
+                "补充证据",
+                List.of("prom_target_up", "loki_application_errors"),
+                "AI",
+                "SUCCESS"
+        ));
+        when(readOnlyToolService.execute(11L, 91L, "prom_target_up"))
+                .thenReturn(new SreReadOnlyToolResult("prom_target_up", 301L, false, "DUPLICATE"));
+        stubModelResponse(validModelReport("31", "READ_ONLY"));
+
+        service.investigate(11L).orElseThrow();
+
+        verify(readOnlyToolService, never()).execute(11L, 91L, "loki_application_errors");
+        verify(investigationFacade).findByIncidentId(11L);
+        verify(investigationRunService).recordStep(
+                eq(91L), eq(3), eq("READ_ONLY_TOOL"), eq("SKIPPED"),
+                org.mockito.ArgumentMatchers.argThat(detail -> detail.contains("DUPLICATE")));
+        verify(metricsRecorder).recordInvestigation(
+                eq("succeeded"), eq("ai"), eq(1), any(Long.class));
+    }
+
+    @Test
     void firstTraceFailureMarksRunFailedInsteadOfLeavingItRunning() {
         SreIncidentRcaServiceImpl service = service();
         when(investigationFacade.findByIncidentId(11L)).thenReturn(Optional.of(context()));
@@ -294,13 +386,20 @@ class SreIncidentRcaServiceImplTest {
                 .thenReturn(run());
         lenient().when(investigationArtifactService.capture(any(SreInvestigationArtifactCapture.class)))
                 .thenReturn(Optional.of(artifact()));
+        lenient().when(investigationPlanner.plan(any())).thenReturn(new SreInvestigationPlan(
+                "STOP", "测试不追加证据", List.of(), "FALLBACK", "NO_AVAILABLE_TOOLS"));
+        lenient().when(readOnlyToolService.availableToolKeys()).thenReturn(List.of());
+        lenient().when(readOnlyToolService.fallbackToolKeys(any())).thenReturn(List.of());
         return new SreIncidentRcaServiceImpl(
                 investigationFacade,
+                investigationPlanner,
+                readOnlyToolService,
                 new SreRcaAnalyzerImpl(aiExecutionSupport),
                 new ObjectMapper().findAndRegisterModules(),
                 investigationRunService,
                 investigationFeedbackService,
-                investigationArtifactService
+                investigationArtifactService,
+                metricsRecorder
         );
     }
 
@@ -445,6 +544,24 @@ class SreIncidentRcaServiceImplTest {
                 false,
                 LocalDateTime.of(2026, 7, 23, 1, 10)
         );
+    }
+
+    private SreInvestigationContext contextWithEvidenceIds(Long... evidenceIds) {
+        List<SreInvestigationContext.Evidence> evidence = java.util.Arrays.stream(evidenceIds)
+                .map(id -> new SreInvestigationContext.Evidence(
+                        id,
+                        id == 31L ? "LOKI_SNAPSHOT" : "PROMETHEUS_INSTANT",
+                        id == 31L ? "application_errors" : "prom_target_up",
+                        "fixed-query",
+                        LocalDateTime.of(2026, 7, 23, 1, 6),
+                        "AVAILABLE",
+                        Map.of("detail", "timeout"),
+                        false
+                ))
+                .toList();
+        SreInvestigationContext base = context();
+        return new SreInvestigationContext(
+                base.incident(), base.alerts(), evidence, false, false, base.generatedAt());
     }
 
     private String validModelReport(String evidenceId, String risk) {

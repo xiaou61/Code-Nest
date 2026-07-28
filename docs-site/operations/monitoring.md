@@ -133,8 +133,11 @@ rule_files:
 ## SRE 事故工作台
 
 管理端 `/sre/incidents` 将 Alertmanager 告警聚合为事故，并提供事故状态、时间线、固定白名单
-证据和只读 RCA。打开事故时会恢复最近一次 RCA，也可以切换历史运行并查看上下文加载、模型
-上下文构建、模型分析和报告校验四阶段轨迹。每次成功构建模型上下文后，还会固化同一份脱敏
+证据和只读 RCA。打开事故时会恢复最近一次 RCA，也可以切换历史运行并查看上下文加载、调查
+计划、最多 5 轮固定只读工具、证据重载、模型分析和报告校验轨迹。模型先从后端给出的固定
+tool key 中生成一次计划；后端再次做白名单、去重和 5 轮截断，重复证据会提前停止。每轮新增
+证据都先持久化并获得 evidence ID，最后只调用一次 RCA 报告模型。每次成功构建最终模型上下文
+后，还会固化同一份脱敏
 输入及其 SHA-256、Prompt/Schema 版本、配置模型、实际模型和调用结果；页面只展示来源摘要，
 不回显上下文正文。管理员可对每次运行评价准确度、标记主要缺口并填写期望结论；每次修改
 追加审计修订，可下载不含原始输入、备注和管理员身份的评测样本。
@@ -148,7 +151,9 @@ rule_files:
 
 后端边界分为两部分：`xiaou-sre` 负责告警、事故、证据与调查记录，`xiaou-system` 复用统一
 AI Runtime 生成并校验结构化报告。AI 不进入 QQ 邮件告警热路径，也不能执行 Shell、Docker、
-任意 PromQL/LogQL 或修复动作。
+任意 PromQL/LogQL 或修复动作。当前没有自动修复或写操作，也不设置金额、Token、模型成本
+预算闸门；运行边界使用固定工具白名单、最多 5 轮、各客户端超时、响应/上下文大小限制和
+查询指纹幂等保证。
 
 数据库准备顺序：
 
@@ -158,15 +163,23 @@ AI Runtime 生成并校验结构化报告。AI 不进入 QQ 邮件告警热路�
 3. 部署带 RCA 历史、反馈和回放来源的后端前，再执行
    `sql/v2.5.0/sre_investigation_run.sql`；已执行过早期版本的环境需再次执行该幂等脚本，
    以创建反馈表和 `sre_investigation_artifact`。
-4. 保持 `XIAOU_SRE_EVALUATION_ENABLED=false`，依次执行
+4. 从早期 v2.5.0 表结构升级时，停止 RCA 流量并执行一次
+   `sql/v2.5.0/sre_investigation_loop.sql`，为证据表增加调查 run 和查询指纹；新环境使用主
+   schema 时不执行该增量脚本。
+5. 保持 `XIAOU_SRE_EVALUATION_ENABLED=false`，依次执行
    `sql/v2.5.0/sre_rca_evaluation.sql`、`sre_rca_evaluation_suite.sql` 和
    `sre_rca_evaluation_queue.sql`。后两个脚本包含不可重复的 `ALTER TABLE`，只能按顺序各执行
    一次；queue 脚本会把无法建立可信租约的旧 `RUNNING` 记录标记为失败。
-5. 配置 `XIAOU_SRE_EVALUATION_SOURCE_REVISION`、`XIAOU_SRE_EVALUATION_BUILD_ID` 和
+6. 所有 SRE 表完成后可开启 `XIAOU_SRE_METRICS_ENABLED=true`；开启前 gauge 刷新不查询数据库。
+7. 配置 `XIAOU_SRE_EVALUATION_SOURCE_REVISION`、`XIAOU_SRE_EVALUATION_BUILD_ID` 和
    `XIAOU_SRE_EVALUATION_BUILD_VERSION`，确认迁移成功后再开启评测 Worker。未开启时创建运行
    返回业务码 `503`，不会遗留无人消费的任务。
 
 完整监控栈和私网 Webhook 配置见 `docker/monitoring/README.md`。
+
+SRE 自身指标覆盖开放事故、Outbox/RCA 评测积压与最老任务年龄、活动调查数、告警接收和证据
+采集耗时、调查总耗时与轮数、固定只读工具调用耗时，以及队列的入队、领取、重试、租约恢复、
+deadline 和终态失败。数据库 gauge 由定时快照更新，Prometheus scrape 线程不会直接访问数据库。
 
 ## 常用 PromQL
 

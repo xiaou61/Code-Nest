@@ -22,6 +22,7 @@ import com.xiaou.sre.dto.request.SreRcaEvaluationRunProgress;
 import com.xiaou.sre.dto.request.SreRcaEvaluationRunStart;
 import com.xiaou.sre.dto.request.SreRcaEvaluationSuiteCreateCommand;
 import com.xiaou.sre.dto.request.SreRcaEvaluationSuiteVersionPublishCommand;
+import com.xiaou.sre.metrics.SreMetricsRecorder;
 import com.xiaou.sre.service.SreRcaEvaluationCaseService;
 import com.xiaou.sre.service.SreRcaEvaluationFingerprint;
 import com.xiaou.sre.service.SreRcaEvaluationRunService;
@@ -81,6 +82,7 @@ public class SreRcaEvaluationServiceImpl implements SreRcaEvaluationService {
     private final SreRcaEvaluationGateEvaluator gateEvaluator;
     private final ObjectMapper objectMapper;
     private final SreRcaEvaluationProperties evaluationProperties;
+    private final SreMetricsRecorder metricsRecorder;
 
     @Override
     public Optional<SreRcaEvaluationCaseSummary> promote(Long incidentId,
@@ -207,9 +209,19 @@ public class SreRcaEvaluationServiceImpl implements SreRcaEvaluationService {
                     evaluationProperties.normalizedBuildId(),
                     evaluationProperties.normalizedBuildVersion()
             ));
+            incrementEnqueuedMetric();
             return toRunSummary(run);
         } catch (SreValidationException exception) {
             throw new IllegalArgumentException(exception.getMessage(), exception);
+        }
+    }
+
+    private void incrementEnqueuedMetric() {
+        try {
+            metricsRecorder.incrementQueueEvent("evaluation", "enqueued", 1);
+        } catch (RuntimeException exception) {
+            log.warn("SRE RCA 评测入队指标记录失败: reason={}",
+                    exception.getClass().getSimpleName());
         }
     }
 

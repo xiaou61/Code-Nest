@@ -97,6 +97,17 @@ RAG 默认关闭。开启后需要同时启动 `llamaindex-service` 容器，并
 
 如果 RAG 不可用，AI 功能会降级返回，不影响其他业务。
 
+## SRE 自身指标
+
+| 变量 | 默认值 | 来源 | 说明 |
+| --- | --- | --- | --- |
+| `XIAOU_SRE_METRICS_ENABLED` | `false` | `application.yml` | 是否定时刷新数据库型 SRE gauge；完整执行 SRE 事故、调查与评测迁移前保持关闭 |
+| `XIAOU_SRE_METRICS_REFRESH_MS` | `10000` | `application.yml` | 数据库 gauge 快照刷新间隔 ms；Prometheus scrape 不直接查询数据库 |
+| `XIAOU_SRE_METRICS_INITIAL_DELAY_MS` | `15000` | `application.yml` | 应用启动后首次刷新数据库 gauge 的延迟 ms |
+
+告警、证据、调查、只读工具和队列事件的 Counter/Timer 始终通过 Micrometer 记录；这个开关只
+控制需要查询 SRE 表的积压、最老任务年龄、开放事故和活动调查 gauge。
+
 ## SRE RCA 评测队列
 
 | 变量 | 默认值 | 来源 | 说明 |

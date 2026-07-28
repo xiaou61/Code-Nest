@@ -19,6 +19,8 @@ import com.xiaou.sre.mapper.SreRcaEvaluationRunMapper;
 import com.xiaou.sre.mapper.SreRcaEvaluationSuiteCaseMapper;
 import com.xiaou.sre.service.SreRcaEvaluationFingerprint;
 import com.xiaou.sre.service.SreRcaEvaluationRunService;
+import com.xiaou.sre.service.SreQueueRecoveryResult;
+import com.xiaou.sre.service.SreQueueRetryOutcome;
 import com.xiaou.sre.service.SreValidationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -197,42 +199,47 @@ public class SreRcaEvaluationRunServiceImpl implements SreRcaEvaluationRunServic
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void recoverStaleRuns() {
+    public SreQueueRecoveryResult recoverStaleRuns() {
         if (!properties.isEnabled()) {
-            return;
+            return SreQueueRecoveryResult.empty();
         }
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime staleBefore = now.minusSeconds(properties.normalizedLeaseSeconds());
         int maxAttempts = properties.normalizedMaxAttempts();
-        runMapper.failExpired(now, "EVALUATION_DEADLINE_EXCEEDED");
-        runMapper.failStale(staleBefore, maxAttempts, "EVALUATION_MAX_ATTEMPTS_EXCEEDED");
-        runMapper.recoverStale(staleBefore, maxAttempts, now);
+        int deadlineExceeded = runMapper.failExpired(now, "EVALUATION_DEADLINE_EXCEEDED");
+        int terminalFailures = runMapper.failStale(
+                staleBefore, maxAttempts, "EVALUATION_MAX_ATTEMPTS_EXCEEDED");
+        int recovered = runMapper.recoverStale(staleBefore, maxAttempts, now);
+        return new SreQueueRecoveryResult(recovered, terminalFailures, deadlineExceeded);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void retryOrFail(Long runId, String failureCode) {
+    public SreQueueRetryOutcome retryOrFail(Long runId, String failureCode) {
         if (runId == null || runId <= 0) {
-            return;
+            return SreQueueRetryOutcome.IGNORED;
         }
         SreRcaEvaluationRun run = runMapper.selectById(runId);
         if (run == null || !"RUNNING".equals(run.getStatus())) {
-            return;
+            return SreQueueRetryOutcome.IGNORED;
         }
         LocalDateTime now = LocalDateTime.now();
         if (run.getDeadlineAt() == null || !run.getDeadlineAt().isAfter(now)) {
-            runMapper.updateFailed(runId, "EVALUATION_DEADLINE_EXCEEDED", now);
-            return;
+            return runMapper.updateFailed(runId, "EVALUATION_DEADLINE_EXCEEDED", now) == 1
+                    ? SreQueueRetryOutcome.DEADLINE_EXCEEDED
+                    : SreQueueRetryOutcome.IGNORED;
         }
         int attempts = run.getAttempts() == null ? 1 : Math.max(run.getAttempts(), 1);
         if (attempts >= properties.normalizedMaxAttempts()) {
-            runMapper.updateFailed(runId, "EVALUATION_MAX_ATTEMPTS_EXCEEDED", now);
-            return;
+            return runMapper.updateFailed(runId, "EVALUATION_MAX_ATTEMPTS_EXCEEDED", now) == 1
+                    ? SreQueueRetryOutcome.TERMINAL_FAILURE
+                    : SreQueueRetryOutcome.IGNORED;
         }
         requiredFailureCode(failureCode);
         if (runMapper.requeue(runId, now.plusSeconds(retryDelaySeconds(attempts))) != 1) {
             throw new SreValidationException("评测运行不存在或已结束");
         }
+        return SreQueueRetryOutcome.RETRY_SCHEDULED;
     }
 
     private List<SreRcaEvaluationRunCaseSnapshot> validateSnapshots(SreRcaEvaluationRunStart start) {

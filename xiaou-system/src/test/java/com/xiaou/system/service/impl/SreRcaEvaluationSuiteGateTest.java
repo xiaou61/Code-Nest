@@ -239,11 +239,16 @@ class SreRcaEvaluationSuiteGateTest {
 
         SreIncidentRcaServiceImpl service = new SreIncidentRcaServiceImpl(
                 investigationFacade,
+                input -> new com.xiaou.system.service.SreInvestigationPlan(
+                        "STOP", "离线冻结评测不追加在线证据", List.of(),
+                        "FALLBACK", "EVALUATION_REPLAY"),
+                mock(com.xiaou.sre.service.SreReadOnlyInvestigationToolService.class),
                 new SreRcaAnalyzerImpl(runtime),
                 objectMapper,
                 runService,
                 feedbackService,
-                artifactService
+                artifactService,
+                mock(com.xiaou.sre.metrics.SreMetricsRecorder.class)
         );
         SreRcaReport report = service.investigate(frozenCase.id()).orElseThrow();
         assertThat(captured.get()).isNotNull();

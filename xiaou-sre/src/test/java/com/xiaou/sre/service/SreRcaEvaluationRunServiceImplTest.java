@@ -174,6 +174,24 @@ class SreRcaEvaluationRunServiceImplTest {
                 .hasMessageContaining("计数");
     }
 
+    @Test
+    void retryOutcomeOnlyReportsCommittedDeadlineTransition() {
+        SreRcaEvaluationRunServiceImpl service = service();
+        SreRcaEvaluationRun run = runningRun();
+        run.setDeadlineAt(LocalDateTime.now().minusSeconds(1));
+        when(runMapper.selectById(401L)).thenReturn(run);
+        when(runMapper.updateFailed(
+                org.mockito.ArgumentMatchers.eq(401L),
+                org.mockito.ArgumentMatchers.eq("EVALUATION_DEADLINE_EXCEEDED"),
+                any(LocalDateTime.class)))
+                .thenReturn(0, 1);
+
+        assertThat(service.retryOrFail(401L, "EVALUATION_EXECUTION_FAILED"))
+                .isEqualTo(SreQueueRetryOutcome.IGNORED);
+        assertThat(service.retryOrFail(401L, "EVALUATION_EXECUTION_FAILED"))
+                .isEqualTo(SreQueueRetryOutcome.DEADLINE_EXCEEDED);
+    }
+
     private SreRcaEvaluationRunServiceImpl service() {
         SreRcaEvaluationProperties properties = new SreRcaEvaluationProperties();
         properties.setEnabled(true);

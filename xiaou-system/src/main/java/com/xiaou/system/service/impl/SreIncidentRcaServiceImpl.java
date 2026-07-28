@@ -9,10 +9,13 @@ import com.xiaou.sre.domain.SreInvestigationStep;
 import com.xiaou.sre.domain.SreInvestigationFeedback;
 import com.xiaou.sre.dto.request.SreInvestigationArtifactCapture;
 import com.xiaou.sre.dto.response.SreInvestigationContext;
+import com.xiaou.sre.metrics.SreMetricsRecorder;
 import com.xiaou.sre.service.SreInvestigationArtifactService;
 import com.xiaou.sre.service.SreInvestigationFacade;
 import com.xiaou.sre.service.SreInvestigationFeedbackService;
 import com.xiaou.sre.service.SreInvestigationRunService;
+import com.xiaou.sre.service.SreReadOnlyInvestigationToolService;
+import com.xiaou.sre.service.SreReadOnlyToolResult;
 import com.xiaou.sre.service.SreValidationException;
 import com.xiaou.system.dto.SreRcaEvaluationSample;
 import com.xiaou.system.dto.SreRcaFeedback;
@@ -20,6 +23,9 @@ import com.xiaou.system.dto.SreRcaFeedbackRequest;
 import com.xiaou.system.dto.SreRcaReport;
 import com.xiaou.system.dto.SreRcaRunDetail;
 import com.xiaou.system.dto.SreRcaRunSummary;
+import com.xiaou.system.service.SreInvestigationPlan;
+import com.xiaou.system.service.SreInvestigationPlanner;
+import com.xiaou.system.service.SreInvestigationPlanningInput;
 import com.xiaou.system.service.SreRcaAnalysisInput;
 import com.xiaou.system.service.SreRcaAnalyzer;
 import com.xiaou.system.service.SreIncidentRcaService;
@@ -64,6 +70,7 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
     private static final int MAX_SNAPSHOT_MAP_ENTRIES = 40;
     private static final int MAX_SNAPSHOT_LIST_ENTRIES = 20;
     private static final int MAX_SNAPSHOT_KEY_LENGTH = 128;
+    private static final int MAX_INVESTIGATION_ROUNDS = 5;
 
     private static final Pattern BEARER_PATTERN = Pattern.compile(
             "(?i)\\bBearer\\s+[A-Za-z0-9._~+/=-]{6,}");
@@ -75,16 +82,40 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
     private static final Pattern CONTROL_PATTERN = Pattern.compile("[\\p{Cntrl}&&[^\\r\\n\\t]]");
 
     private final SreInvestigationFacade investigationFacade;
+    private final SreInvestigationPlanner investigationPlanner;
+    private final SreReadOnlyInvestigationToolService readOnlyToolService;
     private final SreRcaAnalyzer rcaAnalyzer;
     private final ObjectMapper objectMapper;
     private final SreInvestigationRunService investigationRunService;
     private final SreInvestigationFeedbackService investigationFeedbackService;
     private final SreInvestigationArtifactService investigationArtifactService;
+    private final SreMetricsRecorder metricsRecorder;
 
     @Override
     public Optional<SreRcaReport> investigate(Long incidentId,
                                               SreRcaTriggerSource triggerSource,
                                               Long requestedBy) {
+        long startNanos = System.nanoTime();
+        InvestigationMetrics metrics = new InvestigationMetrics();
+        try {
+            Optional<SreRcaReport> result = investigateInternal(
+                    incidentId, triggerSource, requestedBy, metrics);
+            if (result.isEmpty()) {
+                metrics.outcome = "skipped";
+            }
+            return result;
+        } catch (RuntimeException exception) {
+            metrics.outcome = "failed";
+            throw exception;
+        } finally {
+            recordInvestigationMetrics(metrics, System.nanoTime() - startNanos);
+        }
+    }
+
+    private Optional<SreRcaReport> investigateInternal(Long incidentId,
+                                                       SreRcaTriggerSource triggerSource,
+                                                       Long requestedBy,
+                                                       InvestigationMetrics metrics) {
         if (incidentId == null || incidentId <= 0) {
             return Optional.empty();
         }
@@ -110,39 +141,94 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
             throw exception;
         }
 
-        ModelContext modelContext;
+        ModelContext initialModelContext;
         try {
-            modelContext = buildModelContext(context);
+            initialModelContext = buildModelContext(context);
         } catch (RuntimeException exception) {
             log.warn("SRE RCA 上下文构建失败，返回证据不足报告: incidentId={}, reason={}",
                     incidentId, exception.getClass().getSimpleName());
             SreRcaReport report = rcaAnalyzer.fallback(analysisInput(context, "{}", Set.of(), true));
             try {
                 investigationRunService.recordStep(
-                        run.getId(), 2, "MODEL_CONTEXT_BUILT", "DEGRADED", "上下文构建失败，已进入确定性降级。"
+                        run.getId(), 2, "INVESTIGATION_PLAN", "SKIPPED", "上下文构建失败，未生成调查计划。"
                 );
                 investigationRunService.recordStep(
-                        run.getId(), 3, "MODEL_ANALYSIS", "SKIPPED", "未调用模型。"
+                        run.getId(), 3, "MODEL_CONTEXT_BUILT", "DEGRADED", "上下文构建失败，已进入确定性降级。"
                 );
                 investigationRunService.recordStep(
-                        run.getId(), 4, "REPORT_VALIDATED", "SUCCEEDED", "已生成只含事实的降级报告。"
+                        run.getId(), 4, "MODEL_ANALYSIS", "SKIPPED", "未调用模型。"
+                );
+                investigationRunService.recordStep(
+                        run.getId(), 5, "REPORT_VALIDATED", "SUCCEEDED", "已生成只含事实的降级报告。"
                 );
                 persistCompletedRun(run.getId(), report);
             } catch (RuntimeException persistenceException) {
                 markRunFailed(run.getId(), persistenceException);
                 throw persistenceException;
             }
+            metrics.generationMode = "fallback";
+            metrics.outcome = "degraded";
             return Optional.of(report);
         }
+
+        int nextStepOrder = 2;
+        SreInvestigationPlan plan;
         try {
+            List<String> availableToolKeys = Optional.ofNullable(readOnlyToolService.availableToolKeys())
+                    .orElse(List.of());
+            plan = investigationPlanner.plan(new SreInvestigationPlanningInput(
+                    initialModelContext.json(),
+                    new LinkedHashSet<>(availableToolKeys),
+                    readOnlyToolService.fallbackToolKeys(context.incident().alertName())
+            ));
+            List<String> plannedTools = boundedPlannedTools(plan, availableToolKeys);
+            plan = normalizedPlan(plan, plannedTools);
             investigationRunService.recordStep(
-                    run.getId(), 2, "MODEL_CONTEXT_BUILT", "SUCCEEDED", modelContextStepDetail(modelContext));
+                    run.getId(), nextStepOrder++, "INVESTIGATION_PLAN", planStepStatus(plan), planStepDetail(plan));
         } catch (RuntimeException exception) {
             markRunFailed(run.getId(), exception);
             throw exception;
         }
 
         try {
+            int createdEvidence = 0;
+            for (String toolKey : plan.toolKeys()) {
+                SreReadOnlyToolResult toolResult = readOnlyToolService.execute(
+                        incidentId, run.getId(), toolKey);
+                metrics.rounds++;
+                investigationRunService.recordStep(
+                        run.getId(),
+                        nextStepOrder++,
+                        "READ_ONLY_TOOL",
+                        toolStepStatus(toolResult),
+                        toolStepDetail(metrics.rounds, toolResult)
+                );
+                if (!toolResult.created()) {
+                    break;
+                }
+                createdEvidence++;
+            }
+
+            if (createdEvidence > 0) {
+                context = investigationFacade.findByIncidentId(incidentId)
+                        .orElseThrow(() -> new IllegalStateException("只读调查后无法重新加载事故证据"));
+                investigationRunService.recordStep(
+                        run.getId(),
+                        nextStepOrder++,
+                        "EVIDENCE_RELOADED",
+                        "SUCCEEDED",
+                        "只读调查新增 " + createdEvidence + " 条证据，已重新加载受限上下文。"
+                );
+            }
+
+            ModelContext modelContext = buildModelContext(context);
+            investigationRunService.recordStep(
+                    run.getId(),
+                    nextStepOrder++,
+                    "MODEL_CONTEXT_BUILT",
+                    "SUCCEEDED",
+                    modelContextStepDetail(modelContext)
+            );
             SreRcaAnalysisInput analysisInput = analysisInput(context, modelContext);
             AiExecutionResult<SreRcaReport> execution = rcaAnalyzer.analyze(analysisInput);
             SreRcaReport report = execution.value();
@@ -157,11 +243,14 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
                     ? "模型返回了通过结构化契约校验的报告。"
                     : "模型不可用或输出无效，已使用确定性降级报告。";
             investigationRunService.recordStep(
-                    run.getId(), 3, "MODEL_ANALYSIS", analysisStatus, analysisDetail);
+                    run.getId(), nextStepOrder++, "MODEL_ANALYSIS", analysisStatus, analysisDetail);
             investigationRunService.recordStep(
-                    run.getId(), 4, "REPORT_VALIDATED", "SUCCEEDED", "证据引用和只读风险边界校验完成。"
+                    run.getId(), nextStepOrder, "REPORT_VALIDATED", "SUCCEEDED", "证据引用和只读风险边界校验完成。"
             );
             persistCompletedRun(run.getId(), report);
+
+            metrics.generationMode = report.generationMode().toLowerCase(Locale.ROOT);
+            metrics.outcome = "AI".equals(report.generationMode()) ? "succeeded" : "degraded";
 
             log.info("SRE RCA 调查完成: incidentId={}, runId={}, mode={}, conclusionStatus={}, evidenceIds={}",
                     incidentId, run.getId(), report.generationMode(), report.conclusionStatus(),
@@ -170,6 +259,95 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
         } catch (RuntimeException exception) {
             markRunFailed(run.getId(), exception);
             throw exception;
+        }
+    }
+
+    private List<String> boundedPlannedTools(SreInvestigationPlan plan,
+                                             List<String> availableToolKeys) {
+        if (plan == null || !"INVESTIGATE".equalsIgnoreCase(plan.decision())
+                || plan.toolKeys() == null || plan.toolKeys().isEmpty()) {
+            return List.of();
+        }
+        Set<String> allowed = availableToolKeys == null
+                ? Set.of()
+                : availableToolKeys.stream()
+                .filter(StringUtils::hasText)
+                .map(value -> value.trim().toLowerCase(Locale.ROOT))
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        LinkedHashSet<String> result = new LinkedHashSet<>();
+        for (String toolKey : plan.toolKeys()) {
+            if (result.size() >= MAX_INVESTIGATION_ROUNDS) {
+                break;
+            }
+            if (!StringUtils.hasText(toolKey)) {
+                continue;
+            }
+            String normalized = toolKey.trim().toLowerCase(Locale.ROOT);
+            if (allowed.contains(normalized)) {
+                result.add(normalized);
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private SreInvestigationPlan normalizedPlan(SreInvestigationPlan plan, List<String> plannedTools) {
+        String generationMode = plan == null ? "FALLBACK" : safeText(
+                plan.generationMode(), 16, "FALLBACK").toUpperCase(Locale.ROOT);
+        String invocationOutcome = plan == null ? "UNEXPECTED_FAILURE" : safeText(
+                plan.invocationOutcome(), 64, "UNEXPECTED_FAILURE").toUpperCase(Locale.ROOT);
+        String reason = plan == null
+                ? "调查计划不可用。"
+                : safeText(plan.reason(), 120, "未提供调查理由。");
+        return new SreInvestigationPlan(
+                plannedTools.isEmpty() ? "STOP" : "INVESTIGATE",
+                reason,
+                plannedTools,
+                generationMode,
+                invocationOutcome
+        );
+    }
+
+    private String planStepStatus(SreInvestigationPlan plan) {
+        return "AI".equals(plan.generationMode()) && "SUCCESS".equals(plan.invocationOutcome())
+                ? "SUCCEEDED"
+                : "DEGRADED";
+    }
+
+    private String planStepDetail(SreInvestigationPlan plan) {
+        return "固定只读调查计划已收敛；计划轮数=" + plan.toolKeys().size()
+                + "；工具=" + (plan.toolKeys().isEmpty() ? "无" : String.join(",", plan.toolKeys()))
+                + "；生成模式=" + plan.generationMode()
+                + "；结果=" + plan.invocationOutcome()
+                + "；理由=" + plan.reason() + "。";
+    }
+
+    private String toolStepStatus(SreReadOnlyToolResult result) {
+        if (result == null) {
+            return "FAILED";
+        }
+        return switch (result.status()) {
+            case "AVAILABLE" -> "SUCCEEDED";
+            case "DUPLICATE" -> "SKIPPED";
+            case "UNAVAILABLE" -> "DEGRADED";
+            default -> "FAILED";
+        };
+    }
+
+    private String toolStepDetail(int round, SreReadOnlyToolResult result) {
+        if (result == null) {
+            return "第 " + round + " 轮固定只读工具未返回结果。";
+        }
+        return "第 " + round + " 轮固定只读工具=" + result.toolKey()
+                + "；状态=" + result.status()
+                + "；证据ID=" + result.evidenceId() + "。";
+    }
+
+    private void recordInvestigationMetrics(InvestigationMetrics metrics, long durationNanos) {
+        try {
+            metricsRecorder.recordInvestigation(
+                    metrics.outcome, metrics.generationMode, metrics.rounds, durationNanos);
+        } catch (RuntimeException exception) {
+            log.warn("SRE RCA 调查指标记录失败: reason={}", exception.getClass().getSimpleName());
         }
     }
 
@@ -727,5 +905,11 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
             remaining--;
             return true;
         }
+    }
+
+    private static final class InvestigationMetrics {
+        private String outcome = "skipped";
+        private String generationMode = "unknown";
+        private int rounds;
     }
 }

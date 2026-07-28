@@ -14,6 +14,7 @@ import com.xiaou.sre.domain.SreRcaEvaluationSuiteVersionSnapshot;
 import com.xiaou.sre.dto.request.SreRcaEvaluationResultCapture;
 import com.xiaou.sre.dto.request.SreRcaEvaluationRunCompletion;
 import com.xiaou.sre.dto.request.SreRcaEvaluationRunStart;
+import com.xiaou.sre.metrics.SreMetricsRecorder;
 import com.xiaou.sre.service.SreRcaEvaluationCaseService;
 import com.xiaou.sre.service.SreRcaEvaluationRunService;
 import com.xiaou.sre.service.SreRcaEvaluationSuiteService;
@@ -57,6 +58,9 @@ class SreRcaEvaluationServiceImplTest {
     @Mock
     private SreRcaAnalyzer analyzer;
 
+    @Mock
+    private SreMetricsRecorder metricsRecorder;
+
     @Test
     void promotedCaseSummaryNeverReturnsFrozenContextJson() throws Exception {
         SreRcaEvaluationServiceImpl service = service();
@@ -88,6 +92,7 @@ class SreRcaEvaluationServiceImplTest {
         assertThat(queued.status()).isEqualTo("QUEUED");
         assertThat(queued.sourceRevision()).isEqualTo("abc123");
         verify(analyzer, never()).analyze(any());
+        verify(metricsRecorder).incrementQueueEvent("evaluation", "enqueued", 1);
 
         SreRcaEvaluationRun running = runningRun();
         prepareExecution(running, List.of(evaluationCase));
@@ -383,7 +388,8 @@ class SreRcaEvaluationServiceImplTest {
                 new SreRcaEvaluationScorer(),
                 new SreRcaEvaluationGateEvaluator(),
                 objectMapper(),
-                evaluationProperties()
+                evaluationProperties(),
+                metricsRecorder
         );
     }
 

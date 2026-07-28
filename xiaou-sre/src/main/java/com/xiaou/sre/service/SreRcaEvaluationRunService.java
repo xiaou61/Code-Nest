@@ -27,9 +27,9 @@ public interface SreRcaEvaluationRunService {
 
     void heartbeat(SreRcaEvaluationRunProgress progress);
 
-    void recoverStaleRuns();
+    SreQueueRecoveryResult recoverStaleRuns();
 
-    void retryOrFail(Long runId, String failureCode);
+    SreQueueRetryOutcome retryOrFail(Long runId, String failureCode);
 
     SreRcaEvaluationResult record(SreRcaEvaluationResultCapture capture);
 

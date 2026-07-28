@@ -34,4 +34,7 @@ public interface SreInvestigationRunMapper {
 
     SreInvestigationRun selectByIncidentIdAndId(@Param("incidentId") Long incidentId,
                                                 @Param("id") Long id);
+
+    SreInvestigationRun selectByIncidentIdAndIdForUpdate(@Param("incidentId") Long incidentId,
+                                                         @Param("id") Long id);
 }

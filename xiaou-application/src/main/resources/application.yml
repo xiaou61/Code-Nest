@@ -232,6 +232,11 @@ xiaou:
       api-key: ${XIAOU_AI_RAG_API_KEY:}
       default-top-k: 5
   sre:
+    metrics:
+      # 数据库 gauge 依赖完整 SRE 迁移；计数器和耗时指标始终由 Micrometer 记录。
+      enabled: ${XIAOU_SRE_METRICS_ENABLED:false}
+      refresh-ms: ${XIAOU_SRE_METRICS_REFRESH_MS:10000}
+      initial-delay-ms: ${XIAOU_SRE_METRICS_INITIAL_DELAY_MS:15000}
     webhook:
       # 默认关闭；只有完成 Alertmanager 机器凭据配置后才开启。
       enabled: ${XIAOU_SRE_WEBHOOK_ENABLED:false}

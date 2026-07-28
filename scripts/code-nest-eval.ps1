@@ -48,6 +48,11 @@ $aiRegressionTests = @(
 )
 
 $sreRegressionTests = @(
+    "SreInvestigationPromptContractTest",
+    "SreInvestigationPlannerImplTest",
+    "SreReadOnlyInvestigationToolServiceImplTest",
+    "SreMetricsRecorderTest",
+    "SreOperationalMetricsPublisherTest",
     "SreRcaReportTest",
     "SreRcaAnalyzerImplTest",
     "SreIncidentRcaServiceImplTest",

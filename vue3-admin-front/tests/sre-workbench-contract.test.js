@@ -17,6 +17,10 @@ const investigationMigrationSource = readFileSync(
   resolve(repositoryRoot, 'sql/v2.5.0/sre_investigation_run.sql'),
   'utf8'
 )
+const investigationLoopMigrationSource = readFileSync(
+  resolve(repositoryRoot, 'sql/v2.5.0/sre_investigation_loop.sql'),
+  'utf8'
+)
 const evaluationMigrationSource = readFileSync(
   resolve(repositoryRoot, 'sql/v2.5.0/sre_rca_evaluation.sql'),
   'utf8'
@@ -160,6 +164,23 @@ test('persistent RCA tables should be present in both fresh and incremental data
   assert.match(investigationMigrationSource, /`context_sha256` CHAR\(64\)/)
   assert.match(investigationMigrationSource, /UNIQUE KEY `uk_sre_artifact_run` \(`run_id`\)/)
   assert.match(monitoringReadmeSource, /sql\/v2\.5\.0\/sre_investigation_run\.sql/)
+})
+
+test('bounded read-only investigation evidence should be present in fresh and upgrade paths', () => {
+  assert.match(databaseBaselineSource, /`outbox_event_id` BIGINT NULL/)
+  assert.match(databaseBaselineSource, /`investigation_run_id` BIGINT NULL/)
+  assert.match(databaseBaselineSource, /`query_fingerprint` CHAR\(64\)/)
+  assert.match(databaseBaselineSource, /UNIQUE KEY `uk_sre_evidence_run_query`/)
+
+  assert.match(investigationLoopMigrationSource, /MODIFY COLUMN `outbox_event_id` BIGINT NULL/)
+  assert.match(investigationLoopMigrationSource, /ADD COLUMN `investigation_run_id` BIGINT NULL/)
+  assert.match(investigationLoopMigrationSource, /ADD COLUMN `query_fingerprint` CHAR\(64\)/)
+  assert.match(investigationLoopMigrationSource, /ADD UNIQUE KEY `uk_sre_evidence_run_query`/)
+  assert.match(monitoringReadmeSource, /sql\/v2\.5\.0\/sre_investigation_loop\.sql/)
+
+  assert.match(workbenchSource, /INVESTIGATION_PLAN:\s*'生成只读调查计划'/)
+  assert.match(workbenchSource, /READ_ONLY_TOOL:\s*'采集固定只读证据'/)
+  assert.match(workbenchSource, /EVIDENCE_RELOADED:\s*'重载调查证据'/)
 })
 
 test('immutable RCA evaluation tables should be present in fresh and incremental database paths', () => {

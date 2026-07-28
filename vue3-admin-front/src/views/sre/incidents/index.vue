@@ -2482,6 +2482,9 @@ const invocationOutcomeLabel = (value?: string) => ({
 
 const investigationStepLabel = (value?: string) => ({
   CONTEXT_LOADED: '加载事故上下文',
+  INVESTIGATION_PLAN: '生成只读调查计划',
+  READ_ONLY_TOOL: '采集固定只读证据',
+  EVIDENCE_RELOADED: '重载调查证据',
   MODEL_CONTEXT_BUILT: '构建模型上下文',
   MODEL_ANALYSIS: '执行只读分析',
   REPORT_VALIDATED: '校验结构化报告',
