@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  isSuccessfulHttpStatus,
   normalizeBodyRequestConfig,
   normalizeQueryRequestConfig
 } from '../src/utils/request-options.js'
@@ -38,4 +39,12 @@ test('normalizeBodyRequestConfig should preserve axios config options', () => {
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 120000
   })
+})
+
+test('isSuccessfulHttpStatus should accept the complete HTTP success range', () => {
+  assert.equal(isSuccessfulHttpStatus(199), false)
+  assert.equal(isSuccessfulHttpStatus(200), true)
+  assert.equal(isSuccessfulHttpStatus(202), true)
+  assert.equal(isSuccessfulHttpStatus(204), true)
+  assert.equal(isSuccessfulHttpStatus(300), false)
 })

@@ -5,18 +5,25 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xiaou.ai.support.AiExecutionResult;
+import com.xiaou.common.core.domain.ResultCode;
+import com.xiaou.common.exception.BusinessException;
+import com.xiaou.sre.config.SreRcaEvaluationProperties;
 import com.xiaou.sre.domain.SreRcaEvaluationCase;
 import com.xiaou.sre.domain.SreRcaEvaluationResult;
 import com.xiaou.sre.domain.SreRcaEvaluationRun;
+import com.xiaou.sre.domain.SreRcaEvaluationRunCase;
 import com.xiaou.sre.domain.SreRcaEvaluationSuite;
 import com.xiaou.sre.domain.SreRcaEvaluationSuiteVersion;
 import com.xiaou.sre.domain.SreRcaEvaluationSuiteVersionSnapshot;
 import com.xiaou.sre.dto.request.SreRcaEvaluationResultCapture;
+import com.xiaou.sre.dto.request.SreRcaEvaluationRunCaseSnapshot;
 import com.xiaou.sre.dto.request.SreRcaEvaluationRunCompletion;
+import com.xiaou.sre.dto.request.SreRcaEvaluationRunProgress;
 import com.xiaou.sre.dto.request.SreRcaEvaluationRunStart;
 import com.xiaou.sre.dto.request.SreRcaEvaluationSuiteCreateCommand;
 import com.xiaou.sre.dto.request.SreRcaEvaluationSuiteVersionPublishCommand;
 import com.xiaou.sre.service.SreRcaEvaluationCaseService;
+import com.xiaou.sre.service.SreRcaEvaluationFingerprint;
 import com.xiaou.sre.service.SreRcaEvaluationRunService;
 import com.xiaou.sre.service.SreRcaEvaluationSuiteService;
 import com.xiaou.sre.service.SreReplayContextPolicy;
@@ -47,8 +54,11 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -61,7 +71,6 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class SreRcaEvaluationServiceImpl implements SreRcaEvaluationService {
 
-    private static final int MAX_CASES_PER_RUN = 100;
     private static final int MAX_CONTEXT_LENGTH = 60_000;
 
     private final SreRcaEvaluationCaseService caseService;
@@ -71,6 +80,7 @@ public class SreRcaEvaluationServiceImpl implements SreRcaEvaluationService {
     private final SreRcaEvaluationScorer scorer;
     private final SreRcaEvaluationGateEvaluator gateEvaluator;
     private final ObjectMapper objectMapper;
+    private final SreRcaEvaluationProperties evaluationProperties;
 
     @Override
     public Optional<SreRcaEvaluationCaseSummary> promote(Long incidentId,
@@ -151,7 +161,11 @@ public class SreRcaEvaluationServiceImpl implements SreRcaEvaluationService {
     }
 
     @Override
-    public SreRcaEvaluationRunDetail run(Long caseId, Long suiteVersionId, Long requestedBy) {
+    public SreRcaEvaluationRunSummary enqueue(Long caseId, Long suiteVersionId, Long requestedBy) {
+        if (!evaluationProperties.isEnabled()) {
+            throw new BusinessException(ResultCode.SERVICE_UNAVAILABLE,
+                    "RCA 评测队列尚未启用");
+        }
         if (requestedBy == null || requestedBy <= 0) {
             throw new IllegalArgumentException("评测发起管理员 ID 不合法");
         }
@@ -163,99 +177,131 @@ public class SreRcaEvaluationServiceImpl implements SreRcaEvaluationService {
 
         SreRcaEvaluationSuite suite = selection.suite();
         SreRcaEvaluationSuiteVersion suiteVersion = selection.version();
-        SreRcaEvaluationRun run = runService.start(new SreRcaEvaluationRunStart(
-                caseId,
-                suiteVersion == null ? null : suiteVersion.getId(),
-                suite == null ? null : suite.getSuiteKey(),
-                suiteVersion == null ? null : suiteVersion.getVersionNo(),
-                suiteVersion == null ? null : suiteVersion.getManifestSha256(),
-                "MANUAL",
-                suiteVersion == null ? null : suiteVersion.getScoringPolicyId(),
-                suiteVersion == null ? null : suiteVersion.getGateEvaluatorId(),
-                suiteVersion == null ? null : suiteVersion.getMinimumPassRate(),
-                suiteVersion == null ? null : suiteVersion.getMinimumAverageScore(),
-                suiteVersion == null ? null : suiteVersion.getRequireAllSafety(),
-                suiteVersion == null ? null : suiteVersion.getRequireNoDegraded(),
-                requestedBy,
-                cases.size(),
-                analyzer.promptId(),
-                analyzer.schemaId()
-        ));
-        List<SreRcaEvaluationResult> persistedResults = new ArrayList<>();
-        int passedCount = 0;
-        int unsafeCount = 0;
-        int degradedCount = 0;
-        BigDecimal scoreTotal = BigDecimal.ZERO;
-        String provider = null;
-        String configuredModel = null;
-
         try {
-            for (SreRcaEvaluationCase evaluationCase : cases) {
-                SreRcaEvaluationResultCapture capture = evaluateCase(run.getId(), evaluationCase);
-                SreRcaEvaluationResult persisted = runService.record(capture);
-                persistedResults.add(persisted);
-                if (Boolean.TRUE.equals(persisted.getPassed())) {
-                    passedCount++;
-                }
-                if (!Boolean.TRUE.equals(persisted.getSafetyCompliant())) {
-                    unsafeCount++;
-                }
-                scoreTotal = scoreTotal.add(valueOrZero(persisted.getTotalScore()));
-                if (!"SUCCEEDED".equals(persisted.getStatus())) {
-                    degradedCount++;
-                }
-                if (!StringUtils.hasText(provider)) {
-                    provider = persisted.getProvider();
-                    configuredModel = persisted.getConfiguredModel();
-                }
-            }
-
-            int completedCount = persistedResults.size();
-            int failedCount = completedCount - passedCount;
-            BigDecimal averageScore = scoreTotal
-                    .divide(BigDecimal.valueOf(completedCount), 2, RoundingMode.HALF_UP);
-            String terminalStatus = degradedCount > 0 ? "DEGRADED" : "SUCCEEDED";
-            String resolvedProvider = StringUtils.hasText(provider) ? provider : "unknown";
-            SreRcaEvaluationGateDecision gate = gateEvaluator.evaluate(new SreRcaEvaluationGateInput(
-                    suiteVersion != null,
-                    cases.size(),
-                    completedCount,
-                    passedCount,
-                    averageScore,
-                    unsafeCount,
-                    degradedCount,
+            List<SreRcaEvaluationRunCaseSnapshot> snapshots = java.util.stream.IntStream
+                    .range(0, cases.size())
+                    .mapToObj(index -> new SreRcaEvaluationRunCaseSnapshot(
+                            cases.get(index).getId(),
+                            index + 1,
+                            SreRcaEvaluationFingerprint.caseContent(cases.get(index))))
+                    .toList();
+            SreRcaEvaluationRun run = runService.start(new SreRcaEvaluationRunStart(
+                    caseId,
+                    suiteVersion == null ? null : suiteVersion.getId(),
+                    suite == null ? null : suite.getSuiteKey(),
+                    suiteVersion == null ? null : suiteVersion.getVersionNo(),
+                    suiteVersion == null ? null : suiteVersion.getManifestSha256(),
+                    "MANUAL",
+                    suiteVersion == null ? null : suiteVersion.getScoringPolicyId(),
+                    suiteVersion == null ? null : suiteVersion.getGateEvaluatorId(),
                     suiteVersion == null ? null : suiteVersion.getMinimumPassRate(),
                     suiteVersion == null ? null : suiteVersion.getMinimumAverageScore(),
-                    suiteVersion != null && Boolean.TRUE.equals(suiteVersion.getRequireAllSafety()),
-                    suiteVersion != null && Boolean.TRUE.equals(suiteVersion.getRequireNoDegraded())
+                    suiteVersion == null ? null : suiteVersion.getRequireAllSafety(),
+                    suiteVersion == null ? null : suiteVersion.getRequireNoDegraded(),
+                    requestedBy,
+                    snapshots,
+                    analyzer.promptId(),
+                    analyzer.schemaId(),
+                    evaluationProperties.normalizedMaxDurationSeconds(),
+                    evaluationProperties.normalizedSourceRevision(),
+                    evaluationProperties.normalizedBuildId(),
+                    evaluationProperties.normalizedBuildVersion()
             ));
-            runService.complete(new SreRcaEvaluationRunCompletion(
-                    run.getId(),
-                    terminalStatus,
-                    completedCount,
-                    passedCount,
-                    failedCount,
-                    averageScore,
-                    gate.passRate(),
-                    unsafeCount,
-                    degradedCount,
-                    gate.status(),
-                    writeJson(gate.failureCodes()),
-                    resolvedProvider,
-                    configuredModel
-            ));
-            completeInMemory(
-                    run, terminalStatus, completedCount, passedCount, failedCount,
-                    averageScore, gate, unsafeCount, degradedCount,
-                    resolvedProvider, configuredModel);
-            return new SreRcaEvaluationRunDetail(
-                    toRunSummary(run),
-                    persistedResults.stream().map(this::toCaseResult).toList()
-            );
-        } catch (RuntimeException exception) {
-            markRunFailed(run.getId(), exception);
-            throw exception;
+            return toRunSummary(run);
+        } catch (SreValidationException exception) {
+            throw new IllegalArgumentException(exception.getMessage(), exception);
         }
+    }
+
+    @Override
+    public void executeClaimedRun(Long runId) {
+        SreRcaEvaluationRun run = runService.findById(runId).orElse(null);
+        if (run == null || !"RUNNING".equals(run.getStatus())) {
+            return;
+        }
+        if (deadlineExceeded(run)) {
+            runService.fail(run.getId(), "EVALUATION_DEADLINE_EXCEEDED");
+            return;
+        }
+        if (!runtimeProvenanceMatches(run)) {
+            runService.fail(run.getId(), "EVALUATION_RUNTIME_PROVENANCE_MISMATCH");
+            return;
+        }
+
+        List<SreRcaEvaluationRunCase> members = runService.listRunCases(run.getId());
+        List<SreRcaEvaluationCase> cases = loadFrozenCases(run, members);
+        if (cases == null) {
+            runService.fail(run.getId(), "EVALUATION_CASE_INTEGRITY_FAILED");
+            return;
+        }
+
+        List<SreRcaEvaluationResult> existingResults = runService.listResults(run.getId());
+        Map<Long, SreRcaEvaluationResult> resultsByCase = new HashMap<>();
+        for (SreRcaEvaluationResult result : existingResults) {
+            if (result == null || result.getCaseId() == null
+                    || resultsByCase.put(result.getCaseId(), result) != null) {
+                throw new IllegalStateException("RCA 评测恢复结果不一致");
+            }
+        }
+        if (resultsByCase.keySet().stream().anyMatch(caseId -> members.stream()
+                .noneMatch(member -> Objects.equals(member.getCaseId(), caseId)))) {
+            runService.fail(run.getId(), "EVALUATION_RESULT_MEMBERSHIP_INVALID");
+            return;
+        }
+
+        RunAggregate aggregate = new RunAggregate(existingResults);
+        heartbeat(run.getId(), aggregate);
+        for (SreRcaEvaluationCase evaluationCase : cases) {
+            if (resultsByCase.containsKey(evaluationCase.getId())) {
+                continue;
+            }
+            if (deadlineExceeded(run)) {
+                runService.fail(run.getId(), "EVALUATION_DEADLINE_EXCEEDED");
+                return;
+            }
+            SreRcaEvaluationResultCapture capture = evaluateCase(run.getId(), evaluationCase);
+            if (deadlineExceeded(run)) {
+                runService.fail(run.getId(), "EVALUATION_DEADLINE_EXCEEDED");
+                return;
+            }
+            SreRcaEvaluationResult persisted = runService.record(capture);
+            aggregate.add(persisted);
+            heartbeat(run.getId(), aggregate);
+        }
+
+        if (aggregate.completedCount() != run.getCaseCount()) {
+            throw new IllegalStateException("RCA 评测运行结果数量不完整");
+        }
+        BigDecimal averageScore = aggregate.averageScore();
+        String terminalStatus = aggregate.degradedCount() > 0 ? "DEGRADED" : "SUCCEEDED";
+        SreRcaEvaluationGateDecision gate = gateEvaluator.evaluate(new SreRcaEvaluationGateInput(
+                run.getSuiteVersionId() != null,
+                run.getCaseCount(),
+                aggregate.completedCount(),
+                aggregate.passedCount(),
+                averageScore,
+                aggregate.unsafeCount(),
+                aggregate.degradedCount(),
+                run.getGateMinimumPassRate(),
+                run.getGateMinimumAverageScore(),
+                Boolean.TRUE.equals(run.getGateRequireAllSafety()),
+                Boolean.TRUE.equals(run.getGateRequireNoDegraded())
+        ));
+        runService.complete(new SreRcaEvaluationRunCompletion(
+                run.getId(),
+                terminalStatus,
+                aggregate.completedCount(),
+                aggregate.passedCount(),
+                aggregate.failedCount(),
+                averageScore,
+                gate.passRate(),
+                aggregate.unsafeCount(),
+                aggregate.degradedCount(),
+                gate.status(),
+                writeJson(gate.failureCodes()),
+                aggregate.resolvedProvider(),
+                aggregate.configuredModel()
+        ));
     }
 
     @Override
@@ -302,6 +348,12 @@ public class SreRcaEvaluationServiceImpl implements SreRcaEvaluationService {
                     summary.schemaId(),
                     summary.provider(),
                     summary.configuredModel(),
+                    summary.sourceRevision(),
+                    summary.buildId(),
+                    summary.buildVersion(),
+                    summary.attempts(),
+                    summary.maxDurationSeconds(),
+                    summary.deadlineAt(),
                     summary.startedAt(),
                     summary.completedAt()
             );
@@ -336,11 +388,64 @@ public class SreRcaEvaluationServiceImpl implements SreRcaEvaluationService {
                     null
             );
         }
-        List<SreRcaEvaluationCase> cases = caseService.listRecent(MAX_CASES_PER_RUN).stream()
+        List<SreRcaEvaluationCase> cases = caseService
+                .listRecent(evaluationProperties.normalizedMaxCasesPerRun()).stream()
                 .map(item -> caseService.findById(item.getId())
                         .orElseThrow(() -> new IllegalStateException("RCA 评测用例读取失败")))
                 .toList();
         return new EvaluationSelection(cases, null, null);
+    }
+
+    private List<SreRcaEvaluationCase> loadFrozenCases(
+            SreRcaEvaluationRun run, List<SreRcaEvaluationRunCase> members) {
+        if (members == null || members.size() != run.getCaseCount()) {
+            return null;
+        }
+        List<SreRcaEvaluationCase> cases = new ArrayList<>(members.size());
+        Map<Long, Boolean> seenCaseIds = new HashMap<>();
+        for (int index = 0; index < members.size(); index++) {
+            SreRcaEvaluationRunCase member = members.get(index);
+            if (member == null
+                    || member.getCaseOrdinal() == null
+                    || member.getCaseOrdinal() != index + 1
+                    || member.getCaseId() == null
+                    || seenCaseIds.put(member.getCaseId(), Boolean.TRUE) != null
+                    || !StringUtils.hasText(member.getCaseContentSha256())) {
+                return null;
+            }
+            SreRcaEvaluationCase evaluationCase = caseService.findById(member.getCaseId()).orElse(null);
+            if (evaluationCase == null
+                    || !SreRcaEvaluationFingerprint.caseContent(evaluationCase)
+                    .equalsIgnoreCase(member.getCaseContentSha256())) {
+                return null;
+            }
+            cases.add(evaluationCase);
+        }
+        return List.copyOf(cases);
+    }
+
+    private boolean runtimeProvenanceMatches(SreRcaEvaluationRun run) {
+        return Objects.equals(run.getPromptId(), analyzer.promptId())
+                && Objects.equals(run.getSchemaId(), analyzer.schemaId())
+                && Objects.equals(run.getSourceRevision(), evaluationProperties.normalizedSourceRevision())
+                && Objects.equals(run.getBuildId(), evaluationProperties.normalizedBuildId())
+                && Objects.equals(run.getBuildVersion(), evaluationProperties.normalizedBuildVersion());
+    }
+
+    private boolean deadlineExceeded(SreRcaEvaluationRun run) {
+        return run.getDeadlineAt() == null || !LocalDateTime.now().isBefore(run.getDeadlineAt());
+    }
+
+    private void heartbeat(Long runId, RunAggregate aggregate) {
+        runService.heartbeat(new SreRcaEvaluationRunProgress(
+                runId,
+                aggregate.completedCount(),
+                aggregate.passedCount(),
+                aggregate.failedCount(),
+                aggregate.averageScore(),
+                aggregate.unsafeCount(),
+                aggregate.degradedCount()
+        ));
     }
 
     private SreRcaEvaluationResultCapture evaluateCase(Long runId, SreRcaEvaluationCase evaluationCase) {
@@ -520,6 +625,15 @@ public class SreRcaEvaluationServiceImpl implements SreRcaEvaluationService {
                 run.getProvider(),
                 run.getConfiguredModel(),
                 run.getFailureCode(),
+                intValue(run.getAttempts()),
+                intValue(run.getMaxDurationSeconds()),
+                run.getSourceRevision(),
+                run.getBuildId(),
+                run.getBuildVersion(),
+                run.getCreateTime(),
+                run.getClaimedAt(),
+                run.getHeartbeatAt(),
+                run.getDeadlineAt(),
                 run.getStartedAt(),
                 run.getCompletedAt()
         );
@@ -563,41 +677,6 @@ public class SreRcaEvaluationServiceImpl implements SreRcaEvaluationService {
                 toSuiteVersionSummary(snapshot.version()),
                 snapshot.cases().stream().map(this::toCaseSummary).toList()
         );
-    }
-
-    private void completeInMemory(SreRcaEvaluationRun run,
-                                  String status,
-                                  int completedCount,
-                                  int passedCount,
-                                  int failedCount,
-                                  BigDecimal averageScore,
-                                  SreRcaEvaluationGateDecision gate,
-                                  int unsafeCount,
-                                  int degradedCount,
-                                  String provider,
-                                  String configuredModel) {
-        run.setStatus(status);
-        run.setCompletedCount(completedCount);
-        run.setPassedCount(passedCount);
-        run.setFailedCount(failedCount);
-        run.setAverageScore(averageScore);
-        run.setPassRate(gate.passRate());
-        run.setUnsafeCount(unsafeCount);
-        run.setDegradedCount(degradedCount);
-        run.setGateStatus(gate.status());
-        run.setGateDetailJson(writeJson(gate.failureCodes()));
-        run.setProvider(provider);
-        run.setConfiguredModel(configuredModel);
-        run.setCompletedAt(LocalDateTime.now());
-    }
-
-    private void markRunFailed(Long runId, RuntimeException exception) {
-        try {
-            runService.fail(runId, failureCode(exception));
-        } catch (RuntimeException failureException) {
-            log.warn("SRE RCA 评测失败状态写入失败: runId={}, failureCode={}",
-                    runId, failureCode(failureException));
-        }
     }
 
     private SreRcaReport readReport(String json, String label) {
@@ -663,6 +742,81 @@ public class SreRcaEvaluationServiceImpl implements SreRcaEvaluationService {
 
     private int intValue(Integer value) {
         return value == null ? 0 : value;
+    }
+
+    private static final class RunAggregate {
+
+        private int completedCount;
+        private int passedCount;
+        private int unsafeCount;
+        private int degradedCount;
+        private BigDecimal scoreTotal = BigDecimal.ZERO;
+        private String provider;
+        private String configuredModel;
+
+        private RunAggregate(List<SreRcaEvaluationResult> existingResults) {
+            if (existingResults != null) {
+                existingResults.forEach(this::add);
+            }
+        }
+
+        private void add(SreRcaEvaluationResult result) {
+            if (result == null) {
+                throw new IllegalStateException("RCA 评测结果不能为空");
+            }
+            completedCount++;
+            if (Boolean.TRUE.equals(result.getPassed())) {
+                passedCount++;
+            }
+            if (!Boolean.TRUE.equals(result.getSafetyCompliant())) {
+                unsafeCount++;
+            }
+            if (!"SUCCEEDED".equals(result.getStatus())) {
+                degradedCount++;
+            }
+            scoreTotal = scoreTotal.add(
+                    result.getTotalScore() == null ? BigDecimal.ZERO : result.getTotalScore());
+            if (!StringUtils.hasText(provider)) {
+                provider = result.getProvider();
+                configuredModel = result.getConfiguredModel();
+            }
+        }
+
+        private int completedCount() {
+            return completedCount;
+        }
+
+        private int passedCount() {
+            return passedCount;
+        }
+
+        private int failedCount() {
+            return completedCount - passedCount;
+        }
+
+        private int unsafeCount() {
+            return unsafeCount;
+        }
+
+        private int degradedCount() {
+            return degradedCount;
+        }
+
+        private BigDecimal averageScore() {
+            if (completedCount == 0) {
+                return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+            }
+            return scoreTotal.divide(
+                    BigDecimal.valueOf(completedCount), 2, RoundingMode.HALF_UP);
+        }
+
+        private String resolvedProvider() {
+            return StringUtils.hasText(provider) ? provider : "unknown";
+        }
+
+        private String configuredModel() {
+            return configuredModel;
+        }
     }
 
     private record EvaluationSelection(

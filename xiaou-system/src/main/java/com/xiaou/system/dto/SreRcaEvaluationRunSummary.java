@@ -40,6 +40,15 @@ public record SreRcaEvaluationRunSummary(
         String provider,
         String configuredModel,
         String failureCode,
+        int attempts,
+        int maxDurationSeconds,
+        String sourceRevision,
+        String buildId,
+        String buildVersion,
+        LocalDateTime queuedAt,
+        LocalDateTime claimedAt,
+        LocalDateTime heartbeatAt,
+        LocalDateTime deadlineAt,
         LocalDateTime startedAt,
         LocalDateTime completedAt
 ) {

@@ -3449,7 +3449,7 @@ CREATE TABLE IF NOT EXISTS `sre_rca_evaluation_suite_case` (
 
 CREATE TABLE IF NOT EXISTS `sre_rca_evaluation_run` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '评测运行ID',
-  `status` VARCHAR(16) NOT NULL COMMENT 'RUNNING/SUCCEEDED/DEGRADED/FAILED',
+  `status` VARCHAR(16) NOT NULL COMMENT 'QUEUED/RUNNING/SUCCEEDED/DEGRADED/FAILED',
   `requested_case_id` BIGINT NULL COMMENT '指定单用例ID，为空表示回放当前全部用例',
   `suite_version_id` BIGINT NULL COMMENT '不可变套件版本ID，临时回放为空',
   `suite_key` VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL COMMENT '运行时冻结的套件Key',
@@ -3457,6 +3457,7 @@ CREATE TABLE IF NOT EXISTS `sre_rca_evaluation_run` (
   `suite_manifest_sha256` CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL COMMENT '运行时冻结的套件manifest',
   `trigger_source` VARCHAR(16) NOT NULL DEFAULT 'MANUAL' COMMENT 'MANUAL/CI',
   `requested_by` BIGINT NOT NULL COMMENT '手动发起评测的管理员ID',
+  `active_admin_id` BIGINT NULL COMMENT '活动运行管理员ID，终态清空',
   `case_count` INT UNSIGNED NOT NULL COMMENT '本次冻结选择的用例数，最大100',
   `completed_count` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '已完成结果数',
   `passed_count` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '达到评分门槛的用例数',
@@ -3478,16 +3479,42 @@ CREATE TABLE IF NOT EXISTS `sre_rca_evaluation_run` (
   `provider` VARCHAR(64) NULL COMMENT '本次回放配置提供商',
   `configured_model` VARCHAR(128) NULL COMMENT '本次回放配置模型',
   `failure_code` VARCHAR(128) NULL COMMENT '受控运行失败码，不保存异常正文',
-  `started_at` DATETIME NOT NULL COMMENT '开始时间',
+  `attempts` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '原子领取次数',
+  `next_attempt_at` DATETIME NULL COMMENT '下次可领取时间',
+  `claimed_at` DATETIME NULL COMMENT '最近领取时间',
+  `heartbeat_at` DATETIME NULL COMMENT '最近用例级心跳时间',
+  `deadline_at` DATETIME NULL COMMENT '运行绝对截止时间',
+  `max_duration_seconds` INT UNSIGNED NOT NULL DEFAULT 1800 COMMENT '冻结的最长执行秒数',
+  `source_revision` VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'unknown' COMMENT '冻结的源码修订',
+  `build_id` VARCHAR(128) NOT NULL DEFAULT 'legacy' COMMENT '冻结的构建ID',
+  `build_version` VARCHAR(64) NOT NULL DEFAULT 'unknown' COMMENT '冻结的构建版本',
+  `started_at` DATETIME NULL COMMENT '首次领取执行时间',
   `completed_at` DATETIME NULL COMMENT '结束时间',
   `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_sre_rca_eval_run_active_admin` (`active_admin_id`),
+  KEY `idx_sre_rca_eval_run_claim` (`status`, `next_attempt_at`, `id`),
+  KEY `idx_sre_rca_eval_run_lease` (`status`, `heartbeat_at`),
+  KEY `idx_sre_rca_eval_run_deadline` (`status`, `deadline_at`),
   KEY `idx_sre_rca_eval_run_status_started` (`status`, `started_at`),
   KEY `idx_sre_rca_eval_run_case_started` (`requested_case_id`, `started_at`),
   KEY `idx_sre_rca_eval_run_suite_started` (`suite_version_id`, `started_at`),
   KEY `idx_sre_rca_eval_run_gate_started` (`gate_status`, `started_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='SRE RCA管理员手动离线评测运行';
+
+CREATE TABLE IF NOT EXISTS `sre_rca_evaluation_run_case` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '运行成员ID',
+  `evaluation_run_id` BIGINT NOT NULL COMMENT '评测运行ID',
+  `case_id` BIGINT NOT NULL COMMENT '不可变评测用例ID',
+  `case_ordinal` INT UNSIGNED NOT NULL COMMENT '运行内规范顺序，从1开始',
+  `case_content_sha256` CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '入队时用例内容指纹',
+  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '冻结时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_sre_rca_eval_run_case` (`evaluation_run_id`, `case_id`),
+  UNIQUE KEY `uk_sre_rca_eval_run_ordinal` (`evaluation_run_id`, `case_ordinal`),
+  KEY `idx_sre_rca_eval_run_case_lookup` (`case_id`, `evaluation_run_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='SRE RCA评测运行不可变成员';
 
 CREATE TABLE IF NOT EXISTS `sre_rca_evaluation_result` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '单用例评测结果ID',

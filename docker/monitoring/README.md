@@ -129,8 +129,9 @@ ports directly to the public internet.
 
 ## Optional SRE Event Ingestion
 
-The Java `xiaou-sre` module and its Outbox worker are opt-in. QQ email delivery does
-not depend on them. Before enabling the worker on the application server:
+The Java `xiaou-sre` module, Outbox worker and RCA evaluation worker are opt-in. QQ
+email delivery does not depend on them. Keep both workers disabled while applying the
+required database migrations:
 
 1. Apply `sql/v2.5.0/sre_incident.sql`, or apply the incremental
    `sql/v2.5.0/sre_incident_evidence.sql` when the four original SRE tables already exist.
@@ -138,12 +139,15 @@ not depend on them. Before enabling the worker on the application server:
    persistent RCA history and feedback. The migration is idempotent and creates the run,
    step, and append-only feedback tables. Re-run it when upgrading from the earlier v2.5.0
    investigation schema.
-3. For the administrator RCA evaluation workbench, apply
-   `sql/v2.5.0/sre_rca_evaluation.sql` and then
-   `sql/v2.5.0/sre_rca_evaluation_suite.sql`. The second migration creates stable suites,
-   immutable versions and ordered members, then extends evaluation runs with frozen gate
-   policy and results. Apply it once after the base evaluation migration; its `ALTER TABLE`
-   statements are not rerunnable.
+3. For the administrator RCA evaluation workbench, apply these migrations in order:
+   `sql/v2.5.0/sre_rca_evaluation.sql`,
+   `sql/v2.5.0/sre_rca_evaluation_suite.sql`, then
+   `sql/v2.5.0/sre_rca_evaluation_queue.sql`. The suite migration creates stable suites,
+   immutable versions and ordered members. The queue migration adds frozen run membership,
+   leases, deadlines, attempts and source/build provenance. Apply the suite and queue
+   migrations exactly once after the base evaluation migration; their `ALTER TABLE`
+   statements are not rerunnable. The queue migration marks any pre-migration synchronous
+   `RUNNING` row as failed because it cannot have a trustworthy lease or build identity.
 4. Set a dedicated `XIAOU_SRE_WEBHOOK_TOKEN`; do not reuse an administrator token.
    Put the identical value in `secrets/sre_webhook_token` with owner `65534:65534`
    and mode `0400`.
@@ -166,6 +170,16 @@ not depend on them. Before enabling the worker on the application server:
 6. Enable `XIAOU_SRE_WEBHOOK_ENABLED=true` only after the Alertmanager receiver is
    configured to call the backend directly over the monitoring path.
 7. Enable `XIAOU_SRE_OUTBOX_ENABLED=true` only after the evidence table migration succeeds.
+8. Set immutable deployment values for `XIAOU_SRE_EVALUATION_SOURCE_REVISION`,
+   `XIAOU_SRE_EVALUATION_BUILD_ID` and `XIAOU_SRE_EVALUATION_BUILD_VERSION`, then enable
+   `XIAOU_SRE_EVALUATION_ENABLED=true` only after the queue migration succeeds. Until it is
+   enabled, run creation fails with business code `503` instead of leaving an unconsumed job.
+
+The run endpoint enqueues work and returns HTTP `202`; it does not call the model in the
+request thread. A worker atomically claims each run, persists progress and a heartbeat after
+every case, retries expired leases without repeating completed cases, and stops at the frozen
+deadline or maximum attempt count. One administrator can have only one `QUEUED` or `RUNNING`
+run at a time; a second request returns business code `409`.
 
 Before releasing RCA changes, run `./scripts/code-nest-eval.ps1 -Tier sre`. This is a
 deterministic gate over synthetic, redacted fixtures; it does not read production data or

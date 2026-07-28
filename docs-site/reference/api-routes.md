@@ -498,7 +498,7 @@
 | POST | `/admin/sre/rca-evaluations/suites/{suiteId}/versions` | 按成员和门禁策略发布不可变套件版本 |
 | GET | `/admin/sre/rca-evaluations/suites/{suiteId}/versions` | 查询套件版本历史，最多 50 条 |
 | GET | `/admin/sre/rca-evaluations/suite-versions/{versionId}` | 查询版本 manifest、策略和有序成员摘要 |
-| POST | `/admin/sre/rca-evaluations/runs` | 回放单 case、临时全量或指定套件版本；仅套件版本适用质量门禁 |
+| POST | `/admin/sre/rca-evaluations/runs` | 将单 case、临时全量或指定套件版本回放加入队列，成功返回 HTTP `202`；仅套件版本适用质量门禁 |
 | GET | `/admin/sre/rca-evaluations/runs` | 查询最近评测运行，最多 50 条 |
 | GET | `/admin/sre/rca-evaluations/runs/{runId}` | 查询聚合结果和逐用例透明评分 |
 | GET | `/admin/sre/rca-evaluations/runs/{runId}/gate` | 查询冻结门槛、通过率和固定失败码 |
@@ -506,6 +506,10 @@
 
 评测变更接口要求管理员权限，并关闭操作日志的请求/响应正文保存。所有用例、套件和运行 DTO
 只返回摘要、哈希、策略与评分，不返回冻结 `context_json`、`baseline_report_json` 或异常正文。
+运行创建会立即返回 `QUEUED` 摘要，客户端通过详情接口轮询
+`QUEUED -> RUNNING -> SUCCEEDED / DEGRADED / FAILED`。同一管理员已有活动运行时返回业务码
+`409`；数据库队列迁移完成并显式启用 Worker 前返回业务码 `503`。业务异常沿用项目统一契约，
+HTTP 状态仍为 `200`，应读取响应体 `code`；成功入队是 HTTP `202`。
 
 ## 通用请求模式
 

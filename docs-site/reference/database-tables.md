@@ -6,7 +6,7 @@
 
 ## 表统计总览
 
-当前主库基线包含 160 张表，按业务域分布：
+当前主库基线包含 161 张表，按业务域分布：
 
 | 业务域 | 表数量 | 模块 | 表前缀 |
 | --- | --- | --- | --- |
@@ -30,7 +30,7 @@
 | 敏感词 | 11 | xiaou-sensitive | `sensitive_*` |
 | 摸鱼工具 | 7 | xiaou-moyu | `developer_calendar_*`, `daily_content`, `user_calendar_*`, `user_salary_*`, `work_record`, `bug_*`, `user_bug_*` |
 | 版本历史 | 1 | xiaou-version | `version_history` |
-| SRE 运维 | 15 | xiaou-sre, xiaou-system | `sre_*` |
+| SRE 运维 | 16 | xiaou-sre, xiaou-system | `sre_*` |
 
 ## 索引策略
 
@@ -290,7 +290,8 @@
 | `sre_rca_evaluation_suite` | suite_key, name, created_by, created_at | xiaou-sre, xiaou-system |
 | `sre_rca_evaluation_suite_version` | suite_id, version_no, manifest_sha256, scoring_policy_id, gate_evaluator_id | xiaou-sre, xiaou-system |
 | `sre_rca_evaluation_suite_case` | suite_version_id, case_id, case_ordinal, case_content_sha256 | xiaou-sre, xiaou-system |
-| `sre_rca_evaluation_run` | status, requested_case_id, suite_version_id, suite_manifest_sha256, pass_rate, gate_status | xiaou-sre, xiaou-system |
+| `sre_rca_evaluation_run` | status, active_admin_id, attempts, deadline_at, source_revision, build_id, gate_status | xiaou-sre, xiaou-system |
+| `sre_rca_evaluation_run_case` | evaluation_run_id, case_id, case_ordinal, case_content_sha256 | xiaou-sre, xiaou-system |
 | `sre_rca_evaluation_result` | evaluation_run_id, case_id, invocation_outcome, total_score, passed | xiaou-sre, xiaou-system |
 
 `sre_investigation_run.report_json` 只保存经过后端脱敏和结构校验的报告；调查步骤只保存
@@ -308,6 +309,11 @@
 `suite_case` 保存有序成员及 case 内容指纹。同一内容和策略重复发布保持幂等；每次读取版本和
 执行回放都会重新校验成员指纹与 manifest。套件运行保存通过率、安全/降级数、门禁状态及固定
 失败码；临时单 case/全量运行的门禁状态固定为 `NOT_APPLICABLE`。
+
+评测运行采用 `QUEUED -> RUNNING -> SUCCEEDED / DEGRADED / FAILED` 状态机。
+`sre_rca_evaluation_run_case` 在入队事务内冻结有序成员及内容 SHA-256，重试只补做尚无结果的
+成员。运行表保存原子领取次数、心跳、绝对截止时间、源码修订和构建标识；
+`active_admin_id` 的 nullable 唯一索引保证同一管理员最多一个活动运行，进入终态时清空。
 
 ## 数据库视图
 
@@ -335,7 +341,7 @@
 | `sql/v1.8.2` | 成长自动驾驶、求职闭环、岗位匹配、OJ 评论、SQL 优化、驾驶舱排行 |
 | `sql/v1.8.3` | 学习资产候选 |
 | `sql/v1.8.4` | 学习资产转化 |
-| `sql/v2.5.0` | SRE 告警、事故、证据、调查运行、回放产物、反馈修订、RCA 离线评测和版本化套件门禁 |
+| `sql/v2.5.0` | SRE 告警、事故、证据、调查运行、回放产物、反馈修订、RCA 离线评测、版本化套件门禁和数据库队列治理 |
 
 ## Mapper 定位规则
 
@@ -375,7 +381,7 @@ grep -r "user_points_balance" --include="*.xml" xiaou-*/
 
 | 文件 | 说明 |
 | --- | --- |
-| `sql/MySql/code_nest.sql` | 当前完整主库基线脚本（160 表） |
+| `sql/MySql/code_nest.sql` | 当前完整主库基线脚本（161 表） |
 | `sql/v1.2.0/` ~ `sql/v2.5.0/` | 版本增量脚本 |
 | `xiaou-*/src/main/java/**/domain/` | 实体类目录 |
 | `xiaou-*/src/main/java/**/mapper/` | Mapper 接口目录 |

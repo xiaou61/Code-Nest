@@ -22,6 +22,7 @@ public class SreRcaEvaluationRun {
     private String suiteManifestSha256;
     private String triggerSource;
     private Long requestedBy;
+    private Long activeAdminId;
     private Integer caseCount;
     private Integer completedCount;
     private Integer passedCount;
@@ -43,6 +44,15 @@ public class SreRcaEvaluationRun {
     private String provider;
     private String configuredModel;
     private String failureCode;
+    private Integer attempts;
+    private LocalDateTime nextAttemptAt;
+    private LocalDateTime claimedAt;
+    private LocalDateTime heartbeatAt;
+    private LocalDateTime deadlineAt;
+    private Integer maxDurationSeconds;
+    private String sourceRevision;
+    private String buildId;
+    private String buildVersion;
     private LocalDateTime startedAt;
     private LocalDateTime completedAt;
     private LocalDateTime createTime;

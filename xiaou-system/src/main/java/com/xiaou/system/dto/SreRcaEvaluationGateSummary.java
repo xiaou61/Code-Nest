@@ -35,6 +35,12 @@ public record SreRcaEvaluationGateSummary(
         String schemaId,
         String provider,
         String configuredModel,
+        String sourceRevision,
+        String buildId,
+        String buildVersion,
+        int attempts,
+        int maxDurationSeconds,
+        LocalDateTime deadlineAt,
         LocalDateTime startedAt,
         LocalDateTime completedAt
 ) {

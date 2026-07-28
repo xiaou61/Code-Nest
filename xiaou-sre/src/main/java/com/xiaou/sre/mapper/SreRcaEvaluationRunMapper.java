@@ -19,6 +19,24 @@ public interface SreRcaEvaluationRunMapper {
 
     SreRcaEvaluationRun selectById(@Param("id") Long id);
 
+    List<Long> selectClaimableIds(@Param("now") LocalDateTime now, @Param("limit") int limit);
+
+    int claim(@Param("id") Long id, @Param("claimedAt") LocalDateTime claimedAt);
+
+    int updateHeartbeat(SreRcaEvaluationRun run);
+
+    int requeue(@Param("id") Long id, @Param("nextAttemptAt") LocalDateTime nextAttemptAt);
+
+    int failExpired(@Param("now") LocalDateTime now, @Param("failureCode") String failureCode);
+
+    int failStale(@Param("staleBefore") LocalDateTime staleBefore,
+                  @Param("maxAttempts") int maxAttempts,
+                  @Param("failureCode") String failureCode);
+
+    int recoverStale(@Param("staleBefore") LocalDateTime staleBefore,
+                     @Param("maxAttempts") int maxAttempts,
+                     @Param("nextAttemptAt") LocalDateTime nextAttemptAt);
+
     int updateCompletion(SreRcaEvaluationRun run);
 
     int updateFailed(@Param("id") Long id,

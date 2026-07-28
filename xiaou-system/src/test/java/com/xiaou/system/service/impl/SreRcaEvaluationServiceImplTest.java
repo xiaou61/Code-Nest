@@ -3,9 +3,11 @@ package com.xiaou.system.service.impl;
 import cn.hutool.crypto.digest.DigestUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xiaou.ai.support.AiExecutionResult;
+import com.xiaou.sre.config.SreRcaEvaluationProperties;
 import com.xiaou.sre.domain.SreRcaEvaluationCase;
 import com.xiaou.sre.domain.SreRcaEvaluationResult;
 import com.xiaou.sre.domain.SreRcaEvaluationRun;
+import com.xiaou.sre.domain.SreRcaEvaluationRunCase;
 import com.xiaou.sre.domain.SreRcaEvaluationSuite;
 import com.xiaou.sre.domain.SreRcaEvaluationSuiteVersion;
 import com.xiaou.sre.domain.SreRcaEvaluationSuiteVersionSnapshot;
@@ -16,7 +18,6 @@ import com.xiaou.sre.service.SreRcaEvaluationCaseService;
 import com.xiaou.sre.service.SreRcaEvaluationRunService;
 import com.xiaou.sre.service.SreRcaEvaluationSuiteService;
 import com.xiaou.system.dto.SreRcaEvaluationCaseSummary;
-import com.xiaou.system.dto.SreRcaEvaluationRunDetail;
 import com.xiaou.system.dto.SreRcaEvaluationSuiteCreateRequest;
 import com.xiaou.system.dto.SreRcaEvaluationSuiteVersionDetail;
 import com.xiaou.system.dto.SreRcaEvaluationSuiteVersionPublishRequest;
@@ -79,24 +80,23 @@ class SreRcaEvaluationServiceImplTest {
         when(caseService.findById(301L)).thenReturn(Optional.of(evaluationCase));
         when(analyzer.promptId()).thenReturn("sre.incident.rca:v1");
         when(analyzer.schemaId()).thenReturn("xiaou://schema/v1");
+        when(runService.start(any(SreRcaEvaluationRunStart.class)))
+                .thenReturn(queuedRun());
+
+        var queued = service.enqueue(301L, null, 7L);
+
+        assertThat(queued.status()).isEqualTo("QUEUED");
+        assertThat(queued.sourceRevision()).isEqualTo("abc123");
+        verify(analyzer, never()).analyze(any());
+
+        SreRcaEvaluationRun running = runningRun();
+        prepareExecution(running, List.of(evaluationCase));
         when(analyzer.analyze(any(SreRcaAnalysisInput.class))).thenReturn(new AiExecutionResult<>(
                 candidate, "SUCCESS", "openai-compatible", "configured-model", "runtime-model"));
-        when(runService.start(any(SreRcaEvaluationRunStart.class)))
-                .thenReturn(runningRun());
         when(runService.record(any(SreRcaEvaluationResultCapture.class)))
                 .thenAnswer(invocation -> persistedResult(invocation.getArgument(0)));
 
-        SreRcaEvaluationRunDetail detail = service.run(301L, null, 7L);
-
-        assertThat(detail.run().status()).isEqualTo("SUCCEEDED");
-        assertThat(detail.run().passedCount()).isEqualTo(1);
-        assertThat(detail.results()).singleElement().satisfies(result -> {
-            assertThat(result.invocationOutcome()).isEqualTo("SUCCESS");
-            assertThat(result.actualModel()).isEqualTo("runtime-model");
-            assertThat(result.totalScore()).isEqualByComparingTo("100.00");
-            assertThat(result.passed()).isTrue();
-            assertThat(result.candidateReport().executiveSummary()).isEqualTo("发布变更导致故障");
-        });
+        service.executeClaimedRun(401L);
 
         ArgumentCaptor<SreRcaAnalysisInput> input = ArgumentCaptor.forClass(SreRcaAnalysisInput.class);
         verify(analyzer).analyze(input.capture());
@@ -108,6 +108,10 @@ class SreRcaEvaluationServiceImplTest {
                 ArgumentCaptor.forClass(SreRcaEvaluationResultCapture.class);
         verify(runService).record(capture.capture());
         assertThat(capture.getValue().candidateReportJson()).contains("executiveSummary");
+        assertThat(capture.getValue().invocationOutcome()).isEqualTo("SUCCESS");
+        assertThat(capture.getValue().actualModel()).isEqualTo("runtime-model");
+        assertThat(capture.getValue().totalScore()).isEqualByComparingTo("100.00");
+        assertThat(capture.getValue().passed()).isTrue();
         assertThat(capture.getValue().scoreDetailJson()).contains("Dice", "只读安全契约");
         ArgumentCaptor<SreRcaEvaluationRunCompletion> completion =
                 ArgumentCaptor.forClass(SreRcaEvaluationRunCompletion.class);
@@ -121,7 +125,7 @@ class SreRcaEvaluationServiceImplTest {
         SreRcaEvaluationServiceImpl service = service();
         when(caseService.listRecent(100)).thenReturn(List.of());
 
-        assertThatThrownBy(() -> service.run(null, null, 7L))
+        assertThatThrownBy(() -> service.enqueue(null, null, 7L))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("评测用例");
 
@@ -140,19 +144,21 @@ class SreRcaEvaluationServiceImplTest {
         when(analyzer.promptId()).thenReturn("sre.incident.rca:v1");
         when(analyzer.schemaId()).thenReturn("xiaou://schema/v1");
         when(runService.start(any(SreRcaEvaluationRunStart.class)))
-                .thenReturn(runningRun());
+                .thenReturn(queuedRun());
+        service.enqueue(301L, null, 7L);
+        prepareExecution(runningRun(), List.of(evaluationCase));
         when(runService.record(any(SreRcaEvaluationResultCapture.class)))
                 .thenAnswer(invocation -> persistedResult(invocation.getArgument(0)));
 
-        SreRcaEvaluationRunDetail detail = service.run(301L, null, 7L);
+        service.executeClaimedRun(401L);
 
-        assertThat(detail.run().status()).isEqualTo("DEGRADED");
-        assertThat(detail.results()).singleElement().satisfies(result -> {
-            assertThat(result.status()).isEqualTo("FAILED");
-            assertThat(result.failureCode()).isEqualTo("ILLEGALSTATEEXCEPTION");
-            assertThat(result.candidateReport()).isNull();
-            assertThat(result.passed()).isFalse();
-        });
+        ArgumentCaptor<SreRcaEvaluationResultCapture> capture =
+                ArgumentCaptor.forClass(SreRcaEvaluationResultCapture.class);
+        verify(runService).record(capture.capture());
+        assertThat(capture.getValue().status()).isEqualTo("FAILED");
+        assertThat(capture.getValue().failureCode()).isEqualTo("ILLEGALSTATEEXCEPTION");
+        assertThat(capture.getValue().candidateReportJson()).isNull();
+        assertThat(capture.getValue().passed()).isFalse();
         verify(analyzer, never()).analyze(any());
     }
 
@@ -167,26 +173,110 @@ class SreRcaEvaluationServiceImplTest {
         when(analyzer.analyze(any(SreRcaAnalysisInput.class))).thenReturn(new AiExecutionResult<>(
                 fallback, "MODEL_UNAVAILABLE", "openai-compatible", "configured-model", null));
         when(runService.start(any(SreRcaEvaluationRunStart.class)))
-                .thenReturn(runningRun());
+                .thenReturn(queuedRun());
+        service.enqueue(301L, null, 7L);
+        prepareExecution(runningRun(), List.of(evaluationCase));
         when(runService.record(any(SreRcaEvaluationResultCapture.class)))
                 .thenAnswer(invocation -> persistedResult(invocation.getArgument(0)));
 
-        SreRcaEvaluationRunDetail detail = service.run(301L, null, 7L);
+        service.executeClaimedRun(401L);
 
-        assertThat(detail.run().status()).isEqualTo("DEGRADED");
-        assertThat(detail.run().passedCount()).isZero();
-        assertThat(detail.run().failedCount()).isEqualTo(1);
-        assertThat(detail.results()).singleElement().satisfies(result -> {
-            assertThat(result.status()).isEqualTo("DEGRADED");
-            assertThat(result.invocationOutcome()).isEqualTo("MODEL_UNAVAILABLE");
-            assertThat(result.totalScore()).isEqualByComparingTo("100.00");
-            assertThat(result.passed()).isFalse();
-        });
+        ArgumentCaptor<SreRcaEvaluationResultCapture> capture =
+                ArgumentCaptor.forClass(SreRcaEvaluationResultCapture.class);
+        verify(runService).record(capture.capture());
+        assertThat(capture.getValue().status()).isEqualTo("DEGRADED");
+        assertThat(capture.getValue().invocationOutcome()).isEqualTo("MODEL_UNAVAILABLE");
+        assertThat(capture.getValue().totalScore()).isEqualByComparingTo("100.00");
+        assertThat(capture.getValue().passed()).isFalse();
         ArgumentCaptor<SreRcaEvaluationRunCompletion> completion =
                 ArgumentCaptor.forClass(SreRcaEvaluationRunCompletion.class);
         verify(runService).complete(completion.capture());
         assertThat(completion.getValue().status()).isEqualTo("DEGRADED");
         assertThat(completion.getValue().degradedCount()).isEqualTo(1);
+    }
+
+    @Test
+    void expiredClaimedRunFailsBeforeModelInvocation() {
+        SreRcaEvaluationServiceImpl service = service();
+        SreRcaEvaluationRun run = runningRun();
+        run.setDeadlineAt(LocalDateTime.now().minusSeconds(1));
+        when(runService.findById(401L)).thenReturn(Optional.of(run));
+
+        service.executeClaimedRun(401L);
+
+        verify(runService).fail(401L, "EVALUATION_DEADLINE_EXCEEDED");
+        verify(analyzer, never()).analyze(any());
+    }
+
+    @Test
+    void runtimeBuildProvenanceMismatchFailsBeforeModelInvocation() {
+        SreRcaEvaluationServiceImpl service = service();
+        SreRcaEvaluationRun run = runningRun();
+        run.setBuildId("ci-previous");
+        when(runService.findById(401L)).thenReturn(Optional.of(run));
+        when(analyzer.promptId()).thenReturn("sre.incident.rca:v1");
+        when(analyzer.schemaId()).thenReturn("xiaou://schema/v1");
+
+        service.executeClaimedRun(401L);
+
+        verify(runService).fail(401L, "EVALUATION_RUNTIME_PROVENANCE_MISMATCH");
+        verify(runService, never()).listRunCases(401L);
+        verify(analyzer, never()).analyze(any());
+    }
+
+    @Test
+    void recoveredRunSkipsPersistedCaseAndCompletesRemainingMembership() {
+        SreRcaEvaluationServiceImpl service = service();
+        SreRcaEvaluationCase first = evaluationCase();
+        SreRcaEvaluationCase second = evaluationCase();
+        second.setId(302L);
+        SreRcaEvaluationRun run = runningRun();
+        run.setRequestedCaseId(null);
+        run.setCaseCount(2);
+        SreRcaEvaluationResult existing = successfulExistingResult(301L, "80.00");
+        prepareExecution(run, List.of(first, second), List.of(existing));
+        when(analyzer.promptId()).thenReturn("sre.incident.rca:v1");
+        when(analyzer.schemaId()).thenReturn("xiaou://schema/v1");
+        when(analyzer.analyze(any(SreRcaAnalysisInput.class))).thenReturn(new AiExecutionResult<>(
+                report("发布变更导致故障", "AI"),
+                "SUCCESS", "openai-compatible", "configured-model", "runtime-model"));
+        when(runService.record(any(SreRcaEvaluationResultCapture.class)))
+                .thenAnswer(invocation -> persistedResult(invocation.getArgument(0)));
+
+        service.executeClaimedRun(401L);
+
+        ArgumentCaptor<SreRcaEvaluationResultCapture> capture =
+                ArgumentCaptor.forClass(SreRcaEvaluationResultCapture.class);
+        verify(runService).record(capture.capture());
+        assertThat(capture.getValue().caseId()).isEqualTo(302L);
+        ArgumentCaptor<SreRcaEvaluationRunCompletion> completion =
+                ArgumentCaptor.forClass(SreRcaEvaluationRunCompletion.class);
+        verify(runService).complete(completion.capture());
+        assertThat(completion.getValue().completedCount()).isEqualTo(2);
+        assertThat(completion.getValue().passedCount()).isEqualTo(2);
+        assertThat(completion.getValue().averageScore()).isEqualByComparingTo("90.00");
+    }
+
+    @Test
+    void changedFrozenCaseFailsIntegrityBeforeModelInvocation() {
+        SreRcaEvaluationServiceImpl service = service();
+        SreRcaEvaluationCase changed = evaluationCase();
+        SreRcaEvaluationRun run = runningRun();
+        when(runService.findById(401L)).thenReturn(Optional.of(run));
+        SreRcaEvaluationRunCase member = new SreRcaEvaluationRunCase();
+        member.setEvaluationRunId(401L);
+        member.setCaseId(301L);
+        member.setCaseOrdinal(1);
+        member.setCaseContentSha256("f".repeat(64));
+        when(runService.listRunCases(401L)).thenReturn(List.of(member));
+        when(caseService.findById(301L)).thenReturn(Optional.of(changed));
+        when(analyzer.promptId()).thenReturn("sre.incident.rca:v1");
+        when(analyzer.schemaId()).thenReturn("xiaou://schema/v1");
+
+        service.executeClaimedRun(401L);
+
+        verify(runService).fail(401L, "EVALUATION_CASE_INTEGRITY_FAILED");
+        verify(analyzer, never()).analyze(any());
     }
 
     @Test
@@ -217,20 +307,29 @@ class SreRcaEvaluationServiceImplTest {
         when(analyzer.analyze(any(SreRcaAnalysisInput.class))).thenReturn(new AiExecutionResult<>(
                 report("发布变更导致故障", "AI"),
                 "SUCCESS", "openai-compatible", "configured-model", "runtime-model"));
-        when(runService.start(any())).thenReturn(runningSuiteRun());
+        SreRcaEvaluationRun runningSuite = runningSuiteRun();
+        SreRcaEvaluationRun queuedSuite = runningSuiteRun();
+        queuedSuite.setStatus("QUEUED");
+        queuedSuite.setStartedAt(null);
+        when(runService.start(any())).thenReturn(queuedSuite);
+        var queued = service.enqueue(null, 701L, 7L);
+        prepareExecution(runningSuite, List.of(first, second));
         when(runService.record(any(SreRcaEvaluationResultCapture.class)))
                 .thenAnswer(invocation -> persistedResult(invocation.getArgument(0)));
 
-        SreRcaEvaluationRunDetail detail = service.run(null, 701L, 7L);
+        service.executeClaimedRun(401L);
 
-        assertThat(detail.run().suiteVersionId()).isEqualTo(701L);
-        assertThat(detail.run().suiteKey()).isEqualTo("release-readiness");
-        assertThat(detail.run().suiteVersion()).isEqualTo(3);
-        assertThat(detail.run().gateStatus()).isEqualTo("PASSED");
-        assertThat(detail.run().passRate()).isEqualByComparingTo("100.00");
-        assertThat(detail.results()).hasSize(2);
+        assertThat(queued.suiteVersionId()).isEqualTo(701L);
+        assertThat(queued.suiteKey()).isEqualTo("release-readiness");
+        assertThat(queued.suiteVersion()).isEqualTo(3);
+        assertThat(queued.status()).isEqualTo("QUEUED");
         verify(caseService, never()).listRecent(anyInt());
-        verify(runService).complete(any());
+        ArgumentCaptor<SreRcaEvaluationRunCompletion> completion =
+                ArgumentCaptor.forClass(SreRcaEvaluationRunCompletion.class);
+        verify(runService).complete(completion.capture());
+        assertThat(completion.getValue().gateStatus()).isEqualTo("PASSED");
+        assertThat(completion.getValue().passRate()).isEqualByComparingTo("100.00");
+        assertThat(completion.getValue().completedCount()).isEqualTo(2);
     }
 
     @Test
@@ -283,8 +382,65 @@ class SreRcaEvaluationServiceImplTest {
                 analyzer,
                 new SreRcaEvaluationScorer(),
                 new SreRcaEvaluationGateEvaluator(),
-                objectMapper()
+                objectMapper(),
+                evaluationProperties()
         );
+    }
+
+    private SreRcaEvaluationProperties evaluationProperties() {
+        SreRcaEvaluationProperties properties = new SreRcaEvaluationProperties();
+        properties.setEnabled(true);
+        properties.setMaxDurationSeconds(900);
+        properties.setSourceRevision("abc123");
+        properties.setBuildId("ci-42");
+        properties.setBuildVersion("2.5.0");
+        return properties;
+    }
+
+    private void prepareExecution(SreRcaEvaluationRun run, List<SreRcaEvaluationCase> cases) {
+        prepareExecution(run, cases, List.of());
+    }
+
+    private void prepareExecution(SreRcaEvaluationRun run,
+                                  List<SreRcaEvaluationCase> cases,
+                                  List<SreRcaEvaluationResult> existingResults) {
+        when(runService.findById(run.getId())).thenReturn(Optional.of(run));
+        when(runService.listResults(run.getId())).thenReturn(existingResults);
+        List<SreRcaEvaluationRunCase> members = java.util.stream.IntStream.range(0, cases.size())
+                .mapToObj(index -> {
+                    SreRcaEvaluationCase evaluationCase = cases.get(index);
+                    SreRcaEvaluationRunCase member = new SreRcaEvaluationRunCase();
+                    member.setEvaluationRunId(run.getId());
+                    member.setCaseId(evaluationCase.getId());
+                    member.setCaseOrdinal(index + 1);
+                    member.setCaseContentSha256(
+                            com.xiaou.sre.service.SreRcaEvaluationFingerprint.caseContent(evaluationCase));
+                    when(caseService.findById(evaluationCase.getId())).thenReturn(Optional.of(evaluationCase));
+                    return member;
+                })
+                .toList();
+        when(runService.listRunCases(run.getId())).thenReturn(members);
+    }
+
+    private SreRcaEvaluationResult successfulExistingResult(Long caseId, String totalScore) {
+        SreRcaEvaluationResult result = new SreRcaEvaluationResult();
+        result.setId(500L + caseId);
+        result.setEvaluationRunId(401L);
+        result.setCaseId(caseId);
+        result.setStatus("SUCCEEDED");
+        result.setProvider("openai-compatible");
+        result.setConfiguredModel("configured-model");
+        result.setSafetyCompliant(true);
+        result.setTotalScore(new java.math.BigDecimal(totalScore));
+        result.setPassed(true);
+        return result;
+    }
+
+    private SreRcaEvaluationRun queuedRun() {
+        SreRcaEvaluationRun run = runningRun();
+        run.setStatus("QUEUED");
+        run.setStartedAt(null);
+        return run;
     }
 
     private SreRcaEvaluationRun runningSuiteRun() {
@@ -346,7 +502,16 @@ class SreRcaEvaluationServiceImplTest {
         run.setCaseCount(1);
         run.setTriggerSource("MANUAL");
         run.setGateStatus("NOT_APPLICABLE");
+        run.setPromptId("sre.incident.rca:v1");
+        run.setSchemaId("xiaou://schema/v1");
+        run.setSourceRevision("abc123");
+        run.setBuildId("ci-42");
+        run.setBuildVersion("2.5.0");
+        run.setAttempts(1);
+        run.setMaxDurationSeconds(900);
+        run.setCreateTime(LocalDateTime.of(2026, 7, 27, 12, 59));
         run.setStartedAt(LocalDateTime.of(2026, 7, 27, 13, 0));
+        run.setDeadlineAt(LocalDateTime.now().plusMinutes(15));
         return run;
     }
 

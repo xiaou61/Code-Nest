@@ -97,6 +97,30 @@ RAG 默认关闭。开启后需要同时启动 `llamaindex-service` 容器，并
 
 如果 RAG 不可用，AI 功能会降级返回，不影响其他业务。
 
+## SRE RCA 评测队列
+
+| 变量 | 默认值 | 来源 | 说明 |
+| --- | --- | --- | --- |
+| `XIAOU_SRE_EVALUATION_ENABLED` | `false` | `application.yml` | 是否启用数据库评测 Worker；完成 queue 迁移前必须保持关闭 |
+| `XIAOU_SRE_EVALUATION_FIXED_DELAY_MS` | `2000` | `application.yml` | 两轮队列扫描之间的延迟 ms |
+| `XIAOU_SRE_EVALUATION_INITIAL_DELAY_MS` | `10000` | `application.yml` | 应用启动后的首次扫描延迟 ms |
+| `XIAOU_SRE_EVALUATION_BATCH_SIZE` | `2` | `application.yml` | 单轮最多领取数，运行时限制为 1-20 |
+| `XIAOU_SRE_EVALUATION_MAX_ATTEMPTS` | `3` | `application.yml` | 单次运行最大领取次数，运行时限制为 1-10 |
+| `XIAOU_SRE_EVALUATION_LEASE_SECONDS` | `180` | `application.yml` | 无心跳后的租约恢复阈值，最低 90 秒且应高于 AI 读取超时 |
+| `XIAOU_SRE_EVALUATION_MAX_DURATION_SECONDS` | `1800` | `application.yml` | 入队时冻结的绝对运行时限，范围 60-86400 秒 |
+| `XIAOU_SRE_EVALUATION_MAX_CASES_PER_RUN` | `100` | `application.yml` | 单次运行最大冻结成员数，范围 1-100 |
+| `XIAOU_SRE_EVALUATION_RETRY_BACKOFF_SECONDS` | `10` | `application.yml` | 首次重试退避秒数 |
+| `XIAOU_SRE_EVALUATION_MAX_RETRY_BACKOFF_SECONDS` | `300` | `application.yml` | 指数退避上限秒数 |
+| `XIAOU_SRE_EVALUATION_SOURCE_REVISION` | `unknown` | `application.yml` | 源码修订，生产应注入完整或可唯一定位的提交 SHA |
+| `XIAOU_SRE_EVALUATION_BUILD_ID` | `local` | `application.yml` | 构建/发布流水线 ID |
+| `XIAOU_SRE_EVALUATION_BUILD_VERSION` | `2.5.0` | `application.yml` | 应用构建版本 |
+
+已有环境必须在 Worker 关闭时，依次执行 `sre_rca_evaluation.sql`、
+`sre_rca_evaluation_suite.sql` 和 `sre_rca_evaluation_queue.sql`。suite 与 queue 脚本包含
+不可重复的 `ALTER TABLE`，不可重复执行。运行入队后会冻结最后三项 provenance；Worker 实际
+执行时若配置已变化，会以 `EVALUATION_RUNTIME_PROVENANCE_MISMATCH` 结束，防止结果被归到
+错误构建。队列关闭时创建运行返回业务码 `503`，不会写入待消费任务。
+
 ## OJ 判题
 
 | 变量 | 默认值 | 来源 | 说明 |
@@ -201,6 +225,12 @@ XIAOU_AI_EMBEDDING_MODEL=text-embedding-3-small
 # ---- RAG ----
 XIAOU_AI_RAG_ENABLED=true
 XIAOU_AI_RAG_ENDPOINT=http://llamaindex-service:18080
+
+# ---- SRE RCA evaluation (enable only after queue migration) ----
+XIAOU_SRE_EVALUATION_ENABLED=false
+XIAOU_SRE_EVALUATION_SOURCE_REVISION=your_git_commit_sha
+XIAOU_SRE_EVALUATION_BUILD_ID=your_ci_build_id
+XIAOU_SRE_EVALUATION_BUILD_VERSION=2.5.0
 
 # ---- JWT ----
 XIAOU_JWT_SECRET=your-jwt-secret-at-least-32-characters

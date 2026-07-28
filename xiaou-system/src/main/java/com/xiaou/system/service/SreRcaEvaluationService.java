@@ -41,7 +41,9 @@ public interface SreRcaEvaluationService {
 
     Optional<SreRcaEvaluationSuiteVersionDetail> getSuiteVersion(Long suiteVersionId);
 
-    SreRcaEvaluationRunDetail run(Long caseId, Long suiteVersionId, Long requestedBy);
+    SreRcaEvaluationRunSummary enqueue(Long caseId, Long suiteVersionId, Long requestedBy);
+
+    void executeClaimedRun(Long runId);
 
     List<SreRcaEvaluationRunSummary> listRuns(int limit);
 

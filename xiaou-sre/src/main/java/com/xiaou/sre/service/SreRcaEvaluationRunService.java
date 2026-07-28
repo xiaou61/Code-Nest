@@ -2,8 +2,10 @@ package com.xiaou.sre.service;
 
 import com.xiaou.sre.domain.SreRcaEvaluationResult;
 import com.xiaou.sre.domain.SreRcaEvaluationRun;
+import com.xiaou.sre.domain.SreRcaEvaluationRunCase;
 import com.xiaou.sre.dto.request.SreRcaEvaluationResultCapture;
 import com.xiaou.sre.dto.request.SreRcaEvaluationRunCompletion;
+import com.xiaou.sre.dto.request.SreRcaEvaluationRunProgress;
 import com.xiaou.sre.dto.request.SreRcaEvaluationRunStart;
 
 import java.math.BigDecimal;
@@ -19,6 +21,16 @@ public interface SreRcaEvaluationRunService {
 
     SreRcaEvaluationRun start(SreRcaEvaluationRunStart start);
 
+    List<Long> listClaimableIds(int limit);
+
+    SreRcaEvaluationRun claim(Long runId);
+
+    void heartbeat(SreRcaEvaluationRunProgress progress);
+
+    void recoverStaleRuns();
+
+    void retryOrFail(Long runId, String failureCode);
+
     SreRcaEvaluationResult record(SreRcaEvaluationResultCapture capture);
 
     void complete(SreRcaEvaluationRunCompletion completion);
@@ -30,4 +42,6 @@ public interface SreRcaEvaluationRunService {
     List<SreRcaEvaluationRun> listRecent(int limit);
 
     List<SreRcaEvaluationResult> listResults(Long runId);
+
+    List<SreRcaEvaluationRunCase> listRunCases(Long runId);
 }

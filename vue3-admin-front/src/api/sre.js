@@ -75,8 +75,7 @@ export const sreApi = {
   runRcaEvaluation(caseId, suiteVersionId) {
     return request.post(
       '/admin/sre/rca-evaluations/runs',
-      caseId != null ? { caseId } : (suiteVersionId != null ? { suiteVersionId } : {}),
-      { timeout: 1800000 }
+      caseId != null ? { caseId } : (suiteVersionId != null ? { suiteVersionId } : {})
     )
   },
 

@@ -485,7 +485,8 @@
                             :type="runStatusTone(latestEvaluationRun.status)"
                             size="sm"
                           >
-                            最近 {{ evaluationScoreText(latestEvaluationRun.averageScore) }} 分
+                            最近 {{ runStatusLabel(latestEvaluationRun.status) }} ·
+                            {{ latestEvaluationRun.completedCount }}/{{ latestEvaluationRun.caseCount }} 完成
                           </CnStatusTag>
                         </div>
                       </div>
@@ -509,7 +510,9 @@
                           type="primary"
                           plain
                           :icon="VideoPlay"
-                          :loading="evaluationRunLoading && evaluationRunningCaseId === null"
+                          :loading="evaluationRunLoading
+                            && evaluationRunningCaseId === null
+                            && evaluationRunningSuiteVersionId === null"
                           :disabled="!evaluationCases.length || evaluationRunLoading || evaluationPromoting"
                           @click="runRcaEvaluation()"
                         >
@@ -741,6 +744,18 @@
                                 <dd>{{ displayedEvaluationRun.provider || '-' }} / {{ displayedEvaluationRun.configuredModel || '-' }}</dd>
                               </div>
                               <div>
+                                <dt>源码 / 构建</dt>
+                                <dd><code>{{ displayedEvaluationRun.sourceRevision || '-' }}</code> / {{ displayedEvaluationRun.buildId || '-' }} / {{ displayedEvaluationRun.buildVersion || '-' }}</dd>
+                              </div>
+                              <div>
+                                <dt>预算 / 尝试</dt>
+                                <dd>{{ displayedEvaluationRun.maxDurationSeconds || 0 }} 秒 / {{ displayedEvaluationRun.attempts || 0 }} 次</dd>
+                              </div>
+                              <div>
+                                <dt>排队 / 截止</dt>
+                                <dd>{{ formatTime(displayedEvaluationRun.queuedAt) }} / {{ formatTime(displayedEvaluationRun.deadlineAt) }}</dd>
+                              </div>
+                              <div>
                                 <dt>运行时间</dt>
                                 <dd>{{ formatTime(displayedEvaluationRun.startedAt) }} - {{ formatTime(displayedEvaluationRun.completedAt) }}</dd>
                               </div>
@@ -885,7 +900,9 @@
                           <CnEmptyState
                             v-else-if="!evaluationDetailLoading"
                             title="暂无逐用例结果"
-                            description="该运行尚未写入评测结果。"
+                            :description="isEvaluationRunActive(displayedEvaluationRun?.status)
+                              ? '运行已入队，结果会在执行过程中自动刷新。'
+                              : '该运行尚未写入评测结果。'"
                             icon="EV"
                             size="sm"
                             surface="transparent"
@@ -1334,6 +1351,15 @@ interface RcaEvaluationRunSummary {
   provider?: string
   configuredModel?: string
   failureCode?: string
+  attempts: number
+  maxDurationSeconds: number
+  sourceRevision?: string
+  buildId?: string
+  buildVersion?: string
+  queuedAt?: string
+  claimedAt?: string
+  heartbeatAt?: string
+  deadlineAt?: string
   startedAt?: string
   completedAt?: string
 }
@@ -1517,6 +1543,7 @@ const evaluationPromoting = ref(false)
 const evaluationRunLoading = ref(false)
 const evaluationRunningCaseId = ref<number | null>(null)
 const evaluationRunningSuiteVersionId = ref<number | null>(null)
+const evaluationActiveRunId = ref<number | null>(null)
 const evaluationSuiteLoading = ref(false)
 const evaluationSuiteDialogVisible = ref(false)
 const evaluationSuitePublishing = ref(false)
@@ -1536,6 +1563,8 @@ const actionLoading = ref<'ack' | 'resolve' | ''>('')
 let investigationRequestVersion = 0
 let rcaRequestVersion = 0
 let evaluationRequestVersion = 0
+let evaluationPollVersion = 0
+let evaluationPollTimer: ReturnType<typeof setTimeout> | null = null
 
 const refreshing = computed(() => summaryLoading.value || listLoading.value)
 const headerDescription = computed(() => `最近观测：${formatTime(summary.value.lastObservedAt)}`)
@@ -1673,6 +1702,7 @@ const changePageSize = (size: number) => {
 }
 
 const openIncident = async (incident: Incident) => {
+  stopEvaluationRunPolling()
   investigationRequestVersion += 1
   rcaRequestVersion += 1
   evaluationRequestVersion += 1
@@ -1693,6 +1723,9 @@ const openIncident = async (incident: Incident) => {
   selectedEvaluationRunId.value = null
   evaluationRunDetail.value = null
   expandedEvaluationResultIds.value = []
+  evaluationRunLoading.value = false
+  evaluationRunningCaseId.value = null
+  evaluationRunningSuiteVersionId.value = null
   activeEvaluationTab.value = 'cases'
   activeDetailTab.value = 'overview'
   expandedEvidenceIds.value = []
@@ -1870,6 +1903,104 @@ const exportRcaEvaluationSample = async () => {
   }
 }
 
+const EVALUATION_TERMINAL_STATUSES = new Set(['SUCCEEDED', 'DEGRADED', 'FAILED'])
+
+const normalizeEvaluationRunDetail = (
+  response: RcaEvaluationRunDetail | null
+): RcaEvaluationRunDetail | null => response
+  ? {
+      ...response,
+      results: Array.isArray(response.results) ? response.results.map((item) => ({
+        ...item,
+        explanations: Array.isArray(item.explanations) ? item.explanations : []
+      })) : []
+    }
+  : null
+
+const upsertEvaluationRun = (run: RcaEvaluationRunSummary) => {
+  const index = evaluationRuns.value.findIndex((item) => item.id === run.id)
+  if (index >= 0) {
+    evaluationRuns.value[index] = run
+  } else {
+    evaluationRuns.value = [run, ...evaluationRuns.value].slice(0, 20)
+  }
+}
+
+const isEvaluationRunActive = (status?: string) => (
+  ['QUEUED', 'RUNNING'].includes(String(status || '').toUpperCase())
+)
+
+const stopEvaluationRunPolling = () => {
+  evaluationPollVersion += 1
+  if (evaluationPollTimer != null) clearTimeout(evaluationPollTimer)
+  evaluationPollTimer = null
+  evaluationActiveRunId.value = null
+}
+
+const completeEvaluationRunPolling = (run: RcaEvaluationRunSummary) => {
+  evaluationPollTimer = null
+  evaluationActiveRunId.value = null
+  evaluationRunLoading.value = false
+  evaluationRunningCaseId.value = null
+  evaluationRunningSuiteVersionId.value = null
+  const status = String(run.status || '').toUpperCase()
+  const gateLabel = gateStatusLabel(run.gateStatus)
+  if (status === 'SUCCEEDED') {
+    liveStatus.value = `RCA 离线评测已完成，平均 ${evaluationScoreText(run.averageScore)} 分，${gateLabel}`
+    ElMessage.success(run.suiteVersionId == null ? 'RCA 离线评测已完成' : `质量门禁${gateLabel}`)
+  } else if (status === 'DEGRADED') {
+    liveStatus.value = `RCA 离线评测已降级完成，${gateLabel}`
+    ElMessage.warning(`RCA 离线评测已降级，${gateLabel}`)
+  } else {
+    liveStatus.value = `RCA 离线评测失败，失败码 ${run.failureCode || 'UNKNOWN'}`
+    ElMessage.error('RCA 离线评测失败')
+  }
+}
+
+const startEvaluationRunPolling = (
+  runId: number,
+  incidentId: number
+) => {
+  stopEvaluationRunPolling()
+  const pollVersion = ++evaluationPollVersion
+  evaluationActiveRunId.value = runId
+
+  const poll = async () => {
+    try {
+      const response = await sreApi.getRcaEvaluationRun(runId) as RcaEvaluationRunDetail | null
+      if (pollVersion !== evaluationPollVersion
+        || !drawerVisible.value || !isCurrentIncident(incidentId)) return
+      const detail = normalizeEvaluationRunDetail(response)
+      if (!detail?.run) throw new Error('RCA evaluation run detail is unavailable')
+      upsertEvaluationRun(detail.run)
+      if (selectedEvaluationRunId.value === runId) {
+        evaluationRunDetail.value = detail
+        if (!expandedEvaluationResultIds.value.length && detail.results[0]?.id) {
+          expandedEvaluationResultIds.value = [detail.results[0].id]
+        }
+      }
+      if (EVALUATION_TERMINAL_STATUSES.has(String(detail.run.status || '').toUpperCase())) {
+        completeEvaluationRunPolling(detail.run)
+        return
+      }
+      liveStatus.value = detail.run.status === 'RUNNING'
+        ? `RCA 离线评测执行中，已完成 ${detail.run.completedCount}/${detail.run.caseCount}`
+        : 'RCA 离线评测正在排队'
+    } catch (error) {
+      if (pollVersion !== evaluationPollVersion
+        || !drawerVisible.value || !isCurrentIncident(incidentId)) return
+      console.error('轮询 SRE RCA 评测运行失败:', error)
+      liveStatus.value = 'RCA 离线评测状态刷新失败，正在重试'
+    }
+    if (pollVersion === evaluationPollVersion
+      && drawerVisible.value && isCurrentIncident(incidentId)) {
+      evaluationPollTimer = setTimeout(poll, 2000)
+    }
+  }
+
+  evaluationPollTimer = setTimeout(poll, 2000)
+}
+
 const loadRcaEvaluationRun = async (
   runId: number,
   manageLoading = true,
@@ -1880,18 +2011,12 @@ const loadRcaEvaluationRun = async (
   try {
     const response = await sreApi.getRcaEvaluationRun(runId) as RcaEvaluationRunDetail | null
     if (requestVersion !== evaluationRequestVersion || !drawerVisible.value) return
-    const detail = response
-      ? { ...response, results: Array.isArray(response.results) ? response.results.map((item) => ({
-          ...item,
-          explanations: Array.isArray(item.explanations) ? item.explanations : []
-        })) : [] }
-      : null
+    const detail = normalizeEvaluationRunDetail(response)
     evaluationRunDetail.value = detail
     selectedEvaluationRunId.value = runId
     expandedEvaluationResultIds.value = detail?.results[0]?.id ? [detail.results[0].id] : []
     if (detail?.run) {
-      const index = evaluationRuns.value.findIndex((run) => run.id === detail.run.id)
-      if (index >= 0) evaluationRuns.value[index] = detail.run
+      upsertEvaluationRun(detail.run)
     }
   } catch (error) {
     console.error('加载 SRE RCA 评测详情失败:', error)
@@ -2113,34 +2238,29 @@ const runRcaEvaluation = async (caseId?: number, suiteVersionId?: number) => {
   evaluationRunLoading.value = true
   evaluationRunningCaseId.value = caseId ?? null
   evaluationRunningSuiteVersionId.value = suiteVersionId ?? null
-  liveStatus.value = `正在回放${targetLabel}`
+  liveStatus.value = `正在提交${targetLabel}`
+  let pollingStarted = false
   try {
-    const response = await sreApi.runRcaEvaluation(caseId, suiteVersionId) as RcaEvaluationRunDetail | null
+    const response = await sreApi.runRcaEvaluation(caseId, suiteVersionId) as RcaEvaluationRunSummary | null
     if (requestVersion !== evaluationRequestVersion
-      || !isCurrentIncident(incidentId) || !response?.run) return
+      || !isCurrentIncident(incidentId) || !response?.id) return
+    upsertEvaluationRun(response)
     evaluationRunDetail.value = {
-      ...response,
-      results: Array.isArray(response.results) ? response.results.map((item) => ({
-        ...item,
-        explanations: Array.isArray(item.explanations) ? item.explanations : []
-      })) : []
+      run: response,
+      results: []
     }
-    selectedEvaluationRunId.value = response.run.id
-    expandedEvaluationResultIds.value = evaluationRunDetail.value.results[0]?.id
-      ? [evaluationRunDetail.value.results[0].id]
-      : []
+    selectedEvaluationRunId.value = response.id
+    expandedEvaluationResultIds.value = []
     activeEvaluationTab.value = 'history'
-    const runResponse = await sreApi.getRcaEvaluationRuns(20) as RcaEvaluationRunSummary[] | null
-    if (requestVersion !== evaluationRequestVersion || !isCurrentIncident(incidentId)) return
-    evaluationRuns.value = Array.isArray(runResponse) ? runResponse : [response.run]
-    const gateLabel = gateStatusLabel(response.run.gateStatus)
-    liveStatus.value = `RCA 离线评测完成，平均 ${evaluationScoreText(response.run.averageScore)} 分，${gateLabel}`
-    ElMessage.success(suiteVersionId == null ? 'RCA 离线评测已完成' : `质量门禁${gateLabel}`)
+    liveStatus.value = `RCA 离线评测已入队，共 ${response.caseCount} 个用例`
+    ElMessage.success('RCA 离线评测已进入队列')
+    startEvaluationRunPolling(response.id, incidentId)
+    pollingStarted = true
   } catch (error) {
-    console.error('执行 SRE RCA 离线评测失败:', error)
-    liveStatus.value = 'RCA 离线评测失败'
+    console.error('提交 SRE RCA 离线评测失败:', error)
+    liveStatus.value = 'RCA 离线评测提交失败'
   } finally {
-    if (requestVersion === evaluationRequestVersion) {
+    if (!pollingStarted && requestVersion === evaluationRequestVersion) {
       evaluationRunLoading.value = false
       evaluationRunningCaseId.value = null
       evaluationRunningSuiteVersionId.value = null
@@ -2220,6 +2340,7 @@ const generateRca = async () => {
 }
 
 const resetDrawer = () => {
+  stopEvaluationRunPolling()
   investigationRequestVersion += 1
   rcaRequestVersion += 1
   evaluationRequestVersion += 1
@@ -2312,6 +2433,7 @@ const conclusionLabel = (value?: string) => ({
 }[String(value || '').toUpperCase()] || value || '-')
 
 const runStatusTone = (value?: string): CnTone => ({
+  QUEUED: 'neutral',
   RUNNING: 'info',
   SUCCEEDED: 'success',
   DEGRADED: 'warning',
@@ -2320,6 +2442,7 @@ const runStatusTone = (value?: string): CnTone => ({
 }[String(value || '').toUpperCase()] as CnTone || 'neutral')
 
 const runStatusLabel = (value?: string) => ({
+  QUEUED: '排队中',
   RUNNING: '进行中',
   SUCCEEDED: '已完成',
   DEGRADED: '已降级',
@@ -2391,7 +2514,7 @@ const runHistoryLabel = (run: RcaRunSummary) => {
 }
 
 const evaluationRunLabel = (run: RcaEvaluationRunSummary) => (
-  `${formatTime(run.startedAt)} · ${evaluationScoreText(run.averageScore)} 分 · ${run.passedCount}/${run.caseCount} 通过 · ${gateStatusLabel(run.gateStatus)}`
+  `${formatTime(run.queuedAt || run.startedAt)} · ${runStatusLabel(run.status)} · ${run.completedCount}/${run.caseCount} 完成 · ${gateStatusLabel(run.gateStatus)}`
 )
 
 const evaluationScoreText = (value?: number | string | null) => {
@@ -2458,6 +2581,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  stopEvaluationRunPolling()
   window.removeEventListener('resize', syncViewportWidth)
 })
 </script>

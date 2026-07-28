@@ -139,18 +139,32 @@ rule_files:
 不回显上下文正文。管理员可对每次运行评价准确度、标记主要缺口并填写期望结论；每次修改
 追加审计修订，可下载不含原始输入、备注和管理员身份的评测样本。
 
+评测工作台的运行请求只负责入队并返回 HTTP `202`，模型不会占用请求线程。管理端每 2 秒
+轮询一次运行详情，展示 `QUEUED / RUNNING` 进度以及最终的
+`SUCCEEDED / DEGRADED / FAILED`。Worker 使用数据库原子领取、用例级心跳、租约恢复、指数
+退避、最大尝试次数和绝对 deadline；重试会复用已有结果并跳过已完成用例。入队时还会冻结
+有序成员、Prompt/Schema、源码修订、构建 ID 和构建版本，执行环境不一致时以固定失败码终止。
+同一管理员最多有一个活动运行。
+
 后端边界分为两部分：`xiaou-sre` 负责告警、事故、证据与调查记录，`xiaou-system` 复用统一
 AI Runtime 生成并校验结构化报告。AI 不进入 QQ 邮件告警热路径，也不能执行 Shell、Docker、
 任意 PromQL/LogQL 或修复动作。
 
 数据库准备顺序：
 
-1. 新环境直接使用包含 9 张 SRE 表的 `sql/MySql/code_nest.sql`。
+1. 新环境直接使用包含 16 张 SRE 表的 `sql/MySql/code_nest.sql`。
 2. 已有环境先执行 `sql/v2.5.0/sre_incident.sql`，已有四张早期 SRE 表时可改用
    `sre_incident_evidence.sql`。
 3. 部署带 RCA 历史、反馈和回放来源的后端前，再执行
    `sql/v2.5.0/sre_investigation_run.sql`；已执行过早期版本的环境需再次执行该幂等脚本，
    以创建反馈表和 `sre_investigation_artifact`。
+4. 保持 `XIAOU_SRE_EVALUATION_ENABLED=false`，依次执行
+   `sql/v2.5.0/sre_rca_evaluation.sql`、`sre_rca_evaluation_suite.sql` 和
+   `sre_rca_evaluation_queue.sql`。后两个脚本包含不可重复的 `ALTER TABLE`，只能按顺序各执行
+   一次；queue 脚本会把无法建立可信租约的旧 `RUNNING` 记录标记为失败。
+5. 配置 `XIAOU_SRE_EVALUATION_SOURCE_REVISION`、`XIAOU_SRE_EVALUATION_BUILD_ID` 和
+   `XIAOU_SRE_EVALUATION_BUILD_VERSION`，确认迁移成功后再开启评测 Worker。未开启时创建运行
+   返回业务码 `503`，不会遗留无人消费的任务。
 
 完整监控栈和私网 Webhook 配置见 `docker/monitoring/README.md`。
 

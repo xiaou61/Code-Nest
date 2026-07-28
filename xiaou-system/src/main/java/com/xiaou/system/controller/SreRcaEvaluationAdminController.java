@@ -20,6 +20,8 @@ import com.xiaou.system.service.SreRcaEvaluationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -116,12 +118,13 @@ public class SreRcaEvaluationAdminController {
     @RequireAdmin(message = "执行 SRE RCA 离线评测需要管理员权限")
     @Log(module = "SRE RCA 评测", type = Log.OperationType.OTHER, description = "手动执行 RCA 离线评测",
             saveRequestData = false, saveResponseData = false)
-    public Result<SreRcaEvaluationRunDetail> run(
+    public ResponseEntity<Result<SreRcaEvaluationRunSummary>> run(
             @Valid @RequestBody(required = false) SreRcaEvaluationRunRequest request) {
         Long caseId = request == null ? null : request.caseId();
         Long suiteVersionId = request == null ? null : request.suiteVersionId();
-        return Result.success(evaluationService.run(
-                caseId, suiteVersionId, StpAdminUtil.getLoginIdAsLong()));
+        SreRcaEvaluationRunSummary queued = evaluationService.enqueue(
+                caseId, suiteVersionId, StpAdminUtil.getLoginIdAsLong());
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(Result.success(queued));
     }
 
     @GetMapping("/rca-evaluations/runs")

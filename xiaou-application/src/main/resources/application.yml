@@ -248,6 +248,22 @@ xiaou:
       lease-seconds: ${XIAOU_SRE_OUTBOX_LEASE_SECONDS:120}
       retry-backoff-seconds: ${XIAOU_SRE_OUTBOX_RETRY_BACKOFF_SECONDS:10}
       max-retry-backoff-seconds: ${XIAOU_SRE_OUTBOX_MAX_RETRY_BACKOFF_SECONDS:900}
+    evaluation:
+      # Apply sre_rca_evaluation_queue.sql before enabling the database-backed worker.
+      enabled: ${XIAOU_SRE_EVALUATION_ENABLED:false}
+      fixed-delay-ms: ${XIAOU_SRE_EVALUATION_FIXED_DELAY_MS:2000}
+      initial-delay-ms: ${XIAOU_SRE_EVALUATION_INITIAL_DELAY_MS:10000}
+      batch-size: ${XIAOU_SRE_EVALUATION_BATCH_SIZE:2}
+      max-attempts: ${XIAOU_SRE_EVALUATION_MAX_ATTEMPTS:3}
+      # Keep the lease above the 60-second AI read timeout.
+      lease-seconds: ${XIAOU_SRE_EVALUATION_LEASE_SECONDS:180}
+      max-duration-seconds: ${XIAOU_SRE_EVALUATION_MAX_DURATION_SECONDS:1800}
+      max-cases-per-run: ${XIAOU_SRE_EVALUATION_MAX_CASES_PER_RUN:100}
+      retry-backoff-seconds: ${XIAOU_SRE_EVALUATION_RETRY_BACKOFF_SECONDS:10}
+      max-retry-backoff-seconds: ${XIAOU_SRE_EVALUATION_MAX_RETRY_BACKOFF_SECONDS:300}
+      source-revision: ${XIAOU_SRE_EVALUATION_SOURCE_REVISION:unknown}
+      build-id: ${XIAOU_SRE_EVALUATION_BUILD_ID:local}
+      build-version: ${XIAOU_SRE_EVALUATION_BUILD_VERSION:2.5.0}
     prometheus:
       # 默认关闭；开启前确认 Prometheus 只允许本机/监控网络访问。
       enabled: ${XIAOU_SRE_PROMETHEUS_ENABLED:false}
@@ -312,4 +328,3 @@ oj:
     default-time-limit: 2000
     # 默认内存限制 (MB)
     default-memory-limit: 256
-

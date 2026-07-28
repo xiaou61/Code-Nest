@@ -25,6 +25,10 @@ const evaluationSuiteMigrationSource = readFileSync(
   resolve(repositoryRoot, 'sql/v2.5.0/sre_rca_evaluation_suite.sql'),
   'utf8'
 )
+const evaluationQueueMigrationSource = readFileSync(
+  resolve(repositoryRoot, 'sql/v2.5.0/sre_rca_evaluation_queue.sql'),
+  'utf8'
+)
 
 test('SRE API client should expose the complete administrator incident workflow', () => {
   assert.match(apiSource, /request\.get\('\/admin\/sre\/incidents\/summary'\)/)
@@ -51,7 +55,7 @@ test('SRE API client should expose the complete administrator incident workflow'
   assert.match(apiSource, /`\/admin\/sre\/rca-evaluations\/runs\/\$\{runId\}\/gate`/)
   assert.match(apiSource, /caseId != null \? \{ caseId \} : \(suiteVersionId != null \? \{ suiteVersionId \} : \{\}\)/)
   assert.match(apiSource, /timeout:\s*180000\b/)
-  assert.match(apiSource, /timeout:\s*1800000\b/)
+  assert.doesNotMatch(apiSource, /timeout:\s*1800000\b/)
 })
 
 test('SRE workbench should be reachable from both router and sidebar', () => {
@@ -101,6 +105,11 @@ test('SRE workbench should keep incident actions, evidence and AI output inspect
   assert.match(workbenchSource, /rcaRequestVersion/)
   assert.match(workbenchSource, /const requestVersion = \+\+evaluationRequestVersion/)
   assert.match(workbenchSource, /requestVersion !== evaluationRequestVersion\s*\|\| !isCurrentIncident\(incidentId\)/)
+  assert.match(workbenchSource, /evaluationPollVersion/)
+  assert.match(workbenchSource, /startEvaluationRunPolling/)
+  assert.match(workbenchSource, /setTimeout\([^,]+,\s*2000\)/s)
+  assert.match(workbenchSource, /stopEvaluationRunPolling/)
+  assert.match(workbenchSource, /sourceRevision/)
   assert.match(workbenchSource, /if \(value == null \|\| value === ''\) return '-'/)
   assert.match(workbenchSource, /aria-live="polite"/)
   assert.doesNotMatch(workbenchSource, /v-html/)
@@ -189,4 +198,11 @@ test('immutable RCA evaluation tables should be present in fresh and incremental
   assert.match(databaseBaselineSource, /`suite_manifest_sha256` CHAR\(64\)/)
   assert.match(databaseBaselineSource, /`gate_detail_json` TEXT/)
   assert.match(monitoringReadmeSource, /sql\/v2\.5\.0\/sre_rca_evaluation_suite\.sql/)
+
+  assert.ok(databaseBaselineSource.includes('CREATE TABLE IF NOT EXISTS `sre_rca_evaluation_run_case`'))
+  assert.ok(evaluationQueueMigrationSource.includes('CREATE TABLE IF NOT EXISTS `sre_rca_evaluation_run_case`'))
+  assert.match(evaluationQueueMigrationSource, /UNIQUE KEY `uk_sre_rca_eval_run_active_admin`/)
+  assert.match(evaluationQueueMigrationSource, /ADD COLUMN `deadline_at` DATETIME/)
+  assert.match(evaluationQueueMigrationSource, /ADD COLUMN `source_revision` VARCHAR\(64\)/)
+  assert.match(monitoringReadmeSource, /sql\/v2\.5\.0\/sre_rca_evaluation_queue\.sql/)
 })

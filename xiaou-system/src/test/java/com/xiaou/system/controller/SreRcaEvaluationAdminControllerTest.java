@@ -5,8 +5,8 @@ import com.xiaou.common.annotation.RequireAdmin;
 import com.xiaou.common.satoken.StpAdminUtil;
 import com.xiaou.system.dto.SreRcaEvaluationCaseSummary;
 import com.xiaou.system.dto.SreRcaEvaluationPromotionRequest;
-import com.xiaou.system.dto.SreRcaEvaluationRunDetail;
 import com.xiaou.system.dto.SreRcaEvaluationRunRequest;
+import com.xiaou.system.dto.SreRcaEvaluationRunSummary;
 import com.xiaou.system.dto.SreRcaEvaluationSuiteCreateRequest;
 import com.xiaou.system.dto.SreRcaEvaluationSuiteVersionPublishRequest;
 import com.xiaou.system.service.SreRcaEvaluationService;
@@ -16,6 +16,7 @@ import org.mockito.MockedStatic;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.http.HttpStatus;
 
 import java.lang.reflect.Method;
 import java.util.Optional;
@@ -72,19 +73,22 @@ class SreRcaEvaluationAdminControllerTest {
         SreRcaEvaluationService service = mock(SreRcaEvaluationService.class);
         SreRcaEvaluationAdminController controller = new SreRcaEvaluationAdminController(service);
         SreRcaEvaluationCaseSummary summary = mock(SreRcaEvaluationCaseSummary.class);
-        SreRcaEvaluationRunDetail detail = mock(SreRcaEvaluationRunDetail.class);
+        SreRcaEvaluationRunSummary queued = mock(SreRcaEvaluationRunSummary.class);
         when(service.promote(11L, 91L, 101L, 7L)).thenReturn(Optional.of(summary));
-        when(service.run(301L, null, 7L)).thenReturn(detail);
+        when(service.enqueue(301L, null, 7L)).thenReturn(queued);
 
         try (MockedStatic<StpAdminUtil> stpAdminUtil = mockStatic(StpAdminUtil.class)) {
             stpAdminUtil.when(StpAdminUtil::getLoginIdAsLong).thenReturn(7L);
 
             assertThat(controller.promote(
                     11L, 91L, new SreRcaEvaluationPromotionRequest(101L)).getData()).isSameAs(summary);
-            assertThat(controller.run(new SreRcaEvaluationRunRequest(301L)).getData()).isSameAs(detail);
+            var response = controller.run(new SreRcaEvaluationRunRequest(301L));
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+            assertThat(response.getBody()).isNotNull();
+            assertThat(response.getBody().getData()).isSameAs(queued);
         }
 
         verify(service).promote(11L, 91L, 101L, 7L);
-        verify(service).run(301L, null, 7L);
+        verify(service).enqueue(301L, null, 7L);
     }
 }

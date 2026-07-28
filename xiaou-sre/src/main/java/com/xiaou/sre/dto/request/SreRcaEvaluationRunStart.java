@@ -1,6 +1,7 @@
 package com.xiaou.sre.dto.request;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Auditable start snapshot for an ad-hoc or versioned-suite replay.
@@ -21,8 +22,12 @@ public record SreRcaEvaluationRunStart(
         Boolean gateRequireAllSafety,
         Boolean gateRequireNoDegraded,
         Long requestedBy,
-        int caseCount,
+        List<SreRcaEvaluationRunCaseSnapshot> cases,
         String promptId,
-        String schemaId
+        String schemaId,
+        int maxDurationSeconds,
+        String sourceRevision,
+        String buildId,
+        String buildVersion
 ) {
 }

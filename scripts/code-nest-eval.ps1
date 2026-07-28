@@ -54,11 +54,13 @@ $sreRegressionTests = @(
     "SreRcaEvaluationCaseServiceImplTest",
     "SreRcaEvaluationSuiteServiceImplTest",
     "SreRcaEvaluationRunServiceImplTest",
+    "SreRcaEvaluationQueueServiceImplTest",
     "SreRcaEvaluationScorerTest",
     "SreRcaEvaluationGateEvaluatorTest",
     "SreRcaEvaluationSuiteGateTest",
     "SreRcaEvaluationServiceImplTest",
-    "SreRcaEvaluationAdminControllerTest"
+    "SreRcaEvaluationAdminControllerTest",
+    "SreRcaEvaluationWorkerTest"
 )
 
 $frontendTests = @(

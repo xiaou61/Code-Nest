@@ -2,7 +2,7 @@
 
 > 文档类型：技术架构设计
 >
-> 版本：v1.5（P3.5 版本化评测套件与确定性质量门禁已落地）
+> 版本：v1.6（RCA 评测队列治理与源码/构建 provenance 已落地）
 >
 > 日期：2026-07-28
 >
@@ -38,7 +38,7 @@
 - P1 的日志、MySQL、Redis、异地探针扩展点。
 - P2 的告警入库、事故聚合、证据时间线和后台管理接口。
 - P3 的只读 AI RCA、工具权限和证据引用。
-- P3.5 的人工审核评测用例、版本化套件、手动回放、透明评分和确定性 CI 门禁。
+- P3.5 的人工审核评测用例、版本化套件、异步手动回放、透明评分、确定性 CI 门禁与运行治理。
 - P4 自动修复的安全准入边界。
 
 ### 2.2 明确不做
@@ -58,7 +58,7 @@
 | 根 `pom.xml` | Java 17、多模块 Maven 聚合 | 新 SRE 模块应加入根聚合，不另建独立后端仓库。 |
 | `xiaou-application` | Spring Boot 启动模块，端口 `9999`，context path `/api` | 业务模块和未来 `xiaou-sre` 由它统一装配。 |
 | `xiaou-common` | Web、MyBatis、Druid、Redis、Sa-Token、Actuator、Micrometer | SRE 使用公共能力，但不把事故领域模型放进 common。 |
-| `xiaou-system` | 管理员、系统配置和现有 Admin Agent | P3 已放置薄的 RCA/离线评测编排服务和 AgentTool，`xiaou-sre` 不反向依赖 system。 |
+| `xiaou-system` | 管理员、系统配置和现有 Admin Agent | P3 已放置薄的 RCA/离线评测编排服务、数据库 Worker 和 AgentTool，`xiaou-sre` 不反向依赖 system。 |
 | `xiaou-ai` | LangChain4j/LangGraph4j 和统一 AI facade | P0 不依赖；P3 复用统一 Prompt、结构化输出、超时、重试和成本指标。 |
 | `xiaou-notification` | 业务通知模块 | 不替代 Alertmanager 的 critical 邮件链；P2 可用于站内事件提醒。 |
 | `vue3-admin-front` | Vue 3 管理端，路由和 API 目录按模块组织 | P2 新增 SRE 菜单、页面和 API，不开新前端应用。 |
@@ -407,6 +407,9 @@ GET  /api/admin/sre/rca-evaluations/runs/{evaluationRunId}/gate
 所有接口要求管理员权限。提升和回放接口不保存请求/响应正文审计；请求只能指定反馈修订 ID
 、用例 ID、套件元数据、成员 case ID、门槛或套件版本 ID，不能提交模型上下文、基准报告、
 Prompt、模型或任意查询参数。所有响应 DTO 都不返回冻结上下文或基准报告 JSON。
+`POST /rca-evaluations/runs` 只在数据库中冻结成员并入队，成功返回 HTTP `202` 和 `QUEUED`
+摘要，不在请求线程调用模型。队列未启用和同管理员已有活动运行分别返回统一响应体业务码
+`503`、`409`；运行详情用于轮询进度与终态。
 
 #### 未来只读查询接口
 
@@ -465,7 +468,8 @@ SreOutboxWorker (bounded executor)
 | `SreActionExecution` | `proposalId`、`approvalId`、`executor`、`result`、`auditTrail` | 一个提案可多次尝试但每次有 executionId | P4 才启用。 |
 | `SreOutboxEvent` | `aggregateType`、`aggregateId`、`eventType`、`payload`、`state`、`nextAttemptAt` | `eventId` 唯一 | 异步证据采集和通知任务。 |
 | `SreRcaEvaluationCase` | 来源 run/artifact/feedback、上下文哈希、基准报告、期望结论、来源模型 | `sourceFeedbackId` 唯一 | 只允许管理员显式冻结，API 不返回上下文或基准报告正文。 |
-| `SreRcaEvaluationRun` | 请求用例、状态、完成/通过/失败数、平均分、Prompt/Schema/模型 | 每次手动触发一条 | 不由定时任务创建，不自动切换模型。 |
+| `SreRcaEvaluationRun` | 状态、进度、租约、deadline、Prompt/Schema、源码修订、构建标识、模型 | 活动期 `activeAdminId` 唯一 | 管理员显式创建，Worker 异步执行；不自动切换模型。 |
+| `SreRcaEvaluationRunCase` | run、case、有序序号、case 内容指纹 | `(run, case)` 与 `(run, ordinal)` 唯一 | 入队时冻结运行成员，重试不重新选择用例。 |
 | `SreRcaEvaluationResult` | run、case、候选报告、调用结果、四项分数、总分、失败码 | `(evaluationRunId, caseId)` 唯一 | 保存可复核逐用例结果，不保存异常正文。 |
 
 ### 7.2 状态机
@@ -487,6 +491,17 @@ OPEN -> ACKNOWLEDGED -> INVESTIGATING -> MITIGATED -> RESOLVED -> CLOSED
   +----------+---------------+
         允许人工备注和重新打开
 ```
+
+评测运行状态：
+
+```text
+QUEUED -> RUNNING -> SUCCEEDED
+              |----> DEGRADED
+              |----> FAILED
+```
+
+租约过期且仍有尝试预算时回到 `QUEUED`；超过绝对 deadline 或最大尝试次数直接进入
+`FAILED`。所有终态都会释放 `activeAdminId`。
 
 动作提案状态：
 
@@ -783,6 +798,16 @@ Docker、任意 PromQL/LogQL 或数据库写操作。
 23. 合成 `sre-rca-core:1.0.0` 固定套件和 `code-nest-eval.ps1 -Tier sre` 不访问生产数据库、
     不调用在线模型；GitHub CI 将其作为独立必需作业，锁定脱敏、Prompt/Schema、哈希、评分、
     fallback、安全和聚合门槛。
+24. 评测运行改为数据库队列：POST 事务内创建 `QUEUED` 运行和冻结成员后立即返回 HTTP `202`，
+    `xiaou-system` Worker 再原子领取执行，模型延迟不再占用管理接口请求线程。
+25. 新增 `sre_rca_evaluation_run_case`，临时全量、单 case 和套件回放都冻结有序成员与内容
+    SHA-256；Worker 重试时读取既有结果，只执行尚未完成的成员。
+26. 运行冻结 Prompt ID、Schema ID、source revision、build ID 和 build version。领取后再次
+    对照当前运行时 provenance，跨部署或配置漂移以固定失败码终止，结果不会错误归因。
+27. 数据库 claim、用例级 heartbeat、租约恢复、指数退避、最大尝试次数、绝对 deadline 和
+    最大运行时长已经落地；同一管理员通过 nullable 唯一键最多保留一个活动运行。
+28. 管理端独立轮询评测状态并显示排队、进度、deadline、attempts 和构建来源；切换事故、
+    关闭抽屉或组件卸载会取消旧轮询，避免过期响应覆盖当前页面。
 
 相对初稿的调整：不再为模型提供直接的 PromQL/Loki 查询工具。P2 采集器使用固定查询白名单
 生成可审计快照，P3 只分析这些已入库证据。发布记录和 Runbook 证据可以后续通过同一 facade
@@ -792,8 +817,8 @@ Docker、任意 PromQL/LogQL 或数据库写操作。
 标记；接口、AgentTool、权限种子、统一入口、提示词注入、脱敏、非法证据、降级路径、
 报告恢复、调查轨迹、反馈组合校验、artifact 跨事故归属、上下文大小与凭据拒绝、详情不回显
 输入、不可变用例、版本化套件、manifest 漂移拒绝、手动回放、透明评分、聚合门禁、fallback
-降级以及脱敏样本边界均有测试。该完成标准不包含真实模型 CI、代码提交 provenance 或
-CloudOpsBench 同等规模覆盖。
+降级、冻结运行成员、队列领取/恢复、运行 deadline、源码/构建 provenance 以及脱敏样本边界
+均有测试。该完成标准不包含真实模型受控 CI 或 CloudOpsBench 同等规模覆盖。
 
 ### P4：受控动作
 
@@ -810,7 +835,7 @@ CloudOpsBench 同等规模覆盖。
 | 邮件 | Alertmanager 直连 QQ SMTP | Java 中转邮件 | 缩短 critical 路径，避免业务服务故障影响通知。 |
 | P2 异步 | MySQL transactional outbox + 有界线程池 | Kafka/RabbitMQ | 单机规模优先降低运维面，保留以后替换点。 |
 | AI 位置 | 告警后只读调查 | AI 放在告警热路径 | 模型不稳定、成本和安全风险不能影响告警。 |
-| 离线评测 | 管理员审核用例 + 版本化套件 + 手动回放 + 确定性 CI 门禁 | 定时扫描生产事故、模型 judge、自动发布 | 控制成本与数据边界，成员和策略可追溯，评分可复核且不改变线上状态。 |
+| 离线评测 | 管理员审核用例 + 版本化套件 + 数据库异步回放 + 确定性 CI 门禁 | 请求线程长调用、定时扫描生产事故、模型 judge、自动发布 | 控制成本与数据边界，运行可恢复，成员、构建和策略可追溯，评分可复核且不改变线上状态。 |
 | OpenSRE | 独立可选 adapter | 直接 fork/embed | 它是 Python public alpha，且范围大于当前单机需求。 |
 | 自动修复 | P4 审批后执行 | P0 自动重启 | 当前没有成熟证据、回滚、审计和异地验证。 |
 
@@ -833,6 +858,7 @@ CloudOpsBench 同等规模覆盖。
 - [x] 评测用例在提升和回放边界重复校验哈希、大小和未脱敏凭据。
 - [x] 评测 API 不返回冻结上下文、基准报告 JSON 或异常正文。
 - [x] 套件版本冻结成员指纹、manifest、评分策略和门禁策略，读取漂移时拒绝执行。
+- [x] 评测运行冻结 Prompt/Schema、源码修订和构建标识，运行时漂移会固定失败。
 
 ### 可靠性
 
@@ -842,6 +868,7 @@ CloudOpsBench 同等规模覆盖。
 - [ ] P0 告警在 Java、MySQL、Grafana 或 LLM 故障时仍尽可能工作。
 - [ ] P1 增加了不同故障域的探针。
 - [x] 合成固定套件通过独立 SRE CI tier 验证，且 fallback、危险建议或聚合阈值下降会失败。
+- [x] 评测队列具备原子领取、心跳、租约恢复、最大尝试、deadline 和断点续跑。
 
 ### 可运营性
 
