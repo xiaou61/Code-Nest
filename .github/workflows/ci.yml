@@ -201,13 +201,45 @@ jobs:
         run: ./scripts/code-nest-eval.ps1 -Tier hygiene
 
       - name: Python syntax check
-        run: python -m py_compile scripts/deploy-frontends.py scripts/you_deserve_to_interview_sql.py
+        run: >-
+          python -m py_compile
+          scripts/deploy-frontends.py
+          scripts/deploy-production.py
+          scripts/sre-alertmanager-e2e.py
+          scripts/test_sre_alertmanager_e2e.py
+          scripts/you_deserve_to_interview_sql.py
+
+      - name: Synthetic Alertmanager E2E contract
+        run: python scripts/test_sre_alertmanager_e2e.py
 
       - name: Shell syntax check
-        run: bash -n scripts/ci-server-build-deploy.sh scripts/ci-server-build-deploy.test.sh scripts/deploy-release.sh
+        run: >-
+          bash -n
+          scripts/ci-server-build-deploy.sh
+          scripts/ci-server-build-deploy.test.sh
+          scripts/deploy-release.sh
+          scripts/deploy-release.test.sh
+          scripts/external-uptime-check.sh
+          scripts/external-uptime-check.test.sh
+          scripts/server-capacity-governance.sh
+          scripts/server-capacity-governance.test.sh
+          scripts/verify-production-baseline.sh
+          scripts/verify-production-baseline.test.sh
 
       - name: Deployment dependency refresh contract
         run: bash scripts/ci-server-build-deploy.test.sh
+
+      - name: Capacity governance contract
+        run: bash scripts/server-capacity-governance.test.sh
+
+      - name: Production baseline contract
+        run: bash scripts/verify-production-baseline.test.sh
+
+      - name: Release deployment and rollback contract
+        run: bash scripts/deploy-release.test.sh
+
+      - name: External uptime probe contract
+        run: bash scripts/external-uptime-check.test.sh
 
   ci-summary:
     name: CI Summary

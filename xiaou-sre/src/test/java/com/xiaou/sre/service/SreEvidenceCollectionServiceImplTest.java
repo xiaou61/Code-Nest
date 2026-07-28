@@ -49,13 +49,16 @@ class SreEvidenceCollectionServiceImplTest {
     private SreLokiEvidenceCollector lokiEvidenceCollector;
 
     @Mock
+    private SreOperationalEvidenceCollector operationalEvidenceCollector;
+
+    @Mock
     private SreMetricsRecorder metricsRecorder;
 
     @Test
     void collectCreatesBoundedAlertSnapshot() {
         SreEvidenceCollectionServiceImpl service = new SreEvidenceCollectionServiceImpl(
                 alertEventMapper, incidentMapper, evidenceMapper, prometheusEvidenceCollector,
-                lokiEvidenceCollector, metricsRecorder);
+                lokiEvidenceCollector, operationalEvidenceCollector, metricsRecorder);
         SreOutboxEvent event = event(100L, 11L, 21L);
         SreIncident incident = new SreIncident();
         incident.setId(11L);
@@ -95,7 +98,7 @@ class SreEvidenceCollectionServiceImplTest {
     void existingSnapshotIsIdempotent() {
         SreEvidenceCollectionServiceImpl service = new SreEvidenceCollectionServiceImpl(
                 alertEventMapper, incidentMapper, evidenceMapper, prometheusEvidenceCollector,
-                lokiEvidenceCollector, metricsRecorder);
+                lokiEvidenceCollector, operationalEvidenceCollector, metricsRecorder);
         SreOutboxEvent event = event(100L, 11L, 21L);
         when(evidenceMapper.selectByOutboxEventAndSource(100L, "ALERT_SNAPSHOT"))
                 .thenReturn(new SreIncidentEvidence());
@@ -113,7 +116,7 @@ class SreEvidenceCollectionServiceImplTest {
     void malformedPayloadIsRejectedWithoutPersistence() {
         SreEvidenceCollectionServiceImpl service = new SreEvidenceCollectionServiceImpl(
                 alertEventMapper, incidentMapper, evidenceMapper, prometheusEvidenceCollector,
-                lokiEvidenceCollector, metricsRecorder);
+                lokiEvidenceCollector, operationalEvidenceCollector, metricsRecorder);
         SreOutboxEvent event = event(100L, 11L, 21L);
         event.setPayloadJson("{not-json}");
         when(evidenceMapper.selectByOutboxEventAndSource(100L, "ALERT_SNAPSHOT")).thenReturn(null);
@@ -129,7 +132,7 @@ class SreEvidenceCollectionServiceImplTest {
     void enabledPrometheusCollectorAddsSecondEvidenceRecord() {
         SreEvidenceCollectionServiceImpl service = new SreEvidenceCollectionServiceImpl(
                 alertEventMapper, incidentMapper, evidenceMapper, prometheusEvidenceCollector,
-                lokiEvidenceCollector, metricsRecorder);
+                lokiEvidenceCollector, operationalEvidenceCollector, metricsRecorder);
         SreOutboxEvent event = event(100L, 11L, 21L);
         SreIncident incident = new SreIncident();
         incident.setId(11L);
@@ -160,7 +163,7 @@ class SreEvidenceCollectionServiceImplTest {
     void enabledLokiCollectorAddsLogEvidenceAfterAlertSnapshot() {
         SreEvidenceCollectionServiceImpl service = new SreEvidenceCollectionServiceImpl(
                 alertEventMapper, incidentMapper, evidenceMapper, prometheusEvidenceCollector,
-                lokiEvidenceCollector, metricsRecorder);
+                lokiEvidenceCollector, operationalEvidenceCollector, metricsRecorder);
         SreOutboxEvent event = event(100L, 11L, 21L);
         SreIncident incident = new SreIncident();
         incident.setId(11L);
@@ -184,6 +187,39 @@ class SreEvidenceCollectionServiceImplTest {
         verify(evidenceMapper, org.mockito.Mockito.times(2)).insert(captor.capture());
         assertThat(captor.getAllValues()).extracting(SreIncidentEvidence::getSourceType)
                 .containsExactly("ALERT_SNAPSHOT", SreLokiEvidenceCollector.LOKI_SOURCE_TYPE);
+    }
+
+    @Test
+    void operationalCollectorAddsDeploymentAndRunbookSnapshots() {
+        SreEvidenceCollectionServiceImpl service = new SreEvidenceCollectionServiceImpl(
+                alertEventMapper, incidentMapper, evidenceMapper, prometheusEvidenceCollector,
+                lokiEvidenceCollector, operationalEvidenceCollector, metricsRecorder);
+        SreOutboxEvent event = event(100L, 11L, 21L);
+        SreIncident incident = new SreIncident();
+        incident.setId(11L);
+        incident.setService("code-nest");
+        SreAlertEvent alert = new SreAlertEvent();
+        alert.setId(21L);
+        alert.setAlertName("CodeNestTargetDown");
+        when(operationalEvidenceCollector.isEnabled()).thenReturn(true);
+        when(evidenceMapper.selectByOutboxEventAndSource(anyLong(), anyString())).thenReturn(null);
+        when(alertEventMapper.selectById(21L)).thenReturn(alert);
+        when(incidentMapper.selectById(11L)).thenReturn(incident);
+        when(operationalEvidenceCollector.collect(event, alert, incident)).thenReturn(java.util.List.of(
+                new SreOperationalEvidence(
+                        "DEPLOYMENT_SNAPSHOT", "v2.5.1-build", "deployment.provenance",
+                        "{\"buildVersion\":\"2.5.1\"}"),
+                new SreOperationalEvidence(
+                        "RUNBOOK_SNAPSHOT", "code-nest-availability", "runbook.catalog:code-nest-availability",
+                        "{\"title\":\"Code Nest availability\"}")
+        ));
+
+        service.collect(event);
+
+        ArgumentCaptor<SreIncidentEvidence> captor = ArgumentCaptor.forClass(SreIncidentEvidence.class);
+        verify(evidenceMapper, org.mockito.Mockito.times(3)).insert(captor.capture());
+        assertThat(captor.getAllValues()).extracting(SreIncidentEvidence::getSourceType)
+                .containsExactly("ALERT_SNAPSHOT", "DEPLOYMENT_SNAPSHOT", "RUNBOOK_SNAPSHOT");
     }
 
     private SreOutboxEvent event(Long id, Long incidentId, Long alertEventId) {

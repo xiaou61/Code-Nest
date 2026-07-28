@@ -1,6 +1,6 @@
 # Code Nest
 
-![Version](https://img.shields.io/badge/version-v2.5.0-blue.svg)
+![Version](https://img.shields.io/badge/version-v2.5.1-blue.svg)
 ![Java](https://img.shields.io/badge/java-17-orange.svg)
 ![Spring Boot](https://img.shields.io/badge/spring%20boot-3.4.4-brightgreen.svg)
 ![Vue](https://img.shields.io/badge/vue-3.x-4fc08d.svg)
@@ -16,20 +16,21 @@ Code Nest 是一个面向开发者的成长型社区与知识运营平台，采�
 - **vue3-user-front**：面向开发者的用户端，提供刷题、简历制作、动态广场、博客阅读、代码分享、学习资产沉淀、通知消息等场景。
 - **xiaou-application**：多模块聚合的 Spring Boot API，整合 `xiaou-*` 业务模块，对外暴露统一的 `/api` 网关、鉴权、日志与监控。
 
-## v2.5.0 Read-Only SRE Investigation And Evaluation
+## v2.5.1 Production SRE Governance
 
-`v2.5.0` 新增从 24x7 告警到事故、证据、只读 RCA、反馈和离线评测的完整 SRE 工作流。
+`v2.5.1` 将 `v2.5.0` 的只读 SRE 工作流落实为可验证、可回滚的单机生产治理基线。
 
 ### 本次版本完成
 
-- **24x7 监控与告警接入**：提供 Prometheus、Alertmanager、Blackbox Exporter、Grafana 部署配置，以及独立 token 保护的私网 Webhook。
-- **事故与证据持久化**：新增 `xiaou-sre`，保存告警、事故聚合、状态、证据和事务 Outbox，Worker 支持重试与失败记录。
-- **管理端事故工作台**：支持事故摘要、状态操作、时间线、RCA 历史、调查轨迹、回放来源和人工反馈。
-- **有界只读 RCA**：模型只能选择固定 Prometheus/Loki tool key，后端最多执行 5 轮并持久化新证据，再生成一次结构化报告。
-- **RCA 质量闭环**：不可变用例、版本化套件和持久化评测队列支持进度、心跳、租约恢复、退避、deadline、质量门禁和构建溯源。
-- **SRE 自身指标**：覆盖积压、任务年龄、运行耗时、调查轮数、重试、租约恢复和终态失败。
-- **明确能力边界**：不接受模型生成的 PromQL、LogQL、Shell 或 SQL，不执行自动修复；没有金额、Token 或模型成本预算闸门，也不宣称完全对齐 OpenSRE。
-- **数据库迁移**：新环境使用主 schema；旧环境严格按 [v2.5.0 发布说明](./RELEASE.md#v250) 中的顺序执行 `sql/v2.5.0` 脚本，并在迁移完成后分阶段启用 Worker。
+- **生产监控即代码**：提供 SRE Recording Rules、15 条应用/主机/队列告警，以及自动 provision 的应用和 SRE Runtime Dashboard。
+- **零流量可观测**：应用启动即注册 SRE Timer、Counter 和队列事件指标，未运行任务时保持真实零值。
+- **发布与 Runbook 证据**：每个 Outbox 事件幂等保存部署快照和服务端固定 Runbook 快照，不读取 Git、Shell 或数据库生成证据。
+- **运维资产原子发布**：JAR、双前端、Nginx、Prometheus/Grafana、systemd timer、发布元数据和 SRE 构建溯源统一备份、校验、安装与回滚。
+- **容量与配置治理**：默认只报告；显式 `--apply` 后按固定保留数清理备份、bundle 和孤儿 stage，并以 8 GiB 可用空间及配置无漂移作为生产门槛。
+- **内外两层探针**：服务器基线检查覆盖服务、页面、公网边界、Prometheus targets、secret 权限和 Grafana；GitHub 每 5 分钟从外部探测 `:81`、`:82` 并维护单个故障 Issue。
+- **确定性演练**：队列恢复测试覆盖 lease、deadline、最大尝试和已完成用例跳过；合成 Alertmanager 演练验证 firing、重复投递、证据和 resolved。
+- **明确能力边界**：仍不接受模型生成的 PromQL、LogQL、Shell 或 SQL，不执行自动修复，不设置金额/Token/模型成本预算，也不宣称完全对齐 OpenSRE。
+- **数据库迁移**：本版不新增表结构；尚未完成 `v2.5.0` 迁移的环境仍按 `sql/v2.5.0` 顺序执行后再启用 Worker。
 
 ## v2.4.3 Guided First Week And Home Overview
 
@@ -400,7 +401,7 @@ mvn clean package -DskipTests
 mvn -pl xiaou-application -am spring-boot:run
 
 # 或直接运行打包后的 jar
-java -jar xiaou-application/target/xiaou-application-v2.5.0.jar --spring.profiles.active=prod
+java -jar xiaou-application/target/xiaou-application-v2.5.1.jar --spring.profiles.active=prod
 ```
 
 - API 根地址：`http://localhost:9999/api`
@@ -568,7 +569,7 @@ management:
 
 ```bash
 # 构建镜像
-docker build -t code-nest:v2.5.0 -f docker/Dockerfile .
+docker build -t code-nest:v2.5.1 -f docker/Dockerfile .
 
 # 运行容器
 docker run -d \
@@ -576,7 +577,7 @@ docker run -d \
   -p 9999:9999 \
   -e SPRING_PROFILES_ACTIVE=prod \
   --env-file docker/env/example.env \
-  code-nest:v2.5.0
+  code-nest:v2.5.1
 ```
 
 如果要把 MySQL / Redis / Java 主服务 / `llamaindex-service` 一起编排起来，推荐使用：
@@ -646,13 +647,13 @@ server {
 
 仅列出最近版本，更多历史可查看 `git log`。
 
-### v2.5.0 Read-Only SRE Investigation And Evaluation
+### v2.5.1 Production SRE Governance
 
-- **告警到事故闭环**：24x7 监控、私网 Webhook、事故聚合、证据快照和事务 Outbox 形成可恢复链路。
-- **只读 RCA 工作台**：管理端可查看事故、最多 5 轮固定查询、运行轨迹、历史报告、回放来源和反馈修订。
-- **评测与质量门禁**：不可变评测用例、版本化套件和持久化队列提供构建溯源、租约恢复与终态治理。
-- **可观测性**：暴露 SRE 积压、任务年龄、运行耗时、调查轮数、重试、租约恢复和失败指标。
-- **安全边界**：无任意查询、无系统写操作、无自动修复、无成本预算闸门；当前能力不等同于完整 OpenSRE。
+- **监控可验收**：SRE Recording Rules、生产告警和两个 provisioned Dashboard 覆盖应用、主机与队列运行态。
+- **发布可回滚**：应用、前端和白名单运维资产统一进入 release bundle，失败时恢复应用环境、Nginx、监控和 systemd。
+- **容量与漂移治理**：有界清理、8 GiB 发布门槛、secret 权限与受管配置逐文件比对进入生产基线。
+- **端到端探针**：GitHub 外部 uptime、Alertmanager 合成演练和确定性队列恢复测试补齐服务器外与运行时内的证据。
+- **安全边界**：监控本地配置和 secrets 不进发布包；无任意查询、无自动修复、无成本预算闸门，当前能力不等同于完整 OpenSRE。
 
 ### v2.4.3 Guided First Week And Home Overview
 

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Code Nest capacity governance weekly
+
+[Timer]
+OnCalendar=Sun *-*-* 03:30:00 Asia/Shanghai
+Persistent=true
+RandomizedDelaySec=15m
+Unit=code-nest-capacity-governance.service
+
+[Install]
+WantedBy=timers.target

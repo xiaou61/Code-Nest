@@ -1,0 +1,15 @@
+[Unit]
+Description=Code Nest bounded capacity governance
+After=local-fs.target
+ConditionPathExists=/opt/code-nest/bin/server-capacity-governance.sh
+
+[Service]
+Type=oneshot
+ExecStart=/opt/code-nest/bin/server-capacity-governance.sh --apply
+User=root
+Group=root
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/code-nest/backups /opt/code-nest/actions-runner/releases /opt/code-nest

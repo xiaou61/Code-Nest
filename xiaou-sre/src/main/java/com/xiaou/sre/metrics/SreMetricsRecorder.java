@@ -44,6 +44,73 @@ public class SreMetricsRecorder {
         gauge("xiaou.sre.evaluation.backlog", "RCA 评测排队与执行中运行数", evaluationBacklog, "runs");
         gauge("xiaou.sre.evaluation.oldest.age", "RCA 评测最老排队运行年龄", evaluationOldestAgeSeconds, "seconds");
         gauge("xiaou.sre.investigation.active", "当前执行中的 RCA 调查数", activeInvestigations, "runs");
+        registerZeroTrafficMeters();
+    }
+
+    private void registerZeroTrafficMeters() {
+        for (String outcome : OUTCOMES) {
+            registerDurationAndCount(
+                    "xiaou.sre.alert.ingestion.duration",
+                    "xiaou.sre.alert.ingestion.requests",
+                    "Alertmanager 告警接收耗时",
+                    "Alertmanager 告警接收次数",
+                    outcome);
+            DistributionSummary.builder("xiaou.sre.alert.ingestion.alerts")
+                    .description("单次 Webhook 接收的告警数")
+                    .baseUnit("alerts")
+                    .tag("outcome", outcome)
+                    .register(meterRegistry);
+            registerDurationAndCount(
+                    "xiaou.sre.evidence.collection.duration",
+                    "xiaou.sre.evidence.collection.runs",
+                    "SRE 证据采集耗时",
+                    "SRE 证据采集次数",
+                    outcome);
+            registerDurationAndCount(
+                    "xiaou.sre.evaluation.duration",
+                    "xiaou.sre.evaluation.runs",
+                    "RCA 离线评测耗时",
+                    "RCA 离线评测次数",
+                    outcome);
+            DistributionSummary.builder("xiaou.sre.investigation.rounds")
+                    .description("SRE RCA 只读取证轮数")
+                    .baseUnit("rounds")
+                    .tag("outcome", outcome)
+                    .register(meterRegistry);
+            Timer.builder("xiaou.sre.investigation.tool.duration")
+                    .description("SRE 调查只读工具耗时")
+                    .tag("tool", "unknown")
+                    .tag("outcome", outcome)
+                    .register(meterRegistry);
+            Counter.builder("xiaou.sre.investigation.tool.calls")
+                    .description("SRE 调查只读工具调用次数")
+                    .tag("tool", "unknown")
+                    .tag("outcome", outcome)
+                    .register(meterRegistry);
+
+            for (String generationMode : GENERATION_MODES) {
+                Timer.builder("xiaou.sre.investigation.duration")
+                        .description("SRE RCA 调查总耗时")
+                        .tag("outcome", outcome)
+                        .tag("generation_mode", generationMode)
+                        .register(meterRegistry);
+                Counter.builder("xiaou.sre.investigation.runs")
+                        .description("SRE RCA 调查运行次数")
+                        .tag("outcome", outcome)
+                        .tag("generation_mode", generationMode)
+                        .register(meterRegistry);
+            }
+        }
+
+        for (String queue : QUEUES) {
+            for (String event : QUEUE_EVENTS) {
+                Counter.builder("xiaou.sre.queue.events")
+                        .description("SRE 持久化队列状态事件")
+                        .tag("queue", queue)
+                        .tag("event", event)
+                        .register(meterRegistry);
+            }
+        }
     }
 
     public void recordAlertIngestion(String outcome, int alertCount, long durationNanos) {
@@ -166,6 +233,21 @@ public class SreMetricsRecorder {
                 .tag("outcome", outcome)
                 .register(meterRegistry)
                 .increment();
+    }
+
+    private void registerDurationAndCount(String timerName,
+                                          String counterName,
+                                          String timerDescription,
+                                          String counterDescription,
+                                          String outcome) {
+        Timer.builder(timerName)
+                .description(timerDescription)
+                .tag("outcome", outcome)
+                .register(meterRegistry);
+        Counter.builder(counterName)
+                .description(counterDescription)
+                .tag("outcome", outcome)
+                .register(meterRegistry);
     }
 
     private void gauge(String name,

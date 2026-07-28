@@ -103,4 +103,5 @@ jobs:
         run: |
           set -euo pipefail
           cd "${CODE_NEST_SOURCE_DIR}"
+          sudo -n bash scripts/server-capacity-governance.sh --apply
           bash scripts/ci-server-build-deploy.sh

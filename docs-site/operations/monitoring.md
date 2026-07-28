@@ -1,6 +1,6 @@
 # 监控与观测
 
-Code Nest 已经具备 Prometheus + Grafana 的基础监控配置，并在 AI Runtime 中补充了运行指标和治理看板。监控体系可以分成两层：基础设施/应用指标负责发现“系统有没有问题”，AI Runtime 指标负责发现“模型调用和结构化输出有没有问题”。
+Code Nest 的生产监控基线由 Prometheus、Alertmanager、Grafana、Node Exporter 和 Blackbox Exporter 组成。基础设施/应用指标负责发现“系统有没有问题”，SRE Runtime 指标负责发现“告警、证据、调查和持久化队列是否停滞”，AI Runtime 页面继续负责模型调用和结构化输出质量。
 
 如果你已经看到告警、用户大面积失败或服务不可用，先看 [事故响应](/operations/incident-response)。本页更适合确认“问题有没有发生、发生在哪、趋势是不是在恶化”。
 
@@ -14,6 +14,9 @@ Code Nest 已经具备 Prometheus + Grafana 的基础监控配置，并在 AI Ru
 | `docker/monitoring/docker-compose.yml` | Prometheus + Grafana 编排 |
 | `docker/monitoring/prometheus.yml` | Prometheus scrape 配置 |
 | `docker/monitoring/alert_rules.yml` | 告警规则示例 |
+| `docker/monitoring/grafana/dashboards` | 自动 provision 的应用与 SRE Dashboard |
+| `scripts/verify-production-baseline.sh` | 生产健康、边界、权限、容量与配置漂移检查 |
+| `scripts/sre-alertmanager-e2e.py` | 固定合成告警的 firing/幂等/evidence/resolved 演练 |
 | `xiaou-application/src/main/resources/application.yml` | Actuator/Micrometer 配置 |
 | `xiaou-ai/src/main/java/com/xiaou/ai/metrics` | AI Runtime 指标聚合 |
 | `/system/ai-governance` | AI 质量治理中心 |
@@ -23,20 +26,24 @@ Code Nest 已经具备 Prometheus + Grafana 的基础监控配置，并在 AI Ru
 
 ```bash
 cd docker/monitoring
-docker compose up -d
+cp .env.example .env
+# 准备本地 targets、Alertmanager 配置和 mode 0400 的 secrets 后：
+./scripts/validate-config.sh
+./scripts/compose.sh --env-file .env -f docker-compose.yml up -d
 ```
 
 默认地址：
 
 | 服务 | 地址 | 默认账号 |
 | --- | --- | --- |
-| Prometheus | `http://localhost:9090` | 无 |
-| Grafana | `http://localhost:3000` | `admin / admin123` |
+| Prometheus | `http://127.0.0.1:19090` | 无，仅 loopback |
+| Alertmanager | `http://127.0.0.1:19093` | 无，仅 loopback |
+| Grafana | `http://127.0.0.1:3000` | 从 `.env` 注入，不提供仓库默认密码 |
 
 启动后打开 Prometheus Targets：
 
 ```text
-http://localhost:9090/targets
+http://127.0.0.1:19090/targets
 ```
 
 确认 `code-nest` 任务状态为 `UP`。
@@ -68,27 +75,21 @@ Prometheus 当前配置：
 | 全局采集间隔 | `15s` |
 | `code-nest` 采集间隔 | `10s` |
 | 指标路径 | `/api/actuator/prometheus` |
-| 默认 target | `host.docker.internal:9999` |
-| 外部标签 | `monitor=code-nest-monitor`、`env=dev` |
+| 生产 target | `127.0.0.1:9999`，由 `targets/code-nest.local.yml` 提供 |
+| 外部标签 | `monitor=code-nest-monitor`、`environment=production` |
 
-如果在 Linux 上运行 Docker，`host.docker.internal` 可能不可用，需要改成宿主机 IP 或 Docker bridge 地址。
+生产 Compose 使用 Linux host network，使 Prometheus 能访问只绑定 loopback 的 Java 进程。所有监控 UI 和 exporter 仍必须绑定 `127.0.0.1`，通过 SSH tunnel 访问，不在公网安全组开放。
 
 ## Grafana 配置
 
-第一次登录 Grafana 后：
+Grafana 启动时自动 provision 数据源和 Dashboard，无需在 UI 手工导入：
 
-1. 进入 Data Sources。
-2. 添加 Prometheus。
-3. URL 填 `http://prometheus:9090`。
-4. Save & Test。
-
-推荐导入 Dashboard：
-
-| ID | 名称 | 用途 |
+| UID | 名称 | 用途 |
 | --- | --- | --- |
-| `11378` | Spring Boot 2.1 Statistics | Spring Boot 综合监控 |
-| `4701` | JVM (Micrometer) | JVM 内存、GC、线程 |
-| `6756` | Spring Boot Statistics | 轻量 Spring Boot 监控 |
+| `code-nest-application` | Code Nest Application Production | HTTP、JVM、主机和可用性，8 个 panels |
+| `code-nest-sre` | Code Nest SRE Runtime | Outbox/评测积压、运行耗时、调查质量和队列恢复，12 个 panels |
+
+数据源 UID 固定为 `prometheus`，URL 指向 host network 下的 `127.0.0.1:19090`。Dashboard 文件由发布包管理，线上手工修改会被生产基线判定为漂移。
 
 ## 重点指标
 
@@ -107,26 +108,20 @@ Prometheus 当前配置：
 
 ## 告警规则
 
-`docker/monitoring/alert_rules.yml` 已准备这些规则：
+`docker/monitoring/alert_rules.yml` 已启用 Recording Rules 和这些生产告警：
 
 | 告警 | 条件 | 严重度 |
 | --- | --- | --- |
-| `HighMemoryUsage` | JVM heap 使用率 > 90% 持续 5 分钟 | warning |
-| `HighErrorRate` | 5xx 速率 > 0.05 持续 5 分钟 | critical |
-| `DatabaseConnectionPoolExhausted` | `hikaricp_connections_pending > 0` 持续 2 分钟 | warning |
-| `ApplicationDown` | `up{job="code-nest"} == 0` 持续 1 分钟 | critical |
-| `HighGCTime` | GC pause sum 5 分钟速率 > 0.1 | warning |
-| `HighCPUUsage` | `process_cpu_usage > 0.8` 持续 5 分钟 | warning |
-| `SlowRequests` | HTTP P99 > 2 秒持续 5 分钟 | warning |
+| `CodeNestTargetDown` / `CodeNestPublicEndpointDown` | metrics target 或 Blackbox 公网页面持续失败 | critical |
+| `CodeNestHighHttpErrorRatio` / `CodeNestHighHttpLatencyP95` | 有流量时 5xx 比例或 P95 延迟超过门槛 | critical / warning |
+| `CodeNestHighJvmHeapUsage` / `CodeNestHostCpuHigh` | JVM heap 或主机 CPU 持续高位 | warning |
+| `CodeNestHostDiskLow` / `CodeNestHostDiskCritical` | 根文件系统可用比例低于 15% / 5% | warning / critical |
+| `CodeNestSreOutboxStalled` / `CodeNestSreEvaluationQueueStalled` | 队列存在积压且最老任务超过 5 分钟 | critical / warning |
+| `CodeNestSreQueueTerminalFailure` / `CodeNestSreQueueDeadlineExceeded` | 15 分钟内出现受控终态失败或 deadline | critical / warning |
+| `CodeNestSreLeaseRecoverySpike` | 15 分钟租约恢复次数异常 | warning |
+| `CodeNestSreInvestigationFailureRatioHigh` / `CodeNestSreInvestigationDurationHigh` | RCA 失败率或 P95 耗时持续超限 | warning |
 
-当前 `prometheus.yml` 里 `rule_files` 是注释状态。要启用规则：
-
-```yaml
-rule_files:
-  - 'alert_rules.yml'
-```
-
-如果要发邮件、企业微信、飞书或 Webhook，还需要部署并配置 Alertmanager。
+`prometheus.yml` 已加载 `/etc/prometheus/rules/*.yml`。`validate-config.sh` 使用固定 Prometheus/Alertmanager 镜像执行 `promtool`、`amtool` 和 Compose 校验，校验失败时不得 reload。
 
 具体到每条告警响了以后先看什么、先止损什么，见 [告警 Runbook](/operations/alert-runbooks)。
 
@@ -180,6 +175,45 @@ AI Runtime 生成并校验结构化报告。AI 不进入 QQ 邮件告警热路�
 SRE 自身指标覆盖开放事故、Outbox/RCA 评测积压与最老任务年龄、活动调查数、告警接收和证据
 采集耗时、调查总耗时与轮数、固定只读工具调用耗时，以及队列的入队、领取、重试、租约恢复、
 deadline 和终态失败。数据库 gauge 由定时快照更新，Prometheus scrape 线程不会直接访问数据库。
+
+## v2.5.1 生产治理与验收
+
+发布包只安装仓库定义的白名单资产：Nginx 主配置、Prometheus 主配置与规则、Grafana provisioning/Dashboard、两个 systemd unit 和三个治理工具。`/opt/code-nest/monitoring/.env`、`alertmanager.local.yml`、`targets/*.local.yml` 与 `secrets/` 不进入 bundle，也不会在部署或回滚时被覆盖。
+
+容量治理默认只报告：
+
+```bash
+/opt/code-nest/bin/server-capacity-governance.sh
+/opt/code-nest/bin/server-capacity-governance.sh --apply
+/opt/code-nest/bin/server-capacity-governance.sh \
+  --apply --include-build-outputs --include-runner-cache
+```
+
+只有显式增加 `--include-build-outputs` 才会选择前端 `node_modules/dist`、文档构建输出和 Maven `target`；`--include-runner-cache` 额外治理未被当前 `bin`/`externals` 链接引用的旧 Runner 版本、更新缓存和安装包。检测到 Runner 构建进程时会停止这些显式清理。默认保留 4 份 release backup、14 份数据库备份、2 个构建 bundle，并清理超过 24 小时的孤儿 `release-stage.*`。不要对共享 Podman 存储执行全局 prune。
+
+生产基线命令：
+
+```bash
+/opt/code-nest/bin/verify-production-baseline.sh \
+  --require-grafana \
+  --expected-version v2.5.1 \
+  --expected-sha <release-sha> \
+  --min-free-gb 8
+```
+
+它检查应用/Nginx service、本地 health、用户端和管理端 HTTP 200、公网 Actuator/internal SRE 404、至少 4 个 Prometheus targets 全绿、Grafana health、RELEASE 版本与 SHA、监控 secret owner/mode、磁盘门槛，以及 `/opt/code-nest/ops` 与活动配置的逐文件一致性。
+
+GitHub `External Uptime` workflow 每 5 分钟从 GitHub-hosted Runner 对 `:81` 和 `:82` 各重试 3 次。故障时创建或更新带固定 marker 的单个 Issue，恢复时留言并关闭；不需要新增 GitHub secret。
+
+合成演练会真实触发 QQ firing/resolved 邮件，只能在明确通知相关人员后执行：
+
+```bash
+/opt/code-nest/bin/sre-alertmanager-e2e.py \
+  --confirm-notification \
+  --admin-token-file /etc/code-nest/sre-e2e-admin-token
+```
+
+管理员 token 文件必须仅 owner 可读。演练告警名称、severity、annotations 和查询路径均固定，验证两次重复投递不会新增事件或证据，最后等待事故 `RESOLVED` 且 Alertmanager active alert 清理；脚本不提供任意告警或查询参数。
 
 ## 常用 PromQL
 

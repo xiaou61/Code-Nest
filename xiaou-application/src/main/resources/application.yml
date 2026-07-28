@@ -232,6 +232,10 @@ xiaou:
       api-key: ${XIAOU_AI_RAG_API_KEY:}
       default-top-k: 5
   sre:
+    operational-evidence:
+      # Static deployment provenance and classpath runbooks; no runtime Git, shell or database access.
+      enabled: ${XIAOU_SRE_OPERATIONAL_EVIDENCE_ENABLED:true}
+      environment: ${XIAOU_SRE_OPERATIONAL_EVIDENCE_ENVIRONMENT:${spring.profiles.active:unknown}}
     metrics:
       # 数据库 gauge 依赖完整 SRE 迁移；计数器和耗时指标始终由 Micrometer 记录。
       enabled: ${XIAOU_SRE_METRICS_ENABLED:false}
@@ -268,7 +272,7 @@ xiaou:
       max-retry-backoff-seconds: ${XIAOU_SRE_EVALUATION_MAX_RETRY_BACKOFF_SECONDS:300}
       source-revision: ${XIAOU_SRE_EVALUATION_SOURCE_REVISION:unknown}
       build-id: ${XIAOU_SRE_EVALUATION_BUILD_ID:local}
-      build-version: ${XIAOU_SRE_EVALUATION_BUILD_VERSION:2.5.0}
+      build-version: ${XIAOU_SRE_EVALUATION_BUILD_VERSION:2.5.1}
     prometheus:
       # 默认关闭；开启前确认 Prometheus 只允许本机/监控网络访问。
       enabled: ${XIAOU_SRE_PROMETHEUS_ENABLED:false}
