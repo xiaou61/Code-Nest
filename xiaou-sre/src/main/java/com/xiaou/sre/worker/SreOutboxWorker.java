@@ -2,10 +2,11 @@ package com.xiaou.sre.worker;
 
 import com.xiaou.sre.config.SreOutboxProperties;
 import com.xiaou.sre.domain.SreOutboxEvent;
+import com.xiaou.sre.metrics.SreOutboxMetricsRecorder;
 import com.xiaou.sre.service.SreOutboxClaimService;
 import com.xiaou.sre.service.SreOutboxEventProcessor;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -22,13 +23,31 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class SreOutboxWorker {
 
     private final SreOutboxProperties properties;
     private final SreOutboxClaimService claimService;
     private final SreOutboxEventProcessor eventProcessor;
+    private final SreOutboxMetricsRecorder metrics;
     private final AtomicBoolean running = new AtomicBoolean(false);
+
+    @Autowired
+    public SreOutboxWorker(SreOutboxProperties properties,
+                           SreOutboxClaimService claimService,
+                           SreOutboxEventProcessor eventProcessor,
+                           SreOutboxMetricsRecorder metrics) {
+        this.properties = properties;
+        this.claimService = claimService;
+        this.eventProcessor = eventProcessor;
+        this.metrics = metrics == null ? SreOutboxMetricsRecorder.noop() : metrics;
+    }
+
+    /** Compatibility constructor for focused unit tests and embedded callers. */
+    public SreOutboxWorker(SreOutboxProperties properties,
+                           SreOutboxClaimService claimService,
+                           SreOutboxEventProcessor eventProcessor) {
+        this(properties, claimService, eventProcessor, SreOutboxMetricsRecorder.noop());
+    }
 
     @Scheduled(
             fixedDelayString = "${xiaou.sre.outbox.fixed-delay-ms:5000}",
@@ -39,8 +58,12 @@ public class SreOutboxWorker {
             return;
         }
 
+        long started = System.nanoTime();
+        String outcome = "success";
         try {
-            claimService.recoverStaleProcessing();
+            int recovered = claimService.recoverStaleProcessing();
+            metrics.recordLeaseRecovered(recovered);
+            metrics.recordPending(claimService.countPending());
             List<Long> pendingIds = claimService.listPendingIds(properties.normalizedBatchSize());
             if (pendingIds == null || pendingIds.isEmpty()) {
                 return;
@@ -49,8 +72,10 @@ public class SreOutboxWorker {
                 processOne(id);
             }
         } catch (RuntimeException exception) {
+            outcome = "error";
             log.error("SRE Outbox 扫描失败: {}", exception.getClass().getSimpleName(), exception);
         } finally {
+            metrics.recordWorkerRun(outcome, System.nanoTime() - started);
             running.set(false);
         }
     }
@@ -67,15 +92,21 @@ public class SreOutboxWorker {
             return;
         }
 
+        metrics.beginProcessing();
+        long started = System.nanoTime();
+        String outcome = "success";
         try {
             eventProcessor.process(event);
             log.info("SRE Outbox 处理成功: eventId={}, eventType={}", event.getId(), event.getEventType());
         } catch (RuntimeException exception) {
-            handleFailure(event, exception);
+            outcome = handleFailure(event, exception);
+        } finally {
+            metrics.endProcessing();
+            metrics.recordEvent(event.getEventType(), outcome, System.nanoTime() - started);
         }
     }
 
-    private void handleFailure(SreOutboxEvent event, RuntimeException exception) {
+    private String handleFailure(SreOutboxEvent event, RuntimeException exception) {
         int attempts = event.getAttempts() == null ? 1 : Math.max(event.getAttempts(), 1);
         if (attempts >= properties.normalizedMaxAttempts()) {
             try {
@@ -86,7 +117,7 @@ public class SreOutboxWorker {
             }
             log.error("SRE Outbox 超过最大尝试次数: eventId={}, eventType={}, attempts={}, reason={}",
                     event.getId(), event.getEventType(), attempts, exception.getClass().getSimpleName());
-            return;
+            return "failed";
         }
 
         long delaySeconds = retryDelaySeconds(attempts);
@@ -95,10 +126,11 @@ public class SreOutboxWorker {
         } catch (RuntimeException stateException) {
             log.error("SRE Outbox 标记重试异常: eventId={}, reason={}",
                     event.getId(), stateException.getClass().getSimpleName(), stateException);
-            return;
+            return "retry_state_error";
         }
         log.warn("SRE Outbox 处理失败，将重试: eventId={}, eventType={}, attempts={}, delaySeconds={}, reason={}",
                 event.getId(), event.getEventType(), attempts, delaySeconds, exception.getClass().getSimpleName());
+        return "retry";
     }
 
     private long retryDelaySeconds(int attempts) {

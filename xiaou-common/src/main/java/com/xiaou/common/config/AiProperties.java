@@ -53,6 +53,12 @@ public class AiProperties {
      */
     private Retry retry = new Retry();
 
+    /** Maximum number of in-flight model calls per application instance. */
+    private Integer maxConcurrentCalls = 8;
+
+    /** Time to wait for an AI concurrency permit, in milliseconds. */
+    private Integer permitAcquireTimeoutMs = 1000;
+
     /**
      * 检索增强配置。
      */

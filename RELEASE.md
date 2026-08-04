@@ -1,5 +1,51 @@
 # 发布流程
 
+## v2.5.3
+
+`v2.5.3` 是 Growth Coach 与生产交付治理版本：在 v2.5.0/v2.5.2 的成长闭环能力上，补齐版本、迁移、发布、SSRF 和 AI 运行时的生产边界。
+
+### Highlights
+
+- 统一 `VERSION` 基线，构建前检查 Maven、双前端、设计系统、文档站和 lockfile 版本一致性。
+- 发布包包含 `VERSION`、`RELEASE`、完整 `sql/`、`scripts/db-migrate.py` 和服务器部署脚本，可追溯、可复核。
+- 数据库迁移使用 checksum ledger，支持 dry-run、baseline、apply；生产默认不自动执行迁移。
+- Growth Coach 使用有界并发、来源状态/耗时指标和短缓存；成长事件带 schema/client/entry 元数据与 allow-list。
+- SRE Outbox 暴露 `xiaou_sre_outbox_pending`、处理中数量、事件耗时、结果计数和租约恢复计数，便于值守告警。
+- 远程敏感词来源拒绝内网和元数据地址、重定向及超大响应；AI 调用受并发 permit 和等待超时保护。
+
+### Migration
+
+发布前先在备份和测试环境执行：
+
+```bash
+python scripts/db-migrate.py --dry-run
+python scripts/db-migrate.py --apply
+```
+
+对于已经手工完成历史迁移、但没有 ledger 的数据库：
+
+```bash
+python scripts/db-migrate.py --baseline --baseline-to v2.5.2
+python scripts/db-migrate.py --apply
+```
+
+服务器端部署只有在显式设置 `CODE_NEST_RUN_MIGRATIONS=true` 时才会调用迁移器。迁移器使用 MySQL advisory lock 串行化执行，失败记录会保留并阻断后续发布；运维核对部分 DDL 状态后，才允许显式设置 `CODE_NEST_RETRY_FAILED=true`（等价于 `--retry-failed`）重试。应用发布失败会恢复本次发布前的 Jar 和双端静态资源。数据库迁移不做破坏性回滚，需按数据库备份和新增回滚脚本处理。
+
+### Verification
+
+- `python scripts/check-version-consistency.py`
+- `python scripts/db-migrate.py --dry-run`
+- `python -m py_compile scripts/check-version-consistency.py scripts/db-migrate.py scripts/deploy-production.py scripts/release-smoke-test.py`
+- `bash -n scripts/ci-server-build-deploy.sh scripts/ci-server-build-deploy.test.sh scripts/deploy-release.sh`
+- 后端定向测试、双前端契约测试、用户端/管理端/文档站构建
+
+### Risks And Rollback
+
+- 生产发布必须从干净工作树构建；本地诊断才允许使用 `--allow-dirty` 或 `CODE_NEST_ALLOW_DIRTY_BUILD=true`。
+- 服务器端会在解包前再次检查 tar 路径、版本元数据、脚本和归档成员类型，发布包不能只依赖本地 smoke test。
+- 发布前确认 `/opt/code-nest` 有足够磁盘空间；备份目录按数量和容量自动清理。
+- 健康检查失败会自动恢复应用产物；迁移执行失败会停止发布并保留 checksum/失败原因，禁止继续覆盖应用。
+
 ## v2.4.3
 
 `v2.4.3` 在 `v2.4.2` 的移动端与行动优先修复基础上，补齐首次登录到首周任务的闭环，并把首页浏览器侧的多请求收敛为可部分降级的聚合接口。

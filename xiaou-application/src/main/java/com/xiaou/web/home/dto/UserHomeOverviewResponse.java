@@ -1,5 +1,6 @@
 package com.xiaou.web.home.dto;
 
+import com.xiaou.web.growthcoach.dto.GrowthEvidenceReference;
 import lombok.Data;
 
 import java.util.ArrayList;
@@ -22,6 +23,8 @@ public class UserHomeOverviewResponse {
     private HotFeed hotFeed = new HotFeed();
 
     private Growth growth = new Growth();
+
+    private TodayAction todayAction = new TodayAction();
 
     private Challenge challenge = new Challenge();
 
@@ -59,6 +62,25 @@ public class UserHomeOverviewResponse {
         private PlanProgress plan = new PlanProgress();
         private MockInterviewProgress mockInterview = new MockInterviewProgress();
         private PointsProgress points = new PointsProgress();
+    }
+
+    @Data
+    public static class TodayAction {
+        private boolean available;
+        private Long taskId;
+        private String actionType = "";
+        private Long actionId;
+        private String source = "";
+        private String riskLevel = "";
+        private String prefillMessage = "";
+        private String trackingId = "";
+        private String title = "";
+        private Integer estimatedMinutes = 0;
+        private String reason = "";
+        private String expectedChange = "";
+        private String startRoute = "/learning-cockpit?tab=autopilot";
+        private Integer selectionVersion = 0;
+        private List<GrowthEvidenceReference> evidenceRefs = new ArrayList<>();
     }
 
     @Data

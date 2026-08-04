@@ -33,7 +33,12 @@ public enum NotificationSourceEnum {
     /**
      * 监控模块
      */
-    MONITOR("monitor", "监控模块");
+    MONITOR("monitor", "监控模块"),
+
+    /**
+     * AI 成长教练模块
+     */
+    GROWTH_COACH("growth_coach", "AI成长教练");
     
     private final String code;
     private final String description;
@@ -74,4 +79,4 @@ public enum NotificationSourceEnum {
             return false;
         }
     }
-} 
+}

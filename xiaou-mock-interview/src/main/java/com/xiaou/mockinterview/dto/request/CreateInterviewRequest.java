@@ -1,5 +1,6 @@
 package com.xiaou.mockinterview.dto.request;
 
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.util.List;
@@ -40,6 +41,7 @@ public class CreateInterviewRequest {
     /**
      * 专项知识点（专项面试时使用）
      */
+    @Size(max = 120, message = "专项关注点不能超过120个字符")
     private String specializedTopic;
 
     /**

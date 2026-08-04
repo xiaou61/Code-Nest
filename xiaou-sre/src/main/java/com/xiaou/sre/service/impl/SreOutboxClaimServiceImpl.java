@@ -31,6 +31,12 @@ public class SreOutboxClaimServiceImpl implements SreOutboxClaimService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public long countPending() {
+        return Math.max(0L, outboxEventMapper.countPending());
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public SreOutboxEvent claim(Long id) {
         if (id == null || id <= 0 || outboxEventMapper.claim(id) <= 0) {
@@ -45,11 +51,11 @@ public class SreOutboxClaimServiceImpl implements SreOutboxClaimService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void recoverStaleProcessing() {
+    public int recoverStaleProcessing() {
         LocalDateTime staleBefore = LocalDateTime.now().minusSeconds(properties.normalizedLeaseSeconds());
         int maxAttempts = properties.normalizedMaxAttempts();
         outboxEventMapper.failStaleProcessing(staleBefore, maxAttempts);
-        outboxEventMapper.recoverStaleProcessing(staleBefore, maxAttempts);
+        return Math.max(0, outboxEventMapper.recoverStaleProcessing(staleBefore, maxAttempts));
     }
 
     @Override

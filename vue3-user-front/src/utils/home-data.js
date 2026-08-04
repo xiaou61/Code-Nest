@@ -78,6 +78,23 @@ function createHomeData() {
         todayPoints: 0
       }
     },
+    todayAction: {
+      available: false,
+      taskId: null,
+      actionType: '',
+      actionId: null,
+      source: '',
+      riskLevel: '',
+      prefillMessage: '',
+      trackingId: '',
+      title: '',
+      estimatedMinutes: 0,
+      reason: '',
+      expectedChange: '',
+      startRoute: '/learning-cockpit?tab=autopilot',
+      selectionVersion: 0,
+      evidenceRefs: []
+    },
     challenge: {
       dailyProblem: {
         id: null,
@@ -139,6 +156,7 @@ export function useHomeData() {
     const hero = overview?.heroMetrics || {}
     const hotFeed = overview?.hotFeed || {}
     const growth = overview?.growth || {}
+    const todayAction = overview?.todayAction || {}
     const challenge = overview?.challenge || {}
     const sections = overview?.sections || {}
 
@@ -156,6 +174,35 @@ export function useHomeData() {
     Object.assign(homeData.growth.plan, growth.plan || {})
     Object.assign(homeData.growth.mockInterview, growth.mockInterview || {})
     Object.assign(homeData.growth.points, growth.points || {})
+    Object.assign(homeData.todayAction, {
+      available: Boolean(todayAction.available && todayAction.startRoute),
+      taskId: todayAction.taskId || null,
+      actionType: typeof todayAction.actionType === 'string' ? todayAction.actionType : '',
+      actionId: todayAction.actionId || null,
+      source: typeof todayAction.source === 'string' ? todayAction.source : '',
+      riskLevel: typeof todayAction.riskLevel === 'string' ? todayAction.riskLevel : '',
+      prefillMessage: typeof todayAction.prefillMessage === 'string' ? todayAction.prefillMessage : '',
+      trackingId: typeof todayAction.trackingId === 'string' ? todayAction.trackingId : '',
+      title: typeof todayAction.title === 'string' ? todayAction.title : '',
+      estimatedMinutes: toNumber(todayAction.estimatedMinutes),
+      reason: typeof todayAction.reason === 'string' ? todayAction.reason : '',
+      expectedChange: typeof todayAction.expectedChange === 'string' ? todayAction.expectedChange : '',
+      startRoute: typeof todayAction.startRoute === 'string' && todayAction.startRoute
+        ? todayAction.startRoute
+        : '/learning-cockpit?tab=autopilot',
+      selectionVersion: toNumber(todayAction.selectionVersion),
+      evidenceRefs: Array.isArray(todayAction.evidenceRefs)
+        ? todayAction.evidenceRefs
+          .filter((item) => item && typeof item.evidenceId === 'string')
+          .slice(0, 2)
+          .map((item) => ({
+            evidenceId: item.evidenceId,
+            evidenceType: typeof item.evidenceType === 'string' ? item.evidenceType : '',
+            skillKey: typeof item.skillKey === 'string' ? item.skillKey : '',
+            observedAt: typeof item.observedAt === 'string' ? item.observedAt : ''
+          }))
+        : []
+    })
     Object.assign(homeData.challenge.dailyProblem, normalizeDailyProblem(challenge.dailyProblem || {}))
     homeData.versions = Array.isArray(overview.versions) ? overview.versions : []
 

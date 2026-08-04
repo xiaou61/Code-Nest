@@ -87,6 +87,25 @@ public class CareerLoopServiceImpl implements CareerLoopService {
     }
 
     @Override
+    public CareerLoopCurrentResponse findCurrentIfPresent(Long userId) {
+        if (userId == null || userId <= 0) {
+            return null;
+        }
+        CareerLoopSession session = sessionMapper.selectActiveByUserId(userId);
+        if (session == null) {
+            return null;
+        }
+        CareerLoopSnapshot snapshot = snapshotMapper.selectBySessionId(session.getId());
+        List<CareerLoopAction> actions = actionMapper.selectBySessionId(session.getId());
+        return new CareerLoopCurrentResponse()
+                .setSession(session)
+                .setSnapshot(snapshot)
+                .setActions(actions)
+                .setRiskFlags(snapshot == null ? Collections.emptyList() : parseJsonList(snapshot.getRiskFlagsJson()))
+                .setNextSuggestions(snapshot == null ? Collections.emptyList() : parseJsonList(snapshot.getNextSuggestionJson()));
+    }
+
+    @Override
     public List<CareerLoopStageLog> getTimeline(Long userId) {
         CareerLoopSession session = ensureActiveSession(userId);
         return stageLogMapper.selectBySessionId(session.getId());
@@ -102,6 +121,19 @@ public class CareerLoopServiceImpl implements CareerLoopService {
     @Transactional(rollbackFor = Exception.class)
     public void markActionDone(Long userId, Long actionId) {
         CareerLoopSession session = ensureActiveSession(userId);
+        int updated = actionMapper.markDoneById(actionId, session.getId());
+        if (updated <= 0) {
+            throw new BusinessException("动作项不存在");
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void markExistingActionDone(Long userId, Long actionId) {
+        CareerLoopSession session = userId == null ? null : sessionMapper.selectActiveByUserId(userId);
+        if (session == null) {
+            throw new BusinessException("当前没有进行中的求职闭环");
+        }
         int updated = actionMapper.markDoneById(actionId, session.getId());
         if (updated <= 0) {
             throw new BusinessException("动作项不存在");

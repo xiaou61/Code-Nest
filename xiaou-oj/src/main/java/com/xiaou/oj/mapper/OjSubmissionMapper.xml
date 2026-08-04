@@ -16,16 +16,21 @@
         <result column="pass_count" property="passCount"/>
         <result column="total_count" property="totalCount"/>
         <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
     </resultMap>
 
     <sql id="BaseColumns">
         id, problem_id, contest_id, user_id, language, code, status, time_used, memory_used,
-        error_message, pass_count, total_count, create_time
+        error_message, pass_count, total_count, create_time, update_time
     </sql>
 
     <sql id="SubmissionColumns">
         s.id, s.problem_id, s.contest_id, s.user_id, s.language, s.code, s.status, s.time_used,
-        s.memory_used, s.error_message, s.pass_count, s.total_count, s.create_time
+        s.memory_used, s.error_message, s.pass_count, s.total_count, s.create_time, s.update_time
+    </sql>
+
+    <sql id="EvidenceColumns">
+        id, problem_id, user_id, language, status, pass_count, total_count, create_time, update_time
     </sql>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
@@ -42,6 +47,7 @@
             error_message = #{errorMessage},
             <if test="passCount != null">pass_count = #{passCount},</if>
             <if test="totalCount != null">total_count = #{totalCount},</if>
+            update_time = NOW(),
         </set>
         WHERE id = #{id}
     </update>
@@ -151,6 +157,27 @@
             WHERE user_id = #{userId} AND problem_id = #{problemId}
               AND status = 'accepted' AND id &lt; #{submissionId}
         )
+    </select>
+
+    <select id="selectChangedForEvidence" resultMap="BaseResultMap">
+        SELECT <include refid="EvidenceColumns"/>
+        FROM oj_submission
+        WHERE user_id = #{userId}
+        <if test="afterUpdateTime != null">
+            AND (update_time &gt; #{afterUpdateTime}
+                OR (update_time = #{afterUpdateTime} AND id &gt;= #{afterSourceId}))
+        </if>
+        ORDER BY update_time ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectUserIdsChangedForEvidence" resultType="java.lang.Long">
+        SELECT user_id
+        FROM oj_submission
+        WHERE update_time &gt;= #{updatedAfter}
+        GROUP BY user_id
+        ORDER BY MAX(update_time) DESC, user_id ASC
+        LIMIT #{limit}
     </select>
 
     <select id="selectByContestId" resultMap="BaseResultMap">

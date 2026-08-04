@@ -38,7 +38,23 @@ public interface QuestionSelectorService {
      * @param questionCount 题目数量
      * @return 生成的题目列表（包含题目内容和参考答案）
      */
-    List<GeneratedQuestion> generateQuestionsByAI(String direction, Integer level, Integer questionCount);
+    default List<GeneratedQuestion> generateQuestionsByAI(
+            String direction,
+            Integer level,
+            Integer questionCount
+    ) {
+        return generateQuestionsByAI(direction, level, questionCount, null);
+    }
+
+    /**
+     * AI 生成带可选专项关注点的题目。
+     */
+    List<GeneratedQuestion> generateQuestionsByAI(
+            String direction,
+            Integer level,
+            Integer questionCount,
+            String specializedTopic
+    );
 
     /**
      * 从指定题库中选择题目

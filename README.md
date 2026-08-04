@@ -1,6 +1,6 @@
 # Code Nest
 
-![Version](https://img.shields.io/badge/version-v2.4.3-blue.svg)
+![Version](https://img.shields.io/badge/version-v2.5.3-blue.svg)
 ![Java](https://img.shields.io/badge/java-17-orange.svg)
 ![Spring Boot](https://img.shields.io/badge/spring%20boot-3.4.4-brightgreen.svg)
 ![Vue](https://img.shields.io/badge/vue-3.x-4fc08d.svg)
@@ -9,6 +9,20 @@
 ## 📖 项目简介
 
 Code Nest 是一个面向开发者的成长型社区与知识运营平台，采用 Spring Boot 3.4.4 + Vue3 + Vite 的前后端分离架构，后台整合 Sa-Token 权限、Redisson 缓存、MySQL 题库/内容系统以及 Prometheus 监控指标，提供包含题库、面试辅导、学习资产转化引擎、知识图谱、博客、代码工坊、在线简历、IM 聊天、积分激励与抽奖等在内的多模块能力。
+
+## v2.5.3 Growth Coach And Production Governance
+
+`v2.5.3` 在成长教练、求职闭环和 SRE 能力基础上，补齐可发布、可迁移、可观测和可回滚的生产边界。
+
+### 本次版本完成
+
+- **成长闭环稳定性**：Growth Coach 数据源有界并发读取，带超时、来源状态、耗时指标和 5 秒短缓存；事件契约增加 schema/client/entry 元数据、来源白名单和行动结果事件。
+- **计划调整可审计**：成长计划调整提供预览、版本基线、幂等应用和变更记录，任务保留真实资源引用，避免重复重排覆盖历史。
+- **远程来源安全**：敏感词远程来源只允许 HTTP(S)，拒绝回环、内网、link-local、云元数据地址和重定向，并限制响应大小。
+- **AI 运行时保护**：统一 AI 调用增加并发上限、permit 等待超时、拒绝指标和 operation id 日志。
+- **发布与数据库治理**：根目录 `VERSION`、版本一致性检查、checksum 迁移 ledger、release bundle smoke test、磁盘/备份容量检查和失败回滚全部接入 CI/CD。
+
+生产迁移入口见 [`sql/MIGRATIONS.md`](sql/MIGRATIONS.md)，发布流程见 [`RELEASE.md`](RELEASE.md)。生产部署默认不执行数据库写操作，只有显式设置 `CODE_NEST_RUN_MIGRATIONS=true` 才会应用迁移。
 
 ### 平台定位
 
@@ -385,7 +399,7 @@ mvn clean package -DskipTests
 mvn -pl xiaou-application -am spring-boot:run
 
 # 或直接运行打包后的 jar
-java -jar xiaou-application/target/xiaou-application-v2.4.3.jar --spring.profiles.active=prod
+java -jar xiaou-application/target/xiaou-application-v2.5.3.jar --spring.profiles.active=prod
 ```
 
 - API 根地址：`http://localhost:9999/api`
@@ -553,7 +567,7 @@ management:
 
 ```bash
 # 构建镜像
-docker build -t code-nest:v2.4.3 -f docker/Dockerfile .
+docker build -t code-nest:v2.5.3 -f docker/Dockerfile .
 
 # 运行容器
 docker run -d \
@@ -561,7 +575,7 @@ docker run -d \
   -p 9999:9999 \
   -e SPRING_PROFILES_ACTIVE=prod \
   --env-file docker/env/example.env \
-  code-nest:v2.4.3
+  code-nest:v2.5.3
 ```
 
 如果要把 MySQL / Redis / Java 主服务 / `llamaindex-service` 一起编排起来，推荐使用：
@@ -623,6 +637,8 @@ server {
 - `sql/MySql/code_nest.sql`：最新完整结构脚本。
 - `sql/MySql/code_nest_data.sql`：汇总初始化数据脚本（可重复执行）。
 - `sql/v2.4.0/`：管理员统一 Agent 运行时的审计、会话上下文、幂等和权限增量脚本。
+- `sql/v2.5.0/`、`sql/v2.5.2/`、`sql/v2.5.3/`：Growth Coach、业务成长漏斗和生产治理增量脚本。
+- `sql/MIGRATIONS.md`：checksum ledger 迁移执行、baseline 和发布窗口说明。
 - `sql/v1.8.0~v1.8.4/`：历史增量脚本（OJ、求职作战台、闭环中台、学习资产转化引擎等）。
 - `pom.xml`：多模块管理、版本统一、Flatten 插件配置。
 - `docker/`：容器化部署示例。
@@ -630,6 +646,12 @@ server {
 ## 📝 更新日志
 
 仅列出最近版本，更多历史可查看 `git log`。
+
+### v2.5.3 Growth Coach And Production Governance
+
+- **生产可追溯**：统一 `VERSION`、版本一致性检查、release bundle `RELEASE` 元数据和发布包 smoke test。
+- **数据库治理**：迁移执行器记录 checksum、状态、耗时和失败原因；生产默认跳过写库，显式开启才应用。
+- **运行时韧性**：Growth Coach 有界并发与短缓存、事件契约版本化、远程来源 SSRF 防护、AI 并发 permit 和失败回滚。
 
 ### v2.4.3 Guided First Week And Home Overview
 

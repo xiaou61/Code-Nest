@@ -69,6 +69,8 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
 
         GrowthAutopilotGoal goal = goalMapper.selectByUserAndWeek(userId, weekStart);
         String targetRole = normalizeRole(body.getTargetRole());
+        String previousTargetRole = goal == null ? null : normalizeRole(goal.getTargetRole());
+        boolean targetChanged = goal != null && !Objects.equals(previousTargetRole, targetRole);
         Integer weeklyHours = normalizeWeeklyHours(body.getWeeklyHours());
         String currentStage = body.getCurrentStage() == null && goal != null
                 ? normalizeCurrentStage(goal.getCurrentStage())
@@ -80,6 +82,9 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
             goal.setWeekEnd(weekEnd);
             goal.setTargetRole(targetRole);
             goal.setWeeklyHours(weeklyHours);
+            goal.setWeeklyMinutes(weeklyHours * 60);
+            goal.setPlanVersion(1);
+            goal.setLastActionRunId(null);
             goal.setCurrentStage(currentStage);
             goal.setTotalScoreTarget(0);
             goal.setTotalScoreCompleted(0);
@@ -91,14 +96,37 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
             goal.setGeneratedAt(now);
             goalMapper.insert(goal);
         } else {
+            int basePlanVersion = normalizePlanVersion(goal.getPlanVersion());
+            int newPlanVersion = nextPlanVersion(basePlanVersion);
+            int advanced = goalMapper.advancePlanVersion(
+                    goal.getId(),
+                    userId,
+                    basePlanVersion,
+                    newPlanVersion,
+                    targetRole,
+                    weeklyHours * 60,
+                    weeklyHours,
+                    null
+            );
+            if (advanced != 1) {
+                throw new BusinessException("计划已发生变化，请刷新后重试");
+            }
+            taskMapper.supersedeTodoByGoalId(goal.getId(), userId);
             goal.setWeekEnd(weekEnd);
             goal.setTargetRole(targetRole);
             goal.setWeeklyHours(weeklyHours);
+            goal.setWeeklyMinutes(weeklyHours * 60);
+            goal.setPlanVersion(newPlanVersion);
+            goal.setLastActionRunId(null);
             goal.setCurrentStage(currentStage);
             goal.setStatus("active");
             goal.setGeneratedAt(now);
-            taskMapper.deleteByGoalId(goal.getId());
             goalMapper.updateById(goal);
+        }
+
+        if (targetChanged) {
+            writeEvent(goal.getId(), userId, "target_change",
+                    "目标岗位从「" + previousTargetRole + "」调整为「" + targetRole + "」");
         }
 
         List<GrowthAutopilotTask> generatedTasks = buildWeeklyTasks(goal, LocalDate.now());
@@ -125,10 +153,16 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
             throw new BusinessException("周计划不存在");
         }
 
+        if (!"todo".equalsIgnoreCase(task.getStatus()) && !"done".equalsIgnoreCase(task.getStatus())) {
+            throw new BusinessException("仅待完成任务支持打卡");
+        }
         if (!"done".equalsIgnoreCase(task.getStatus())) {
-            taskMapper.markDone(taskId, goal.getId(), userId, LocalDateTime.now());
-            refreshGoalMetrics(goal.getId());
-            writeEvent(goal.getId(), userId, "complete", "完成任务：" + task.getTitle());
+            int changed = taskMapper.markDone(taskId, goal.getId(), userId, LocalDateTime.now());
+            if (changed > 0) {
+                incrementPlanVersion(goal);
+                refreshGoalMetrics(goal.getId());
+                writeEvent(goal.getId(), userId, "complete", "完成任务：" + task.getTitle());
+            }
         }
         return getDashboard(userId, goal.getWeekStart());
     }
@@ -148,6 +182,7 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
         }
         int count = taskMapper.markDoneByDate(goal.getId(), userId, today, LocalDateTime.now());
         if (count > 0) {
+            incrementPlanVersion(goal);
             writeEvent(goal.getId(), userId, "complete_batch", "批量完成今日任务 " + count + " 个");
         }
         refreshGoalMetrics(goal.getId());
@@ -184,6 +219,7 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
             throw new BusinessException("任务顺延失败，请稍后重试");
         }
 
+        incrementPlanVersion(goal);
         writeEvent(goal.getId(), userId, "postpone", "任务顺延一天：" + task.getTitle());
         refreshGoalMetrics(goal.getId());
         return getDashboard(userId, goal.getWeekStart());
@@ -201,7 +237,7 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
 
         LocalDate today = LocalDate.now();
         taskMapper.markMissedBeforeDate(goal.getId(), userId, today);
-        taskMapper.deleteTodoFromDate(goal.getId(), userId, today);
+        taskMapper.supersedeTodoFromDate(goal.getId(), userId, today);
 
         List<GrowthAutopilotTask> currentTasks = taskMapper.selectByGoalId(goal.getId());
         int completedScore = currentTasks.stream()
@@ -210,10 +246,16 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
                 .sum();
         int targetScore = Math.max(0, nvl(goal.getTotalScoreTarget()));
         int remainingScore = Math.max(0, targetScore - completedScore);
+        int completedMinutes = currentTasks.stream()
+                .filter(item -> "done".equalsIgnoreCase(item.getStatus()))
+                .mapToInt(item -> nvl(item.getPlannedMinutes()))
+                .sum();
+        int remainingMinutes = Math.max(0, weeklyMinutes(goal) - completedMinutes);
 
         List<LocalDate> availableDays = listDates(maxDate(today, goal.getWeekStart()), goal.getWeekEnd());
-        if (remainingScore > 0 && !availableDays.isEmpty()) {
-            List<GrowthAutopilotTask> replanTasks = buildReplanTasks(goal, currentTasks, availableDays, remainingScore);
+        incrementPlanVersion(goal);
+        if (remainingScore > 0 && remainingMinutes > 0 && !availableDays.isEmpty()) {
+            List<GrowthAutopilotTask> replanTasks = buildReplanTasks(goal, currentTasks, availableDays, remainingScore, remainingMinutes);
             if (!replanTasks.isEmpty()) {
                 taskMapper.batchInsert(replanTasks);
             }
@@ -225,9 +267,11 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
     }
 
     private GrowthAutopilotDashboardResponse assembleDashboard(GrowthAutopilotGoal goal, List<GrowthAutopilotTask> tasks) {
+        tasks = tasks.stream().filter(this::isActiveTask).toList();
         LocalDate today = LocalDate.now();
         GrowthAutopilotDashboardResponse response = new GrowthAutopilotDashboardResponse();
         response.setHasPlan(true);
+        response.setPlanVersion(normalizePlanVersion(goal.getPlanVersion()));
         response.setWeekStart(formatDate(goal.getWeekStart()));
         response.setWeekEnd(formatDate(goal.getWeekEnd()));
         response.setGeneratedAt(formatDateTime(goal.getGeneratedAt()));
@@ -324,6 +368,7 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
                 taskItem.setOverdue("todo".equalsIgnoreCase(taskItem.getStatus()) && date.isBefore(today));
                 taskItem.setSource(StrUtil.blankToDefault(task.getSource(), "auto"));
                 taskItem.setRoutePath(StrUtil.blankToDefault(task.getRoutePath(), "/"));
+                taskItem.setSelectionReason(StrUtil.blankToDefault(task.getSelectionReason(), ""));
                 taskItems.add(taskItem);
             }
             bucket.setTasks(taskItems);
@@ -404,7 +449,7 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
 
     private List<GrowthAutopilotTask> buildWeeklyTasks(GrowthAutopilotGoal goal, LocalDate today) {
         List<ModuleTemplate> templates = buildModuleTemplates(goal.getTargetRole(), goal.getCurrentStage());
-        int weeklyMinutes = nvl(goal.getWeeklyHours()) * 60;
+        int weeklyMinutes = weeklyMinutes(goal);
         LocalDate startDate = maxDate(goal.getWeekStart(), today);
         List<LocalDate> availableDays = listDates(startDate, goal.getWeekEnd());
         if (availableDays.isEmpty()) {
@@ -412,14 +457,26 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
         }
 
         List<GrowthAutopilotTask> tasks = new ArrayList<>();
+        int remainingMinutes = weeklyMinutes;
         for (int moduleIndex = 0; moduleIndex < templates.size(); moduleIndex++) {
             ModuleTemplate template = templates.get(moduleIndex);
-            int moduleMinutes = Math.max(template.minMinutes(), (int) Math.round(weeklyMinutes * template.weight()));
+            int moduleMinutes = moduleIndex == templates.size() - 1
+                    ? remainingMinutes
+                    : Math.min(remainingMinutes, (int) Math.floor(weeklyMinutes * template.weight()));
+            if (moduleMinutes < 25) {
+                continue;
+            }
             int taskCount = clamp((int) Math.round(moduleMinutes / 95.0), 1, 4);
-            int minutePerTask = clamp((int) Math.round(moduleMinutes * 1.0 / taskCount), 25, 150);
+            taskCount = Math.min(taskCount, moduleMinutes / 25);
+            if (taskCount <= 0) {
+                continue;
+            }
 
             for (int i = 0; i < taskCount; i++) {
                 LocalDate taskDate = availableDays.get((moduleIndex + i) % availableDays.size());
+                int minutePerTask = moduleMinutes / (taskCount - i);
+                moduleMinutes -= minutePerTask;
+                remainingMinutes -= minutePerTask;
                 GrowthAutopilotTask task = new GrowthAutopilotTask();
                 task.setGoalId(goal.getId());
                 task.setUserId(goal.getUserId());
@@ -434,6 +491,12 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
                 task.setStatus("todo");
                 task.setSource("auto");
                 task.setRoutePath(template.routePath());
+                task.setPlanVersion(normalizePlanVersion(goal.getPlanVersion()));
+                task.setResourceType("route");
+                task.setResourceId(template.routePath());
+                task.setResourceVersion("v1");
+                task.setSelectionReason("系统按周预算和岗位权重生成");
+                task.setCompletionRuleJson("{\"type\":\"route\"}");
                 tasks.add(task);
             }
         }
@@ -447,9 +510,10 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
             GrowthAutopilotGoal goal,
             List<GrowthAutopilotTask> currentTasks,
             List<LocalDate> availableDays,
-            int remainingScore
+            int remainingScore,
+            int remainingMinutes
     ) {
-        if (availableDays.isEmpty() || remainingScore <= 0) {
+        if (availableDays.isEmpty() || remainingScore <= 0 || remainingMinutes < 25) {
             return Collections.emptyList();
         }
 
@@ -458,6 +522,7 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
                 .filter(item -> "done".equalsIgnoreCase(item.getStatus()))
                 .collect(Collectors.groupingBy(GrowthAutopilotTask::getModuleKey, Collectors.counting()));
         Map<String, Long> totalCount = currentTasks.stream()
+                .filter(this::isActiveTask)
                 .collect(Collectors.groupingBy(GrowthAutopilotTask::getModuleKey, Collectors.counting()));
 
         List<ModuleTemplate> sortedTemplates = templates.stream()
@@ -471,7 +536,8 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
                 .toList();
 
         int taskCount = clamp((int) Math.ceil(remainingScore / 4.0), 1, availableDays.size() * 3);
-        int baseMinutes = clamp((int) Math.round((remainingScore * 28.0) / taskCount), 25, 120);
+        taskCount = Math.min(taskCount, Math.max(1, remainingMinutes / 25));
+        int baseMinutes = Math.max(25, Math.min(120, remainingMinutes / taskCount));
 
         List<GrowthAutopilotTask> tasks = new ArrayList<>();
         int scoreLeft = remainingScore;
@@ -494,6 +560,12 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
             task.setStatus("todo");
             task.setSource("replan");
             task.setRoutePath(template.routePath());
+            task.setPlanVersion(normalizePlanVersion(goal.getPlanVersion()));
+            task.setResourceType("route");
+            task.setResourceId(template.routePath());
+            task.setResourceVersion("v1");
+            task.setSelectionReason("系统根据剩余预算重排");
+            task.setCompletionRuleJson("{\"type\":\"route\"}");
             tasks.add(task);
         }
         tasks.sort(Comparator.comparing(GrowthAutopilotTask::getTaskDate)
@@ -507,7 +579,9 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
         if (goal == null) {
             throw new BusinessException("周计划不存在");
         }
-        List<GrowthAutopilotTask> tasks = taskMapper.selectByGoalId(goalId);
+        List<GrowthAutopilotTask> tasks = taskMapper.selectByGoalId(goalId).stream()
+                .filter(this::isActiveTask)
+                .toList();
         LocalDate today = LocalDate.now();
 
         int totalTasks = tasks.size();
@@ -529,7 +603,7 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
         goal.setCompletionRate(clamp(completionRate, 0, 100));
         goal.setRiskLevel(calcRiskLevel(completionRate, overdueTasks, daysLeft(goal.getWeekEnd(), today)));
         goal.setStatus("active");
-        goalMapper.updateById(goal);
+        goalMapper.updateMetrics(goal);
         return goalMapper.selectById(goalId);
     }
 
@@ -542,9 +616,35 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
         eventMapper.insert(event);
     }
 
+    private void incrementPlanVersion(GrowthAutopilotGoal goal) {
+        int basePlanVersion = normalizePlanVersion(goal.getPlanVersion());
+        int nextPlanVersion = nextPlanVersion(basePlanVersion);
+        int budgetMinutes = weeklyMinutes(goal);
+        int weeklyHours = nvl(goal.getWeeklyHours());
+        if (weeklyHours <= 0) {
+            weeklyHours = Math.max(1, (int) Math.ceil(budgetMinutes / 60.0));
+        }
+        int updated = goalMapper.advancePlanVersion(
+                goal.getId(),
+                goal.getUserId(),
+                basePlanVersion,
+                nextPlanVersion,
+                normalizeRole(goal.getTargetRole()),
+                budgetMinutes,
+                weeklyHours,
+                null
+        );
+        if (updated != 1) {
+            throw new BusinessException("计划已发生变化，请刷新后重试");
+        }
+        goal.setPlanVersion(nextPlanVersion);
+        goal.setLastActionRunId(null);
+    }
+
     private GrowthAutopilotDashboardResponse emptyDashboard(LocalDate weekStart) {
         GrowthAutopilotDashboardResponse response = new GrowthAutopilotDashboardResponse();
         response.setHasPlan(false);
+        response.setPlanVersion(0);
         response.setWeekStart(formatDate(weekStart));
         response.setWeekEnd(formatDate(weekStart.plusDays(6)));
         response.setGeneratedAt(formatDateTime(LocalDateTime.now()));
@@ -659,6 +759,7 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
             case "complete" -> "完成任务";
             case "complete_batch" -> "批量完成";
             case "postpone" -> "任务顺延";
+            case "ai_adjust" -> "AI 调整";
             default -> "系统事件";
         };
     }
@@ -751,6 +852,25 @@ public class GrowthAutopilotServiceImpl implements GrowthAutopilotService {
 
     private int nvl(Integer value) {
         return value == null ? 0 : value;
+    }
+
+    private int weeklyMinutes(GrowthAutopilotGoal goal) {
+        if (goal.getWeeklyMinutes() != null && goal.getWeeklyMinutes() > 0) {
+            return goal.getWeeklyMinutes();
+        }
+        return nvl(goal.getWeeklyHours()) * 60;
+    }
+
+    private int normalizePlanVersion(Integer value) {
+        return value == null || value <= 0 ? 1 : value;
+    }
+
+    private int nextPlanVersion(Integer value) {
+        return normalizePlanVersion(value) + 1;
+    }
+
+    private boolean isActiveTask(GrowthAutopilotTask task) {
+        return "todo".equalsIgnoreCase(task.getStatus()) || "done".equalsIgnoreCase(task.getStatus());
     }
 
     private int clamp(int value, int min, int max) {

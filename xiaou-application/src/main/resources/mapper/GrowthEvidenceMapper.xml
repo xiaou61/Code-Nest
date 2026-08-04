@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.web.growthcoach.mapper.GrowthEvidenceMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.web.growthcoach.domain.GrowthEvidence">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="evidence_id" property="evidenceId" jdbcType="VARCHAR"/>
+        <result column="user_id" property="userId" jdbcType="BIGINT"/>
+        <result column="evidence_type" property="evidenceType" jdbcType="VARCHAR"/>
+        <result column="source_module" property="sourceModule" jdbcType="VARCHAR"/>
+        <result column="source_type" property="sourceType" jdbcType="VARCHAR"/>
+        <result column="source_id" property="sourceId" jdbcType="VARCHAR"/>
+        <result column="skill_key" property="skillKey" jdbcType="VARCHAR"/>
+        <result column="summary_json" property="summaryJson" jdbcType="LONGVARCHAR"/>
+        <result column="quality_level" property="qualityLevel" jdbcType="VARCHAR"/>
+        <result column="observed_at" property="observedAt" jdbcType="TIMESTAMP"/>
+        <result column="valid_from" property="validFrom" jdbcType="TIMESTAMP"/>
+        <result column="valid_to" property="validTo" jdbcType="TIMESTAMP"/>
+        <result column="content_hash" property="contentHash" jdbcType="VARCHAR"/>
+        <result column="projector_version" property="projectorVersion" jdbcType="VARCHAR"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, evidence_id, user_id, evidence_type, source_module, source_type, source_id,
+        skill_key, summary_json, quality_level, observed_at, valid_from, valid_to,
+        content_hash, projector_version, create_time, update_time
+    </sql>
+
+    <insert id="upsert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO growth_evidence (
+            evidence_id, user_id, evidence_type, source_module, source_type, source_id,
+            skill_key, summary_json, quality_level, observed_at, valid_from, valid_to,
+            content_hash, projector_version, create_time, update_time
+        ) VALUES (
+            #{evidenceId}, #{userId}, #{evidenceType}, #{sourceModule}, #{sourceType}, #{sourceId},
+            #{skillKey}, #{summaryJson}, #{qualityLevel}, #{observedAt}, #{validFrom}, #{validTo},
+            #{contentHash}, #{projectorVersion}, NOW(), NOW()
+        )
+        ON DUPLICATE KEY UPDATE
+            evidence_id = VALUES(evidence_id),
+            skill_key = VALUES(skill_key),
+            summary_json = VALUES(summary_json),
+            quality_level = VALUES(quality_level),
+            observed_at = VALUES(observed_at),
+            valid_from = VALUES(valid_from),
+            valid_to = NULL,
+            content_hash = VALUES(content_hash),
+            update_time = NOW()
+    </insert>
+
+    <update id="invalidateBySource">
+        UPDATE growth_evidence
+        SET
+            valid_to = COALESCE(valid_to, #{invalidatedAt}),
+            update_time = NOW()
+        WHERE user_id = #{userId}
+          AND source_module = #{sourceModule}
+          AND source_type = #{sourceType}
+          AND source_id = #{sourceId}
+          AND evidence_type = #{evidenceType}
+          AND projector_version = #{projectorVersion}
+          AND valid_to IS NULL
+    </update>
+
+    <select id="selectRecentValidByUser" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM growth_evidence
+        WHERE user_id = #{userId}
+          AND valid_from &lt;= NOW()
+          AND (valid_to IS NULL OR valid_to &gt; NOW())
+        ORDER BY observed_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+</mapper>

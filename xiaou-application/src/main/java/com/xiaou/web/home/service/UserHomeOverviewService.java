@@ -24,6 +24,8 @@ import com.xiaou.points.dto.PointsBalanceResponse;
 import com.xiaou.points.service.PointsService;
 import com.xiaou.version.dto.VersionHistoryResponse;
 import com.xiaou.version.service.VersionHistoryService;
+import com.xiaou.web.growthcoach.dto.GrowthCoachBriefingResponse;
+import com.xiaou.web.growthcoach.service.GrowthCoachBriefingService;
 import com.xiaou.web.home.dto.UserHomeOverviewResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -65,6 +67,7 @@ public class UserHomeOverviewService {
     private final PlanService planService;
     private final PointsService pointsService;
     private final VersionHistoryService versionHistoryService;
+    private final GrowthCoachBriefingService growthCoachBriefingService;
     private final Executor applicationIoExecutor;
 
     public UserHomeOverviewService(
@@ -79,6 +82,7 @@ public class UserHomeOverviewService {
             PlanService planService,
             PointsService pointsService,
             VersionHistoryService versionHistoryService,
+            GrowthCoachBriefingService growthCoachBriefingService,
             @Qualifier("applicationIoExecutor") Executor applicationIoExecutor
     ) {
         this.interviewLearnRecordService = interviewLearnRecordService;
@@ -92,6 +96,7 @@ public class UserHomeOverviewService {
         this.planService = planService;
         this.pointsService = pointsService;
         this.versionHistoryService = versionHistoryService;
+        this.growthCoachBriefingService = growthCoachBriefingService;
         this.applicationIoExecutor = applicationIoExecutor;
     }
 
@@ -114,10 +119,12 @@ public class UserHomeOverviewService {
                 "points", () -> pointsService.getPointsBalance(userId));
         CompletableFuture<SourceResult<List<VersionHistoryResponse>>> versionsFuture = loadAsync(
                 "versions", () -> versionHistoryService.getLatestVersions(HOME_FEED_LIMIT));
+        CompletableFuture<SourceResult<GrowthCoachBriefingResponse>> todayActionFuture = loadAsync(
+                "today-action", () -> growthCoachBriefingService.getForUser(userId));
 
         CompletableFuture.allOf(
                 learnedFuture, knowledgeFuture, onlineFuture, hotPostsFuture, hotMomentsFuture,
-                dailyProblemFuture, mockStatsFuture, planStatsFuture, pointsFuture, versionsFuture
+                dailyProblemFuture, mockStatsFuture, planStatsFuture, pointsFuture, versionsFuture, todayActionFuture
         ).join();
 
         SourceResult<Integer> learned = learnedFuture.join();
@@ -130,11 +137,13 @@ public class UserHomeOverviewService {
         SourceResult<PlanStatsResponse> planStats = planStatsFuture.join();
         SourceResult<PointsBalanceResponse> points = pointsFuture.join();
         SourceResult<List<VersionHistoryResponse>> versions = versionsFuture.join();
+        SourceResult<GrowthCoachBriefingResponse> todayAction = todayActionFuture.join();
 
         UserHomeOverviewResponse response = new UserHomeOverviewResponse();
         response.setGeneratedAt(LocalDateTime.now().format(DATETIME_FORMAT));
         response.setHotFeed(buildHotFeed(hotPosts.value(), hotMoments.value()));
         response.setGrowth(buildGrowth(planStats.value(), mockStats.value(), points.value()));
+        response.setTodayAction(buildTodayAction(todayAction.value()));
         response.setChallenge(buildChallenge(dailyProblem.value()));
         response.setVersions(buildVersions(versions.value()));
         response.setHeroMetrics(buildHero(
@@ -147,7 +156,7 @@ public class UserHomeOverviewService {
 
         setSectionStatus(response, "hero", learned.available() || knowledge.available() || online.available() || planStats.available());
         setSectionStatus(response, "hot", hotPosts.available() || hotMoments.available());
-        setSectionStatus(response, "growth", planStats.available() || mockStats.available() || points.available());
+        setSectionStatus(response, "growth", planStats.available() || mockStats.available() || points.available() || todayAction.available());
         setSectionStatus(response, "challenge", dailyProblem.available() || mockStats.available());
         setSectionStatus(response, "version", versions.available());
         return response;
@@ -270,6 +279,29 @@ public class UserHomeOverviewService {
         }
         growth.setPoints(points);
         return growth;
+    }
+
+    private UserHomeOverviewResponse.TodayAction buildTodayAction(GrowthCoachBriefingResponse source) {
+        UserHomeOverviewResponse.TodayAction action = new UserHomeOverviewResponse.TodayAction();
+        GrowthCoachBriefingResponse.PrimaryAction primary = source == null ? null : source.getPrimaryAction();
+        if (primary == null || !org.springframework.util.StringUtils.hasText(primary.getTitle())) {
+            return action;
+        }
+        action.setAvailable(true);
+        action.setTaskId("TODAY_TASK".equals(primary.getActionType()) ? primary.getActionId() : null);
+        action.setActionType(defaultText(primary.getActionType(), "PLAN_SETUP"));
+        action.setActionId(primary.getActionId());
+        action.setSource(defaultText(primary.getSource(), "growth_autopilot"));
+        action.setRiskLevel(defaultText(primary.getRiskLevel(), ""));
+        action.setPrefillMessage(defaultText(primary.getPrefillMessage(), ""));
+        action.setTrackingId(defaultText(primary.getTrackingId(), ""));
+        action.setTitle(defaultText(primary.getTitle(), "继续本周计划"));
+        action.setEstimatedMinutes(toInt(primary.getExpectedMinutes()));
+        action.setReason(defaultText(primary.getReason(), "当前优先级最高的成长动作"));
+        action.setExpectedChange(defaultText(primary.getExpectedChange(), "完成后将更新成长进度"));
+        action.setStartRoute(defaultText(primary.getRoutePath(), "/learning-cockpit?tab=autopilot"));
+        action.setEvidenceRefs(primary.getEvidenceRefs() == null ? List.of() : primary.getEvidenceRefs());
+        return action;
     }
 
     private UserHomeOverviewResponse.Challenge buildChallenge(OjProblem problem) {

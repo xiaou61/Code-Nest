@@ -41,6 +41,11 @@ public class MockInterviewSession {
     private Integer interviewType;
 
     /**
+     * 专项面试关注点，仅保留用户确认后的短技术主题。
+     */
+    private String specializedTopic;
+
+    /**
      * AI风格：1-温和 2-标准 3-压力
      */
     private Integer style;

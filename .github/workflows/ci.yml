@@ -25,6 +25,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verify repository version
+        run: python scripts/check-version-consistency.py
+
+      - name: Validate migration inventory
+        run: python scripts/db-migrate.py --dry-run
+
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
@@ -170,7 +176,7 @@ jobs:
         run: ./scripts/code-nest-eval.ps1 -Tier hygiene
 
       - name: Python syntax check
-        run: python -m py_compile scripts/deploy-frontends.py scripts/you_deserve_to_interview_sql.py
+        run: python -m py_compile scripts/check-version-consistency.py scripts/db-migrate.py scripts/deploy-frontends.py scripts/deploy-production.py scripts/release-smoke-test.py scripts/you_deserve_to_interview_sql.py
 
       - name: Shell syntax check
         run: bash -n scripts/ci-server-build-deploy.sh scripts/ci-server-build-deploy.test.sh scripts/deploy-release.sh

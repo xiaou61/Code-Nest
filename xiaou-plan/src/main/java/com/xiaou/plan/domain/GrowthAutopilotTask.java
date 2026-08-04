@@ -86,6 +86,46 @@ public class GrowthAutopilotTask {
     private String routePath;
 
     /**
+     * 跨版本关联任务键。
+     */
+    private String taskKey;
+
+    /**
+     * 所属计划版本。
+     */
+    private Integer planVersion;
+
+    /**
+     * 可执行资源类型。
+     */
+    private String resourceType;
+
+    /**
+     * 可执行资源业务标识。
+     */
+    private String resourceId;
+
+    /**
+     * 资源版本或快照标识。
+     */
+    private String resourceVersion;
+
+    /**
+     * 任务被选入当前计划的原因。
+     */
+    private String selectionReason;
+
+    /**
+     * 完成校验规则 JSON。
+     */
+    private String completionRuleJson;
+
+    /**
+     * 替代当前任务的新任务 ID，P0 预留。
+     */
+    private Long supersededByTaskId;
+
+    /**
      * 完成时间
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")

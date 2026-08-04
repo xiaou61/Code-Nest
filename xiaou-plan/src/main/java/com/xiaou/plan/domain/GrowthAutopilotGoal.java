@@ -47,6 +47,21 @@ public class GrowthAutopilotGoal {
     private Integer weeklyHours;
 
     /**
+     * 每周投入时长（分钟），作为计划器的精确预算。
+     */
+    private Integer weeklyMinutes;
+
+    /**
+     * 当前计划版本，用于预览确认时的乐观并发控制。
+     */
+    private Integer planVersion;
+
+    /**
+     * 最近一次计划调整 Action Run。
+     */
+    private String lastActionRunId;
+
+    /**
      * 首周计划的当前学习阶段：foundation / practice / interview。
      */
     private String currentStage;

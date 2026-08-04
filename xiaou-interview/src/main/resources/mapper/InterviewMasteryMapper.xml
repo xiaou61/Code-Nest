@@ -70,6 +70,28 @@
         </foreach>
     </select>
 
+    <!-- 按更新时间增量读取，供 Growth Coach 维护只读成长证据索引 -->
+    <select id="selectChangedForEvidence" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM interview_mastery_record
+        WHERE user_id = #{userId}
+        <if test="afterUpdateTime != null">
+            AND (update_time &gt; #{afterUpdateTime}
+                OR (update_time = #{afterUpdateTime} AND id &gt;= #{afterSourceId}))
+        </if>
+        ORDER BY update_time ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectUserIdsChangedForEvidence" resultType="java.lang.Long">
+        SELECT user_id
+        FROM interview_mastery_record
+        WHERE update_time &gt;= #{updatedAfter}
+        GROUP BY user_id
+        ORDER BY MAX(update_time) DESC, user_id ASC
+        LIMIT #{limit}
+    </select>
+
     <!-- 查询用户待复习题目（逾期） -->
     <select id="selectOverdueReview" resultMap="BaseResultMap">
         SELECT <include refid="Mastery_Column_List"/>,

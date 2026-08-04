@@ -3,6 +3,7 @@ package com.xiaou.sqloptimizer.mapper;
 import com.xiaou.sqloptimizer.domain.SqlOptimizeRecord;
 import org.apache.ibatis.annotations.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -46,6 +47,34 @@ public interface SqlOptimizeRecordMapper {
      */
     @Select("SELECT " + RECORD_COLUMNS + " FROM sql_optimize_record WHERE user_id = #{userId} AND deleted = 0 ORDER BY create_time DESC")
     List<SqlOptimizeRecord> selectAllByUserId(@Param("userId") Long userId);
+
+    /**
+     * 按更新时间增量读取用户 SQL 优化记录，供成长证据投影使用。
+     */
+    @Select({
+            "<script>",
+            "SELECT " + RECORD_COLUMNS + " FROM sql_optimize_record",
+            "WHERE user_id = #{userId}",
+            "<if test='afterUpdateTime != null'>",
+            "AND (update_time &gt; #{afterUpdateTime}",
+            "OR (update_time = #{afterUpdateTime} AND id &gt;= #{afterSourceId}))",
+            "</if>",
+            "ORDER BY update_time ASC, id ASC",
+            "LIMIT #{limit}",
+            "</script>"
+    })
+    List<SqlOptimizeRecord> selectChangedForEvidence(@Param("userId") Long userId,
+                                                      @Param("afterUpdateTime") LocalDateTime afterUpdateTime,
+                                                      @Param("afterSourceId") Long afterSourceId,
+                                                      @Param("limit") int limit);
+
+    /**
+     * 查询近期有 SQL 优化记录更新的用户，用于投影补偿扫描。
+     */
+    @Select("SELECT user_id FROM sql_optimize_record WHERE update_time >= #{updatedAfter} "
+            + "GROUP BY user_id ORDER BY MAX(update_time) DESC, user_id ASC LIMIT #{limit}")
+    List<Long> selectUserIdsChangedForEvidence(@Param("updatedAfter") LocalDateTime updatedAfter,
+                                                @Param("limit") int limit);
 
     /**
      * 统计用户记录数

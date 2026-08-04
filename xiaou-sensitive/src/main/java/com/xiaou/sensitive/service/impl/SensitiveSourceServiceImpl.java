@@ -10,10 +10,12 @@ import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.utils.PageHelper;
 import com.xiaou.sensitive.domain.SensitiveSource;
 import com.xiaou.sensitive.domain.SensitiveWord;
+import com.xiaou.sensitive.config.SensitiveSourceProperties;
 import com.xiaou.sensitive.dto.SensitiveSourceQuery;
 import com.xiaou.sensitive.mapper.SensitiveSourceMapper;
 import com.xiaou.sensitive.mapper.SensitiveWordMapper;
 import com.xiaou.sensitive.api.SensitiveCheckService;
+import com.xiaou.sensitive.security.RemoteUrlPolicy;
 import com.xiaou.sensitive.service.SensitiveSourceService;
 import com.xiaou.sensitive.service.SensitiveVersionService;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
+import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -46,11 +49,14 @@ public class SensitiveSourceServiceImpl implements SensitiveSourceService {
     private static final int DEFAULT_ACTION = 1;
     private static final long SYSTEM_CREATOR_ID = 0L;
     private static final int BATCH_SIZE = 500;
+    private static final String REMOTE_ERROR_MESSAGE = "远程来源暂不可用，请稍后重试";
 
     private final SensitiveSourceMapper sourceMapper;
     private final SensitiveWordMapper sensitiveWordMapper;
     private final SensitiveCheckService sensitiveCheckService;
     private final SensitiveVersionService sensitiveVersionService;
+    private final SensitiveSourceProperties sourceProperties;
+    private final RemoteUrlPolicy remoteUrlPolicy;
 
     @Override
     public PageResult<SensitiveSource> listSources(SensitiveSourceQuery query) {
@@ -136,29 +142,33 @@ public class SensitiveSourceServiceImpl implements SensitiveSourceService {
                 return "API地址为空，无需测试连接";
             }
 
-            String targetUrl = "github".equalsIgnoreCase(source.getSourceType())
+            boolean github = "github".equalsIgnoreCase(source.getSourceType());
+            URI targetUri = remoteUrlPolicy.validate("github".equalsIgnoreCase(source.getSourceType())
                     ? normalizeGithubUrl(source.getApiUrl())
-                    : source.getApiUrl();
+                    : source.getApiUrl(), github);
 
             // 测试HTTP连接
-            HttpRequest request = HttpRequest.get(targetUrl).timeout(8000);
-            if ("github".equalsIgnoreCase(source.getSourceType())) {
+            HttpRequest request = HttpRequest.get(targetUri.toString())
+                    .setConnectionTimeout(sourceProperties.getConnectTimeoutMillis())
+                    .setReadTimeout(sourceProperties.getReadTimeoutMillis())
+                    .setFollowRedirects(false)
+                    .setMaxRedirectCount(sourceProperties.getMaxRedirects());
+            if (github) {
                 request.header("User-Agent", "CodeNest-Sensitive-Sync");
             }
             String apiKey = StrUtil.trimToEmpty(source.getApiKey());
             if (StrUtil.isNotBlank(apiKey)) {
-                request.header("Authorization", buildAuthorizationHeader(apiKey, "github".equalsIgnoreCase(source.getSourceType())));
+                request.header("Authorization", buildAuthorizationHeader(apiKey, github));
             }
-            HttpResponse response = request.execute();
-
-            if (response.isOk()) {
-                return "连接成功";
-            } else {
+            try (HttpResponse response = request.execute()) {
+                if (response.isOk()) {
+                    return "连接成功";
+                }
                 return "连接失败: HTTP " + response.getStatus();
             }
         } catch (Exception e) {
             log.error("测试连接失败: id={}", id, e);
-            return "连接失败: " + e.getMessage();
+            return REMOTE_ERROR_MESSAGE;
         }
     }
 
@@ -188,7 +198,7 @@ public class SensitiveSourceServiceImpl implements SensitiveSourceService {
             }
         } catch (Exception e) {
             log.error("同步词库失败: id={}", id, e);
-            return new SyncResult(false, 0, 0, 0, "同步失败: " + e.getMessage());
+            return new SyncResult(false, 0, 0, 0, REMOTE_ERROR_MESSAGE);
         }
     }
 
@@ -217,7 +227,7 @@ public class SensitiveSourceServiceImpl implements SensitiveSourceService {
         } catch (Exception e) {
             updateSyncStatus(source.getId(), 0, 0);
             log.error("同步API来源失败", e);
-            return new SyncResult(false, 0, 0, 0, "同步失败: " + e.getMessage());
+            return new SyncResult(false, 0, 0, 0, REMOTE_ERROR_MESSAGE);
         }
     }
 
@@ -239,7 +249,7 @@ public class SensitiveSourceServiceImpl implements SensitiveSourceService {
         } catch (Exception e) {
             updateSyncStatus(source.getId(), 0, 0);
             log.error("同步GitHub来源失败", e);
-            return new SyncResult(false, 0, 0, 0, "同步失败: " + e.getMessage());
+            return new SyncResult(false, 0, 0, 0, REMOTE_ERROR_MESSAGE);
         }
     }
 
@@ -247,8 +257,12 @@ public class SensitiveSourceServiceImpl implements SensitiveSourceService {
      * 请求远端词库内容
      */
     private String requestRemoteContent(SensitiveSource source, String url, boolean github) {
-        HttpRequest request = HttpRequest.get(url)
-                .timeout(15000)
+        URI targetUri = remoteUrlPolicy.validate(url, github);
+        HttpRequest request = HttpRequest.get(targetUri.toString())
+                .setConnectionTimeout(sourceProperties.getConnectTimeoutMillis())
+                .setReadTimeout(sourceProperties.getReadTimeoutMillis())
+                .setFollowRedirects(false)
+                .setMaxRedirectCount(sourceProperties.getMaxRedirects())
                 .header("Accept", "application/json,text/plain,*/*");
 
         if (github) {
@@ -260,11 +274,19 @@ public class SensitiveSourceServiceImpl implements SensitiveSourceService {
             request.header("Authorization", buildAuthorizationHeader(apiKey, github));
         }
 
-        HttpResponse response = request.execute();
-        if (!response.isOk()) {
-            throw new IllegalStateException("远端返回异常状态: HTTP " + response.getStatus());
+        try (HttpResponse response = request.execute()) {
+            if (!response.isOk()) {
+                throw new IllegalStateException("remote status " + response.getStatus());
+            }
+            if (response.contentLength() > sourceProperties.getMaxResponseBytes()) {
+                throw new IllegalStateException("remote response exceeds configured limit");
+            }
+            byte[] body = response.bodyBytes();
+            if (body.length > sourceProperties.getMaxResponseBytes()) {
+                throw new IllegalStateException("remote response exceeds configured limit");
+            }
+            return new String(body, StandardCharsets.UTF_8);
         }
-        return response.body();
     }
 
     /**

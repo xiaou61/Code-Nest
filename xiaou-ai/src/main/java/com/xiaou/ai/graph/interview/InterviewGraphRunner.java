@@ -53,11 +53,21 @@ public class InterviewGraphRunner {
     private volatile CompiledGraph<InterviewState> followUpGraph;
 
     public List<GeneratedQuestion> runGenerateQuestions(String direction, String level, int count) {
+        return runGenerateQuestions(direction, level, count, null);
+    }
+
+    public List<GeneratedQuestion> runGenerateQuestions(
+            String direction,
+            String level,
+            int count,
+            String specializedFocus
+    ) {
         Map<String, Object> input = new HashMap<>();
         input.put(InterviewState.TASK_TYPE, InterviewTaskType.GENERATE_QUESTIONS.name());
         input.put(InterviewState.DIRECTION, direction);
         input.put(InterviewState.LEVEL, level);
         input.put(InterviewState.GENERATED_COUNT, count);
+        input.put(InterviewState.SPECIALIZED_FOCUS, specializedFocus);
 
         InterviewState state = invokeGraph(getQuestionGraph(), input, "interview_generate_questions_graph");
         return parseGeneratedQuestions(state.generatedQuestionsJson());
@@ -143,12 +153,23 @@ public class InterviewGraphRunner {
     }
 
     private Map<String, Object> generateQuestions(InterviewState state) {
-        List<GeneratedQuestion> questions = sceneSupport.generateQuestions(
-                state.direction(),
-                state.level(),
-                state.generatedCount(),
-                state.ragContext()
-        );
+        List<GeneratedQuestion> questions;
+        if (StringUtils.hasText(state.specializedFocus())) {
+            questions = sceneSupport.generateQuestions(
+                    state.direction(),
+                    state.level(),
+                    state.generatedCount(),
+                    state.specializedFocus(),
+                    state.ragContext()
+            );
+        } else {
+            questions = sceneSupport.generateQuestions(
+                    state.direction(),
+                    state.level(),
+                    state.generatedCount(),
+                    state.ragContext()
+            );
+        }
         return update(InterviewState.GENERATED_QUESTIONS_JSON, JSONUtil.toJsonStr(questions));
     }
 
@@ -406,6 +427,7 @@ public class InterviewGraphRunner {
         channels.put(InterviewState.ANSWER, Channels.base(() -> ""));
         channels.put(InterviewState.FOLLOW_UP_COUNT, Channels.base(() -> 0));
         channels.put(InterviewState.GENERATED_COUNT, Channels.base(() -> 0));
+        channels.put(InterviewState.SPECIALIZED_FOCUS, Channels.base(() -> ""));
         channels.put(InterviewState.QUESTION_COUNT, Channels.base(() -> 0));
         channels.put(InterviewState.ANSWERED_COUNT, Channels.base(() -> 0));
         channels.put(InterviewState.SKIPPED_COUNT, Channels.base(() -> 0));

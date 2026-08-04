@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.web.growthcoach.mapper.GrowthGithubConnectionMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.web.growthcoach.domain.GrowthGithubConnection">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="user_id" property="userId" jdbcType="BIGINT"/>
+        <result column="github_user_id" property="githubUserId" jdbcType="BIGINT"/>
+        <result column="github_login" property="githubLogin" jdbcType="VARCHAR"/>
+        <result column="github_name" property="githubName" jdbcType="VARCHAR"/>
+        <result column="avatar_url" property="avatarUrl" jdbcType="VARCHAR"/>
+        <result column="access_token_ciphertext" property="accessTokenCiphertext" jdbcType="VARCHAR"/>
+        <result column="connected_at" property="connectedAt" jdbcType="TIMESTAMP"/>
+        <result column="token_updated_at" property="tokenUpdatedAt" jdbcType="TIMESTAMP"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, user_id, github_user_id, github_login, github_name, avatar_url,
+        access_token_ciphertext, connected_at, token_updated_at, create_time, update_time
+    </sql>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM growth_github_connection
+        WHERE user_id = #{userId}
+        LIMIT 1
+    </select>
+
+    <select id="selectByGithubUserId" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM growth_github_connection
+        WHERE github_user_id = #{githubUserId}
+        LIMIT 1
+    </select>
+
+    <insert id="upsert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO growth_github_connection (
+            user_id, github_user_id, github_login, github_name, avatar_url,
+            access_token_ciphertext, connected_at, token_updated_at, create_time, update_time
+        ) VALUES (
+            #{userId}, #{githubUserId}, #{githubLogin}, #{githubName}, #{avatarUrl},
+            #{accessTokenCiphertext}, #{connectedAt}, #{tokenUpdatedAt}, NOW(), NOW()
+        )
+        ON DUPLICATE KEY UPDATE
+            github_user_id = VALUES(github_user_id),
+            github_login = VALUES(github_login),
+            github_name = VALUES(github_name),
+            avatar_url = VALUES(avatar_url),
+            access_token_ciphertext = VALUES(access_token_ciphertext),
+            connected_at = VALUES(connected_at),
+            token_updated_at = VALUES(token_updated_at),
+            update_time = NOW()
+    </insert>
+
+    <delete id="deleteByUserId">
+        DELETE FROM growth_github_connection
+        WHERE user_id = #{userId}
+    </delete>
+</mapper>

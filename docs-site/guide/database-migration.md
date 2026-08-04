@@ -1,10 +1,10 @@
 # 数据库迁移指南
 
-本文档说明如何进行数据库版本升级、表结构变更和数据迁移。
+本文档说明如何进行数据库版本升级、表结构变更和数据迁移。当前生产执行入口是仓库根目录的 `scripts/db-migrate.py`，而不是在应用启动时隐式执行 DDL。
 
 ## 版本管理策略
 
-Code Nest 使用**增量 SQL 脚本**管理数据库版本：
+Code Nest 使用**增量 SQL 脚本 + checksum ledger** 管理数据库版本：
 
 ```
 sql/
@@ -15,9 +15,27 @@ sql/
 ├── v2.0.0/
 │   ├── V2.0.0__alter_user.sql # 用户表变更
 │   └── V2.0.0__add_points.sql # 新增积分表
-└── v2.1.0/
-    └── V2.1.0__ai_tables.sql  # AI 相关表
+└── v2.5.3/
+    └── production_governance.sql # 生产迁移 ledger 与事件契约
 ```
+
+脚本文件名保持仓库现有命名即可；执行器按 `v*/` 目录和文件名排序，并将 `version/name/checksum/status/execution_ms` 写入 `code_nest_schema_migration`。已经应用的 SQL 不得修改，checksum 漂移会直接阻止执行。
+
+## 发布前执行
+
+```bash
+# CI、代码评审和发布包构建：只读列出迁移及 checksum
+python scripts/db-migrate.py --dry-run
+
+# 新数据库或已完成备份的目标环境
+python scripts/db-migrate.py --apply
+
+# 已经手工执行过历史 SQL、但还没有 ledger 的环境
+python scripts/db-migrate.py --baseline --baseline-to v2.5.2
+python scripts/db-migrate.py --apply
+```
+
+生产部署脚本默认跳过数据库写入。只有在确认备份、锁定窗口和回滚方案后，显式设置 `CODE_NEST_RUN_MIGRATIONS=true` 才会在替换应用前调用同一迁移执行器。
 
 ## 命名规范
 

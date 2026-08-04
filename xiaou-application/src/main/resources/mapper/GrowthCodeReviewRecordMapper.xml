@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.web.growthcoach.mapper.GrowthCodeReviewRecordMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.web.growthcoach.domain.GrowthCodeReviewRecord">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="user_id" property="userId" jdbcType="BIGINT"/>
+        <result column="code_pen_id" property="codePenId" jdbcType="BIGINT"/>
+        <result column="previous_review_id" property="previousReviewId" jdbcType="BIGINT"/>
+        <result column="source_hash" property="sourceHash" jdbcType="VARCHAR"/>
+        <result column="score" property="score" jdbcType="INTEGER"/>
+        <result column="critical_finding_count" property="criticalFindingCount" jdbcType="INTEGER"/>
+        <result column="high_finding_count" property="highFindingCount" jdbcType="INTEGER"/>
+        <result column="medium_finding_count" property="mediumFindingCount" jdbcType="INTEGER"/>
+        <result column="summary" property="summary" jdbcType="VARCHAR"/>
+        <result column="result_json" property="resultJson" jdbcType="LONGVARCHAR"/>
+        <result column="status" property="status" jdbcType="VARCHAR"/>
+        <result column="source_observed_at" property="sourceObservedAt" jdbcType="TIMESTAMP"/>
+        <result column="reviewed_at" property="reviewedAt" jdbcType="TIMESTAMP"/>
+        <result column="deleted" property="deleted" jdbcType="INTEGER"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, user_id, code_pen_id, previous_review_id, source_hash, score,
+        critical_finding_count, high_finding_count, medium_finding_count,
+        summary, result_json, status, source_observed_at, reviewed_at,
+        deleted, create_time, update_time
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO growth_code_review_record (
+            user_id, code_pen_id, previous_review_id, source_hash, score,
+            critical_finding_count, high_finding_count, medium_finding_count,
+            summary, result_json, status, source_observed_at, reviewed_at,
+            deleted, create_time, update_time
+        ) VALUES (
+            #{userId}, #{codePenId}, #{previousReviewId}, #{sourceHash}, #{score},
+            #{criticalFindingCount}, #{highFindingCount}, #{mediumFindingCount},
+            #{summary}, #{resultJson}, #{status}, #{sourceObservedAt}, #{reviewedAt},
+            0, NOW(), NOW()
+        )
+    </insert>
+
+    <select id="selectLatestByUserAndPen" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM growth_code_review_record
+        WHERE user_id = #{userId}
+          AND code_pen_id = #{codePenId}
+          AND deleted = 0
+        ORDER BY reviewed_at DESC, id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectByIdAndUser" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM growth_code_review_record
+        WHERE id = #{id}
+          AND user_id = #{userId}
+        LIMIT 1
+    </select>
+
+    <update id="logicalDelete">
+        UPDATE growth_code_review_record
+        SET deleted = 1,
+            update_time = NOW()
+        WHERE id = #{id}
+          AND user_id = #{userId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectChangedForEvidence" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM growth_code_review_record
+        WHERE user_id = #{userId}
+          AND (
+                #{afterUpdateTime} IS NULL
+                OR update_time &gt; #{afterUpdateTime}
+                OR (update_time = #{afterUpdateTime} AND id &gt; #{afterSourceId})
+          )
+        ORDER BY update_time ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectUserIdsChangedForEvidence" resultType="java.lang.Long">
+        SELECT DISTINCT user_id
+        FROM growth_code_review_record
+        WHERE update_time &gt;= #{updatedAfter}
+        ORDER BY user_id ASC
+        LIMIT #{limit}
+    </select>
+</mapper>

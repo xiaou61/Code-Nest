@@ -106,3 +106,13 @@ Prometheus API is restricted to the monitoring network; enable `XIAOU_SRE_LOKI_E
 only after an Alloy/Loki deployment and its retention policy are verified. Neither
 collector executes remediation commands, and an unavailable evidence source is recorded
 as a bounded unavailable snapshot instead of blocking the QQ alert path.
+
+When the Outbox worker is enabled, its own queue and processing health is available from the
+same backend scrape endpoint. Watch `xiaou_sre_outbox_pending`,
+`xiaou_sre_outbox_processing`, `xiaou_sre_outbox_lease_recoveries_total`,
+`xiaou_sre_outbox_events_total{outcome="failed"}`, and the P95 of
+`xiaou_sre_outbox_event_duration_seconds`. The same endpoint exposes
+`xiaou_sre_alerts_ingested_total`, `xiaou_sre_alerts_duplicates_total`,
+`xiaou_sre_alerts_ingestion_errors_total`, `xiaou_sre_incidents_open`, and evidence collection
+success/error and duration metrics. Metric labels intentionally exclude incident IDs and payload
+values and are restricted to bounded status, severity, source, event type, and outcome values.

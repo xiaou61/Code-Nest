@@ -12,6 +12,7 @@ import argparse
 import os
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 from datetime import datetime, timezone
@@ -38,6 +39,33 @@ def require_directory(path: Path, label: str) -> None:
 def require_file(path: Path, label: str) -> None:
     if not path.is_file():
         raise SystemExit(f"{label} does not exist: {path}")
+
+
+def repository_version() -> str:
+    value = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    if not value:
+        raise SystemExit("VERSION is empty")
+    return f"v{value}"
+
+
+def ensure_clean_worktree(allow_dirty: bool) -> None:
+    if allow_dirty:
+        return
+    status = capture(["git", "status", "--porcelain"])
+    if status:
+        raise SystemExit("refusing production build from dirty worktree; pass --allow-dirty only for diagnostics")
+
+
+def normalize_release_version(value: str | None) -> str:
+    expected = repository_version()
+    if value is None or not value.strip():
+        return expected
+    candidate = value.strip()
+    if not candidate.startswith("v"):
+        candidate = f"v{candidate}"
+    if candidate != expected:
+        raise SystemExit(f"release version {candidate} does not match repository VERSION {expected}")
+    return candidate
 
 
 def discover_backend_jar() -> Path:
@@ -76,9 +104,7 @@ def assemble_bundle(args: argparse.Namespace) -> Path:
     version = args.version
     if not version:
         try:
-            branch = capture(["git", "rev-parse", "--abbrev-ref", "HEAD"])
-            sha = capture(["git", "rev-parse", "--short", "HEAD"])
-            version = f"{branch}-{sha}"
+            version = repository_version()
         except (subprocess.CalledProcessError, FileNotFoundError):
             version = "manual"
     safe_version = "".join(ch if ch.isalnum() or ch in "._-" else "-" for ch in version)
@@ -104,6 +130,13 @@ def assemble_bundle(args: argparse.Namespace) -> Path:
         copy_tree_contents(REPO_ROOT / "vue3-admin-front" / "dist", admin_dir)
         copy_tree_contents(REPO_ROOT / "vue3-user-front" / "dist", user_dir)
         shutil.copy2(REPO_ROOT / "scripts" / "deploy-release.sh", scripts_dir / "deploy-release.sh")
+        shutil.copy2(REPO_ROOT / "scripts" / "db-migrate.py", scripts_dir / "db-migrate.py")
+        shutil.copy2(REPO_ROOT / "scripts" / "release-smoke-test.py", scripts_dir / "release-smoke-test.py")
+        shutil.copy2(REPO_ROOT / "VERSION", stage / "VERSION")
+        shutil.copytree(REPO_ROOT / "sql", stage / "sql")
+        (scripts_dir / "deploy-release.sh").chmod(0o755)
+        (scripts_dir / "db-migrate.py").chmod(0o755)
+        (scripts_dir / "release-smoke-test.py").chmod(0o755)
 
         try:
             sha = capture(["git", "rev-parse", "HEAD"])
@@ -116,6 +149,7 @@ def assemble_bundle(args: argparse.Namespace) -> Path:
                     f"version={safe_version}",
                     f"sha={sha}",
                     f"built_at={datetime.now(timezone.utc).isoformat()}",
+                    f"schema_version={safe_version}",
                     "",
                 ]
             ),
@@ -134,6 +168,7 @@ def assemble_bundle(args: argparse.Namespace) -> Path:
                         archive.addfile(tar_info, handle)
                 else:
                     archive.addfile(tar_info)
+        run([sys.executable, str(REPO_ROOT / "scripts" / "release-smoke-test.py"), str(bundle)])
     finally:
         shutil.rmtree(stage, ignore_errors=True)
 
@@ -188,6 +223,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--version", default=os.getenv("CODE_NEST_RELEASE_VERSION"), help="Release version label.")
     parser.add_argument("--jar", default=None, help="Use an existing backend jar instead of auto-discovery.")
     parser.add_argument("--skip-build", action="store_true", help="Use existing backend jar and frontend dist.")
+    parser.add_argument("--allow-dirty", action="store_true", help="Allow a dirty worktree for local diagnostics; never use for production.")
     parser.add_argument("--no-reload-nginx", action="store_true", help="Deploy without reloading nginx.")
     parser.add_argument(
         "--strict-host-key-checking",
@@ -201,7 +237,10 @@ def main() -> None:
     args = parse_args()
     if not args.host:
         raise SystemExit("missing --host or CODE_NEST_DEPLOY_HOST")
+    args.version = normalize_release_version(args.version)
     args.reload_nginx = not args.no_reload_nginx
+    ensure_clean_worktree(args.allow_dirty)
+    run([sys.executable, str(REPO_ROOT / "scripts" / "check-version-consistency.py")])
 
     build_artifacts(args)
     bundle = assemble_bundle(args)

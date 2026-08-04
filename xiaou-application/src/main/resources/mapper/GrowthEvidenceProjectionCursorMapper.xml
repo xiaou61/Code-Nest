@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.web.growthcoach.mapper.GrowthEvidenceProjectionCursorMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.web.growthcoach.domain.GrowthEvidenceProjectionCursor">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="user_id" property="userId" jdbcType="BIGINT"/>
+        <result column="source_key" property="sourceKey" jdbcType="VARCHAR"/>
+        <result column="cursor_time" property="cursorTime" jdbcType="TIMESTAMP"/>
+        <result column="cursor_source_id" property="cursorSourceId" jdbcType="BIGINT"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <select id="selectByUserAndSourceKey" resultMap="BaseResultMap">
+        SELECT id, user_id, source_key, cursor_time, cursor_source_id, create_time, update_time
+        FROM growth_evidence_projection_cursor
+        WHERE user_id = #{userId}
+          AND source_key = #{sourceKey}
+        LIMIT 1
+    </select>
+
+    <insert id="upsert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO growth_evidence_projection_cursor (
+            user_id, source_key, cursor_time, cursor_source_id, create_time, update_time
+        ) VALUES (
+            #{userId}, #{sourceKey}, #{cursorTime}, #{cursorSourceId}, NOW(), NOW()
+        )
+        ON DUPLICATE KEY UPDATE
+            cursor_time = CASE
+                WHEN VALUES(cursor_time) &gt; cursor_time
+                    OR (VALUES(cursor_time) = cursor_time AND VALUES(cursor_source_id) &gt; cursor_source_id)
+                    THEN VALUES(cursor_time)
+                ELSE cursor_time
+            END,
+            cursor_source_id = CASE
+                WHEN VALUES(cursor_time) &gt; cursor_time
+                    OR (VALUES(cursor_time) = cursor_time AND VALUES(cursor_source_id) &gt; cursor_source_id)
+                    THEN VALUES(cursor_source_id)
+                ELSE cursor_source_id
+            END,
+            update_time = NOW()
+    </insert>
+</mapper>

@@ -1,6 +1,6 @@
 # 生产 CI/CD 自动发布
 
-本页说明 Code Nest `v2.3.1` 起启用的生产 CI/CD 流程。目标是每次准备发布版本后，由 GitHub Actions 自动构建后端、用户端、管理端和文档站，并在触发生产部署时同步更新服务器。
+本页说明 Code Nest `v2.5.3` 的生产 CI/CD 流程。目标是每次准备发布版本后，由 GitHub Actions 自动构建后端、用户端、管理端和文档站，并在触发生产部署时同步更新服务器，同时保留可追溯的版本、迁移和回滚证据。
 
 ## 流水线总览
 
@@ -117,20 +117,26 @@ backend/app.jar
 admin/*
 user/*
 scripts/deploy-release.sh
+scripts/db-migrate.py
+scripts/release-smoke-test.py
+VERSION
+sql/v*/**
 RELEASE
 ```
 
 服务器端脚本会执行：
 
-1. 解压 release bundle 到临时 stage。
-2. 校验 Jar、用户端 `index.html` 和管理端 `index.html` 是否存在。
-3. 备份当前 Jar、用户端静态目录和管理端静态目录。
-4. 替换 `/opt/code-nest/app/app.jar`。
-5. 替换 `/var/www/code-nest-user` 和 `/var/www/code-nest-admin`。
-6. 更新 `/opt/code-nest/bin/deploy-release.sh`。
-7. reload Nginx。
-8. 重启 `code-nest.service`。
-9. 访问 Actuator health，失败则自动回滚到本次发布前备份。
+1. 在解压前检查 tar 路径和版本元数据，解压后再次运行 release smoke test。
+2. 解压 release bundle 到临时 stage。
+3. 校验 Jar、用户端 `index.html`、管理端 `index.html`、版本和迁移执行器是否存在。
+4. 只有设置 `CODE_NEST_RUN_MIGRATIONS=true` 时才执行 checksum 迁移；默认只记录跳过。
+5. 备份当前 Jar、用户端静态目录和管理端静态目录。
+6. 替换 `/opt/code-nest/app/app.jar`。
+7. 替换 `/var/www/code-nest-user` 和 `/var/www/code-nest-admin`。
+8. 更新 `/opt/code-nest/bin/deploy-release.sh`。
+9. reload Nginx。
+10. 重启 `code-nest.service`。
+11. 访问 Actuator health，失败则自动回滚到本次发布前备份；旧备份按数量和总容量清理。
 
 ## 手动回滚
 
@@ -160,4 +166,4 @@ sudo CODE_NEST_RELEASE_VERSION=manual-rollback \
 | WebSocket 异常 | 确认 Nginx `/api/ws/` 配置包含 `Upgrade` 和 `Connection` 头 |
 | 需要跳过 Nginx reload | 手动触发 workflow 时将 `reload_nginx` 设为 `false` |
 
-生产部署只负责应用产物同步，不自动执行数据库迁移。涉及 SQL 的版本仍需在发布前单独评审、备份和执行迁移脚本。
+生产部署默认只负责应用产物同步，不自动执行数据库迁移。涉及 SQL 的版本仍需在发布前评审和备份；确认窗口内可设置 `CODE_NEST_RUN_MIGRATIONS=true` 让同一 release bundle 执行迁移。迁移执行器会校验 checksum，遇到文件漂移或失败会停止发布。

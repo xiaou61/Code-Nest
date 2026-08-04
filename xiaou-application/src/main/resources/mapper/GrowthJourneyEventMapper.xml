@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.web.growthcoach.mapper.GrowthJourneyEventMapper">
+
+    <insert id="insert">
+        INSERT INTO growth_journey_event (
+            user_id, event_type, tracking_id, action_type, source, schema_version, client_version, entry_page, create_time
+        ) VALUES (
+            #{userId}, #{eventType}, #{trackingId}, #{actionType}, #{source}, #{schemaVersion}, #{clientVersion}, #{entryPage}, NOW()
+        )
+    </insert>
+</mapper>

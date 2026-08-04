@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.web.growthcoach.mapper.GrowthCoachActionEventMapper">
+
+    <select id="selectNextSequence" resultType="java.lang.Integer">
+        SELECT COALESCE(MAX(sequence_no), 0) + 1
+        FROM growth_coach_action_event
+        WHERE run_id = #{runId}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO growth_coach_action_event (
+            run_id, sequence_no, from_status, to_status, event_type, detail_json, create_time
+        ) VALUES (
+            #{runId}, #{sequenceNo}, #{fromStatus}, #{toStatus}, #{eventType}, #{detailJson}, NOW()
+        )
+    </insert>
+</mapper>

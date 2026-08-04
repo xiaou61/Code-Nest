@@ -86,6 +86,16 @@ public class AiMetricsRecorder {
         runtimeMetricsCollector.recordFallback(sceneName, promptSpec, reason, resolveRuntimeModelName());
     }
 
+    public void recordConcurrencyRejection(String sceneName, AiPromptSpec promptSpec) {
+        Counter.builder("xiaou.ai.chat.concurrency.rejections")
+                .description("统一 AI 并发保护拒绝次数")
+                .tag("scene", safeTag(sceneName))
+                .tag("prompt_key", promptKey(promptSpec))
+                .tag("prompt_version", promptVersion(promptSpec))
+                .register(meterRegistry)
+                .increment();
+    }
+
     public void recordStructuredParseFailure(String sceneName, AiPromptSpec promptSpec, String reason) {
         Counter.builder("xiaou.ai.structured.parse.failures")
                 .description("统一 AI 结构化解析失败次数")

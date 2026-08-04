@@ -5,6 +5,7 @@
     <resultMap id="BaseResultMap" type="com.xiaou.mockinterview.domain.CareerLoopStageLog">
         <id column="id" property="id"/>
         <result column="session_id" property="sessionId"/>
+        <result column="user_id" property="userId"/>
         <result column="from_stage" property="fromStage"/>
         <result column="to_stage" property="toStage"/>
         <result column="trigger_source" property="triggerSource"/>
@@ -23,10 +24,37 @@
 
     <select id="selectBySessionId" resultMap="BaseResultMap">
         SELECT
-            id, session_id, from_stage, to_stage, trigger_source, trigger_ref_id, note, create_time
-        FROM career_loop_stage_log
-        WHERE session_id = #{sessionId}
-        ORDER BY id DESC
+            log.id, log.session_id, session.user_id, log.from_stage, log.to_stage,
+            log.trigger_source, log.trigger_ref_id, log.note, log.create_time
+        FROM career_loop_stage_log log
+        INNER JOIN career_loop_session session ON session.id = log.session_id
+        WHERE log.session_id = #{sessionId}
+        ORDER BY log.id DESC
+    </select>
+
+    <select id="selectChangedForEvidence" resultMap="BaseResultMap">
+        SELECT
+            log.id, log.session_id, session.user_id, log.from_stage, log.to_stage, log.trigger_source,
+            log.trigger_ref_id, log.note, log.create_time
+        FROM career_loop_stage_log log
+        INNER JOIN career_loop_session session ON session.id = log.session_id
+        WHERE session.user_id = #{userId}
+        <if test="afterCreateTime != null">
+            AND (log.create_time &gt; #{afterCreateTime}
+                OR (log.create_time = #{afterCreateTime} AND log.id &gt;= #{afterSourceId}))
+        </if>
+        ORDER BY log.create_time ASC, log.id ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectUserIdsChangedForEvidence" resultType="java.lang.Long">
+        SELECT session.user_id
+        FROM career_loop_stage_log log
+        INNER JOIN career_loop_session session ON session.id = log.session_id
+        WHERE log.create_time &gt;= #{createdAfter}
+        GROUP BY session.user_id
+        ORDER BY MAX(log.create_time) DESC, session.user_id ASC
+        LIMIT #{limit}
     </select>
 
 </mapper>

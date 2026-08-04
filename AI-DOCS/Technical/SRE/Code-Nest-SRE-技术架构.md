@@ -603,7 +603,10 @@ P2 开始，SRE 模块必须暴露自己的指标，让“监控系统也被监�
 | `sre_evidence_collection_errors_total` | Counter | 证据源失败和超时。 |
 | `sre_ai_investigation_total` | Counter | AI 调查成功、失败、超时和成本。 |
 | `sre_action_proposal_total` | Counter | 提案按 risk/state 统计。 |
-| `sre_outbox_pending_total` | Gauge | 异步任务堆积量。 |
+| `xiaou_sre_outbox_pending` | Gauge | 异步任务堆积量。 |
+| `xiaou_sre_outbox_processing` | Gauge | 当前正在处理的事件数。 |
+| `xiaou_sre_outbox_lease_recoveries_total` | Counter | 租约过期后恢复的事件数。 |
+| `xiaou_sre_outbox_event_duration_seconds` | Timer | 单事件证据处理耗时。 |
 
 这些指标由 Prometheus 采集，仍由 Alertmanager 告警；不要在 SRE 模块里实现第二套告警
 引擎。

@@ -14,6 +14,10 @@ SERVICE_NAME="${CODE_NEST_SERVICE_NAME:-code-nest.service}"
 HEALTH_URL="${CODE_NEST_HEALTH_URL:-http://127.0.0.1:9999/api/actuator/health}"
 RELOAD_NGINX="${CODE_NEST_RELOAD_NGINX:-true}"
 KEEP_RELEASES="${CODE_NEST_KEEP_RELEASES:-8}"
+MAX_BACKUP_GB="${CODE_NEST_MAX_BACKUP_GB:-4}"
+MIN_FREE_GB="${CODE_NEST_MIN_FREE_GB:-2}"
+RUN_MIGRATIONS="${CODE_NEST_RUN_MIGRATIONS:-false}"
+RETRY_FAILED="${CODE_NEST_RETRY_FAILED:-false}"
 RELEASE_VERSION="${CODE_NEST_RELEASE_VERSION:-unknown}"
 
 APP_ROOT="$(strip_cr "$APP_ROOT")"
@@ -25,6 +29,10 @@ SERVICE_NAME="$(strip_cr "$SERVICE_NAME")"
 HEALTH_URL="$(strip_cr "$HEALTH_URL")"
 RELOAD_NGINX="$(strip_cr "$RELOAD_NGINX")"
 KEEP_RELEASES="$(strip_cr "$KEEP_RELEASES")"
+MAX_BACKUP_GB="$(strip_cr "$MAX_BACKUP_GB")"
+MIN_FREE_GB="$(strip_cr "$MIN_FREE_GB")"
+RUN_MIGRATIONS="$(strip_cr "$RUN_MIGRATIONS")"
+RETRY_FAILED="$(strip_cr "$RETRY_FAILED")"
 RELEASE_VERSION="$(strip_cr "$RELEASE_VERSION")"
 
 usage() {
@@ -43,6 +51,10 @@ Environment overrides:
   CODE_NEST_HEALTH_URL=http://127.0.0.1:9999/api/actuator/health
   CODE_NEST_RELOAD_NGINX=true
   CODE_NEST_KEEP_RELEASES=8
+  CODE_NEST_MAX_BACKUP_GB=4
+  CODE_NEST_MIN_FREE_GB=2
+  CODE_NEST_RUN_MIGRATIONS=false
+  CODE_NEST_RETRY_FAILED=false
 USAGE
 }
 
@@ -55,6 +67,107 @@ require_cmd() {
     log "missing required command: $1"
     exit 127
   }
+}
+
+validate_bundle() {
+  local bundle="$1"
+  local member
+  local bundle_version
+  local expected_version
+  local metadata_version
+  local metadata_schema_version
+
+  require_cmd python3
+  python3 - "$bundle" <<'PY'
+import re
+import sys
+import tarfile
+from pathlib import PurePosixPath
+
+bundle = sys.argv[1]
+required = {
+    "RELEASE",
+    "VERSION",
+    "backend/app.jar",
+    "user/index.html",
+    "admin/index.html",
+    "scripts/deploy-release.sh",
+    "scripts/db-migrate.py",
+    "scripts/release-smoke-test.py",
+    "sql/v2.5.3/production_governance.sql",
+}
+
+with tarfile.open(bundle, "r:gz") as archive:
+    members = archive.getmembers()
+    names = {member.name for member in members}
+    unsafe = []
+    for member in members:
+        normalized = member.name.replace("\\", "/")
+        if normalized.startswith("/") or ".." in PurePosixPath(normalized).parts:
+            unsafe.append(member.name)
+        elif not (member.isdir() or member.isfile()):
+            unsafe.append(member.name)
+    if unsafe:
+        raise SystemExit("unsafe release archive member: " + repr(unsafe[:3]))
+    missing = sorted(required - names)
+    if missing:
+        raise SystemExit("release bundle missing: " + ", ".join(missing))
+
+    def read(name):
+        member = archive.getmember(name)
+        handle = archive.extractfile(member)
+        if handle is None:
+            raise SystemExit("release archive member is not readable: " + name)
+        return handle.read().decode("utf-8")
+
+    version = read("VERSION").strip()
+    if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+        raise SystemExit("invalid release VERSION")
+    metadata = dict(line.split("=", 1) for line in read("RELEASE").splitlines() if "=" in line)
+    expected = "v" + version
+    if metadata.get("version") != expected or metadata.get("schema_version") != expected:
+        raise SystemExit("release metadata version mismatch")
+    sha = metadata.get("sha", "")
+    if not sha or (sha != "unknown" and not re.fullmatch(r"[0-9a-f]{40}", sha)):
+        raise SystemExit("release SHA is missing or malformed")
+PY
+  while IFS= read -r member; do
+    case "$member" in
+      /* | ../* | */../* | */.. | *$'\r'*)
+        log "refusing unsafe release archive member: $member"
+        exit 64
+        ;;
+    esac
+  done < <(tar -tzf "$bundle")
+
+  bundle_version="$(tar -xOf "$bundle" VERSION | tr -d '[:space:]\r\n')"
+  [[ -n "$bundle_version" ]] || { log "release bundle VERSION is empty"; exit 65; }
+  expected_version="v${bundle_version#v}"
+  metadata_version="$(tar -xOf "$bundle" RELEASE | awk -F= '$1 == "version" { print $2; exit }' | tr -d '\r')"
+  metadata_schema_version="$(tar -xOf "$bundle" RELEASE | awk -F= '$1 == "schema_version" { print $2; exit }' | tr -d '\r')"
+  if [[ "$metadata_version" != "$expected_version" || "$metadata_schema_version" != "$expected_version" ]]; then
+    log "release metadata version mismatch: expected=$expected_version version=$metadata_version schema=$metadata_schema_version"
+    exit 65
+  fi
+  if [[ "$RELEASE_VERSION" == "unknown" ]]; then
+    RELEASE_VERSION="$expected_version"
+  elif [[ "$RELEASE_VERSION" != "$expected_version" ]]; then
+    log "release version mismatch: requested=$RELEASE_VERSION bundle=$expected_version"
+    exit 65
+  fi
+}
+
+check_disk_capacity() {
+  local path="$1"
+  local minimum_kb
+  local available_kb
+  minimum_kb=$((MIN_FREE_GB * 1024 * 1024))
+  available_kb="$(df -Pk "$path" | awk 'NR == 2 { print $4 }')"
+  if [[ -z "$available_kb" || "$available_kb" -lt "$minimum_kb" ]]; then
+    log "refusing deployment: only ${available_kb:-unknown} KB free on $(df -P "$path" | awk 'NR == 2 { print $6 }'), minimum=${minimum_kb} KB"
+    exit 70
+  fi
+  log "disk capacity check passed: ${available_kb} KB free"
 }
 
 assert_safe_target_dir() {
@@ -130,6 +243,7 @@ install_deployment_helper() {
 backup_current() {
   local backup_dir="$1"
 
+  check_disk_capacity "$APP_ROOT"
   mkdir -p "$backup_dir"
   mkdir -p "$APP_DIR" "$USER_WEB_DIR" "$ADMIN_WEB_DIR"
 
@@ -222,6 +336,11 @@ rollback_from_backup() {
 }
 
 cleanup_old_backups() {
+  local max_backup_kb=$((MAX_BACKUP_GB * 1024 * 1024))
+  local current_backup_kb
+  local oldest_backup
+  local oldest_size_kb
+
   mkdir -p "$BACKUP_DIR"
   find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' \
     | sort -rn \
@@ -230,6 +349,34 @@ cleanup_old_backups() {
         log "remove old backup: $old_backup"
         rm -rf "$old_backup"
       done
+
+  while true; do
+    current_backup_kb="$(du -sk "$BACKUP_DIR" | awk '{ print $1 }')"
+    if [[ -z "$current_backup_kb" || "$current_backup_kb" -le "$max_backup_kb" ]]; then
+      break
+    fi
+    oldest_backup="$(find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -n | head -n 1 | sed 's/^[0-9.]* //')"
+    [[ -n "$oldest_backup" ]] || break
+    assert_safe_backup_dir "$oldest_backup"
+    oldest_size_kb="$(du -sk "$oldest_backup" | awk '{ print $1 }')"
+    log "remove backup due to capacity: $oldest_backup (${oldest_size_kb:-0} KB)"
+    rm -rf "$oldest_backup"
+  done
+}
+
+run_schema_migrations() {
+  if [[ "$RUN_MIGRATIONS" != "true" ]]; then
+    log "skip database migrations (CODE_NEST_RUN_MIGRATIONS=$RUN_MIGRATIONS)"
+    return 0
+  fi
+  require_cmd python3
+  log "apply database migrations"
+  if [[ "$RETRY_FAILED" == "true" ]]; then
+    log "retrying incomplete migration rows after explicit operator approval"
+    python3 "$1" --apply --retry-failed
+  else
+    python3 "$1" --apply
+  fi
 }
 
 deploy_bundle() {
@@ -252,17 +399,24 @@ deploy_bundle() {
     exit 66
   fi
 
+  validate_bundle "$bundle"
+
   mkdir -p "$APP_ROOT" "$BACKUP_DIR"
+  check_disk_capacity "$APP_ROOT"
   stamp="$(date '+%Y%m%d%H%M%S')"
   stage="$(mktemp -d "$APP_ROOT/release-stage.XXXXXX")"
   backup_dir="$BACKUP_DIR/$stamp-$RELEASE_VERSION"
 
   log "extract release bundle: $bundle"
-  tar -xzf "$bundle" -C "$stage"
+  tar --no-same-owner --no-same-permissions -xzf "$bundle" -C "$stage"
+
+  python3 "$stage/scripts/release-smoke-test.py" "$bundle"
 
   test -f "$stage/backend/app.jar"
   test -f "$stage/user/index.html"
   test -f "$stage/admin/index.html"
+
+  run_schema_migrations "$stage/scripts/db-migrate.py"
 
   log "backup current release: $backup_dir"
   backup_current "$backup_dir"
@@ -332,4 +486,6 @@ main() {
   esac
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

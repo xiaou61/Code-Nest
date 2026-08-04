@@ -47,6 +47,16 @@ public class AiInterviewServiceImpl implements AiInterviewService {
     }
 
     @Override
+    public List<GeneratedQuestion> generateQuestions(
+            String direction,
+            String level,
+            int count,
+            String specializedFocus
+    ) {
+        return interviewGraphRunner.runGenerateQuestions(direction, level, count, specializedFocus);
+    }
+
+    @Override
     public String generateFollowUpQuestion(String direction, String level, String style,
                                            String question, String answer, int followUpCount) {
         return interviewGraphRunner.runGenerateFollowUp(direction, level, style, question, answer, followUpCount);

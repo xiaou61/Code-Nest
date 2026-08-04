@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.web.growthcoach.mapper.GrowthCoachNudgeMapper">
+
+    <insert id="insertIgnore" useGeneratedKeys="true" keyProperty="id">
+        INSERT IGNORE INTO growth_coach_nudge(
+            user_id, nudge_key, nudge_type, level, title, content, route_path,
+            status, notification_id, sent_at, create_time, update_time
+        ) VALUES (
+            #{userId}, #{nudgeKey}, #{nudgeType}, #{level}, #{title}, #{content}, #{routePath},
+            #{status}, NULL, NULL, NOW(), NOW()
+        )
+    </insert>
+
+    <select id="selectIdByUserAndNudgeKey" resultType="java.lang.Long">
+        SELECT id
+        FROM growth_coach_nudge
+        WHERE user_id = #{userId}
+          AND nudge_key = #{nudgeKey}
+        LIMIT 1
+    </select>
+
+    <update id="markSent">
+        UPDATE growth_coach_nudge
+        SET status = 'SENT',
+            notification_id = #{notificationId},
+            sent_at = NOW(),
+            update_time = NOW()
+        WHERE id = #{id}
+          AND user_id = #{userId}
+          AND status = 'PENDING'
+    </update>
+
+    <update id="markFailed">
+        UPDATE growth_coach_nudge
+        SET status = 'FAILED',
+            update_time = NOW()
+        WHERE id = #{id}
+          AND user_id = #{userId}
+          AND status = 'PENDING'
+    </update>
+
+</mapper>

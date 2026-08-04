@@ -2,6 +2,8 @@ package com.xiaou.ai.prompt;
 
 import com.xiaou.ai.prompt.admin.AdminAgentPromptSpecs;
 import com.xiaou.ai.prompt.community.CommunityPromptSpecs;
+import com.xiaou.ai.prompt.codereview.CodeReviewPromptSpecs;
+import com.xiaou.ai.prompt.growthcoach.GrowthCoachPromptSpecs;
 import com.xiaou.ai.prompt.interview.InterviewPromptSpecs;
 import com.xiaou.ai.prompt.jobbattle.JobBattlePromptSpecs;
 import com.xiaou.ai.prompt.sql.SqlOptimizePromptSpecs;
@@ -21,6 +23,8 @@ public final class AiPromptCatalog {
     private static final List<Class<?>> HOLDERS = List.of(
             AdminAgentPromptSpecs.class,
             CommunityPromptSpecs.class,
+            CodeReviewPromptSpecs.class,
+            GrowthCoachPromptSpecs.class,
             InterviewPromptSpecs.class,
             JobBattlePromptSpecs.class,
             SreRcaPromptSpecs.class,

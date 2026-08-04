@@ -45,6 +45,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MockInterviewServiceImpl implements MockInterviewService {
 
+    private static final int MAX_SPECIALIZED_TOPIC_LENGTH = 120;
+
     private final MockInterviewSessionMapper sessionMapper;
     private final MockInterviewQAMapper qaMapper;
     private final MockInterviewDirectionMapper directionMapper;
@@ -119,6 +121,12 @@ public class MockInterviewServiceImpl implements MockInterviewService {
         // 验证参数
         validateCreateRequest(request);
 
+        String specializedTopic = normalizeSpecializedTopic(request.getSpecializedTopic());
+        if (Integer.valueOf(InterviewTypeEnum.SPECIALIZED.getCode()).equals(request.getInterviewType())
+                && StrUtil.isBlank(specializedTopic)) {
+            throw new BusinessException("专项突破请填写专项关注点");
+        }
+
         // 检查是否有进行中的面试
         MockInterviewSession ongoing = sessionMapper.selectOngoingByUserId(userId);
         if (ongoing != null) {
@@ -127,13 +135,19 @@ public class MockInterviewServiceImpl implements MockInterviewService {
 
         // 确定出题模式（1-本地题库 2-AI出题，默认AI出题）
         int questionMode = request.getQuestionMode() != null ? request.getQuestionMode() : QuestionModeEnum.AI.getCode();
+        if (StrUtil.isNotBlank(specializedTopic) && questionMode != QuestionModeEnum.AI.getCode()) {
+            throw new BusinessException("专项关注点仅支持AI出题模式");
+        }
 
         // 创建会话
         MockInterviewSession session = new MockInterviewSession()
                 .setUserId(userId)
                 .setDirection(request.getDirection())
                 .setLevel(request.getLevel())
-                .setInterviewType(request.getInterviewType() != null ? request.getInterviewType() : 1)
+                .setInterviewType(StrUtil.isNotBlank(specializedTopic)
+                        ? InterviewTypeEnum.SPECIALIZED.getCode()
+                        : request.getInterviewType() != null ? request.getInterviewType() : InterviewTypeEnum.TECHNICAL.getCode())
+                .setSpecializedTopic(specializedTopic)
                 .setStyle(request.getStyle() != null ? request.getStyle() : 2)
                 .setQuestionCount(request.getQuestionCount())
                 .setQuestionMode(questionMode)
@@ -184,7 +198,7 @@ public class MockInterviewServiceImpl implements MockInterviewService {
         } else {
             // AI出题模式：AI生成题目
             List<GeneratedQuestion> generatedQuestions = questionSelectorService.generateQuestionsByAI(
-                    request.getDirection(), request.getLevel(), request.getQuestionCount());
+                    request.getDirection(), request.getLevel(), request.getQuestionCount(), specializedTopic);
 
             if (generatedQuestions.isEmpty()) {
                 throw new BusinessException("AI出题失败，请稍后重试或选择本地题库模式");
@@ -590,6 +604,9 @@ public class MockInterviewServiceImpl implements MockInterviewService {
     // =================== 私有方法 ===================
 
     private void validateCreateRequest(CreateInterviewRequest request) {
+        if (request == null) {
+            throw new BusinessException("面试配置不能为空");
+        }
         if (StrUtil.isBlank(request.getDirection())) {
             throw new BusinessException("请选择面试方向");
         }
@@ -605,6 +622,20 @@ public class MockInterviewServiceImpl implements MockInterviewService {
         if (direction == null || direction.getStatus() != 1) {
             throw new BusinessException("面试方向不存在或已禁用");
         }
+    }
+
+    private String normalizeSpecializedTopic(String rawTopic) {
+        if (StrUtil.isBlank(rawTopic)) {
+            return null;
+        }
+        String normalized = rawTopic.trim().replaceAll("\\s+", " ");
+        if (normalized.length() > MAX_SPECIALIZED_TOPIC_LENGTH) {
+            throw new BusinessException("专项关注点不能超过" + MAX_SPECIALIZED_TOPIC_LENGTH + "个字符");
+        }
+        if (normalized.chars().anyMatch(Character::isISOControl)) {
+            throw new BusinessException("专项关注点包含不支持的控制字符");
+        }
+        return normalized;
     }
 
     private int calculateEstimatedDuration(int questionCount) {

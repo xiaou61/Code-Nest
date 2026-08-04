@@ -5,147 +5,147 @@
   <parent>
     <groupId>com.xiaou</groupId>
     <artifactId>Code-Nest</artifactId>
-    <version>v2.4.3</version>
+    <version>v2.5.3</version>
   </parent>
   <groupId>com.xiaou</groupId>
   <artifactId>xiaou-application</artifactId>
-  <version>v2.4.3</version>
+  <version>v2.5.3</version>
   <name>xiaou-application</name>
   <dependencies>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-common</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-system</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-sre</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-user-api</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-user</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-interview</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-community</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-filestorage</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-notification</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-moment</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-sensitive</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-knowledge</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-version</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-moyu</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-points</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-chat</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-blog</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-codepen</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-resume</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-plan</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-mock-interview</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-team</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-flashcard</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-learning-asset</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-ai</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-sql-optimizer</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-oj</artifactId>
-      <version>${revision}</version>
+      <version>v2.5.3</version>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>

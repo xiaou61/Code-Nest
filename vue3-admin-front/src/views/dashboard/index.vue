@@ -12,7 +12,7 @@
       </template>
 
       <template #actions>
-        <el-button :loading="kpiLoading" @click="fetchDashboardData">
+        <el-button :loading="kpiLoading || growthAnalyticsLoading" @click="refreshDashboard">
           <el-icon><Refresh /></el-icon>
           刷新
         </el-button>
@@ -68,6 +68,66 @@
           :tone="card.tone"
           :loading="kpiLoading"
         />
+      </div>
+    </CnSection>
+
+    <CnSection title="Growth Analytics" description="开发者成长与求职行动漏斗。" divided>
+      <template #actions>
+        <el-radio-group v-model="growthAnalyticsDays" size="small" aria-label="成长指标统计周期" @change="fetchGrowthAnalytics">
+          <el-radio-button :label="7">7 天</el-radio-button>
+          <el-radio-button :label="30">30 天</el-radio-button>
+          <el-radio-button :label="90">90 天</el-radio-button>
+        </el-radio-group>
+      </template>
+
+      <div v-loading="growthAnalyticsLoading" class="growth-analytics-content">
+        <div class="growth-analytics-grid">
+          <CnStatCard
+            title="主行动展示用户"
+            :value="formatNumber(growthAnalytics.primaryActionShownUsers)"
+            description="去重用户"
+            tone="brand"
+            :loading="growthAnalyticsLoading"
+          />
+          <CnStatCard
+            title="主行动启动用户"
+            :value="formatNumber(growthAnalytics.primaryActionStartedUsers)"
+            description="去重用户"
+            tone="success"
+            :loading="growthAnalyticsLoading"
+          />
+          <CnStatCard
+            title="Verified 成长用户"
+            :value="formatNumber(growthAnalytics.verifiedGrowthUsers)"
+            description="北极星指标"
+            tone="info"
+            :loading="growthAnalyticsLoading"
+          />
+          <CnStatCard
+            title="投递推进用户"
+            :value="formatNumber(growthAnalytics.careerApplicationProgressUsers)"
+            description="新增或更新投递"
+            tone="warning"
+            :loading="growthAnalyticsLoading"
+          />
+        </div>
+
+        <div class="growth-conversion-grid">
+          <div class="growth-conversion-item">
+            <div>
+              <span>主行动启动率</span>
+              <strong>{{ formatRate(growthAnalytics.primaryActionStartRate) }}</strong>
+            </div>
+            <p>{{ formatNumber(growthAnalytics.primaryActionStartedUsers) }} / {{ formatNumber(growthAnalytics.primaryActionShownUsers) }} 位用户</p>
+          </div>
+          <div class="growth-conversion-item">
+            <div>
+              <span>计划预览采纳率</span>
+              <strong>{{ formatRate(growthAnalytics.planAdoptionRate) }}</strong>
+            </div>
+            <p>{{ formatNumber(growthAnalytics.planExecutedCount) }} / {{ formatNumber(growthAnalytics.planPreviewCount) }} 次预览</p>
+          </div>
+        </div>
       </div>
     </CnSection>
 
@@ -128,7 +188,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Bell, Document, Refresh, User, UserFilled } from '@element-plus/icons-vue'
-import { getDashboardOverview } from '@/api/dashboard'
+import { getDashboardOverview, getGrowthAnalyticsOverview } from '@/api/dashboard'
 import { useUserStore } from '@/stores/user'
 import { CnEmptyState, CnPage, CnPageHeader, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
 import type { CnBreadcrumbItem, CnTone, CnTrend } from '@/design-system'
@@ -175,6 +235,17 @@ interface DashboardOverview {
   recentOperations?: RecentOperation[]
 }
 
+interface GrowthAnalyticsOverview {
+  primaryActionShownUsers: number
+  primaryActionStartedUsers: number
+  primaryActionStartRate: number
+  verifiedGrowthUsers: number
+  planPreviewCount: number
+  planExecutedCount: number
+  planAdoptionRate: number
+  careerApplicationProgressUsers: number
+}
+
 const router = useRouter()
 const userStore = useUserStore()
 
@@ -202,6 +273,18 @@ const currentRoles = computed(() => {
 const lastLoginTime = computed(() => userStore.userInfo?.lastLoginTime || '')
 
 const kpiLoading = ref(false)
+const growthAnalyticsLoading = ref(false)
+const growthAnalyticsDays = ref(7)
+const growthAnalytics = ref<GrowthAnalyticsOverview>({
+  primaryActionShownUsers: 0,
+  primaryActionStartedUsers: 0,
+  primaryActionStartRate: 0,
+  verifiedGrowthUsers: 0,
+  planPreviewCount: 0,
+  planExecutedCount: 0,
+  planAdoptionRate: 0,
+  careerApplicationProgressUsers: 0
+})
 
 const kpiCards = ref<KpiCard[]>([
   {
@@ -263,6 +346,8 @@ const formatNumber = (value: number | string) => {
   }
   return numericValue.toLocaleString('zh-CN')
 }
+
+const formatRate = (value: number | string) => `${(Number(value) || 0).toFixed(1)}%`
 
 const animateKpi = (targets: number[]) => {
   const duration = 1200
@@ -343,8 +428,33 @@ const fetchDashboardData = async () => {
   }
 }
 
+const fetchGrowthAnalytics = async () => {
+  growthAnalyticsLoading.value = true
+  try {
+    const data = (await getGrowthAnalyticsOverview(growthAnalyticsDays.value)) as Partial<GrowthAnalyticsOverview>
+    growthAnalytics.value = {
+      primaryActionShownUsers: Number(data?.primaryActionShownUsers) || 0,
+      primaryActionStartedUsers: Number(data?.primaryActionStartedUsers) || 0,
+      primaryActionStartRate: Number(data?.primaryActionStartRate) || 0,
+      verifiedGrowthUsers: Number(data?.verifiedGrowthUsers) || 0,
+      planPreviewCount: Number(data?.planPreviewCount) || 0,
+      planExecutedCount: Number(data?.planExecutedCount) || 0,
+      planAdoptionRate: Number(data?.planAdoptionRate) || 0,
+      careerApplicationProgressUsers: Number(data?.careerApplicationProgressUsers) || 0
+    }
+  } catch (error) {
+    ElMessage.error('成长业务指标加载失败，请稍后重试')
+  } finally {
+    growthAnalyticsLoading.value = false
+  }
+}
+
+const refreshDashboard = async () => {
+  await Promise.all([fetchDashboardData(), fetchGrowthAnalytics()])
+}
+
 onMounted(() => {
-  fetchDashboardData()
+  refreshDashboard()
 })
 </script>
 
@@ -408,6 +518,8 @@ onMounted(() => {
 }
 
 .dashboard-stat-grid,
+.growth-analytics-grid,
+.growth-conversion-grid,
 .dashboard-detail-grid {
   display: grid;
   gap: var(--cn-space-4);
@@ -415,6 +527,54 @@ onMounted(() => {
 
 .dashboard-stat-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.growth-analytics-content {
+  display: grid;
+  gap: var(--cn-space-4);
+  min-height: 180px;
+}
+
+.growth-analytics-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.growth-conversion-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--cn-color-border-subtle);
+  padding-top: var(--cn-space-4);
+}
+
+.growth-conversion-item {
+  min-width: 0;
+  padding: 0 var(--cn-space-3);
+}
+
+.growth-conversion-item + .growth-conversion-item {
+  border-left: 1px solid var(--cn-color-border-subtle);
+}
+
+.growth-conversion-item > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cn-space-3);
+}
+
+.growth-conversion-item span,
+.growth-conversion-item p {
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+}
+
+.growth-conversion-item strong {
+  color: var(--cn-color-text-primary);
+  font-family: var(--cn-font-heading);
+  font-size: 24px;
+}
+
+.growth-conversion-item p {
+  margin: var(--cn-space-1) 0 0;
 }
 
 .dashboard-detail-grid {
@@ -541,13 +701,15 @@ onMounted(() => {
 }
 
 @media (max-width: 1180px) {
-  .dashboard-stat-grid {
+  .dashboard-stat-grid,
+  .growth-analytics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 900px) {
   .dashboard-hero__grid,
+  .growth-conversion-grid,
   .dashboard-detail-grid {
     grid-template-columns: 1fr;
   }
@@ -555,6 +717,7 @@ onMounted(() => {
 
 @media (max-width: 560px) {
   .dashboard-stat-grid,
+  .growth-analytics-grid,
   .dashboard-quick {
     grid-template-columns: 1fr;
   }
@@ -566,6 +729,16 @@ onMounted(() => {
   .health-item {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .growth-conversion-item {
+    padding: 0;
+  }
+
+  .growth-conversion-item + .growth-conversion-item {
+    border-top: 1px solid var(--cn-color-border-subtle);
+    border-left: 0;
+    padding-top: var(--cn-space-3);
   }
 }
 </style>

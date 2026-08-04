@@ -103,6 +103,34 @@ Prometheus 当前配置：
 | 文件 | 上传成功率、文件大小、迁移任务状态 |
 | AI | 调用次数、成功率、失败率、兜底率、结构化解析失败率、Token、成本、平均耗时 |
 
+SRE Outbox 也通过同一个 Prometheus 端点暴露运行指标。它们不包含事故 ID、用户 ID
+或原始 payload，适合直接配置阈值告警：
+
+| 指标 | 类型 | 说明 |
+| --- | --- | --- |
+| `xiaou_sre_outbox_pending` | Gauge | 当前到期且等待处理的队列积压量 |
+| `xiaou_sre_outbox_processing` | Gauge | 当前进程正在处理的事件数 |
+| `xiaou_sre_outbox_lease_recoveries_total` | Counter | 租约过期后重新放回队列的事件数 |
+| `xiaou_sre_outbox_events_total{event_type,outcome}` | Counter | 事件处理结果，结果为 `success`、`retry`、`failed` 等 |
+| `xiaou_sre_outbox_event_duration_seconds{event_type,outcome}` | Timer | 单个事件处理耗时，可用于 P95/P99 |
+| `xiaou_sre_outbox_worker_runs_total{outcome}` | Counter | Worker 扫描轮次，区分 `success` 与 `error` |
+| `xiaou_sre_outbox_worker_duration_seconds{outcome}` | Timer | Worker 单轮扫描和派发耗时 |
+
+告警入口和事故状态也有低基数指标，便于区分“没有告警”和“告警接收链路坏了”：
+
+| 指标 | 类型 | 说明 |
+| --- | --- | --- |
+| `xiaou_sre_alerts_ingested_total{status,severity}` | Counter | Alertmanager 告警接收量 |
+| `xiaou_sre_alerts_duplicates_total` | Counter | 被 incident key 去重的告警量 |
+| `xiaou_sre_alerts_ingestion_errors_total` | Counter | 请求校验或持久化异常量 |
+| `xiaou_sre_incidents_open` | Gauge | 当前仍未关闭的事故数 |
+| `xiaou_sre_evidence_collections_total{source,outcome}` | Counter | 证据采集结果 |
+| `xiaou_sre_evidence_collection_duration_seconds{source,outcome}` | Timer | 证据采集耗时，可用于 P95/P99 |
+| `xiaou_sre_evidence_collection_errors_total{source}` | Counter | 证据采集失败量 |
+
+建议至少为 `xiaou_sre_outbox_pending` 持续增长、`outcome="failed"` 增长和事件处理
+P95 超过租约时间配置设置告警；Worker 默认关闭，启用前仍需先完成数据库迁移。
+
 基础指标由 Actuator/Micrometer 暴露；AI 指标由 AI Runtime 在管理端展示，目前不等同于 Prometheus 指标，需要通过 `/admin/ai/config/metrics` 或治理页面查看。
 
 ## 告警规则

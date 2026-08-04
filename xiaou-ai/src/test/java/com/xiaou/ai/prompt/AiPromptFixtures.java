@@ -42,6 +42,9 @@ public final class AiPromptFixtures {
                 """);
         values.put("title", "Redis 缓存一致性复盘");
         values.put("content", "本文复盘缓存更新、延迟双删和补偿任务的取舍。");
+        values.put("htmlCode", "&lt;button id=\"save\"&gt;保存&lt;/button&gt;");
+        values.put("cssCode", ".button { color: #fff; }");
+        values.put("jsCode", "document.querySelector('#save').addEventListener('click', () => {});");
         values.put("question", "请讲一下缓存一致性方案。");
         values.put("answer", "可以从旁路缓存、延迟双删和消息最终一致性展开。");
         values.put("context", "候选人正在模拟 Java 后端面试。");

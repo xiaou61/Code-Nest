@@ -26,6 +26,9 @@
         <el-button type="primary" :icon="Connection" :loading="loading.start" @click="handleStart">
           开始求职准备
         </el-button>
+        <el-button plain :icon="Plus" @click="openApplicationDialog()">
+          记录投递
+        </el-button>
       </template>
     </CnPageHeader>
 
@@ -65,6 +68,78 @@
             <el-button type="primary" :icon="Connection" :loading="loading.start" @click="handleStart">
               开始求职准备
             </el-button>
+          </template>
+        </CnEmptyState>
+      </div>
+    </CnSection>
+
+    <CnSection class="application-tracking-section" title="投递跟踪" description="记录真实投递、面试和结果状态；仅对你本人可见。" divided>
+      <template #actions>
+        <el-button type="primary" size="small" :icon="Plus" @click="openApplicationDialog()">
+          新增记录
+        </el-button>
+      </template>
+
+      <div v-loading="loading.applications" class="application-tracking-content">
+        <div v-if="applicationSummary.totalCount" class="application-summary">
+          <CnStatusTag type="brand" size="sm">进行中 {{ applicationSummary.activeCount || 0 }}</CnStatusTag>
+          <CnStatusTag v-if="applicationSummary.interviewingCount" type="warning" size="sm" subtle>
+            面试中 {{ applicationSummary.interviewingCount }}
+          </CnStatusTag>
+          <CnStatusTag v-if="applicationSummary.offerCount" type="success" size="sm" subtle>
+            Offer {{ applicationSummary.offerCount }}
+          </CnStatusTag>
+          <CnStatusTag v-if="applicationSummary.dueFollowUpCount" type="danger" size="sm" subtle>
+            待跟进 {{ applicationSummary.dueFollowUpCount }}
+          </CnStatusTag>
+          <span v-if="applicationSummary.nextFollowUpDate">最近跟进 {{ applicationSummary.nextFollowUpDate }}</span>
+        </div>
+
+        <div v-if="applications.length" class="application-list">
+          <article v-for="item in applications" :key="item.id" class="application-item">
+            <div class="application-item-copy">
+              <div class="application-item-meta">
+                <CnStatusTag :type="applicationStatusTone(item.status)" size="sm">{{ item.statusLabel || applicationStatusLabel(item.status) }}</CnStatusTag>
+                <span v-if="item.appliedDate">投递于 {{ item.appliedDate }}</span>
+                <span v-if="item.nextFollowUpDate">下次跟进 {{ item.nextFollowUpDate }}</span>
+              </div>
+              <div v-if="item.matchRecordId || item.planRecordId || item.mockInterviewSessionId" class="application-source-meta">
+                <CnStatusTag v-if="item.matchRecordId" type="brand" size="sm" subtle>岗位匹配 #{{ item.matchRecordId }}</CnStatusTag>
+                <CnStatusTag v-if="item.planRecordId" type="info" size="sm" subtle>补短板计划 #{{ item.planRecordId }}</CnStatusTag>
+                <CnStatusTag v-if="item.mockInterviewSessionId" type="success" size="sm" subtle>模拟面试 #{{ item.mockInterviewSessionId }}</CnStatusTag>
+              </div>
+              <h3>{{ item.positionName || '未命名岗位' }}</h3>
+              <p>{{ item.companyName || '未填写公司' }}</p>
+              <small v-if="item.note">{{ item.note }}</small>
+            </div>
+            <div class="application-item-actions">
+              <el-tooltip content="编辑投递记录" placement="top">
+                <el-button circle text :icon="EditPen" aria-label="编辑投递记录" @click="openApplicationDialog(item)" />
+              </el-tooltip>
+              <el-tooltip content="删除投递记录" placement="top">
+                <el-button
+                  circle
+                  text
+                  type="danger"
+                  :icon="Delete"
+                  :loading="loading.applicationDeleteId === item.id"
+                  aria-label="删除投递记录"
+                  @click="handleDeleteApplication(item)"
+                />
+              </el-tooltip>
+            </div>
+          </article>
+        </div>
+        <CnEmptyState
+          v-else-if="!loading.applications"
+          title="还没有投递记录"
+          description="从第一条真实投递开始，持续维护面试与结果进展。"
+          icon="JB"
+          size="sm"
+          surface="transparent"
+        >
+          <template #actions>
+            <el-button type="primary" size="small" :icon="Plus" @click="openApplicationDialog()">记录投递</el-button>
           </template>
         </CnEmptyState>
       </div>
@@ -224,14 +299,101 @@
       </CnSection>
     </div>
 
+    <el-dialog
+      v-model="applicationDialogVisible"
+      :title="editingApplicationId ? '更新投递进展' : '记录投递进展'"
+      width="560px"
+      destroy-on-close
+    >
+      <el-form ref="applicationFormRef" :model="applicationForm" :rules="applicationRules" label-position="top">
+        <div class="application-form-grid">
+          <el-form-item label="公司名称" prop="companyName">
+            <el-input v-model.trim="applicationForm.companyName" maxlength="120" show-word-limit />
+          </el-form-item>
+          <el-form-item label="岗位名称" prop="positionName">
+            <el-input v-model.trim="applicationForm.positionName" maxlength="120" show-word-limit />
+          </el-form-item>
+        </div>
+        <div class="application-form-grid">
+          <el-form-item label="当前状态" prop="status">
+            <el-select v-model="applicationForm.status" class="full-width-control">
+              <el-option v-for="item in applicationStatusOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="投递日期" prop="appliedDate" :required="applicationForm.status !== 'PREPARING'">
+            <el-date-picker
+              v-model="applicationForm.appliedDate"
+              class="full-width-control"
+              type="date"
+              value-format="YYYY-MM-DD"
+              placeholder="选择日期"
+            />
+          </el-form-item>
+        </div>
+        <el-form-item v-if="!isTerminalApplicationStatus(applicationForm.status)" label="下一次跟进日期">
+          <el-date-picker
+            v-model="applicationForm.nextFollowUpDate"
+            class="full-width-control"
+            type="date"
+            value-format="YYYY-MM-DD"
+            placeholder="可选"
+          />
+        </el-form-item>
+        <div class="application-source-grid">
+          <el-form-item label="岗位匹配来源">
+            <el-select
+              v-model="applicationForm.matchRecordId"
+              class="full-width-control"
+              clearable
+              filterable
+              :loading="loading.applicationSources"
+              placeholder="可选"
+            >
+              <el-option v-for="item in matchRecordOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="补短板计划来源">
+            <el-select
+              v-model="applicationForm.planRecordId"
+              class="full-width-control"
+              clearable
+              filterable
+              :loading="loading.applicationSources"
+              placeholder="可选"
+            >
+              <el-option v-for="item in planRecordOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="模拟面试来源">
+            <el-select
+              v-model="applicationForm.mockInterviewSessionId"
+              class="full-width-control"
+              clearable
+              filterable
+              :loading="loading.applicationSources"
+              placeholder="可选"
+            >
+              <el-option v-for="item in mockInterviewOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
+          </el-form-item>
+        </div>
+        <el-form-item label="备注" prop="note">
+          <el-input v-model.trim="applicationForm.note" type="textarea" :rows="3" maxlength="500" show-word-limit />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="applicationDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="loading.applicationSave" @click="handleSaveApplication">保存</el-button>
+      </template>
+    </el-dialog>
   </CnPage>
 </template>
 
 <script setup lang="ts">
 import { computed, onActivated, onMounted, reactive, ref } from 'vue'
-import { useRouter, type RouteLocationRaw } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { Connection, MoreFilled } from '@element-plus/icons-vue'
+import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { Connection, Delete, EditPen, MoreFilled, Plus } from '@element-plus/icons-vue'
 import {
   CnEmptyState,
   CnPage,
@@ -242,6 +404,8 @@ import {
   type CnTone
 } from '@/design-system'
 import { careerLoopApi } from '@/api/careerLoop'
+import { jobBattleApi } from '@/api/jobBattle'
+import { mockInterviewApi } from '@/api/mockInterview'
 import {
   adaptCareerLoopCurrent,
   mapActionStatusLabel,
@@ -274,6 +438,41 @@ interface CareerLoopAction extends Record<string, unknown> {
   updateTime?: string
 }
 
+interface CareerApplicationRecord {
+  id: number | string
+  matchRecordId?: number | string | null
+  planRecordId?: number | string | null
+  mockInterviewSessionId?: number | string | null
+  companyName?: string
+  positionName?: string
+  status?: string
+  statusLabel?: string
+  appliedDate?: string
+  nextFollowUpDate?: string
+  note?: string
+}
+
+interface CareerApplicationSummary {
+  totalCount?: number
+  activeCount?: number
+  interviewingCount?: number
+  offerCount?: number
+  dueFollowUpCount?: number
+  nextFollowUpDate?: string
+}
+
+interface CareerApplicationForm {
+  matchRecordId: number | string | null
+  planRecordId: number | string | null
+  mockInterviewSessionId: number | string | null
+  companyName: string
+  positionName: string
+  status: string
+  appliedDate: string
+  nextFollowUpDate: string
+  note: string
+}
+
 interface CareerLoopTimelineItem {
   id: number | string
   fromStage?: string
@@ -282,6 +481,11 @@ interface CareerLoopTimelineItem {
   triggerRefId?: number | string
   note?: string
   createTime?: string
+}
+
+interface SourceOption {
+  value: number | string
+  label: string
 }
 
 interface CareerLoopCurrent {
@@ -317,16 +521,63 @@ interface HeatmapCell {
 }
 
 const router = useRouter()
+const route = useRoute()
 
 const loading = reactive({
   main: false,
   start: false,
-  recovery: false
+  recovery: false,
+  applications: false,
+  applicationSources: false,
+  applicationSave: false,
+  applicationDeleteId: null as number | string | null
 })
 
 const current = ref<CareerLoopCurrent>(adaptCareerLoopCurrent() as CareerLoopCurrent)
 const timeline = ref<CareerLoopTimelineItem[]>([])
 const actions = ref<CareerLoopAction[]>([])
+const applications = ref<CareerApplicationRecord[]>([])
+const applicationSummary = ref<CareerApplicationSummary>({})
+const matchRecordOptions = ref<SourceOption[]>([])
+const planRecordOptions = ref<SourceOption[]>([])
+const mockInterviewOptions = ref<SourceOption[]>([])
+const applicationDialogVisible = ref(false)
+const editingApplicationId = ref<number | string | null>(null)
+const applicationFormRef = ref<FormInstance>()
+const applicationForm = reactive<CareerApplicationForm>({
+  matchRecordId: null,
+  planRecordId: null,
+  mockInterviewSessionId: null,
+  companyName: '',
+  positionName: '',
+  status: 'APPLIED',
+  appliedDate: '',
+  nextFollowUpDate: '',
+  note: ''
+})
+const applicationStatusOptions = [
+  { value: 'PREPARING', label: '准备投递' },
+  { value: 'APPLIED', label: '已投递' },
+  { value: 'INTERVIEWING', label: '面试中' },
+  { value: 'OFFER', label: '收到 Offer' },
+  { value: 'REJECTED', label: '未通过' },
+  { value: 'WITHDRAWN', label: '已撤回' }
+]
+const applicationRules: FormRules<CareerApplicationForm> = {
+  companyName: [{ required: true, message: '请输入公司名称', trigger: 'blur' }],
+  positionName: [{ required: true, message: '请输入岗位名称', trigger: 'blur' }],
+  status: [{ required: true, message: '请选择当前状态', trigger: 'change' }],
+  appliedDate: [{
+    validator: (_rule, value, callback) => {
+      if (applicationForm.status !== 'PREPARING' && !value) {
+        callback(new Error('请填写投递日期'))
+        return
+      }
+      callback()
+    },
+    trigger: 'change'
+  }]
+}
 const lastSyncedAt = ref<Date | null>(null)
 const heatmapDayLabels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 const radarCenter = { x: 160, y: 160 }
@@ -348,21 +599,146 @@ const syncStatusText = computed(() => {
 
 const fetchAll = async () => {
   loading.main = true
+  loading.applications = true
   try {
-    const [currentData, timelineData, actionData] = await Promise.all([
+    const [currentData, timelineData, actionData, applicationData, applicationSummaryData] = await Promise.all([
       careerLoopApi.getCurrent(),
       careerLoopApi.getTimeline(),
-      careerLoopApi.getActions()
+      careerLoopApi.getActions(),
+      careerLoopApi.getApplications(),
+      careerLoopApi.getApplicationSummary()
     ])
     current.value = adaptCareerLoopCurrent(currentData || {}) as CareerLoopCurrent
     timeline.value = Array.isArray(timelineData) ? timelineData : []
     actions.value = Array.isArray(actionData) ? actionData : []
+    applications.value = Array.isArray(applicationData) ? applicationData : []
+    applicationSummary.value = applicationSummaryData || {}
     lastSyncedAt.value = new Date()
   } catch (e) {
     console.error('加载求职闭环数据失败', e)
     ElMessage.error('加载求职闭环数据失败')
   } finally {
     loading.main = false
+    loading.applications = false
+  }
+}
+
+const resetApplicationForm = () => {
+  editingApplicationId.value = null
+  Object.assign(applicationForm, {
+    matchRecordId: null,
+    planRecordId: null,
+    mockInterviewSessionId: null,
+    companyName: '',
+    positionName: '',
+    status: 'APPLIED',
+    appliedDate: '',
+    nextFollowUpDate: '',
+    note: ''
+  })
+  applicationFormRef.value?.clearValidate()
+}
+
+const loadApplicationSources = async () => {
+  loading.applicationSources = true
+  try {
+    const results = await Promise.allSettled([
+      jobBattleApi.getMatchEngineHistory({ pageNum: 1, pageSize: 50 }),
+      jobBattleApi.getPlanHistory({ pageNum: 1, pageSize: 50 }),
+      mockInterviewApi.getHistory({ pageNum: 1, pageSize: 50 })
+    ])
+    const records = (result: PromiseSettledResult<any>): any[] => result.status === 'fulfilled' && Array.isArray(result.value?.records)
+      ? result.value.records
+      : []
+    matchRecordOptions.value = records(results[0]).map((item) => ({
+      value: item.id,
+      label: `${item.analysisName || item.bestTargetRole || '岗位匹配'}${item.bestScore == null ? '' : ` · ${item.bestScore} 分`}`
+    }))
+    planRecordOptions.value = records(results[1]).map((item) => ({
+      value: item.id,
+      label: `${item.planName || '补短板计划'}${item.createTime ? ` · ${String(item.createTime).slice(0, 10)}` : ''}`
+    }))
+    mockInterviewOptions.value = records(results[2]).map((item) => ({
+      value: item.id,
+      label: `${item.directionName || item.direction || '模拟面试'}${item.totalScore == null ? '' : ` · ${item.totalScore} 分`}`
+    }))
+  } finally {
+    loading.applicationSources = false
+  }
+}
+
+const openApplicationDialog = (record?: CareerApplicationRecord) => {
+  if (record) {
+    editingApplicationId.value = record.id
+    Object.assign(applicationForm, {
+      matchRecordId: record.matchRecordId || null,
+      planRecordId: record.planRecordId || null,
+      mockInterviewSessionId: record.mockInterviewSessionId || null,
+      companyName: record.companyName || '',
+      positionName: record.positionName || '',
+      status: record.status || 'APPLIED',
+      appliedDate: record.appliedDate || '',
+      nextFollowUpDate: record.nextFollowUpDate || '',
+      note: record.note || ''
+    })
+    applicationFormRef.value?.clearValidate()
+  } else {
+    resetApplicationForm()
+  }
+  applicationDialogVisible.value = true
+  loadApplicationSources()
+}
+
+const isTerminalApplicationStatus = (status?: string) => ['OFFER', 'REJECTED', 'WITHDRAWN'].includes(status || '')
+
+const handleSaveApplication = async () => {
+  try {
+    await applicationFormRef.value?.validate()
+    loading.applicationSave = true
+    const payload = {
+      matchRecordId: applicationForm.matchRecordId || null,
+      planRecordId: applicationForm.planRecordId || null,
+      mockInterviewSessionId: applicationForm.mockInterviewSessionId || null,
+      companyName: applicationForm.companyName,
+      positionName: applicationForm.positionName,
+      status: applicationForm.status,
+      appliedDate: applicationForm.appliedDate || null,
+      nextFollowUpDate: isTerminalApplicationStatus(applicationForm.status) ? null : (applicationForm.nextFollowUpDate || null),
+      note: applicationForm.note || null
+    }
+    if (editingApplicationId.value !== null) {
+      await careerLoopApi.updateApplication(editingApplicationId.value, payload)
+      ElMessage.success('投递进展已更新')
+    } else {
+      await careerLoopApi.createApplication(payload)
+      ElMessage.success('投递进展已记录')
+    }
+    applicationDialogVisible.value = false
+    await fetchAll()
+  } catch (e) {
+    console.error('保存投递进展失败', e)
+  } finally {
+    loading.applicationSave = false
+  }
+}
+
+const handleDeleteApplication = async (record: CareerApplicationRecord) => {
+  try {
+    await ElMessageBox.confirm('删除后，该投递状态不会继续出现在成长档案中。', '删除投递记录', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消'
+    })
+    loading.applicationDeleteId = record.id
+    await careerLoopApi.deleteApplication(record.id)
+    ElMessage.success('投递记录已删除')
+    await fetchAll()
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') {
+      console.error('删除投递记录失败', e)
+    }
+  } finally {
+    loading.applicationDeleteId = null
   }
 }
 
@@ -430,6 +806,7 @@ const goByActionType = async (actionType?: string) => {
       })
       ElMessage.success('已进入投递与Offer跟踪阶段')
       await fetchAll()
+      openApplicationDialog()
     } catch (e) {
       console.error('记录投递与Offer跟踪失败', e)
       ElMessage.error('记录投递与Offer跟踪失败')
@@ -455,6 +832,23 @@ const mapActionStatusTone = (status?: string): CnTone => {
     done: 'success'
   }
   return status ? toneMap[status] || 'info' : 'info'
+}
+
+const applicationStatusTone = (status?: string): CnTone => {
+  const toneMap: Record<string, CnTone> = {
+    PREPARING: 'info',
+    APPLIED: 'brand',
+    INTERVIEWING: 'warning',
+    OFFER: 'success',
+    REJECTED: 'danger',
+    WITHDRAWN: 'neutral'
+  }
+  return status ? toneMap[status] || 'info' : 'info'
+}
+
+const applicationStatusLabel = (status?: string) => {
+  const item = applicationStatusOptions.find((option) => option.value === status)
+  return item?.label || status || '未知状态'
 }
 
 const toPercent = (value: unknown, fallback = 0) => {
@@ -591,8 +985,11 @@ const heatmapCells = computed<HeatmapCell[]>(() => {
   })
 })
 
-onMounted(() => {
-  fetchAll()
+onMounted(async () => {
+  await fetchAll()
+  if (route.query.focus === 'applications') {
+    openApplicationDialog()
+  }
 })
 
 onActivated(() => {
@@ -892,6 +1289,95 @@ onActivated(() => {
   justify-content: flex-end;
 }
 
+.application-tracking-content {
+  min-height: 108px;
+}
+
+.application-summary,
+.application-item-meta,
+.application-source-meta,
+.application-item-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
+}
+
+.application-summary {
+  margin-bottom: var(--cn-space-3);
+}
+
+.application-summary span,
+.application-item-meta span,
+.application-item-copy small {
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+}
+
+.application-list {
+  display: grid;
+  gap: var(--cn-space-3);
+}
+
+.application-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--cn-space-4);
+  padding: var(--cn-space-4);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: 8px;
+  background: var(--cn-color-bg-surface-muted);
+}
+
+.application-item-copy {
+  min-width: 0;
+}
+
+.application-item-copy h3 {
+  margin: var(--cn-space-2) 0 var(--cn-space-1);
+  color: var(--cn-color-text-primary);
+  font-size: 15px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.application-item-copy p {
+  margin: 0;
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.application-item-copy small {
+  display: block;
+  margin-top: var(--cn-space-2);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.application-source-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
+  margin-top: var(--cn-space-2);
+}
+
+.application-form-grid,
+.application-source-grid {
+  display: grid;
+  gap: var(--cn-space-3);
+}
+
+.application-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.application-source-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 @media (max-width: 1180px) {
   .summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -927,6 +1413,16 @@ onActivated(() => {
   }
 
   .career-action-controls {
+    justify-content: flex-start;
+  }
+
+  .application-item,
+  .application-form-grid,
+  .application-source-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .application-item-actions {
     justify-content: flex-start;
   }
 }

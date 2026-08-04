@@ -351,6 +351,7 @@ public class JobBattleServiceImpl implements JobBattleService {
                 .setP1GapCount(p1GapCount)
                 .setStrengths(limitTextList(matchResult == null ? null : matchResult.getStrengths(), 3))
                 .setMissingKeywords(limitTextList(matchResult == null ? null : matchResult.getMissingKeywords(), 6))
+                .setRequiredSkills(limitTextList(jdResult == null ? null : jdResult.getMustSkills(), 8))
                 .setTopGaps(topGaps(gaps, 3))
                 .setJdSummary(jdResult == null ? null : jdResult.getSummary())
                 .setFallback((jdResult != null && jdResult.isFallback()) || (matchResult != null && matchResult.isFallback()));
@@ -585,4 +586,3 @@ public class JobBattleServiceImpl implements JobBattleService {
         }
     }
 }
-

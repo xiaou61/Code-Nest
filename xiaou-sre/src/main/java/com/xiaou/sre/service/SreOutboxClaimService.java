@@ -13,9 +13,13 @@ public interface SreOutboxClaimService {
 
     List<Long> listPendingIds(int limit);
 
+    /** Return the current pending queue size for monitoring. */
+    long countPending();
+
     SreOutboxEvent claim(Long id);
 
-    void recoverStaleProcessing();
+    /** Recover leased events and return the number made pending again. */
+    int recoverStaleProcessing();
 
     void markSucceeded(Long id);
 

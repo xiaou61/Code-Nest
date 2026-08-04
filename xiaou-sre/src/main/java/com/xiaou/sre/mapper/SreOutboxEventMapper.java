@@ -19,6 +19,8 @@ public interface SreOutboxEventMapper {
 
     List<Long> selectPendingIds(@Param("limit") int limit);
 
+    long countPending();
+
     SreOutboxEvent selectById(Long id);
 
     int claim(@Param("id") Long id);

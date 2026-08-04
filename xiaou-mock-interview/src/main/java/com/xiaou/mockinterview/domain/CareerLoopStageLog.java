@@ -19,6 +19,11 @@ public class CareerLoopStageLog {
 
     private Long sessionId;
 
+    /**
+     * 仅在成长证据增量查询中由会话表联表映射，用于保持用户域隔离。
+     */
+    private Long userId;
+
     private String fromStage;
 
     private String toStage;

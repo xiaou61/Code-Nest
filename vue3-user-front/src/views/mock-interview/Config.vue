@@ -80,6 +80,22 @@
             </div>
           </el-form-item>
 
+          <el-form-item label="面试类型" prop="interviewType">
+            <el-radio-group v-model="formData.interviewType" class="option-grid option-grid--three" @change="handleInterviewTypeChange">
+              <el-radio-button
+                v-for="type in config.types"
+                :key="type.code"
+                :label="type.code"
+                class="option-radio"
+              >
+                <span class="option-content">
+                  <strong>{{ type.name }}</strong>
+                  <em>{{ type.description }}</em>
+                </span>
+              </el-radio-button>
+            </el-radio-group>
+          </el-form-item>
+
           <el-form-item label="难度级别" prop="level">
             <el-radio-group v-model="formData.level" class="option-grid option-grid--three">
               <el-radio-button
@@ -102,6 +118,7 @@
                 v-for="mode in config.questionModes"
                 :key="mode.code"
                 :label="mode.code"
+                :disabled="formData.interviewType === 3 && mode.code !== 2"
                 border
                 class="mode-radio"
               >
@@ -111,6 +128,15 @@
                 </span>
               </el-radio>
             </el-radio-group>
+          </el-form-item>
+
+          <el-form-item v-if="formData.interviewType === 3" label="专项关注点" prop="specializedTopic">
+            <el-input
+              v-model.trim="formData.specializedTopic"
+              maxlength="120"
+              show-word-limit
+              placeholder="例如：Java 并发、Redis 缓存一致性"
+            />
           </el-form-item>
 
           <el-form-item v-if="formData.questionMode === 1" label="选择题库" prop="questionSetIds">
@@ -209,6 +235,14 @@
               <strong>{{ currentLevelName }}</strong>
             </div>
             <div class="selection-item">
+              <span>类型</span>
+              <strong>{{ currentInterviewTypeName }}</strong>
+            </div>
+            <div v-if="formData.interviewType === 3 && formData.specializedTopic" class="selection-item selection-item--full">
+              <span>专项</span>
+              <strong>{{ formData.specializedTopic }}</strong>
+            </div>
+            <div class="selection-item">
               <span>风格</span>
               <strong>{{ currentStyleName }}</strong>
             </div>
@@ -280,9 +314,13 @@ interface CreateInterviewResponse {
 const router = useRouter()
 const route = useRoute()
 
-const initialDirection = Array.isArray(route.query.direction)
-  ? route.query.direction[0]
-  : route.query.direction
+const routeQueryText = (value: unknown) => {
+  const raw = Array.isArray(value) ? value[0] : value
+  return typeof raw === 'string' ? raw.trim() : ''
+}
+
+const initialDirection = routeQueryText(route.query.direction)
+const initialFocus = routeQueryText(route.query.focus).slice(0, 120)
 
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
@@ -304,14 +342,25 @@ const formData = reactive({
   questionMode: 2,
   questionCount: 5,
   style: 2,
-  interviewType: 1,
-  questionSetIds: [] as number[]
+  interviewType: initialFocus ? 3 : 1,
+  questionSetIds: [] as number[],
+  specializedTopic: initialFocus
 })
 
 const rules: FormRules = {
   direction: [{ required: true, message: '请选择面试方向', trigger: 'change' }],
   level: [{ required: true, message: '请选择难度级别', trigger: 'change' }],
-  questionCount: [{ required: true, message: '请选择题目数量', trigger: 'change' }]
+  questionCount: [{ required: true, message: '请选择题目数量', trigger: 'change' }],
+  specializedTopic: [{
+    validator: (_rule, value, callback) => {
+      if (formData.interviewType === 3 && !String(value || '').trim()) {
+        callback(new Error('请填写专项关注点'))
+        return
+      }
+      callback()
+    },
+    trigger: 'blur'
+  }]
 }
 
 const breadcrumbs = [
@@ -339,6 +388,10 @@ const currentLevelName = computed(() => {
 
 const currentStyleName = computed(() => {
   return config.styles.find(item => item.code === formData.style)?.name || '标准'
+})
+
+const currentInterviewTypeName = computed(() => {
+  return config.types.find(item => item.code === formData.interviewType)?.name || '技术面试'
 })
 
 const currentQuestionModeName = computed(() => {
@@ -389,10 +442,24 @@ const fetchQuestionSets = async () => {
 }
 
 const handleQuestionModeChange = (mode: string | number | boolean | undefined) => {
+  if (formData.interviewType === 3 && Number(mode) !== 2) {
+    formData.questionMode = 2
+    formData.questionSetIds = []
+    return
+  }
   formData.questionSetIds = []
   if (Number(mode) === 1) {
     fetchQuestionSets()
   }
+}
+
+const handleInterviewTypeChange = (type: string | number | boolean | undefined) => {
+  if (Number(type) === 3) {
+    formData.questionMode = 2
+    formData.questionSetIds = []
+    return
+  }
+  formData.specializedTopic = ''
 }
 
 const startInterview = async () => {
@@ -407,7 +474,8 @@ const startInterview = async () => {
       questionCount: formData.questionCount,
       style: formData.style,
       interviewType: formData.interviewType,
-      questionSetIds: formData.questionSetIds
+      questionSetIds: formData.questionSetIds,
+      specializedTopic: formData.interviewType === 3 ? formData.specializedTopic || undefined : undefined
     })) as CreateInterviewResponse
 
     ElMessage.success('面试创建成功，即将开始...')
@@ -646,6 +714,16 @@ onMounted(async () => {
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.selection-item--full {
+  align-items: flex-start;
+}
+
+.selection-item--full strong {
+  text-align: right;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 1180px) {

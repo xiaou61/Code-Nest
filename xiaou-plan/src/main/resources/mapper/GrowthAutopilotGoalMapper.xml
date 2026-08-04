@@ -9,6 +9,9 @@
         <result column="week_end" property="weekEnd" jdbcType="DATE"/>
         <result column="target_role" property="targetRole" jdbcType="VARCHAR"/>
         <result column="weekly_hours" property="weeklyHours" jdbcType="INTEGER"/>
+        <result column="weekly_minutes" property="weeklyMinutes" jdbcType="INTEGER"/>
+        <result column="plan_version" property="planVersion" jdbcType="INTEGER"/>
+        <result column="last_action_run_id" property="lastActionRunId" jdbcType="VARCHAR"/>
         <result column="current_stage" property="currentStage" jdbcType="VARCHAR"/>
         <result column="total_score_target" property="totalScoreTarget" jdbcType="INTEGER"/>
         <result column="total_score_completed" property="totalScoreCompleted" jdbcType="INTEGER"/>
@@ -23,7 +26,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id, user_id, week_start, week_end, target_role, weekly_hours, current_stage,
+        id, user_id, week_start, week_end, target_role, weekly_hours, weekly_minutes, plan_version, last_action_run_id, current_stage,
         total_score_target, total_score_completed, total_tasks, completed_tasks, completion_rate,
         risk_level, status, generated_at, create_time, update_time
     </sql>
@@ -51,13 +54,22 @@
         LIMIT 1
     </select>
 
+    <select id="selectActiveUserIdsByWeek" resultType="java.lang.Long">
+        SELECT user_id
+        FROM growth_autopilot_goal
+        WHERE week_start = #{weekStart}
+          AND status = 'active'
+        ORDER BY update_time DESC, user_id ASC
+        LIMIT #{limit}
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO growth_autopilot_goal (
-            user_id, week_start, week_end, target_role, weekly_hours, current_stage,
+            user_id, week_start, week_end, target_role, weekly_hours, weekly_minutes, plan_version, last_action_run_id, current_stage,
             total_score_target, total_score_completed, total_tasks, completed_tasks, completion_rate,
             risk_level, status, generated_at, create_time, update_time
         ) VALUES (
-            #{userId}, #{weekStart}, #{weekEnd}, #{targetRole}, #{weeklyHours}, #{currentStage},
+            #{userId}, #{weekStart}, #{weekEnd}, #{targetRole}, #{weeklyHours}, #{weeklyMinutes}, #{planVersion}, #{lastActionRunId}, #{currentStage},
             #{totalScoreTarget}, #{totalScoreCompleted}, #{totalTasks}, #{completedTasks}, #{completionRate},
             #{riskLevel}, #{status}, #{generatedAt}, NOW(), NOW()
         )
@@ -68,6 +80,9 @@
         SET
             target_role = #{targetRole},
             weekly_hours = #{weeklyHours},
+            weekly_minutes = #{weeklyMinutes},
+            plan_version = #{planVersion},
+            last_action_run_id = #{lastActionRunId},
             current_stage = #{currentStage},
             total_score_target = #{totalScoreTarget},
             total_score_completed = #{totalScoreCompleted},
@@ -79,6 +94,34 @@
             generated_at = #{generatedAt},
             update_time = NOW()
         WHERE id = #{id}
+    </update>
+
+    <update id="updateMetrics">
+        UPDATE growth_autopilot_goal
+        SET
+            total_score_target = #{totalScoreTarget},
+            total_score_completed = #{totalScoreCompleted},
+            total_tasks = #{totalTasks},
+            completed_tasks = #{completedTasks},
+            completion_rate = #{completionRate},
+            risk_level = #{riskLevel},
+            status = #{status},
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="advancePlanVersion">
+        UPDATE growth_autopilot_goal
+        SET
+            target_role = #{targetRole},
+            weekly_minutes = #{weeklyMinutes},
+            weekly_hours = #{weeklyHours},
+            plan_version = #{nextPlanVersion},
+            last_action_run_id = #{actionRunId},
+            update_time = NOW()
+        WHERE id = #{id}
+          AND user_id = #{userId}
+          AND plan_version = #{expectedPlanVersion}
     </update>
 
 </mapper>

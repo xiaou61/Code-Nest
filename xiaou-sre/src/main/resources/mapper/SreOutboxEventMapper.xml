@@ -21,6 +21,13 @@
         LIMIT #{limit}
     </select>
 
+    <select id="countPending" resultType="long">
+        SELECT COUNT(*)
+        FROM sre_outbox_event
+        WHERE state = 'PENDING'
+          AND next_attempt_at &lt;= CURRENT_TIMESTAMP
+    </select>
+
     <select id="selectById" resultType="com.xiaou.sre.domain.SreOutboxEvent">
         SELECT id, aggregate_type, aggregate_id, event_type, payload_json, state,
                attempts, next_attempt_at, create_time, update_time

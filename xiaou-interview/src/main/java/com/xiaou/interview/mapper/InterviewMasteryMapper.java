@@ -36,6 +36,20 @@ public interface InterviewMasteryMapper {
     List<InterviewMasteryRecord> selectByUserAndQuestions(@Param("userId") Long userId, @Param("questionIds") List<Long> questionIds);
 
     /**
+     * 按更新时间增量读取掌握度记录，供 Growth Coach 证据投影使用。
+     */
+    List<InterviewMasteryRecord> selectChangedForEvidence(@Param("userId") Long userId,
+                                                           @Param("afterUpdateTime") LocalDateTime afterUpdateTime,
+                                                           @Param("afterSourceId") Long afterSourceId,
+                                                           @Param("limit") int limit);
+
+    /**
+     * 查询近期变更的用户，供证据补偿任务发现待投影数据。
+     */
+    List<Long> selectUserIdsChangedForEvidence(@Param("updatedAfter") LocalDateTime updatedAfter,
+                                                @Param("limit") int limit);
+
+    /**
      * 查询用户待复习题目（逾期）
      */
     List<InterviewMasteryRecord> selectOverdueReview(@Param("userId") Long userId, @Param("now") LocalDateTime now);

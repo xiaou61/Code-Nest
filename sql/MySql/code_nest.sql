@@ -212,6 +212,36 @@ CREATE TABLE `career_loop_stage_log`  (
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '求职闭环阶段日志' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
+-- Table structure for career_application_record
+-- ----------------------------
+DROP TABLE IF EXISTS `career_application_record`;
+CREATE TABLE `career_application_record`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `user_id` bigint NOT NULL COMMENT '用户ID',
+  `session_id` bigint NOT NULL COMMENT '求职闭环会话ID',
+  `match_record_id` bigint NULL DEFAULT NULL COMMENT '关联的岗位匹配记录ID',
+  `plan_record_id` bigint NULL DEFAULT NULL COMMENT '关联的补短板计划记录ID',
+  `mock_interview_session_id` bigint NULL DEFAULT NULL COMMENT '关联的模拟面试会话ID',
+  `company_name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '公司名称',
+  `position_name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '岗位名称',
+  `status` varchar(24) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'PREPARING/APPLIED/INTERVIEWING/OFFER/REJECTED/WITHDRAWN',
+  `applied_date` date NULL DEFAULT NULL COMMENT '投递日期',
+  `next_follow_up_date` date NULL DEFAULT NULL COMMENT '下次跟进日期',
+  `note` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '用户备注',
+  `deleted` tinyint NOT NULL DEFAULT 0 COMMENT '逻辑删除：0否 1是',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_career_application_user_status`(`user_id` ASC, `deleted` ASC, `status` ASC, `update_time` ASC) USING BTREE,
+  INDEX `idx_career_application_follow_up`(`user_id` ASC, `deleted` ASC, `next_follow_up_date` ASC) USING BTREE,
+  INDEX `idx_career_application_evidence`(`user_id` ASC, `update_time` ASC, `id` ASC) USING BTREE,
+  INDEX `idx_career_application_match_record`(`user_id` ASC, `match_record_id` ASC) USING BTREE,
+  INDEX `idx_career_application_plan_record`(`user_id` ASC, `plan_record_id` ASC) USING BTREE,
+  INDEX `idx_career_application_mock_session`(`user_id` ASC, `mock_interview_session_id` ASC) USING BTREE,
+  INDEX `idx_career_application_analytics_time`(`update_time` ASC, `deleted` ASC, `user_id` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户求职投递记录' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
 -- Table structure for chat_messages
 -- ----------------------------
 DROP TABLE IF EXISTS `chat_messages`;
@@ -1400,6 +1430,7 @@ CREATE TABLE `mock_interview_session`  (
   `direction` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '面试方向（java/frontend/python等）',
   `level` tinyint NOT NULL COMMENT '难度级别：1-初级 2-中级 3-高级',
   `interview_type` tinyint NULL DEFAULT 1 COMMENT '面试类型：1-技术 2-综合 3-专项',
+  `specialized_topic` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '专项面试关注点（用户确认的短技术主题）',
   `style` tinyint NULL DEFAULT 2 COMMENT 'AI风格：1-温和 2-标准 3-压力',
   `question_count` int NOT NULL COMMENT '题目数量',
   `question_mode` tinyint NULL DEFAULT 2 COMMENT '出题模式：1-本地题库 2-AI出题',
@@ -1421,6 +1452,8 @@ CREATE TABLE `mock_interview_session`  (
   INDEX `idx_user_id`(`user_id` ASC) USING BTREE,
   INDEX `idx_status`(`status` ASC) USING BTREE,
   INDEX `idx_user_status`(`user_id` ASC, `status` ASC) USING BTREE,
+  INDEX `idx_mock_interview_evidence_cursor`(`user_id` ASC, `update_time` ASC, `id` ASC) USING BTREE,
+  INDEX `idx_mock_interview_evidence_change`(`update_time` ASC, `user_id` ASC) USING BTREE,
   INDEX `idx_direction`(`direction` ASC) USING BTREE,
   INDEX `idx_create_time`(`create_time` DESC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 12 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '模拟面试会话表' ROW_FORMAT = Dynamic;
@@ -1746,12 +1779,15 @@ CREATE TABLE `oj_submission`  (
   `pass_count` int NULL DEFAULT NULL COMMENT '通过用例数',
   `total_count` int NULL DEFAULT NULL COMMENT '总用例数',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '提交时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `contest_id` bigint NULL DEFAULT NULL COMMENT '赛事ID(为空表示普通提交)',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_problem_id`(`problem_id` ASC) USING BTREE,
   INDEX `idx_user_id`(`user_id` ASC) USING BTREE,
   INDEX `idx_status`(`status` ASC) USING BTREE,
   INDEX `idx_user_problem`(`user_id` ASC, `problem_id` ASC) USING BTREE,
+  INDEX `idx_oj_submission_evidence_cursor`(`user_id` ASC, `update_time` ASC, `id` ASC) USING BTREE,
+  INDEX `idx_oj_submission_evidence_change`(`update_time` ASC, `user_id` ASC) USING BTREE,
   INDEX `idx_contest_id`(`contest_id` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 5 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'OJ提交记录表' ROW_FORMAT = Dynamic;
 
@@ -2868,6 +2904,9 @@ CREATE TABLE `growth_autopilot_goal`  (
   `week_end` date NOT NULL COMMENT '周结束日期（周日）',
   `target_role` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '目标岗位',
   `weekly_hours` int NULL DEFAULT 8 COMMENT '每周投入时长（小时）',
+  `weekly_minutes` int NOT NULL DEFAULT 480 COMMENT '每周精确预算（分钟）',
+  `plan_version` int NOT NULL DEFAULT 1 COMMENT '计划乐观锁版本',
+  `last_action_run_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '最近计划调整运行ID',
   `current_stage` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT 'practice' COMMENT '当前学习阶段：foundation/practice/interview',
   `total_score_target` int NULL DEFAULT 0 COMMENT '目标总分',
   `total_score_completed` int NULL DEFAULT 0 COMMENT '已完成总分',
@@ -2904,12 +2943,23 @@ CREATE TABLE `growth_autopilot_task`  (
   `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT 'todo' COMMENT '状态：todo/done/missed',
   `source` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT 'auto' COMMENT '来源：auto/replan',
   `route_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '前端跳转路径',
+  `task_key` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '跨版本关联任务键',
+  `plan_version` int NOT NULL DEFAULT 1 COMMENT '所属计划版本',
+  `resource_type` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '可执行资源类型',
+  `resource_id` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '可执行资源ID',
+  `resource_version` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '资源版本',
+  `selection_reason` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '任务选择原因',
+  `completion_rule_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '完成校验规则JSON',
+  `superseded_by_task_id` bigint NULL DEFAULT NULL COMMENT '替代此任务的新任务ID',
   `complete_time` datetime NULL DEFAULT NULL COMMENT '完成时间',
   `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` datetime NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_goal_date`(`goal_id` ASC, `task_date` ASC) USING BTREE,
   INDEX `idx_goal_status`(`goal_id` ASC, `status` ASC) USING BTREE,
+  INDEX `idx_growth_task_plan_version`(`goal_id` ASC, `plan_version` ASC) USING BTREE,
+  INDEX `idx_growth_task_evidence_cursor`(`user_id` ASC, `update_time` ASC, `id` ASC) USING BTREE,
+  INDEX `idx_growth_task_evidence_change`(`update_time` ASC, `user_id` ASC) USING BTREE,
   INDEX `idx_user_date`(`user_id` ASC, `task_date` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '成长自动驾驶任务' ROW_FORMAT = Dynamic;
 
@@ -2928,6 +2978,249 @@ CREATE TABLE `growth_autopilot_event`  (
   INDEX `idx_goal_time`(`goal_id` ASC, `create_time` DESC) USING BTREE,
   INDEX `idx_user_time`(`user_id` ASC, `create_time` DESC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '成长自动驾驶事件日志' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for growth_autopilot_revision
+-- ----------------------------
+DROP TABLE IF EXISTS `growth_autopilot_revision`;
+CREATE TABLE `growth_autopilot_revision`  (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `goal_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  `version` int NOT NULL,
+  `base_version` int NOT NULL,
+  `source` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `action_run_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `constraint_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `diff_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `snapshot_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_growth_revision_goal_version`(`goal_id` ASC, `version` ASC) USING BTREE,
+  UNIQUE INDEX `uk_growth_revision_action_run`(`action_run_id` ASC) USING BTREE,
+  INDEX `idx_growth_revision_user_time`(`user_id` ASC, `create_time` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '成长计划版本快照' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for growth_coach_action_run
+-- ----------------------------
+DROP TABLE IF EXISTS `growth_coach_action_run`;
+CREATE TABLE `growth_coach_action_run`  (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `run_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_id` bigint NOT NULL,
+  `client_request_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `action_id` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `base_plan_version` int NULL DEFAULT NULL,
+  `target_plan_version` int NULL DEFAULT NULL,
+  `request_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `message_redacted` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `intent_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `preview_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `preview_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `result_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `error_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `error_message` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `prompt_key` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `prompt_version` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `model_name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `expires_at` datetime NULL DEFAULT NULL,
+  `executed_at` datetime NULL DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_growth_coach_run_id`(`run_id` ASC) USING BTREE,
+  UNIQUE INDEX `uk_growth_coach_user_request`(`user_id` ASC, `client_request_id` ASC) USING BTREE,
+  INDEX `idx_growth_coach_user_time`(`user_id` ASC, `created_at` ASC) USING BTREE,
+  INDEX `idx_growth_coach_status_expiry`(`status` ASC, `expires_at` ASC) USING BTREE,
+  INDEX `idx_growth_coach_action_analytics_time`(`action_id` ASC, `created_at` ASC, `status` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户成长教练动作运行记录' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for growth_coach_action_event
+-- ----------------------------
+DROP TABLE IF EXISTS `growth_coach_action_event`;
+CREATE TABLE `growth_coach_action_event`  (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `run_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sequence_no` int NOT NULL,
+  `from_status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `to_status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `event_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `detail_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_growth_coach_event_sequence`(`run_id` ASC, `sequence_no` ASC) USING BTREE,
+  INDEX `idx_growth_coach_event_time`(`run_id` ASC, `create_time` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户成长教练动作事件' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for growth_journey_event
+-- ----------------------------
+DROP TABLE IF EXISTS `growth_journey_event`;
+CREATE TABLE `growth_journey_event`  (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL COMMENT '用户ID',
+  `event_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'PRIMARY_ACTION_SHOWN/PRIMARY_ACTION_STARTED',
+  `tracking_id` varchar(96) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '每日稳定的主行动追踪ID',
+  `action_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '主行动类型',
+  `source` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '主行动业务来源',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_growth_journey_user_event_tracking`(`user_id` ASC, `event_type` ASC, `tracking_id` ASC) USING BTREE,
+  INDEX `idx_growth_journey_type_time_user`(`event_type` ASC, `create_time` ASC, `user_id` ASC) USING BTREE,
+  INDEX `idx_growth_journey_source_time`(`source` ASC, `create_time` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户成长主行动业务漏斗事件' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for growth_coach_nudge
+-- ----------------------------
+DROP TABLE IF EXISTS `growth_coach_nudge`;
+CREATE TABLE `growth_coach_nudge`  (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `nudge_key` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `nudge_type` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `level` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `title` varchar(160) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `content` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `route_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `notification_id` bigint NULL DEFAULT NULL,
+  `sent_at` datetime NULL DEFAULT NULL,
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_growth_coach_nudge_user_key`(`user_id` ASC, `nudge_key` ASC) USING BTREE,
+  INDEX `idx_growth_coach_nudge_status_time`(`status` ASC, `update_time` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'AI成长教练主动提醒幂等记录' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for growth_github_connection
+-- ----------------------------
+DROP TABLE IF EXISTS `growth_github_connection`;
+CREATE TABLE `growth_github_connection`  (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `github_user_id` bigint NOT NULL,
+  `github_login` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `github_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `avatar_url` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `access_token_ciphertext` varchar(4096) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `connected_at` datetime NOT NULL,
+  `token_updated_at` datetime NOT NULL,
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_growth_github_connection_user`(`user_id` ASC) USING BTREE,
+  UNIQUE INDEX `uk_growth_github_connection_account`(`github_user_id` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Growth Coach GitHub OAuth账号连接' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for growth_code_artifact
+-- ----------------------------
+DROP TABLE IF EXISTS `growth_code_artifact`;
+CREATE TABLE `growth_code_artifact`  (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `provider` varchar(24) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `artifact_type` varchar(24) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `repository` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `external_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `canonical_url` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `changed_files` int NULL DEFAULT NULL,
+  `additions` int NULL DEFAULT NULL,
+  `deletions` int NULL DEFAULT NULL,
+  `artifact_state` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `merged` tinyint NOT NULL DEFAULT 0,
+  `ownership_verified` tinyint NOT NULL DEFAULT 0,
+  `github_author_id` bigint NULL DEFAULT NULL COMMENT 'GitHub API返回的作者用户ID',
+  `github_committer_id` bigint NULL DEFAULT NULL COMMENT 'GitHub API返回的提交者用户ID',
+  `source_observed_at` datetime NOT NULL,
+  `verified_at` datetime NOT NULL,
+  `deleted` tinyint NOT NULL DEFAULT 0,
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_growth_code_artifact_user_source`(`user_id` ASC, `provider` ASC, `artifact_type` ASC, `repository` ASC, `external_id` ASC) USING BTREE,
+  INDEX `idx_growth_code_artifact_user_verified`(`user_id` ASC, `deleted` ASC, `verified_at` ASC) USING BTREE,
+  INDEX `idx_growth_code_artifact_evidence_change`(`update_time` ASC, `user_id` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户公开代码来源最小事实' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for growth_code_review_record
+-- ----------------------------
+DROP TABLE IF EXISTS `growth_code_review_record`;
+CREATE TABLE `growth_code_review_record`  (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `code_pen_id` bigint NOT NULL,
+  `previous_review_id` bigint NULL DEFAULT NULL,
+  `source_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `score` int NOT NULL,
+  `critical_finding_count` int NOT NULL DEFAULT 0,
+  `high_finding_count` int NOT NULL DEFAULT 0,
+  `medium_finding_count` int NOT NULL DEFAULT 0,
+  `summary` varchar(240) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `result_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `status` varchar(24) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source_observed_at` datetime NOT NULL,
+  `reviewed_at` datetime NOT NULL,
+  `deleted` tinyint NOT NULL DEFAULT 0,
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_growth_code_review_user_pen_time`(`user_id` ASC, `code_pen_id` ASC, `deleted` ASC, `reviewed_at` ASC) USING BTREE,
+  INDEX `idx_growth_code_review_evidence_change`(`update_time` ASC, `user_id` ASC) USING BTREE,
+  INDEX `idx_growth_code_review_previous`(`previous_review_id` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户自有CodePen结构化AI审查记录' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for growth_evidence
+-- ----------------------------
+DROP TABLE IF EXISTS `growth_evidence`;
+CREATE TABLE `growth_evidence`  (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `evidence_id` varchar(96) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_id` bigint NOT NULL,
+  `evidence_type` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source_module` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source_type` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source_id` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `skill_key` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `summary_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `quality_level` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `observed_at` datetime NOT NULL,
+  `valid_from` datetime NOT NULL,
+  `valid_to` datetime NULL DEFAULT NULL,
+  `content_hash` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `projector_version` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_growth_evidence_id`(`evidence_id` ASC) USING BTREE,
+  UNIQUE INDEX `uk_growth_evidence_source`(`user_id` ASC, `source_module` ASC, `source_type` ASC, `source_id` ASC, `evidence_type` ASC, `projector_version` ASC) USING BTREE,
+  INDEX `idx_growth_evidence_user_observed`(`user_id` ASC, `valid_to` ASC, `observed_at` ASC) USING BTREE,
+  INDEX `idx_growth_evidence_skill_time`(`user_id` ASC, `skill_key` ASC, `observed_at` ASC) USING BTREE,
+  INDEX `idx_growth_evidence_analytics_time`(`quality_level` ASC, `observed_at` ASC, `user_id` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户成长证据结构化索引' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for growth_evidence_projection_cursor
+-- ----------------------------
+DROP TABLE IF EXISTS `growth_evidence_projection_cursor`;
+CREATE TABLE `growth_evidence_projection_cursor`  (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `source_key` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `cursor_time` datetime NOT NULL,
+  `cursor_source_id` bigint NOT NULL,
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_growth_evidence_cursor`(`user_id` ASC, `source_key` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '成长证据来源增量投影游标' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for learning_cockpit_rank_snapshot

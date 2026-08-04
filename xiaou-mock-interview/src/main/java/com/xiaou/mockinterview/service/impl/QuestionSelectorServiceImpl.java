@@ -96,14 +96,19 @@ public class QuestionSelectorServiceImpl implements QuestionSelectorService {
     }
 
     @Override
-    public List<GeneratedQuestion> generateQuestionsByAI(String direction, Integer level, Integer questionCount) {
+    public List<GeneratedQuestion> generateQuestionsByAI(
+            String direction,
+            Integer level,
+            Integer questionCount,
+            String specializedTopic
+    ) {
         InterviewLevelEnum levelEnum = InterviewLevelEnum.getByCode(level);
         String levelName = levelEnum != null ? levelEnum.getName() : "中级";
 
         try {
             // 调用AI服务
             List<com.xiaou.ai.dto.interview.GeneratedQuestion> aiQuestions = 
-                    aiInterviewService.generateQuestions(direction, levelName, questionCount);
+                    aiInterviewService.generateQuestions(direction, levelName, questionCount, specializedTopic);
 
             if (aiQuestions != null && !aiQuestions.isEmpty()) {
                 // 转换为业务DTO

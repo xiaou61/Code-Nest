@@ -300,6 +300,11 @@ function Invoke-Rag {
 }
 
 function Invoke-Backend {
+    Invoke-Step "version and migration inventory" {
+        Invoke-Native -Command $PythonCommand -Arguments @("scripts/check-version-consistency.py")
+        Invoke-Native -Command $PythonCommand -Arguments @("scripts/db-migrate.py", "--dry-run")
+    }
+
     Invoke-Step "backend module tests" {
         Invoke-Maven @(
             "-pl", ($backendModulesWithTests -join ","),
@@ -343,7 +348,7 @@ function Invoke-Release {
     }
 
     Invoke-Step "script syntax checks" {
-        Invoke-Native -Command $PythonCommand -Arguments @("-m", "py_compile", "scripts/deploy-frontends.py", "scripts/you_deserve_to_interview_sql.py")
+        Invoke-Native -Command $PythonCommand -Arguments @("-m", "py_compile", "scripts/check-version-consistency.py", "scripts/db-migrate.py", "scripts/deploy-frontends.py", "scripts/deploy-production.py", "scripts/release-smoke-test.py", "scripts/you_deserve_to_interview_sql.py")
         $bash = Resolve-BashCommand
         Invoke-Native -Command $bash -Arguments @("-n", "scripts/ci-server-build-deploy.sh", "scripts/ci-server-build-deploy.test.sh", "scripts/deploy-release.sh")
         Invoke-Native -Command $bash -Arguments @("scripts/ci-server-build-deploy.test.sh")

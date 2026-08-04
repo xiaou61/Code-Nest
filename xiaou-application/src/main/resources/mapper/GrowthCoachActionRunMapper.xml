@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.web.growthcoach.mapper.GrowthCoachActionRunMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.web.growthcoach.domain.GrowthCoachActionRun">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="run_id" property="runId" jdbcType="VARCHAR"/>
+        <result column="user_id" property="userId" jdbcType="BIGINT"/>
+        <result column="client_request_id" property="clientRequestId" jdbcType="VARCHAR"/>
+        <result column="action_id" property="actionId" jdbcType="VARCHAR"/>
+        <result column="status" property="status" jdbcType="VARCHAR"/>
+        <result column="base_plan_version" property="basePlanVersion" jdbcType="INTEGER"/>
+        <result column="target_plan_version" property="targetPlanVersion" jdbcType="INTEGER"/>
+        <result column="request_hash" property="requestHash" jdbcType="VARCHAR"/>
+        <result column="message_redacted" property="messageRedacted" jdbcType="VARCHAR"/>
+        <result column="intent_json" property="intentJson" jdbcType="LONGVARCHAR"/>
+        <result column="preview_json" property="previewJson" jdbcType="LONGVARCHAR"/>
+        <result column="preview_hash" property="previewHash" jdbcType="VARCHAR"/>
+        <result column="result_json" property="resultJson" jdbcType="LONGVARCHAR"/>
+        <result column="error_code" property="errorCode" jdbcType="VARCHAR"/>
+        <result column="error_message" property="errorMessage" jdbcType="VARCHAR"/>
+        <result column="prompt_key" property="promptKey" jdbcType="VARCHAR"/>
+        <result column="prompt_version" property="promptVersion" jdbcType="VARCHAR"/>
+        <result column="model_name" property="modelName" jdbcType="VARCHAR"/>
+        <result column="expires_at" property="expiresAt" jdbcType="TIMESTAMP"/>
+        <result column="executed_at" property="executedAt" jdbcType="TIMESTAMP"/>
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+        <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, run_id, user_id, client_request_id, action_id, status, base_plan_version, target_plan_version,
+        request_hash, message_redacted, intent_json, preview_json, preview_hash, result_json,
+        error_code, error_message, prompt_key, prompt_version, model_name, expires_at, executed_at,
+        created_at, updated_at
+    </sql>
+
+    <select id="selectByUserAndClientRequest" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM growth_coach_action_run
+        WHERE user_id = #{userId}
+          AND client_request_id = #{clientRequestId}
+        LIMIT 1
+    </select>
+
+    <select id="selectByRunIdAndUser" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM growth_coach_action_run
+        WHERE run_id = #{runId}
+          AND user_id = #{userId}
+        LIMIT 1
+    </select>
+
+    <select id="selectByRunIdAndUserForUpdate" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM growth_coach_action_run
+        WHERE run_id = #{runId}
+          AND user_id = #{userId}
+        LIMIT 1
+        FOR UPDATE
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO growth_coach_action_run (
+            run_id, user_id, client_request_id, action_id, status, base_plan_version, target_plan_version,
+            request_hash, message_redacted, intent_json, preview_json, preview_hash, result_json,
+            error_code, error_message, prompt_key, prompt_version, model_name, expires_at, executed_at,
+            created_at, updated_at
+        ) VALUES (
+            #{runId}, #{userId}, #{clientRequestId}, #{actionId}, #{status}, #{basePlanVersion}, #{targetPlanVersion},
+            #{requestHash}, #{messageRedacted}, #{intentJson}, #{previewJson}, #{previewHash}, #{resultJson},
+            #{errorCode}, #{errorMessage}, #{promptKey}, #{promptVersion}, #{modelName}, #{expiresAt}, #{executedAt},
+            NOW(), NOW()
+        )
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE growth_coach_action_run
+        SET
+            status = #{targetStatus},
+            error_code = #{errorCode},
+            error_message = #{errorMessage},
+            updated_at = NOW()
+        WHERE run_id = #{runId}
+          AND user_id = #{userId}
+          AND status = #{expectedStatus}
+    </update>
+
+    <update id="markExecuted">
+        UPDATE growth_coach_action_run
+        SET
+            status = 'EXECUTED',
+            target_plan_version = #{targetPlanVersion},
+            result_json = #{resultJson},
+            executed_at = NOW(),
+            updated_at = NOW()
+        WHERE run_id = #{runId}
+          AND user_id = #{userId}
+          AND status = 'PREVIEW'
+    </update>
+</mapper>

@@ -10,7 +10,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication(exclude = {UserDetailsServiceAutoConfiguration.class})
 @EnableAsync
 @EnableScheduling
-@MapperScan({"com.xiaou.*.mapper"})
+@MapperScan({"com.xiaou.*.mapper", "com.xiaou.web.growthcoach.mapper"})
 public class CodeNestApplication {
     public static void main(String[] args) {
         SpringApplication.run(CodeNestApplication.class, args);

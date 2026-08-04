@@ -12,6 +12,8 @@ import com.xiaou.oj.service.OjProblemService;
 import com.xiaou.plan.service.PlanService;
 import com.xiaou.points.service.PointsService;
 import com.xiaou.version.service.VersionHistoryService;
+import com.xiaou.web.growthcoach.dto.GrowthCoachBriefingResponse;
+import com.xiaou.web.growthcoach.service.GrowthCoachBriefingService;
 import com.xiaou.web.home.dto.UserHomeOverviewResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,6 +54,8 @@ class UserHomeOverviewServiceTest {
     private PointsService pointsService;
     @Mock
     private VersionHistoryService versionHistoryService;
+    @Mock
+    private GrowthCoachBriefingService growthCoachBriefingService;
 
     private ExecutorService executor;
 
@@ -76,7 +80,48 @@ class UserHomeOverviewServiceTest {
         when(mockInterviewService.getStats(7L)).thenThrow(new IllegalStateException("mock unavailable"));
         when(pointsService.getPointsBalance(7L)).thenThrow(new IllegalStateException("points unavailable"));
 
-        UserHomeOverviewService service = new UserHomeOverviewService(
+        UserHomeOverviewService service = newService();
+
+        UserHomeOverviewResponse overview = service.getOverview(7L);
+
+        assertThat(overview.getHeroMetrics().getLearnedCount()).isEqualTo(12);
+        assertThat(overview.getHeroMetrics().getOnlineCount()).isEqualTo(3);
+        assertThat(overview.getSections().get("hero").isAvailable()).isTrue();
+        assertThat(overview.getSections().get("growth").isAvailable()).isFalse();
+    }
+
+    @Test
+    void shouldExposeTheStableGrowthCoachActionInTheHomeOverview() {
+        GrowthCoachBriefingResponse source = new GrowthCoachBriefingResponse();
+        GrowthCoachBriefingResponse.PrimaryAction action = new GrowthCoachBriefingResponse.PrimaryAction();
+        action.setActionType("APPLICATION_FOLLOW_UP");
+        action.setActionId(42L);
+        action.setTitle("更新字节跳动投递进展");
+        action.setExpectedMinutes(15);
+        action.setReason("这条投递已到跟进时间");
+        action.setExpectedChange("更新后将重新计算求职下一步");
+        action.setRoutePath("/career-loop?focus=applications");
+        action.setSource("application_outcomes");
+        action.setRiskLevel("attention");
+        action.setPrefillMessage("记录本次沟通结果");
+        action.setTrackingId("gpa-20260729-a1b2c3");
+        source.setPrimaryAction(action);
+        when(growthCoachBriefingService.getForUser(7L)).thenReturn(source);
+
+        UserHomeOverviewResponse overview = newService().getOverview(7L);
+
+        assertThat(overview.getTodayAction().isAvailable()).isTrue();
+        assertThat(overview.getTodayAction().getActionType()).isEqualTo("APPLICATION_FOLLOW_UP");
+        assertThat(overview.getTodayAction().getActionId()).isEqualTo(42L);
+        assertThat(overview.getTodayAction().getTitle()).isEqualTo("更新字节跳动投递进展");
+        assertThat(overview.getTodayAction().getEstimatedMinutes()).isEqualTo(15);
+        assertThat(overview.getTodayAction().getStartRoute()).isEqualTo("/career-loop?focus=applications");
+        assertThat(overview.getTodayAction().getSource()).isEqualTo("application_outcomes");
+        assertThat(overview.getTodayAction().getTrackingId()).isEqualTo("gpa-20260729-a1b2c3");
+    }
+
+    private UserHomeOverviewService newService() {
+        return new UserHomeOverviewService(
                 interviewLearnRecordService,
                 knowledgeMapService,
                 chatRoomService,
@@ -88,14 +133,8 @@ class UserHomeOverviewServiceTest {
                 planService,
                 pointsService,
                 versionHistoryService,
+                growthCoachBriefingService,
                 executor
         );
-
-        UserHomeOverviewResponse overview = service.getOverview(7L);
-
-        assertThat(overview.getHeroMetrics().getLearnedCount()).isEqualTo(12);
-        assertThat(overview.getHeroMetrics().getOnlineCount()).isEqualTo(3);
-        assertThat(overview.getSections().get("hero").isAvailable()).isTrue();
-        assertThat(overview.getSections().get("growth").isAvailable()).isFalse();
     }
 }

@@ -16,6 +16,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.UUID;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 /**
  * AI 执行支撑类。
@@ -24,12 +27,26 @@ import java.util.function.Supplier;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class AiExecutionSupport {
 
     private final AiModelFactory aiModelFactory;
     private final AiMetricsRecorder aiMetricsRecorder;
     private final AiProperties aiProperties;
+    private final Semaphore concurrencyLimiter;
+
+    public AiExecutionSupport(
+            AiModelFactory aiModelFactory,
+            AiMetricsRecorder aiMetricsRecorder,
+            AiProperties aiProperties
+    ) {
+        this.aiModelFactory = aiModelFactory;
+        this.aiMetricsRecorder = aiMetricsRecorder;
+        this.aiProperties = aiProperties;
+        int permits = aiProperties.getMaxConcurrentCalls() == null
+                ? 8
+                : Math.max(1, aiProperties.getMaxConcurrentCalls());
+        this.concurrencyLimiter = new Semaphore(permits);
+    }
 
     public boolean isChatAvailable() {
         return aiModelFactory.isChatAvailable();
@@ -51,17 +68,38 @@ public class AiExecutionSupport {
         long startNanos = System.nanoTime();
         String outcome = "success";
         AiChatResult result = null;
+        String operationId = "ai-" + UUID.randomUUID();
+        boolean acquired = false;
         try {
+            int acquireTimeout = aiProperties.getPermitAcquireTimeoutMs() == null
+                    ? 1000
+                    : Math.max(1, aiProperties.getPermitAcquireTimeoutMs());
+            acquired = concurrencyLimiter.tryAcquire(acquireTimeout, TimeUnit.MILLISECONDS);
+            if (!acquired) {
+                outcome = "concurrency_rejected";
+                aiMetricsRecorder.recordConcurrencyRejection(sceneName, promptSpec);
+                throw new AiInvocationException("场景 " + sceneName + " 当前请求过多，请稍后重试");
+            }
+            log.debug("AI operation started: operationId={}, scene={}", operationId, sceneName);
             result = aiModelFactory.chat(
                     systemPrompt,
                     userPrompt,
                     promptSpec == null ? null : promptSpec.maxCompletionTokens()
             );
             return result;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            outcome = "interrupted";
+            throw new AiInvocationException("场景 " + sceneName + " AI 请求被中断", e);
+        } catch (AiInvocationException e) {
+            throw e;
         } catch (Exception e) {
             outcome = "error";
             throw new AiInvocationException("场景 " + sceneName + " 调用统一 AI 运行时失败", e);
         } finally {
+            if (acquired) {
+                concurrencyLimiter.release();
+            }
             aiMetricsRecorder.recordInvocation(
                     sceneName,
                     promptSpec,

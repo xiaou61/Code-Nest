@@ -54,6 +54,27 @@ public interface AiInterviewService {
     List<GeneratedQuestion> generateQuestions(String direction, String level, int count);
 
     /**
+     * AI 生成带可选专项关注点的面试题。
+     *
+     * <p>关注点仅用于收敛技术题覆盖范围，不能改变题目数量、输出结构或调用方的权限边界。
+     * 默认实现保持既有调用方兼容。</p>
+     *
+     * @param direction       面试方向
+     * @param level           难度级别
+     * @param count           题目数量
+     * @param specializedFocus 用户确认的专项技术关注点，可为空
+     * @return 生成的题目列表
+     */
+    default List<GeneratedQuestion> generateQuestions(
+            String direction,
+            String level,
+            int count,
+            String specializedFocus
+    ) {
+        return generateQuestions(direction, level, count);
+    }
+
+    /**
      * 生成追问问题
      *
      * @param direction     面试方向

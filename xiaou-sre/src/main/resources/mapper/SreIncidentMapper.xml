@@ -61,6 +61,12 @@
             last_seen DESC
     </select>
 
+    <select id="countOpen" resultType="long">
+        SELECT COUNT(*)
+        FROM sre_incident
+        WHERE state IN ('OPEN', 'ACKNOWLEDGED', 'INVESTIGATING', 'MITIGATED')
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO sre_incident (
             incident_no, incident_key, service, alert_name, severity, state,

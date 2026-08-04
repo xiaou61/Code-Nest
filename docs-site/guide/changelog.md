@@ -12,6 +12,9 @@
 
 | 版本 | 日期 | 主要变更 |
 |------|------|---------|
+| v2.5.3 | 2026-08-04 | Growth Coach 性能与事件契约、SSRF 防护、AI 并发保护、checksum 迁移 ledger、可追溯 release bundle 与失败回滚 |
+| v2.5.2 | 2026-07-30 | 业务成长漏斗、求职结果回流与管理端成长分析契约 |
+| v2.5.0 | 2026-07-17 | AI Growth Coach、计划调整预览/幂等应用、Career Loop 证据闭环和 SRE 只读事件能力 |
 | v2.4.3 | 2026-07-16 | 首次登录首周任务引导、首页聚合接口、自动同步状态、首页行动优先与 Element Plus 按需引入 |
 | v2.4.2 | 2026-07-16 | 移动端导航和认证首屏修复、目标导向导航、行动优先页面顺序、首页故障提示降噪 |
 | v2.4.1 | 2026-07-15 | 共享设计系统、缓存与线程池治理、热点链路优化、文档中心重构 |
@@ -25,6 +28,49 @@
 | v2.1.1 | - | WebSocket 票据机制、CORS 配置化 |
 | v2.1.0 | - | AI 学习成长驾驶舱、AI Runtime 治理中心 |
 | v2.0.0 | - | AI 基础设施切换到 LangChain4j/LangGraph4j/LlamaIndex |
+
+---
+
+## v2.5.3 (2026-08-04)
+
+### Added
+
+- 统一 `VERSION` 与版本一致性检查，发布包携带 `RELEASE`、`VERSION`、迁移执行器和完整 SQL。
+- 新增 checksum ledger 迁移执行器，支持 dry-run、baseline、apply 和失败记录。
+- Growth Coach 事件增加 `schemaVersion`、`clientVersion`、`entryPage`、来源 allow-list、`PRIMARY_ACTION_COMPLETED` 和 `OUTCOME_RECORDED`。
+
+### Changed
+
+- Growth Coach 数据源改为有界并发读取，增加来源状态、耗时指标和 5 秒本地缓存。
+- 远程敏感词来源增加 SSRF、重定向、超时和响应体大小防护。
+- AI 运行时增加最大并发调用数、permit 等待超时、拒绝指标和 operation id 日志。
+- 生产构建默认拒绝 dirty worktree；部署脚本增加磁盘余量、备份容量、健康检查失败回滚和可选迁移执行。
+
+### Notes
+
+- 生产默认不执行数据库迁移；只有显式设置 `CODE_NEST_RUN_MIGRATIONS=true` 才会在应用替换前执行。
+- 详见 [数据库迁移指南](/guide/database-migration) 和 [生产 CI/CD 自动发布](/guide/ci-cd-production)。
+
+---
+
+## v2.5.2 (2026-07-30)
+
+### Added
+
+- 新增业务成长漏斗和求职结果回流，管理端可按事件、阶段和结果查看成长路径转化。
+
+---
+
+## v2.5.0 (2026-07-17)
+
+### Added
+
+- 新增 AI Growth Coach 计划调整预览、版本化/幂等应用、真实资源引用和今日唯一行动。
+- 新增 Career Loop 求职申请记录、成长事件和 SRE 只读事件/证据能力。
+
+### Notes
+
+- v2.5.0 的数据库脚本位于 `sql/v2.5.0/`，应用前请使用统一迁移执行器登记或执行。
 
 ---
 

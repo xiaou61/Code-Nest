@@ -58,10 +58,20 @@ public class InterviewSceneSupport {
     }
 
     public List<GeneratedQuestion> generateQuestions(String direction, String level, int count, String ragContext) {
+        return generateQuestions(direction, level, count, null, ragContext);
+    }
+
+    public List<GeneratedQuestion> generateQuestions(
+            String direction,
+            String level,
+            int count,
+            String specializedFocus,
+            String ragContext
+    ) {
         return aiExecutionSupport.chatWithFallback(
                 "mock_interview_generate_questions_graph",
                 InterviewPromptSpecs.GENERATE_QUESTIONS,
-                buildGenerateQuestionsPromptVariables(direction, level, count, ragContext),
+                buildGenerateQuestionsPromptVariables(direction, level, count, specializedFocus, ragContext),
                 this::parseGeneratedQuestions,
                 List::of
         );
@@ -108,11 +118,18 @@ public class InterviewSceneSupport {
         return variables;
     }
 
-    private Map<String, Object> buildGenerateQuestionsPromptVariables(String direction, String level, int count, String ragContext) {
+    private Map<String, Object> buildGenerateQuestionsPromptVariables(
+            String direction,
+            String level,
+            int count,
+            String specializedFocus,
+            String ragContext
+    ) {
         Map<String, Object> variables = new LinkedHashMap<>();
         variables.put("direction", AiPromptSections.text(direction));
         variables.put("level", AiPromptSections.text(level));
         variables.put("count", count);
+        variables.put("specializedFocusSection", AiPromptSections.untrustedFocusSection(specializedFocus));
         variables.put("ragSection", AiPromptSections.ragSection(ragContext));
         return variables;
     }

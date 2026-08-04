@@ -5,14 +5,22 @@ import com.xiaou.common.satoken.StpUserUtil;
 import com.xiaou.mockinterview.domain.CareerLoopAction;
 import com.xiaou.mockinterview.domain.CareerLoopSession;
 import com.xiaou.mockinterview.domain.CareerLoopStageLog;
+import com.xiaou.mockinterview.dto.request.CareerApplicationUpsertRequest;
 import com.xiaou.mockinterview.dto.request.CareerLoopEventRequest;
 import com.xiaou.mockinterview.dto.request.CareerLoopProfileUpdateRequest;
 import com.xiaou.mockinterview.dto.request.CareerLoopStartRequest;
+import com.xiaou.mockinterview.dto.response.CareerApplicationResponse;
+import com.xiaou.mockinterview.dto.response.CareerApplicationSummaryResponse;
 import com.xiaou.mockinterview.dto.response.CareerLoopCurrentResponse;
+import com.xiaou.mockinterview.service.CareerApplicationService;
 import com.xiaou.mockinterview.service.CareerLoopService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,12 +31,14 @@ import java.util.List;
  * @author xiaou
  */
 @Tag(name = "求职闭环中台-用户端", description = "统一管理求职闭环进度")
+@Validated
 @RestController
 @RequestMapping("/user/career-loop")
 @RequiredArgsConstructor
 public class CareerLoopController {
 
     private final CareerLoopService careerLoopService;
+    private final CareerApplicationService careerApplicationService;
 
     @Operation(summary = "启动/获取当前闭环会话")
     @PostMapping("/start")
@@ -57,6 +67,49 @@ public class CareerLoopController {
     public Result<List<CareerLoopAction>> actions() {
         Long userId = StpUserUtil.getLoginIdAsLong();
         return Result.success(careerLoopService.getActions(userId));
+    }
+
+    @Operation(summary = "查询我的投递记录")
+    @GetMapping("/applications")
+    public Result<List<CareerApplicationResponse>> applications(
+            @RequestParam(required = false)
+            @Pattern(regexp = "PREPARING|APPLIED|INTERVIEWING|OFFER|REJECTED|WITHDRAWN", flags = Pattern.Flag.CASE_INSENSITIVE,
+                    message = "投递状态不合法") String status
+    ) {
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        return Result.success(careerApplicationService.listForUser(userId, status));
+    }
+
+    @Operation(summary = "查询我的投递汇总")
+    @GetMapping("/applications/summary")
+    public Result<CareerApplicationSummaryResponse> applicationSummary() {
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        return Result.success(careerApplicationService.getSummary(userId));
+    }
+
+    @Operation(summary = "记录一条投递进展")
+    @PostMapping("/applications")
+    public Result<CareerApplicationResponse> createApplication(@Valid @RequestBody CareerApplicationUpsertRequest request) {
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        return Result.success(careerApplicationService.create(userId, request));
+    }
+
+    @Operation(summary = "更新一条投递进展")
+    @PutMapping("/applications/{id}")
+    public Result<CareerApplicationResponse> updateApplication(
+            @Min(value = 1, message = "投递记录ID不合法") @PathVariable Long id,
+            @Valid @RequestBody CareerApplicationUpsertRequest request
+    ) {
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        return Result.success(careerApplicationService.update(userId, id, request));
+    }
+
+    @Operation(summary = "删除一条投递进展")
+    @DeleteMapping("/applications/{id}")
+    public Result<Void> deleteApplication(@Min(value = 1, message = "投递记录ID不合法") @PathVariable Long id) {
+        Long userId = StpUserUtil.getLoginIdAsLong();
+        careerApplicationService.delete(userId, id);
+        return Result.success();
     }
 
     @Operation(summary = "完成动作项")

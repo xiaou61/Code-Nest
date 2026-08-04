@@ -21,11 +21,21 @@ public interface CareerLoopService {
 
     CareerLoopCurrentResponse getCurrent(Long userId);
 
+    /**
+     * 只读取已存在的活跃会话；不存在时返回 null，不创建会话或动作。
+     */
+    CareerLoopCurrentResponse findCurrentIfPresent(Long userId);
+
     List<CareerLoopStageLog> getTimeline(Long userId);
 
     List<CareerLoopAction> getActions(Long userId);
 
     void markActionDone(Long userId, Long actionId);
+
+    /**
+     * 只更新已存在活跃会话中的动作，不触发会话自动初始化。
+     */
+    void markExistingActionDone(Long userId, Long actionId);
 
     CareerLoopSession updateProfile(Long userId, CareerLoopProfileUpdateRequest request);
 

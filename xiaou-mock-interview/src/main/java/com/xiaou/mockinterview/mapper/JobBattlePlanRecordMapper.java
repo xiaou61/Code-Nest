@@ -30,5 +30,10 @@ public interface JobBattlePlanRecordMapper {
      * 根据ID查询用户计划详情
      */
     JobBattlePlanRecord selectByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
+
+    /**
+     * 查询用户最近一次补短板计划。
+     */
+    JobBattlePlanRecord selectLatestByUserId(@Param("userId") Long userId);
 }
 

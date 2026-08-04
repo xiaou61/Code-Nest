@@ -32,6 +32,16 @@ final class AiStructuredOutputFixtures {
                         {"summary":"帖子复盘了 Redis 缓存一致性问题，并给出补偿方案。","keywords":["Redis","缓存一致性","补偿机制"]}
                         """);
 
+        fixtures.put("code_review.codepen_review:v1",
+                """
+                        {"score":76,"summary":"作品结构清晰，但交互状态和键盘可访问性还需要补齐。","findings":[{"severity":"MEDIUM","area":"JAVASCRIPT","title":"交互状态未反馈","description":"操作完成后缺少明确状态反馈。","recommendedAction":"为关键操作补充可见状态和错误提示。"}],"actionItems":[{"title":"补齐交互反馈","description":"为保存和失败场景提供状态展示。","verification":"在预览中触发操作并确认状态可见。"}]}
+                        """);
+
+        fixtures.put("growth_coach.plan_adjustment_intent:v1",
+                """
+                        {"availableMinutes":180,"targetRole":"Java 后端","prioritizeInterview":1,"summary":"本周剩余 3 小时，优先准备 Java 后端面试。"}
+                        """);
+
         fixtures.put("mock_interview.evaluate_answer:v1",
                 """
                         {"score":8,"feedback":{"strengths":["回答有条理"],"improvements":["可以补充边界条件"]},"nextAction":"followUp","followUpQuestion":"如果发生超卖你会怎么兜底？","referencePoints":["并发控制","幂等","补偿"]}
@@ -41,6 +51,10 @@ final class AiStructuredOutputFixtures {
                         {"summary":"候选人在并发与缓存方面基础较好，但系统设计表达还需更结构化。","overallLevel":"良好","suggestions":["补充容量估算过程","回答时先总后分","增加故障复盘案例"]}
                         """);
         fixtures.put("mock_interview.generate_questions:v1",
+                """
+                        [{"question":"请讲一下缓存一致性方案。","answer":"可以从旁路缓存、延迟双删和消息一致性展开。","knowledgePoints":"缓存一致性,延迟双删,最终一致性"}]
+                        """);
+        fixtures.put("mock_interview.generate_questions:v2",
                 """
                         [{"question":"请讲一下缓存一致性方案。","answer":"可以从旁路缓存、延迟双删和消息一致性展开。","knowledgePoints":"缓存一致性,延迟双删,最终一致性"}]
                         """);

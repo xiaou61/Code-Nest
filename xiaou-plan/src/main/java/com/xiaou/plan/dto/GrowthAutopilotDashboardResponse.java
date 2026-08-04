@@ -33,6 +33,9 @@ public class GrowthAutopilotDashboardResponse {
      */
     private Boolean hasPlan = false;
 
+    /** 当前周计划版本，用于客户端识别稳定动作是否已失效。 */
+    private Integer planVersion = 0;
+
     /**
      * 目标配置
      */
@@ -127,6 +130,7 @@ public class GrowthAutopilotDashboardResponse {
         private Boolean overdue = false;
         private String source = "";
         private String routePath = "";
+        private String selectionReason = "";
     }
 
     @Data

@@ -19,6 +19,7 @@ public class InterviewState extends AgentState {
     public static final String ANSWER = "answer";
     public static final String FOLLOW_UP_COUNT = "followUpCount";
     public static final String GENERATED_COUNT = "generatedCount";
+    public static final String SPECIALIZED_FOCUS = "specializedFocus";
     public static final String QUESTION_COUNT = "questionCount";
     public static final String ANSWERED_COUNT = "answeredCount";
     public static final String SKIPPED_COUNT = "skippedCount";
@@ -72,6 +73,10 @@ public class InterviewState extends AgentState {
 
     public int generatedCount() {
         return intValue(GENERATED_COUNT);
+    }
+
+    public String specializedFocus() {
+        return stringValue(SPECIALIZED_FOCUS);
     }
 
     public int questionCount() {

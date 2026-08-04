@@ -75,29 +75,38 @@
       />
       <div v-else class="today-action-grid">
         <article class="today-primary-action">
-          <span class="today-action-label">{{ todayTaskTotal > 0 ? '下一步' : '本周起点' }}</span>
-          <h2>{{ todayTaskTotal > 0 ? '继续完成今天的计划' : '生成你的第一周任务' }}</h2>
-          <p v-if="todayTaskTotal > 0">
-            今日还有 {{ homeData.growth.plan.todayPending }} 项待办，完成后即可更新学习节奏。
-          </p>
+          <span class="today-action-label">{{ todayAction.available ? '今日最优动作' : (todayTaskTotal > 0 ? '下一步' : '本周起点') }}</span>
+          <h2>{{ todayAction.available ? todayAction.title : (todayTaskTotal > 0 ? '继续完成今天的计划' : '生成你的第一周任务') }}</h2>
+          <p v-if="todayAction.available">{{ todayAction.reason }}</p>
+          <p v-else-if="todayTaskTotal > 0">今日还有 {{ homeData.growth.plan.todayPending }} 项待办，完成后即可更新学习节奏。</p>
           <p v-else>先设定岗位与投入时间，让系统生成可执行的首周任务。</p>
           <div class="today-action-meta">
-            <CnStatusTag type="brand" size="sm" :dot="false">完成 {{ homeData.growth.plan.todayCompleted }} / {{ todayTaskTotal }}</CnStatusTag>
+            <CnStatusTag v-if="todayAction.available && todayAction.estimatedMinutes > 0" type="brand" size="sm" :dot="false">预计 {{ todayAction.estimatedMinutes }} 分钟</CnStatusTag>
+            <CnStatusTag v-else-if="!todayAction.available" type="brand" size="sm" :dot="false">完成 {{ homeData.growth.plan.todayCompleted }} / {{ todayTaskTotal }}</CnStatusTag>
             <CnStatusTag type="neutral" size="sm" subtle>连续 {{ homeData.growth.plan.maxStreak }} 天</CnStatusTag>
+          </div>
+          <p v-if="todayAction.available && todayAction.expectedChange" class="today-action-change">
+            完成后：{{ todayAction.expectedChange }}
+          </p>
+          <div v-if="todayAction.available && todayAction.evidenceRefs?.length" class="today-evidence-refs" aria-label="近期成长证据">
+            <span>近期证据</span>
+            <CnStatusTag
+              v-for="evidence in todayAction.evidenceRefs"
+              :key="evidence.evidenceId"
+              type="neutral"
+              size="sm"
+              subtle
+            >
+              {{ evidenceRefLabel(evidence) }}
+            </CnStatusTag>
           </div>
           <el-button
             type="primary"
-            @click="goTo(todayTaskTotal > 0 ? '/plan' : '/learning-cockpit?tab=autopilot')"
+            @click="handleTodayAction"
           >
-            {{ todayTaskTotal > 0 ? '继续计划' : '制定本周计划' }}
+            {{ todayAction.available ? '开始执行' : (todayTaskTotal > 0 ? '继续计划' : '制定本周计划') }}
           </el-button>
         </article>
-
-        <button class="today-secondary-action" type="button" @click="goTo(homeData.challenge.dailyProblem.routePath)">
-          <span>OJ 每日一题</span>
-          <strong>{{ homeData.challenge.dailyProblem.title }}</strong>
-          <em>{{ homeData.challenge.dailyProblem.difficultyText }} · 通过率 {{ homeData.challenge.dailyProblem.acceptanceRate }}%</em>
-        </button>
       </div>
     </CnSection>
 
@@ -389,6 +398,7 @@ import {
 } from '@/design-system'
 import { commandSections, flattenCommandItems } from '@/config/navigation'
 import { readCommandHistory } from '@/utils/command-history'
+import { growthCoachApi } from '@/api/growthCoach'
 import { useHomeData } from '@/utils/home-data'
 import { useHomeMotion } from '@/utils/home-motion'
 
@@ -468,6 +478,18 @@ const heroMetricCards = computed(() => [
 const todayTaskTotal = computed(() => {
   return homeData.growth.plan.todayCompleted + homeData.growth.plan.todayPending
 })
+const todayAction = computed(() => homeData.todayAction || {})
+
+const evidenceRefLabel = (evidence) => {
+  const skill = evidence?.skillKey ? ` · ${evidence.skillKey}` : ''
+  if (evidence?.evidenceType === 'INTERVIEW_SCORE') {
+    return `完成模拟面试${skill}`
+  }
+  if (evidence?.evidenceType === 'TASK_COMPLETED') {
+    return `完成计划任务${skill}`
+  }
+  return `成长证据${skill}`
+}
 
 const safeCompletionRate = computed(() => {
   return Math.min(100, Math.max(0, Math.round(homeData.growth.mockInterview.completionRate)))
@@ -495,6 +517,41 @@ const goTo = (path?: string) => {
   if (path) {
     router.push(path)
   }
+}
+
+const recordPrimaryActionEvent = async (eventType: 'PRIMARY_ACTION_SHOWN' | 'PRIMARY_ACTION_STARTED' | 'PRIMARY_ACTION_COMPLETED' | 'OUTCOME_RECORDED') => {
+  const action = todayAction.value
+  if (!action?.available || !action?.trackingId || !action?.actionType || !action?.source) return
+  try {
+    await growthCoachApi.recordJourneyEvent({
+      eventType,
+      trackingId: action.trackingId,
+      actionType: action.actionType,
+      source: action.source
+    })
+  } catch (_error) {
+    // 漏斗上报失败不阻断用户主流程。
+  }
+}
+
+const handleTodayAction = () => {
+  if (!todayAction.value.available) {
+    goTo(todayTaskTotal.value > 0 ? '/plan' : '/learning-cockpit?tab=autopilot')
+    return
+  }
+
+  void recordPrimaryActionEvent('PRIMARY_ACTION_STARTED')
+  if (['PLAN_SETUP', 'PLAN_ADJUSTMENT'].includes(todayAction.value.actionType)) {
+    router.push({
+      path: '/learning-cockpit',
+      query: {
+        tab: 'autopilot',
+        growthAction: todayAction.value.actionType
+      }
+    })
+    return
+  }
+  goTo(todayAction.value.startRoute)
 }
 
 const handleManualRefresh = async () => {
@@ -527,6 +584,7 @@ watch(
 
 onMounted(async () => {
   await loadAllData()
+  void recordPrimaryActionEvent('PRIMARY_ACTION_SHOWN')
   observeSections()
   bindHeroParallax('.home-hero')
   startAutoRefresh()
@@ -637,12 +695,11 @@ onBeforeUnmount(() => {
 
 .today-action-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.55fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--cn-space-4);
 }
 
-.today-primary-action,
-.today-secondary-action {
+.today-primary-action {
   min-width: 0;
   border: 1px solid var(--cn-color-border-subtle);
   border-radius: var(--cn-radius-card);
@@ -684,47 +741,25 @@ onBeforeUnmount(() => {
   gap: var(--cn-space-2);
 }
 
+.today-evidence-refs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cn-space-2);
+}
+
+.today-evidence-refs > span {
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+}
+
 .today-primary-action :deep(.el-button) {
   justify-self: start;
 }
 
-.today-secondary-action {
-  display: grid;
-  align-content: center;
-  gap: var(--cn-space-3);
-  padding: var(--cn-space-5);
-  background: var(--cn-color-bg-surface-muted);
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-  transition:
-    border-color var(--cn-motion-fast) var(--cn-ease-out),
-    box-shadow var(--cn-motion-fast) var(--cn-ease-out),
-    transform var(--cn-motion-fast) var(--cn-ease-out);
-}
-
-.today-secondary-action:hover {
-  border-color: color-mix(in srgb, var(--cn-color-brand-primary) 30%, var(--cn-color-border-subtle));
-  box-shadow: var(--cn-shadow-sm);
-  transform: translateY(-2px);
-}
-
-.today-secondary-action > span {
-  color: var(--cn-color-text-secondary);
-  font-size: 12px;
-}
-
-.today-secondary-action strong {
-  color: var(--cn-color-text-primary);
-  font-size: 16px;
-  line-height: 1.45;
-}
-
-.today-secondary-action em {
+.today-action-change {
   color: var(--cn-color-text-secondary);
   font-size: 13px;
-  font-style: normal;
 }
 
 .home-section {
@@ -1102,7 +1137,6 @@ onBeforeUnmount(() => {
   .recent-card,
   .feed-item,
   .challenge-card,
-  .today-secondary-action,
   .version-item,
   .feature-card,
   .quick-item {

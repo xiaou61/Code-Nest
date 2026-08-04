@@ -76,6 +76,12 @@ public class OjSubmission {
     private LocalDateTime createTime;
 
     /**
+     * 判题结果最后更新时间，用于成长证据增量投影。
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    private LocalDateTime updateTime;
+
+    /**
      * 题目标题 (查询时使用)
      */
     private transient String problemTitle;

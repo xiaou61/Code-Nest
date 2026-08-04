@@ -131,6 +131,13 @@ public class JobBattleMatchEngineResult {
         private List<String> missingKeywords;
 
         /**
+         * 从用户录入 JD 中抽取的必备技能。
+         *
+         * <p>用于用户自己的多 JD 样本聚合，不保存 JD 原文，也不代表外部市场全量结论。</p>
+         */
+        private List<String> requiredSkills;
+
+        /**
          * 关键差距（最多3项）
          */
         private List<JobBattleResumeMatchResult.Gap> topGaps;

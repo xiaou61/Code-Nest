@@ -20,6 +20,8 @@ public interface SreIncidentMapper {
 
     List<SreIncident> selectList(SreIncidentQuery query);
 
+    long countOpen();
+
     int insert(SreIncident incident);
 
     int updateLastSeen(SreIncident incident);

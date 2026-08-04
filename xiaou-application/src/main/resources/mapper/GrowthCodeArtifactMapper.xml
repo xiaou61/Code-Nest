@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.web.growthcoach.mapper.GrowthCodeArtifactMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.web.growthcoach.domain.GrowthCodeArtifact">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="user_id" property="userId" jdbcType="BIGINT"/>
+        <result column="provider" property="provider" jdbcType="VARCHAR"/>
+        <result column="artifact_type" property="artifactType" jdbcType="VARCHAR"/>
+        <result column="repository" property="repository" jdbcType="VARCHAR"/>
+        <result column="external_id" property="externalId" jdbcType="VARCHAR"/>
+        <result column="canonical_url" property="canonicalUrl" jdbcType="VARCHAR"/>
+        <result column="changed_files" property="changedFiles" jdbcType="INTEGER"/>
+        <result column="additions" property="additions" jdbcType="INTEGER"/>
+        <result column="deletions" property="deletions" jdbcType="INTEGER"/>
+        <result column="artifact_state" property="artifactState" jdbcType="VARCHAR"/>
+        <result column="merged" property="merged" jdbcType="INTEGER"/>
+        <result column="ownership_verified" property="ownershipVerified" jdbcType="INTEGER"/>
+        <result column="github_author_id" property="githubAuthorId" jdbcType="BIGINT"/>
+        <result column="github_committer_id" property="githubCommitterId" jdbcType="BIGINT"/>
+        <result column="source_observed_at" property="sourceObservedAt" jdbcType="TIMESTAMP"/>
+        <result column="verified_at" property="verifiedAt" jdbcType="TIMESTAMP"/>
+        <result column="deleted" property="deleted" jdbcType="INTEGER"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, user_id, provider, artifact_type, repository, external_id, canonical_url,
+        changed_files, additions, deletions, artifact_state, merged, ownership_verified,
+        github_author_id, github_committer_id,
+        source_observed_at, verified_at, deleted, create_time, update_time
+    </sql>
+
+    <insert id="upsert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO growth_code_artifact (
+            user_id, provider, artifact_type, repository, external_id, canonical_url,
+            changed_files, additions, deletions, artifact_state, merged, ownership_verified,
+            github_author_id, github_committer_id,
+            source_observed_at, verified_at, deleted, create_time, update_time
+        ) VALUES (
+            #{userId}, #{provider}, #{artifactType}, #{repository}, #{externalId}, #{canonicalUrl},
+            #{changedFiles}, #{additions}, #{deletions}, #{artifactState}, #{merged}, #{ownershipVerified},
+            #{githubAuthorId}, #{githubCommitterId},
+            #{sourceObservedAt}, #{verifiedAt}, 0, NOW(), NOW()
+        )
+        ON DUPLICATE KEY UPDATE
+            canonical_url = VALUES(canonical_url),
+            changed_files = VALUES(changed_files),
+            additions = VALUES(additions),
+            deletions = VALUES(deletions),
+            artifact_state = VALUES(artifact_state),
+            merged = VALUES(merged),
+            ownership_verified = VALUES(ownership_verified),
+            github_author_id = VALUES(github_author_id),
+            github_committer_id = VALUES(github_committer_id),
+            source_observed_at = VALUES(source_observed_at),
+            verified_at = VALUES(verified_at),
+            deleted = 0,
+            update_time = NOW()
+    </insert>
+
+    <select id="selectByUserAndExternalKey" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM growth_code_artifact
+        WHERE user_id = #{userId}
+          AND provider = #{provider}
+          AND artifact_type = #{artifactType}
+          AND repository = #{repository}
+          AND external_id = #{externalId}
+        LIMIT 1
+    </select>
+
+    <select id="selectActiveByUserId" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM growth_code_artifact
+        WHERE user_id = #{userId}
+          AND deleted = 0
+        ORDER BY verified_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
+    <update id="logicalDelete">
+        UPDATE growth_code_artifact
+        SET deleted = 1,
+            update_time = NOW()
+        WHERE id = #{id}
+          AND user_id = #{userId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectChangedForEvidence" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM growth_code_artifact
+        WHERE user_id = #{userId}
+          AND (
+                #{afterUpdateTime} IS NULL
+                OR update_time &gt; #{afterUpdateTime}
+                OR (update_time = #{afterUpdateTime} AND id &gt; #{afterSourceId})
+          )
+        ORDER BY update_time ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectUserIdsChangedForEvidence" resultType="java.lang.Long">
+        SELECT DISTINCT user_id
+        FROM growth_code_artifact
+        WHERE update_time &gt;= #{updatedAfter}
+        ORDER BY user_id ASC
+        LIMIT #{limit}
+    </select>
+</mapper>

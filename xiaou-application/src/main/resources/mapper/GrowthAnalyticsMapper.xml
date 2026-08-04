@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.web.growthcoach.mapper.GrowthAnalyticsMapper">
+
+    <select id="selectOverview" resultType="com.xiaou.web.growthcoach.domain.GrowthAnalyticsSnapshot">
+        SELECT
+            (
+                SELECT COUNT(DISTINCT user_id)
+                FROM growth_journey_event
+                WHERE event_type = 'PRIMARY_ACTION_SHOWN'
+                  AND create_time &gt;= #{periodStart}
+                  AND create_time &lt; #{periodEnd}
+            ) AS primaryActionShownUsers,
+            (
+                SELECT COUNT(DISTINCT started.user_id)
+                FROM growth_journey_event started
+                WHERE started.event_type = 'PRIMARY_ACTION_STARTED'
+                  AND started.create_time &gt;= #{periodStart}
+                  AND started.create_time &lt; #{periodEnd}
+                  AND EXISTS (
+                      SELECT 1
+                      FROM growth_journey_event shown
+                      WHERE shown.user_id = started.user_id
+                        AND shown.tracking_id = started.tracking_id
+                        AND shown.event_type = 'PRIMARY_ACTION_SHOWN'
+                        AND shown.create_time &gt;= #{periodStart}
+                        AND shown.create_time &lt; #{periodEnd}
+                  )
+            ) AS primaryActionStartedUsers,
+            (
+                SELECT COUNT(DISTINCT user_id)
+                FROM growth_evidence
+                WHERE quality_level = 'VERIFIED'
+                  AND observed_at &gt;= #{periodStart}
+                  AND observed_at &lt; #{periodEnd}
+                  AND (valid_to IS NULL OR valid_to &gt; #{periodStart})
+            ) AS verifiedGrowthUsers,
+            (
+                SELECT COUNT(*)
+                FROM growth_coach_action_run
+                WHERE action_id = 'growth.plan.adjust'
+                  AND created_at &gt;= #{periodStart}
+                  AND created_at &lt; #{periodEnd}
+            ) AS planPreviewCount,
+            (
+                SELECT COUNT(*)
+                FROM growth_coach_action_run
+                WHERE action_id = 'growth.plan.adjust'
+                  AND status = 'EXECUTED'
+                  AND created_at &gt;= #{periodStart}
+                  AND created_at &lt; #{periodEnd}
+            ) AS planExecutedCount,
+            (
+                SELECT COUNT(DISTINCT user_id)
+                FROM career_application_record
+                WHERE deleted = 0
+                  AND update_time &gt;= #{periodStart}
+                  AND update_time &lt; #{periodEnd}
+            ) AS careerApplicationProgressUsers
+    </select>
+</mapper>

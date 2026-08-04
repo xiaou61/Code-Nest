@@ -5,6 +5,7 @@ import com.xiaou.mockinterview.dto.request.InterviewHistoryRequest;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -62,6 +63,17 @@ public interface MockInterviewSessionMapper {
      * 查询用户最近完成的面试
      */
     List<MockInterviewSession> selectRecentCompleted(@Param("userId") Long userId, @Param("limit") int limit);
+
+    /**
+     * 按更新时间增量读取用户会话，供 Growth Coach 证据投影使用。
+     */
+    List<MockInterviewSession> selectChangedForEvidence(@Param("userId") Long userId,
+                                                         @Param("afterUpdateTime") LocalDateTime afterUpdateTime,
+                                                         @Param("afterSourceId") Long afterSourceId,
+                                                         @Param("limit") int limit);
+
+    List<Long> selectUserIdsChangedForEvidence(@Param("updatedAfter") LocalDateTime updatedAfter,
+                                                @Param("limit") int limit);
 
     /**
      * 管理端分页查询所有面试记录

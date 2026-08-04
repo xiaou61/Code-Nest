@@ -21,6 +21,10 @@
 
       <template #actions>
         <el-button icon="Back" @click="goBack">返回</el-button>
+        <el-button plain :disabled="!penData.id" :loading="reviewing" @click="openCodeReviewDialog">
+          <el-icon><MagicStick /></el-icon>
+          AI 审查
+        </el-button>
         <el-button icon="Document" :loading="saving" @click="saveDraft">保存草稿</el-button>
         <el-button type="success" icon="Upload" :loading="publishing" @click="publish">发布作品</el-button>
         <el-button icon="Setting" @click="showSettings = true">设置</el-button>
@@ -274,6 +278,46 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="codeReviewDialogVisible" title="CodePen AI 审查" width="680px" destroy-on-close>
+      <div v-if="latestCodeReview" class="code-review-content">
+        <div class="code-review-meta">
+          <CnStatusTag :type="codeReviewScoreTone(latestCodeReview.score)" size="sm">
+            {{ latestCodeReview.score || 0 }} 分
+          </CnStatusTag>
+          <CnStatusTag v-if="latestCodeReview.sourceChanged" type="warning" size="sm" subtle>
+            已保存版本有更新
+          </CnStatusTag>
+          <span v-if="latestCodeReview.scoreDelta !== null && latestCodeReview.scoreDelta !== undefined">
+            相比上次 {{ latestCodeReview.scoreDelta >= 0 ? '+' : '' }}{{ latestCodeReview.scoreDelta }}
+          </span>
+        </div>
+        <h3>{{ latestCodeReview.summary }}</h3>
+        <div v-if="latestCodeReview.actionItems?.length" class="code-review-action-list">
+          <div v-for="item in latestCodeReview.actionItems" :key="`${item.title}-${item.verification}`" class="code-review-action-item">
+            <strong>{{ item.title }}</strong>
+            <p>{{ item.description }}</p>
+            <small>验证：{{ item.verification }}</small>
+          </div>
+        </div>
+        <div v-if="latestCodeReview.findings?.length" class="code-review-finding-list">
+          <div v-for="item in latestCodeReview.findings" :key="`${item.severity}-${item.area}-${item.title}`" class="code-review-finding-item">
+            <CnStatusTag :type="codeReviewSeverityTone(item.severity)" size="sm" subtle>
+              {{ item.severity }} · {{ item.area }}
+            </CnStatusTag>
+            <strong>{{ item.title }}</strong>
+            <p>{{ item.description }}</p>
+          </div>
+        </div>
+      </div>
+      <p v-else class="code-review-empty">当前已保存版本尚未审查。</p>
+      <template #footer>
+        <el-button @click="codeReviewDialogVisible = false">关闭</el-button>
+        <el-button type="primary" :loading="reviewing" @click="runCodeReview">
+          {{ latestCodeReview?.sourceChanged ? '重新审查已保存版本' : '审查已保存版本' }}
+        </el-button>
+      </template>
+    </el-dialog>
+
     <!-- 全屏预览 -->
     <el-dialog
       v-model="fullscreenPreview"
@@ -296,8 +340,9 @@ import { computed, ref, reactive, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { codepenApi } from '@/api/codepen'
+import { growthCoachApi } from '@/api/growthCoach'
 import { CnPage, CnPageHeader, CnSection, CnStatCard, CnStatusTag } from '@/design-system'
-import { Document, Brush, Lightning, View } from '@element-plus/icons-vue'
+import { Document, Brush, Lightning, View, MagicStick } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -343,6 +388,9 @@ const saving = ref(false)
 const publishing = ref(false)
 const showSettings = ref(false)
 const fullscreenPreview = ref(false)
+const codeReviewDialogVisible = ref(false)
+const reviewing = ref(false)
+const latestCodeReview = ref<any>(null)
 const allTags = ref<CodePenTag[]>([])
 const previewFrame = ref<HTMLIFrameElement | null>(null)
 const fullscreenFrame = ref<HTMLIFrameElement | null>(null)
@@ -412,6 +460,9 @@ const saveDraft = async () => {
     }
     
     ElMessage.success('草稿保存成功')
+    if (latestCodeReview.value) {
+      await loadLatestCodeReview()
+    }
   } catch (error) {
     console.error('保存草稿失败:', error)
   } finally {
@@ -498,6 +549,53 @@ const runCode = () => {
 
   if (fullscreenPreview.value && fullscreenFrame.value) {
     fullscreenFrame.value.srcdoc = content
+  }
+}
+
+const codeReviewScoreTone = (score) => {
+  if (Number(score) < 60) return 'danger'
+  if (Number(score) < 80) return 'warning'
+  return 'success'
+}
+
+const codeReviewSeverityTone = (severity) => {
+  if (severity === 'CRITICAL' || severity === 'HIGH') return 'danger'
+  if (severity === 'MEDIUM') return 'warning'
+  return 'info'
+}
+
+const loadLatestCodeReview = async () => {
+  if (!penData.id) {
+    latestCodeReview.value = null
+    return
+  }
+  try {
+    latestCodeReview.value = (await growthCoachApi.getLatestCodeReview(Number(penData.id))) || null
+  } catch (error) {
+    console.error('加载代码审查结果失败:', error)
+    latestCodeReview.value = null
+  }
+}
+
+const openCodeReviewDialog = async () => {
+  if (!penData.id) {
+    ElMessage.warning('请先保存作品，再发起 AI 审查')
+    return
+  }
+  codeReviewDialogVisible.value = true
+  await loadLatestCodeReview()
+}
+
+const runCodeReview = async () => {
+  if (!penData.id) return
+  reviewing.value = true
+  try {
+    latestCodeReview.value = await growthCoachApi.reviewCodePen({ penId: Number(penData.id) })
+    ElMessage.success(latestCodeReview.value?.reused ? '当前保存版本已有审查结果' : 'AI 审查已完成')
+  } catch (error) {
+    console.error('AI 代码审查失败:', error)
+  } finally {
+    reviewing.value = false
   }
 }
 
@@ -751,6 +849,70 @@ onBeforeUnmount(() => {
 
 .fork-price-tip {
   margin-left: var(--cn-space-3);
+}
+
+.code-review-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cn-space-3);
+}
+
+.code-review-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--cn-space-2);
+}
+
+.code-review-meta span,
+.code-review-content small,
+.code-review-empty {
+  color: var(--cn-color-text-tertiary);
+  font-size: 12px;
+}
+
+.code-review-content h3 {
+  margin: 0;
+  color: var(--cn-color-text-primary);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.code-review-action-list,
+.code-review-finding-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cn-space-2);
+}
+
+.code-review-action-item,
+.code-review-finding-item {
+  padding: var(--cn-space-3);
+  border: 1px solid var(--cn-color-border-subtle);
+  border-radius: var(--cn-radius-control);
+  background: var(--cn-color-bg-surface-muted);
+}
+
+.code-review-action-item strong,
+.code-review-finding-item strong {
+  display: block;
+  margin-top: var(--cn-space-2);
+  color: var(--cn-color-text-primary);
+  font-size: 13px;
+}
+
+.code-review-action-item p,
+.code-review-finding-item p {
+  margin: var(--cn-space-1) 0 0;
+  color: var(--cn-color-text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.code-review-action-item small {
+  display: block;
+  margin-top: var(--cn-space-2);
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 1180px) {

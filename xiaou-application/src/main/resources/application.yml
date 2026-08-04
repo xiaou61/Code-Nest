@@ -226,11 +226,61 @@ xiaou:
     retry:
       max-attempts: 2
       backoff-ms: 1000
+    max-concurrent-calls: ${XIAOU_AI_MAX_CONCURRENT_CALLS:8}
+    permit-acquire-timeout-ms: ${XIAOU_AI_PERMIT_ACQUIRE_TIMEOUT_MS:1000}
     rag:
       enabled: ${XIAOU_AI_RAG_ENABLED:false}
       endpoint: ${XIAOU_AI_RAG_ENDPOINT:http://localhost:18080}
       api-key: ${XIAOU_AI_RAG_API_KEY:}
       default-top-k: 5
+  growth-coach:
+    enabled: ${XIAOU_GROWTH_COACH_ENABLED:false}
+    preview-enabled: ${XIAOU_GROWTH_COACH_PREVIEW_ENABLED:false}
+    confirm-enabled: ${XIAOU_GROWTH_COACH_CONFIRM_ENABLED:false}
+    briefing-timeout-millis: ${XIAOU_GROWTH_COACH_BRIEFING_TIMEOUT_MS:1500}
+    briefing-cache-ttl-millis: ${XIAOU_GROWTH_COACH_BRIEFING_CACHE_TTL_MS:5000}
+    briefing-cache-max-entries: ${XIAOU_GROWTH_COACH_BRIEFING_CACHE_MAX_ENTRIES:10000}
+    planning-lock-key-prefix: ${XIAOU_GROWTH_COACH_PLANNING_LOCK_KEY_PREFIX:xiaou:growth-coach:planning}
+    rate-limit:
+      redis-key-prefix: ${XIAOU_GROWTH_COACH_RATE_KEY_PREFIX:xiaou:growth-coach:rate}
+      window-seconds: ${XIAOU_GROWTH_COACH_RATE_WINDOW_SECONDS:60}
+      preview-requests-per-minute: ${XIAOU_GROWTH_COACH_PREVIEW_RATE_LIMIT:6}
+      confirm-requests-per-minute: ${XIAOU_GROWTH_COACH_CONFIRM_RATE_LIMIT:12}
+    evidence-projection:
+      enabled: ${XIAOU_GROWTH_COACH_EVIDENCE_ENABLED:true}
+      compensation-enabled: ${XIAOU_GROWTH_COACH_EVIDENCE_COMPENSATION_ENABLED:true}
+      compensation-cron: "${XIAOU_GROWTH_COACH_EVIDENCE_COMPENSATION_CRON:0 */10 * * * ?}"
+      compensation-lookback-minutes: ${XIAOU_GROWTH_COACH_EVIDENCE_LOOKBACK_MINUTES:1440}
+      compensation-user-batch-size: ${XIAOU_GROWTH_COACH_EVIDENCE_BATCH_SIZE:100}
+    proactive-nudge:
+      enabled: ${XIAOU_GROWTH_COACH_PROACTIVE_NUDGE_ENABLED:false}
+      cron: "${XIAOU_GROWTH_COACH_PROACTIVE_NUDGE_CRON:0 15 9 * * ?}"
+      user-batch-size: ${XIAOU_GROWTH_COACH_PROACTIVE_NUDGE_BATCH_SIZE:100}
+    code-artifact:
+      enabled: ${XIAOU_GROWTH_COACH_CODE_ARTIFACT_ENABLED:false}
+      connect-timeout-millis: ${XIAOU_GROWTH_COACH_CODE_ARTIFACT_CONNECT_TIMEOUT_MS:3000}
+      read-timeout-millis: ${XIAOU_GROWTH_COACH_CODE_ARTIFACT_READ_TIMEOUT_MS:8000}
+      preview-requests-per-minute: ${XIAOU_GROWTH_COACH_CODE_ARTIFACT_PREVIEW_RATE_LIMIT:5}
+      attach-requests-per-minute: ${XIAOU_GROWTH_COACH_CODE_ARTIFACT_ATTACH_RATE_LIMIT:5}
+      ownership-recheck-limit: ${XIAOU_GROWTH_COACH_CODE_ARTIFACT_OWNERSHIP_RECHECK_LIMIT:8}
+    github-oauth:
+      enabled: ${XIAOU_GROWTH_COACH_GITHUB_OAUTH_ENABLED:false}
+      client-id: ${GITHUB_OAUTH_CLIENT_ID:}
+      client-secret: ${GITHUB_OAUTH_CLIENT_SECRET:}
+      callback-url: ${GITHUB_OAUTH_CALLBACK_URL:}
+      success-redirect-url: ${GITHUB_OAUTH_SUCCESS_REDIRECT_URL:}
+      failure-redirect-url: ${GITHUB_OAUTH_FAILURE_REDIRECT_URL:}
+      token-encryption-key: ${GITHUB_OAUTH_TOKEN_ENCRYPTION_KEY:}
+      state-key-prefix: ${XIAOU_GROWTH_COACH_GITHUB_OAUTH_STATE_KEY_PREFIX:xiaou:growth-coach:github-oauth:state}
+      state-ttl-seconds: ${XIAOU_GROWTH_COACH_GITHUB_OAUTH_STATE_TTL_SECONDS:600}
+      connect-timeout-millis: ${XIAOU_GROWTH_COACH_GITHUB_OAUTH_CONNECT_TIMEOUT_MS:3000}
+      read-timeout-millis: ${XIAOU_GROWTH_COACH_GITHUB_OAUTH_READ_TIMEOUT_MS:8000}
+      authorize-requests-per-minute: ${XIAOU_GROWTH_COACH_GITHUB_OAUTH_AUTHORIZE_RATE_LIMIT:3}
+      callback-requests-per-minute: ${XIAOU_GROWTH_COACH_GITHUB_OAUTH_CALLBACK_RATE_LIMIT:3}
+    code-review:
+      enabled: ${XIAOU_GROWTH_COACH_CODE_REVIEW_ENABLED:false}
+      max-source-chars: ${XIAOU_GROWTH_COACH_CODE_REVIEW_MAX_SOURCE_CHARS:24000}
+      review-requests-per-minute: ${XIAOU_GROWTH_COACH_CODE_REVIEW_RATE_LIMIT:3}
   sre:
     webhook:
       # 默认关闭；只有完成 Alertmanager 机器凭据配置后才开启。
@@ -267,6 +317,14 @@ xiaou:
       max-line-length: ${XIAOU_SRE_LOKI_MAX_LINE_LENGTH:2000}
       lookback-minutes: ${XIAOU_SRE_LOKI_LOOKBACK_MINUTES:15}
       max-range-minutes: ${XIAOU_SRE_LOKI_MAX_RANGE_MINUTES:60}
+
+  sensitive:
+    source:
+      connect-timeout-millis: ${XIAOU_SENSITIVE_SOURCE_CONNECT_TIMEOUT_MS:5000}
+      read-timeout-millis: ${XIAOU_SENSITIVE_SOURCE_READ_TIMEOUT_MS:15000}
+      max-response-bytes: ${XIAOU_SENSITIVE_SOURCE_MAX_RESPONSE_BYTES:2097152}
+      max-redirects: ${XIAOU_SENSITIVE_SOURCE_MAX_REDIRECTS:0}
+      allow-http: ${XIAOU_SENSITIVE_SOURCE_ALLOW_HTTP:true}
 
 # ==================== 社区模块配置 ====================
 community:
@@ -312,4 +370,3 @@ oj:
     default-time-limit: 2000
     # 默认内存限制 (MB)
     default-memory-limit: 256
-

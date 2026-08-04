@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.mockinterview.mapper.CareerApplicationRecordMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.mockinterview.domain.CareerApplicationRecord">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="match_record_id" property="matchRecordId"/>
+        <result column="plan_record_id" property="planRecordId"/>
+        <result column="mock_interview_session_id" property="mockInterviewSessionId"/>
+        <result column="company_name" property="companyName"/>
+        <result column="position_name" property="positionName"/>
+        <result column="status" property="status"/>
+        <result column="applied_date" property="appliedDate"/>
+        <result column="next_follow_up_date" property="nextFollowUpDate"/>
+        <result column="note" property="note"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, user_id, session_id, match_record_id, plan_record_id, mock_interview_session_id,
+        company_name, position_name, status, applied_date,
+        next_follow_up_date, note, deleted, create_time, update_time
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO career_application_record(
+            user_id, session_id, match_record_id, plan_record_id, mock_interview_session_id,
+            company_name, position_name, status, applied_date,
+            next_follow_up_date, note, deleted, create_time, update_time
+        ) VALUES (
+            #{userId}, #{sessionId}, #{matchRecordId}, #{planRecordId}, #{mockInterviewSessionId},
+            #{companyName}, #{positionName}, #{status}, #{appliedDate},
+            #{nextFollowUpDate}, #{note}, 0, NOW(), NOW()
+        )
+    </insert>
+
+    <update id="updateOwned">
+        UPDATE career_application_record
+        SET match_record_id = #{matchRecordId},
+            plan_record_id = #{planRecordId},
+            mock_interview_session_id = #{mockInterviewSessionId},
+            company_name = #{companyName},
+            position_name = #{positionName},
+            status = #{status},
+            applied_date = #{appliedDate},
+            next_follow_up_date = #{nextFollowUpDate},
+            note = #{note},
+            update_time = NOW()
+        WHERE id = #{id}
+          AND user_id = #{userId}
+          AND deleted = 0
+    </update>
+
+    <update id="logicalDeleteOwned">
+        UPDATE career_application_record
+        SET deleted = 1,
+            update_time = NOW()
+        WHERE id = #{id}
+          AND user_id = #{userId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByIdAndUser" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM career_application_record
+        WHERE id = #{id}
+          AND user_id = #{userId}
+          AND deleted = 0
+    </select>
+
+    <select id="selectByUser" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM career_application_record
+        WHERE user_id = #{userId}
+          AND deleted = 0
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        ORDER BY
+            CASE WHEN next_follow_up_date IS NULL THEN 1 ELSE 0 END ASC,
+            next_follow_up_date ASC,
+            update_time DESC,
+            id DESC
+    </select>
+
+    <select id="selectChangedForEvidence" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM career_application_record
+        WHERE user_id = #{userId}
+        <if test="afterUpdateTime != null">
+            AND (update_time &gt; #{afterUpdateTime}
+                OR (update_time = #{afterUpdateTime} AND id &gt;= #{afterSourceId}))
+        </if>
+        ORDER BY update_time ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectUserIdsChangedForEvidence" resultType="java.lang.Long">
+        SELECT user_id
+        FROM career_application_record
+        WHERE update_time &gt;= #{updatedAfter}
+        GROUP BY user_id
+        ORDER BY MAX(update_time) DESC, user_id ASC
+        LIMIT #{limit}
+    </select>
+
+</mapper>

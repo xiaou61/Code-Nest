@@ -2,6 +2,8 @@ package com.xiaou.ai.structured;
 
 import com.xiaou.ai.structured.admin.AdminAgentStructuredOutputSpecs;
 import com.xiaou.ai.structured.community.CommunityStructuredOutputSpecs;
+import com.xiaou.ai.structured.codereview.CodeReviewStructuredOutputSpecs;
+import com.xiaou.ai.structured.growthcoach.GrowthCoachStructuredOutputSpecs;
 import com.xiaou.ai.structured.interview.InterviewStructuredOutputSpecs;
 import com.xiaou.ai.structured.jobbattle.JobBattleStructuredOutputSpecs;
 import com.xiaou.ai.structured.sql.SqlStructuredOutputSpecs;
@@ -19,6 +21,8 @@ public final class AiStructuredOutputCatalog {
     private static final List<AiStructuredOutputSpec> SPECS = List.of(
             AdminAgentStructuredOutputSpecs.PLAN,
             CommunityStructuredOutputSpecs.POST_SUMMARY,
+            CodeReviewStructuredOutputSpecs.CODEPEN_REVIEW,
+            GrowthCoachStructuredOutputSpecs.PLAN_ADJUSTMENT_INTENT,
             InterviewStructuredOutputSpecs.EVALUATE_ANSWER,
             InterviewStructuredOutputSpecs.GENERATE_SUMMARY,
             InterviewStructuredOutputSpecs.GENERATE_QUESTIONS,

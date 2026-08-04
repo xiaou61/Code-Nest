@@ -54,5 +54,13 @@
         LIMIT 1
     </select>
 
+    <select id="selectLatestByUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM job_battle_plan_record
+        WHERE user_id = #{userId}
+        ORDER BY create_time DESC
+        LIMIT 1
+    </select>
+
 </mapper>
 

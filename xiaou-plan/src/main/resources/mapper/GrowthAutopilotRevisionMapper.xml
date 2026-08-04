@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.plan.mapper.GrowthAutopilotRevisionMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO growth_autopilot_revision (
+            goal_id, user_id, version, base_version, source, action_run_id,
+            constraint_json, diff_json, snapshot_hash, create_time
+        ) VALUES (
+            #{goalId}, #{userId}, #{version}, #{baseVersion}, #{source}, #{actionRunId},
+            #{constraintJson}, #{diffJson}, #{snapshotHash}, NOW()
+        )
+    </insert>
+</mapper>

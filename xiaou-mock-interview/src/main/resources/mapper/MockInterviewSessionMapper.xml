@@ -9,6 +9,7 @@
         <result column="direction" property="direction"/>
         <result column="level" property="level"/>
         <result column="interview_type" property="interviewType"/>
+        <result column="specialized_topic" property="specializedTopic"/>
         <result column="style" property="style"/>
         <result column="question_count" property="questionCount"/>
         <result column="question_mode" property="questionMode"/>
@@ -30,7 +31,7 @@
 
     <!-- 基础字段 -->
     <sql id="Base_Column_List">
-        id, user_id, direction, level, interview_type, style, question_count, question_mode, duration_minutes,
+        id, user_id, direction, level, interview_type, specialized_topic, style, question_count, question_mode, duration_minutes,
         status, total_score, knowledge_score, depth_score, expression_score, adaptability_score,
         ai_summary, ai_suggestion, current_question_order, start_time, end_time, create_time, update_time
     </sql>
@@ -38,10 +39,10 @@
     <!-- 插入会话 -->
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO mock_interview_session (
-            user_id, direction, level, interview_type, style, question_count, question_mode,
+            user_id, direction, level, interview_type, specialized_topic, style, question_count, question_mode,
             duration_minutes, status, current_question_order, start_time, create_time, update_time
         ) VALUES (
-            #{userId}, #{direction}, #{level}, #{interviewType}, #{style}, #{questionCount}, #{questionMode},
+            #{userId}, #{direction}, #{level}, #{interviewType}, #{specializedTopic}, #{style}, #{questionCount}, #{questionMode},
             #{durationMinutes}, #{status}, #{currentQuestionOrder}, #{startTime}, #{createTime}, #{updateTime}
         )
     </insert>
@@ -148,6 +149,27 @@
         FROM mock_interview_session
         WHERE user_id = #{userId} AND status = 1
         ORDER BY end_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectChangedForEvidence" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM mock_interview_session
+        WHERE user_id = #{userId}
+        <if test="afterUpdateTime != null">
+            AND (update_time &gt; #{afterUpdateTime}
+                OR (update_time = #{afterUpdateTime} AND id &gt;= #{afterSourceId}))
+        </if>
+        ORDER BY update_time ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectUserIdsChangedForEvidence" resultType="java.lang.Long">
+        SELECT user_id
+        FROM mock_interview_session
+        WHERE update_time &gt;= #{updatedAfter}
+        GROUP BY user_id
+        ORDER BY MAX(update_time) DESC, user_id ASC
         LIMIT #{limit}
     </select>
 

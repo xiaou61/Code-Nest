@@ -15,6 +15,7 @@ import com.xiaou.mockinterview.dto.response.InterviewStatsResponse;
 import com.xiaou.mockinterview.service.MockInterviewService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -56,7 +57,7 @@ public class MockInterviewController {
 
     @Operation(summary = "创建面试会话")
     @PostMapping("/create")
-    public Result<InterviewSessionResponse> createInterview(@RequestBody CreateInterviewRequest request) {
+    public Result<InterviewSessionResponse> createInterview(@Valid @RequestBody CreateInterviewRequest request) {
         Long userId = StpUserUtil.getLoginIdAsLong();
         InterviewSessionResponse response = mockInterviewService.createInterview(userId, request);
         return Result.success("创建成功", response);

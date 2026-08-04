@@ -2,6 +2,10 @@
 set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+version_file="${CODE_NEST_VERSION_FILE:-$repo_root/VERSION}"
+if [[ -z "${CODE_NEST_RELEASE_VERSION:-}" && -f "$version_file" ]]; then
+  CODE_NEST_RELEASE_VERSION="v$(tr -d '[:space:]\r\n' < "$version_file")"
+fi
 release_version="${CODE_NEST_RELEASE_VERSION:-${GITHUB_REF_NAME:-manual}}"
 reload_nginx="${CODE_NEST_RELOAD_NGINX:-true}"
 node_home="${CODE_NEST_NODE_HOME:-/opt/code-nest/node-v24.15.0}"
@@ -58,6 +62,11 @@ main() {
   require_cmd tar
 
   cd "$repo_root"
+  if [[ "${CODE_NEST_ALLOW_DIRTY_BUILD:-false}" != "true" ]] && [[ -n "$(git status --porcelain)" ]]; then
+    log "refusing release build from dirty worktree; set CODE_NEST_ALLOW_DIRTY_BUILD=true only for local diagnostics"
+    exit 65
+  fi
+  python3 scripts/check-version-consistency.py
   mkdir -p "$release_root"
 
   local short_sha
@@ -73,7 +82,7 @@ main() {
   trap 'rm -rf "$stage_dir"' EXIT
 
   log "build backend"
-  mvn -B -pl xiaou-application -am clean package -DskipTests
+  mvn -B -pl xiaou-application -am clean package -DskipTests -Drevision="v$(tr -d '[:space:]\r\n' < "$version_file")"
 
   log "install admin frontend dependencies"
   install_frontend_dependencies vue3-admin-front
@@ -91,15 +100,22 @@ main() {
   copy_tree vue3-admin-front/dist "$stage_dir/admin"
   copy_tree vue3-user-front/dist "$stage_dir/user"
   cp scripts/deploy-release.sh "$stage_dir/scripts/deploy-release.sh"
-  chmod 755 "$stage_dir/scripts/deploy-release.sh"
+  cp scripts/db-migrate.py "$stage_dir/scripts/db-migrate.py"
+  cp scripts/release-smoke-test.py "$stage_dir/scripts/release-smoke-test.py"
+  cp VERSION "$stage_dir/VERSION"
+  cp -a sql "$stage_dir/sql"
+  chmod 755 "$stage_dir/scripts/deploy-release.sh" "$stage_dir/scripts/release-smoke-test.py"
+  chmod 755 "$stage_dir/scripts/db-migrate.py"
   cat >"$stage_dir/RELEASE" <<EOF
 version=$safe_version
 sha=$full_sha
 built_at=$(date -Iseconds)
+schema_version=$safe_version
 EOF
 
   rm -f "$bundle"
-  tar -czf "$bundle" -C "$stage_dir" .
+  tar -czf "$bundle" -C "$stage_dir" backend admin user scripts sql VERSION RELEASE
+  python3 scripts/release-smoke-test.py "$bundle"
   log "release bundle ready: $bundle"
 
   if [[ ! -f "$bundle" ]]; then

@@ -24,6 +24,33 @@ export const careerLoopApi = {
     return request.get('/user/career-loop/actions')
   },
 
+  // 我的投递记录
+  getApplications(status) {
+    return request.get('/user/career-loop/applications', {
+      params: status ? { status } : undefined
+    })
+  },
+
+  // 我的投递记录汇总
+  getApplicationSummary() {
+    return request.get('/user/career-loop/applications/summary')
+  },
+
+  // 新增投递记录
+  createApplication(data) {
+    return request.post('/user/career-loop/applications', data)
+  },
+
+  // 更新投递记录
+  updateApplication(applicationId, data) {
+    return request.put(`/user/career-loop/applications/${applicationId}`, data)
+  },
+
+  // 删除投递记录
+  deleteApplication(applicationId) {
+    return request.delete(`/user/career-loop/applications/${applicationId}`)
+  },
+
   // 完成动作
   completeAction(actionId) {
     return request.post(`/user/career-loop/actions/${actionId}/done`)
