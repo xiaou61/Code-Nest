@@ -13,7 +13,7 @@ export const growthCoachApi = {
     return request.post('/user/growth-coach/journey-events', {
       ...data,
       schemaVersion: data.schemaVersion || '1',
-      clientVersion: data.clientVersion || import.meta.env.VITE_APP_VERSION || '2.5.3',
+      clientVersion: data.clientVersion || import.meta.env.VITE_APP_VERSION || '2.5.5',
       entryPage
     }, { silent: true })
   },
@@ -72,6 +72,10 @@ export const growthCoachApi = {
 
   getSkillInsights() {
     return request.get('/user/growth-coach/skill-insights')
+  },
+
+  getCapabilityGraph() {
+    return request.get('/user/growth-coach/capability-graph')
   },
 
   getCareerNextAction() {

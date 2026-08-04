@@ -9,6 +9,7 @@
 | `/interview/**` | 面试题库公开接口 | 按接口判断 |
 | `/user/mock-interview` | 用户端模拟面试 | 用户登录态 |
 | `/user/job-battle` | 用户端求职作战台 | 用户登录态 |
+| `/user/growth-coach` | 用户端成长教练与能力图谱 | 用户登录态 |
 | `/user/plan` | 用户端计划打卡 | 用户登录态 |
 | `/user/team` | 用户端学习小组 | 用户登录态 |
 | `/flashcard/**` | 闪卡接口 | 用户登录态 |
@@ -1486,6 +1487,34 @@ curl "http://localhost:9999/api/pub/knowledge/maps/1"
 
 ---
 
+## 七、成长能力图谱
+
+能力图谱是 Growth Coach 的只读投影，复用已落库的成长证据和既有短板洞察，不创建任务、不修改计划。
+
+### 7.1 获取能力图谱
+
+```
+GET /user/growth-coach/capability-graph
+```
+
+返回问题解决、面试表达、项目交付、持续执行和求职准备五类节点，以及确定性关系边和补强项。节点包含分数、可信度、近期趋势和最近证据引用；没有证据的节点保持空状态。
+
+| 字段 | 说明 |
+| --- | --- |
+| `overallScore` | 仅对有证据的节点求平均 |
+| `nodes` | 能力节点及 `score`、`confidence`、`trend`、`evidenceRefs` |
+| `edges` | 能力之间的支撑或推进关系 |
+| `gaps` | 来自既有短板洞察的练习建议，不是新的模型事实 |
+
+**curl 示例**：
+
+```bash
+curl -H "Authorization: Bearer <token>" \
+  "http://localhost:9999/api/user/growth-coach/capability-graph"
+```
+
+---
+
 ## 相关文档
 
 | 文档 | 说明 |
@@ -1495,6 +1524,7 @@ curl "http://localhost:9999/api/pub/knowledge/maps/1"
 | [模拟面试与求职作战台](/modules/mock-interview-job-battle) | 模拟面试详解 |
 | [闪卡](/modules/flashcard) | 闪卡模块详解 |
 | [知识图谱](/modules/knowledge) | 知识图谱详解 |
+| [成长能力图谱](/modules/growth-capability-graph) | 证据驱动的能力节点与关系 |
 | [计划与学习小组](/modules/plan-team) | 计划打卡详解 |
 | [响应体与错误码](/reference/response-errors) | 完整错误码列表 |
 | [API 路由索引](/reference/api-routes) | 完整接口清单 |

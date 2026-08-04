@@ -97,6 +97,7 @@ const modulesSidebar: SidebarItem[] = [
     text: '学习成长',
     items: [
       { text: '题库与成长闭环', link: '/modules/interview-and-growth' },
+      { text: '成长能力图谱', link: '/modules/growth-capability-graph' },
       { text: '面试题库', link: '/modules/interview' },
       { text: '模拟面试与求职作战台', link: '/modules/mock-interview-job-battle' },
       { text: '学习资产', link: '/modules/learning-assets' },

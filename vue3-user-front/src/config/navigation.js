@@ -35,6 +35,7 @@ export const primaryNavItems = [
     icon: DataAnalysis,
     matchPrefixes: [
       '/learning-cockpit',
+      '/growth-capabilities',
       '/learning-assets',
       '/plan',
       '/flashcard',
@@ -63,6 +64,7 @@ export const learningMenuGroups = [
     title: '学习工作台',
     items: [
       { path: '/learning-cockpit', label: '成长驾驶舱', desc: '成长分、能力雷达与今日任务闭环', icon: DataAnalysis, matchPrefixes: ['/learning-cockpit', '/growth-autopilot'] },
+      { path: '/growth-capabilities', label: '能力图谱', desc: '查看证据、能力节点和优先补强方向', icon: DataAnalysis, matchPrefixes: ['/growth-capabilities'] },
       { path: '/interview', label: '面试题库', desc: '题单学习与进度追踪', icon: Document, matchPrefixes: ['/interview'] },
       { path: '/learning-assets', label: '我的学习资产', desc: '管理闪卡、计划和候选资产', icon: Postcard, matchPrefixes: ['/learning-assets'] },
       { path: '/plan', label: '计划打卡', desc: '每日计划执行与复盘', icon: Calendar, matchPrefixes: ['/plan'] },
@@ -156,6 +158,7 @@ export const commandSections = [
     items: [
       { path: '/', label: '今天', desc: '查看今日成长与热门内容', icon: HomeFilled },
       { path: '/learning-cockpit', label: '成长驾驶舱', desc: '聚合学习、计划与成长指标', icon: DataAnalysis },
+      { path: '/growth-capabilities', label: '能力图谱', desc: '查看能力证据与成长关系', icon: DataAnalysis },
       { path: '/career-loop', label: '求职闭环中台', desc: '按下一步行动推进求职准备', icon: Trophy },
       { path: '/community', label: '技术社区', desc: '看讨论、发帖子、追热门', icon: ChatDotRound }
     ]

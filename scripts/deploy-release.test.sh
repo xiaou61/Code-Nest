@@ -27,7 +27,7 @@ mkdir -p "$app_dir" "$user_dir" "$admin_dir" "$monitoring_dir" \
   "$stage/ops/monitoring/grafana/provisioning/datasources" \
   "$stage/ops/monitoring/grafana/provisioning/dashboards" \
   "$stage/ops/monitoring/grafana/dashboards" "$stage/ops/monitoring/scripts" \
-  "$stage/ops/systemd" "$stage/ops/scripts"
+  "$stage/ops/systemd" "$stage/ops/scripts" "$stage/sql/v2.5.3"
 
 cat >"$mock_bin/systemctl" <<'EOF'
 #!/usr/bin/env bash
@@ -139,6 +139,10 @@ printf '%s\r\n' \
   'build_id=release-251-1111111' \
   'built_at=2026-07-28T12:00:00Z' \
   >"$stage/RELEASE"
+printf '2.5.1\n' >"$stage/VERSION"
+printf '# release fixture migration runner\n' >"$stage/scripts/db-migrate.py"
+printf '# release fixture smoke test\n' >"$stage/scripts/release-smoke-test.py"
+printf '%s\n' '-- release fixture migration' >"$stage/sql/v2.5.3/production_governance.sql"
 cp "$deploy_script" "$stage/scripts/deploy-release.sh"
 
 cat >"$stage/scripts/server-capacity-governance.sh" <<'EOF'

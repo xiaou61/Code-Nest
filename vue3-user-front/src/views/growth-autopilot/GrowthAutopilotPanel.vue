@@ -33,6 +33,10 @@
             <el-icon><RefreshRight /></el-icon>
             一键重排
           </el-button>
+          <el-button plain @click="router.push('/growth-capabilities')">
+            <el-icon><Link /></el-icon>
+            查看能力图谱
+          </el-button>
           <el-button plain :loading="loading.dashboard || loading.briefing || loading.skillInsights || loading.evidenceProfile || loading.applicationOutcomes || loading.jobBattleGap || loading.jobPreparationLoop || loading.jobMarketSignal || loading.codeArtifacts || loading.githubConnection || loading.weeklyReview" @click="refreshDashboard">
             <el-icon><Refresh /></el-icon>
             刷新
