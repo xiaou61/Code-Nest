@@ -12,6 +12,7 @@
 
 | 版本 | 日期 | 主要变更 |
 |------|------|---------|
+| v2.5.4 | 2026-08-04 | master 整合 v2.5.1 生产 SRE 治理与 v2.5.3 发布/迁移/成长闭环能力，补齐低基数指标和统一发布包 |
 | v2.5.3 | 2026-08-04 | Growth Coach 性能与事件契约、SSRF 防护、AI 并发保护、checksum 迁移 ledger、可追溯 release bundle 与失败回滚 |
 | v2.5.2 | 2026-07-30 | 业务成长漏斗、求职结果回流与管理端成长分析契约 |
 | v2.5.0 | 2026-07-17 | AI Growth Coach、计划调整预览/幂等应用、Career Loop 证据闭环和 SRE 只读事件能力 |
@@ -28,6 +29,23 @@
 | v2.1.1 | - | WebSocket 票据机制、CORS 配置化 |
 | v2.1.0 | - | AI 学习成长驾驶舱、AI Runtime 治理中心 |
 | v2.0.0 | - | AI 基础设施切换到 LangChain4j/LangGraph4j/LlamaIndex |
+
+---
+
+## v2.5.4 (2026-08-04)
+
+### Added
+
+- 合并 SRE 评测队列、只读 RCA、容量治理、外部探针和运维资产发布链路。
+- 告警接收、Incident、Evidence、Outbox worker 和评测队列统一输出低基数运行指标。
+
+### Changed
+
+- 发布构建同时校验版本、迁移清单、完整 SQL、运维资产和 release smoke；数据库写入继续要求显式开关。
+
+### Notes
+
+- v2.5.3 已应用的 ledger 可继续复用，master 新增 SQL 由迁移执行器按 checksum 顺序补齐。
 
 ---
 

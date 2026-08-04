@@ -4,6 +4,7 @@ import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.utils.PageHelper;
 import com.xiaou.sre.domain.SreIncident;
 import com.xiaou.sre.dto.request.SreIncidentQuery;
+import com.xiaou.sre.dto.response.SreIncidentSummary;
 import com.xiaou.sre.mapper.SreIncidentMapper;
 import com.xiaou.sre.service.SreIncidentService;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,12 @@ public class SreIncidentServiceImpl implements SreIncidentService {
         SreIncidentQuery safeQuery = query == null ? new SreIncidentQuery() : query;
         return PageHelper.doPage(safeQuery.getPageNum(), safeQuery.getPageSize(),
                 () -> incidentMapper.selectList(safeQuery));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SreIncidentSummary summary() {
+        return incidentMapper.selectSummary();
     }
 
     @Override

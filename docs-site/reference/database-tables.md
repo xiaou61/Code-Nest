@@ -6,7 +6,7 @@
 
 ## 表统计总览
 
-当前主库基线包含 145 张表，按业务域分布：
+当前主库基线包含 161 张表，按业务域分布：
 
 | 业务域 | 表数量 | 模块 | 表前缀 |
 | --- | --- | --- | --- |
@@ -30,6 +30,7 @@
 | 敏感词 | 11 | xiaou-sensitive | `sensitive_*` |
 | 摸鱼工具 | 7 | xiaou-moyu | `developer_calendar_*`, `daily_content`, `user_calendar_*`, `user_salary_*`, `work_record`, `bug_*`, `user_bug_*` |
 | 版本历史 | 1 | xiaou-version | `version_history` |
+| SRE 运维 | 16 | xiaou-sre, xiaou-system | `sre_*` |
 
 ## 索引策略
 
@@ -272,6 +273,48 @@
 | `bug_item` | title, description, severity, status | xiaou-moyu |
 | `user_bug_history` | user_id, bug_id, action | xiaou-moyu |
 
+## SRE 运维
+
+| 表 | 关键字段 | Mapper 模块 |
+| --- | --- | --- |
+| `sre_alert_event` | source, fingerprint, alert_name, status, raw_payload | xiaou-sre |
+| `sre_incident` | incident_no, incident_key, service, severity, state | xiaou-sre |
+| `sre_incident_alert_relation` | incident_id, alert_event_id | xiaou-sre |
+| `sre_outbox_event` | aggregate_id, event_type, state, attempts, next_attempt_at | xiaou-sre |
+| `sre_incident_evidence` | incident_id, source_type, source_ref, snapshot_json | xiaou-sre |
+| `sre_investigation_run` | incident_id, status, trigger_source, report_json, failure_code | xiaou-sre, xiaou-system |
+| `sre_investigation_artifact` | run_id, context_sha256, prompt_id, schema_id, actual_model, invocation_outcome | xiaou-sre, xiaou-system |
+| `sre_investigation_step` | run_id, step_order, step_code, status, detail | xiaou-sre, xiaou-system |
+| `sre_investigation_feedback` | run_id, accuracy, gap_type, expected_conclusion, reviewed_by | xiaou-sre, xiaou-system |
+| `sre_rca_evaluation_case` | source_run_id, source_artifact_id, source_feedback_id, context_sha256 | xiaou-sre, xiaou-system |
+| `sre_rca_evaluation_suite` | suite_key, name, created_by, created_at | xiaou-sre, xiaou-system |
+| `sre_rca_evaluation_suite_version` | suite_id, version_no, manifest_sha256, scoring_policy_id, gate_evaluator_id | xiaou-sre, xiaou-system |
+| `sre_rca_evaluation_suite_case` | suite_version_id, case_id, case_ordinal, case_content_sha256 | xiaou-sre, xiaou-system |
+| `sre_rca_evaluation_run` | status, active_admin_id, attempts, deadline_at, source_revision, build_id, gate_status | xiaou-sre, xiaou-system |
+| `sre_rca_evaluation_run_case` | evaluation_run_id, case_id, case_ordinal, case_content_sha256 | xiaou-sre, xiaou-system |
+| `sre_rca_evaluation_result` | evaluation_run_id, case_id, invocation_outcome, total_score, passed | xiaou-sre, xiaou-system |
+
+`sre_investigation_run.report_json` 只保存经过后端脱敏和结构校验的报告；调查步骤只保存
+受控摘要与失败码，不保存异常正文。`sre_investigation_artifact` 每个 run 最多一行，保存模型
+实际接收的 60k 内脱敏上下文、SHA-256 和 Prompt/Schema/模型来源，详情接口只返回来源摘要，
+不返回 `context_json`。反馈表采用追加式修订，每次编辑新增一行；备注和期望结论在入库前清理
+控制字符及常见凭据，当前评测样本仍不导出模型输入、备注和管理员身份。
+
+`sre_rca_evaluation_case` 只由管理员从指定 run、artifact 和反馈修订显式提升，按
+`source_feedback_id` 幂等冻结。`sre_rca_evaluation_run` 与 `sre_rca_evaluation_result`
+分别保存一次手动回放的聚合结果和逐用例候选报告、模型来源及透明分项评分。普通 API 不返回
+冻结 `context_json` 或 `baseline_report_json`，失败记录只保存受控失败码。
+
+`sre_rca_evaluation_suite` 是稳定身份，`suite_version` 冻结 manifest、评分策略和门禁策略，
+`suite_case` 保存有序成员及 case 内容指纹。同一内容和策略重复发布保持幂等；每次读取版本和
+执行回放都会重新校验成员指纹与 manifest。套件运行保存通过率、安全/降级数、门禁状态及固定
+失败码；临时单 case/全量运行的门禁状态固定为 `NOT_APPLICABLE`。
+
+评测运行采用 `QUEUED -> RUNNING -> SUCCEEDED / DEGRADED / FAILED` 状态机。
+`sre_rca_evaluation_run_case` 在入队事务内冻结有序成员及内容 SHA-256，重试只补做尚无结果的
+成员。运行表保存原子领取次数、心跳、绝对截止时间、源码修订和构建标识；
+`active_admin_id` 的 nullable 唯一索引保证同一管理员最多一个活动运行，进入终态时清空。
+
 ## 数据库视图
 
 | 视图名 | 说明 | 源表 |
@@ -298,6 +341,7 @@
 | `sql/v1.8.2` | 成长自动驾驶、求职闭环、岗位匹配、OJ 评论、SQL 优化、驾驶舱排行 |
 | `sql/v1.8.3` | 学习资产候选 |
 | `sql/v1.8.4` | 学习资产转化 |
+| `sql/v2.5.0` | SRE 告警、事故、证据、调查运行、回放产物、反馈修订、RCA 离线评测、版本化套件门禁和数据库队列治理 |
 
 ## Mapper 定位规则
 
@@ -337,8 +381,8 @@ grep -r "user_points_balance" --include="*.xml" xiaou-*/
 
 | 文件 | 说明 |
 | --- | --- |
-| `sql/MySql/code_nest.sql` | 主库基线脚本（136 表，加上增量共 142 表） |
-| `sql/v1.2.0/` ~ `sql/v1.8.4/` | 版本增量脚本 |
+| `sql/MySql/code_nest.sql` | 当前完整主库基线脚本（161 表） |
+| `sql/v1.2.0/` ~ `sql/v2.5.0/` | 版本增量脚本 |
 | `xiaou-*/src/main/java/**/domain/` | 实体类目录 |
 | `xiaou-*/src/main/java/**/mapper/` | Mapper 接口目录 |
 | `xiaou-*/src/main/resources/mapper/` | Mapper XML 目录 |

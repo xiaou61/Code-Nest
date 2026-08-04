@@ -1,6 +1,6 @@
 # Code Nest
 
-![Version](https://img.shields.io/badge/version-v2.5.3-blue.svg)
+![Version](https://img.shields.io/badge/version-v2.5.4-blue.svg)
 ![Java](https://img.shields.io/badge/java-17-orange.svg)
 ![Spring Boot](https://img.shields.io/badge/spring%20boot-3.4.4-brightgreen.svg)
 ![Vue](https://img.shields.io/badge/vue-3.x-4fc08d.svg)
@@ -10,9 +10,9 @@
 
 Code Nest 是一个面向开发者的成长型社区与知识运营平台，采用 Spring Boot 3.4.4 + Vue3 + Vite 的前后端分离架构，后台整合 Sa-Token 权限、Redisson 缓存、MySQL 题库/内容系统以及 Prometheus 监控指标，提供包含题库、面试辅导、学习资产转化引擎、知识图谱、博客、代码工坊、在线简历、IM 聊天、积分激励与抽奖等在内的多模块能力。
 
-## v2.5.3 Growth Coach And Production Governance
+## v2.5.4 Master Integration And Production Governance
 
-`v2.5.3` 在成长教练、求职闭环和 SRE 能力基础上，补齐可发布、可迁移、可观测和可回滚的生产边界。
+`v2.5.4` 将 v2.5.1 的生产 SRE 治理与 v2.5.3 的成长闭环、迁移和发布安全能力合并到 master。
 
 ### 本次版本完成
 
@@ -21,6 +21,7 @@ Code Nest 是一个面向开发者的成长型社区与知识运营平台，采�
 - **远程来源安全**：敏感词远程来源只允许 HTTP(S)，拒绝回环、内网、link-local、云元数据地址和重定向，并限制响应大小。
 - **AI 运行时保护**：统一 AI 调用增加并发上限、permit 等待超时、拒绝指标和 operation id 日志。
 - **发布与数据库治理**：根目录 `VERSION`、版本一致性检查、checksum 迁移 ledger、release bundle smoke test、磁盘/备份容量检查和失败回滚全部接入 CI/CD。
+- **主线治理整合**：SRE 评测队列、容量治理、外部探针、运维资产和发布前后基线校验统一进入同一发布链路。
 
 生产迁移入口见 [`sql/MIGRATIONS.md`](sql/MIGRATIONS.md)，发布流程见 [`RELEASE.md`](RELEASE.md)。生产部署默认不执行数据库写操作，只有显式设置 `CODE_NEST_RUN_MIGRATIONS=true` 才会应用迁移。
 
@@ -399,7 +400,7 @@ mvn clean package -DskipTests
 mvn -pl xiaou-application -am spring-boot:run
 
 # 或直接运行打包后的 jar
-java -jar xiaou-application/target/xiaou-application-v2.5.3.jar --spring.profiles.active=prod
+java -jar xiaou-application/target/xiaou-application-v2.5.4.jar --spring.profiles.active=prod
 ```
 
 - API 根地址：`http://localhost:9999/api`
@@ -567,7 +568,7 @@ management:
 
 ```bash
 # 构建镜像
-docker build -t code-nest:v2.5.3 -f docker/Dockerfile .
+docker build -t code-nest:v2.5.4 -f docker/Dockerfile .
 
 # 运行容器
 docker run -d \
@@ -575,7 +576,7 @@ docker run -d \
   -p 9999:9999 \
   -e SPRING_PROFILES_ACTIVE=prod \
   --env-file docker/env/example.env \
-  code-nest:v2.5.3
+  code-nest:v2.5.4
 ```
 
 如果要把 MySQL / Redis / Java 主服务 / `llamaindex-service` 一起编排起来，推荐使用：

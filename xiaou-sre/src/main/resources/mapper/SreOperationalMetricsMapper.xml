@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.sre.mapper.SreOperationalMetricsMapper">
+
+    <resultMap id="SreOperationalMetricsRowResult" type="com.xiaou.sre.metrics.SreOperationalMetricsRow">
+        <result property="openIncidents" column="open_incidents"/>
+        <result property="outboxBacklog" column="outbox_backlog"/>
+        <result property="outboxOldestAgeSeconds" column="outbox_oldest_age_seconds"/>
+        <result property="evaluationBacklog" column="evaluation_backlog"/>
+        <result property="evaluationOldestAgeSeconds" column="evaluation_oldest_age_seconds"/>
+        <result property="activeInvestigations" column="active_investigations"/>
+    </resultMap>
+
+    <select id="selectSnapshot" resultMap="SreOperationalMetricsRowResult">
+        SELECT
+            (SELECT COUNT(*)
+             FROM sre_incident
+             WHERE state NOT IN ('RESOLVED', 'CLOSED')) AS open_incidents,
+            (SELECT COUNT(*)
+             FROM sre_outbox_event
+             WHERE state IN ('PENDING', 'PROCESSING')) AS outbox_backlog,
+            COALESCE((SELECT TIMESTAMPDIFF(SECOND, MIN(create_time), CURRENT_TIMESTAMP)
+                      FROM sre_outbox_event
+                      WHERE state = 'PENDING'), 0) AS outbox_oldest_age_seconds,
+            (SELECT COUNT(*)
+             FROM sre_rca_evaluation_run
+             WHERE status IN ('QUEUED', 'RUNNING')) AS evaluation_backlog,
+            COALESCE((SELECT TIMESTAMPDIFF(SECOND, MIN(create_time), CURRENT_TIMESTAMP)
+                      FROM sre_rca_evaluation_run
+                      WHERE status = 'QUEUED'), 0) AS evaluation_oldest_age_seconds,
+            (SELECT COUNT(*)
+             FROM sre_investigation_run
+             WHERE status = 'RUNNING') AS active_investigations
+    </select>
+</mapper>

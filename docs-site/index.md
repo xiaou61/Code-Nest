@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: Code Nest
-  text: v2.5.3 工程文档中心
+  text: v2.5.4 工程文档中心
   tagline: 按角色、任务和系统边界组织的开发、接口、操作与运维手册。
   image:
     src: /code-nest-mark.svg
@@ -62,7 +62,7 @@ features:
 | AI | LangChain4j + LangGraph4j + LlamaIndex Sidecar | `xiaou-ai`、`llamaindex-service` |
 | 文档 | VitePress 2.x，120+ Markdown 页面 | `docs-site` |
 
-当前发布基线为 `v2.5.3`。版本、提交和统计见 [文档同步基线](/reference/docs-sync-baseline)，迁移执行规则见 [数据库迁移指南](/guide/database-migration)。
+当前发布基线为 `v2.5.4`。版本、提交和统计见 [文档同步基线](/reference/docs-sync-baseline)，迁移执行规则见 [数据库迁移指南](/guide/database-migration)。
 
 ## 常用任务
 

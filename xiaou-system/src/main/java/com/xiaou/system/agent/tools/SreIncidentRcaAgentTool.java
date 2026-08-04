@@ -7,6 +7,7 @@ import com.xiaou.system.agent.AgentToolDefinitionBuilder;
 import com.xiaou.system.agent.AgentToolResult;
 import com.xiaou.system.dto.SreRcaReport;
 import com.xiaou.system.service.SreIncidentRcaService;
+import com.xiaou.system.service.SreRcaTriggerSource;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -67,7 +68,9 @@ public class SreIncidentRcaAgentTool extends AbstractReadonlyAgentTool {
             return failure("事故 ID 不合法", "请提供大于 0 的 SRE 事故 ID 后重试。");
         }
 
-        Optional<SreRcaReport> reportOptional = rcaService.investigate(incidentId);
+        Long requestedBy = context == null || context.operator() == null ? null : context.operator().id();
+        Optional<SreRcaReport> reportOptional = rcaService.investigate(
+                incidentId, SreRcaTriggerSource.AGENT_TOOL, requestedBy);
         if (reportOptional.isEmpty()) {
             return failure("事故不存在", "请先确认事故 ID，可通过事故列表查询后重试。");
         }

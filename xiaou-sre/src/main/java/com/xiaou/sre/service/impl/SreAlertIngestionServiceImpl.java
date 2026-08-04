@@ -61,28 +61,73 @@ public class SreAlertIngestionServiceImpl implements SreAlertIngestionService {
     private final SreIncidentMapper incidentMapper;
     private final SreIncidentAlertRelationMapper relationMapper;
     private final SreOutboxEventMapper outboxEventMapper;
-    private final SreMetricsRecorder metrics;
+    private final SreMetricsRecorder metricsRecorder;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SreIngestionResult ingest(AlertmanagerWebhookRequest request) {
+        long startNanos = System.nanoTime();
+        int alertCount = request == null || request.getAlerts() == null ? 0 : request.getAlerts().size();
+        String outcome = "failed";
         try {
             validateRequest(request);
-        } catch (RuntimeException exception) {
-            recordIngestionError();
-            throw exception;
-        }
 
-        SreIngestionResult result = new SreIngestionResult();
-        try {
+            SreIngestionResult result = new SreIngestionResult();
             for (AlertmanagerAlert alert : request.getAlerts()) {
                 result.incrementReceived();
                 processAlert(alert, result);
             }
+            int enqueued = result.getCreatedEvents() + result.getUpdatedEvents();
+            incrementQueueMetric("outbox", "enqueued", enqueued);
+            outcome = result.getReceived() > 0 && result.getDuplicates() == result.getReceived()
+                    ? "duplicate"
+                    : "succeeded";
             return result;
         } catch (RuntimeException exception) {
             recordIngestionError();
             throw exception;
+        } finally {
+            recordIngestionMetric(outcome, alertCount, System.nanoTime() - startNanos);
+        }
+    }
+
+    private void recordIngestionMetric(String outcome, int alertCount, long durationNanos) {
+        try {
+            metricsRecorder.recordAlertIngestion(outcome, alertCount, durationNanos);
+        } catch (RuntimeException exception) {
+            log.warn("SRE 告警接收指标记录失败: reason={}", exception.getClass().getSimpleName());
+        }
+    }
+
+    private void incrementQueueMetric(String queue, String event, long amount) {
+        try {
+            metricsRecorder.incrementQueueEvent(queue, event, amount);
+        } catch (RuntimeException exception) {
+            log.warn("SRE 队列指标记录失败: reason={}", exception.getClass().getSimpleName());
+        }
+    }
+
+    private void recordAlertStatusMetric(String status, String severity) {
+        try {
+            metricsRecorder.recordAlertIngestion(status, severity);
+        } catch (RuntimeException exception) {
+            log.warn("SRE 告警状态指标记录失败: reason={}", exception.getClass().getSimpleName());
+        }
+    }
+
+    private void recordDuplicateMetric() {
+        try {
+            metricsRecorder.recordDuplicate();
+        } catch (RuntimeException exception) {
+            log.warn("SRE 告警重复指标记录失败: reason={}", exception.getClass().getSimpleName());
+        }
+    }
+
+    private void recordIngestionError() {
+        try {
+            metricsRecorder.recordAlertIngestionError();
+        } catch (RuntimeException exception) {
+            log.warn("SRE 告警错误指标记录失败: reason={}", exception.getClass().getSimpleName());
         }
     }
 
@@ -100,9 +145,7 @@ public class SreAlertIngestionServiceImpl implements SreAlertIngestionService {
         String alertName = bounded(firstText(labels.get("alertname"), "unknown"), 200);
         String service = bounded(firstText(labels.get("service"), labels.get("job"), "unknown"), 100);
         String severity = bounded(firstText(labels.get("severity"), "warning"), 32).toUpperCase();
-        if (metrics != null) {
-            metrics.recordAlertIngestion(status, severity);
-        }
+        recordAlertStatusMetric(status, severity);
         String incidentKey = service + "|" + alertName;
         String labelsJson = toJson(labels, "labels");
         String annotationsJson = toJson(annotations, "annotations");
@@ -127,9 +170,7 @@ public class SreAlertIngestionServiceImpl implements SreAlertIngestionService {
 
         if (status.equalsIgnoreCase(existing.getStatus())) {
             result.incrementDuplicates();
-            if (metrics != null) {
-                metrics.recordDuplicate();
-            }
+            recordDuplicateMetric();
             return;
         }
 
@@ -270,12 +311,6 @@ public class SreAlertIngestionServiceImpl implements SreAlertIngestionService {
         }
         if (request.getAlerts().stream().anyMatch(Objects::isNull)) {
             throw new SreValidationException("alerts 不能包含空元素");
-        }
-    }
-
-    private void recordIngestionError() {
-        if (metrics != null) {
-            metrics.recordAlertIngestionError();
         }
     }
 

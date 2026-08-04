@@ -80,6 +80,10 @@ final class AiStructuredOutputFixtures {
                         {"overallConclusion":"系统设计表达和指标量化仍需加强。","rootCauses":["缺少容量估算"],"highImpactFixes":[{"issue":"系统设计表达不成体系","action":"重写高频系统设计题","deadline":"D+3","metric":"5 分钟讲清方案"}],"questionTypeWeakness":[{"type":"系统设计","suggestion":"按容量、链路、扩展性、容灾展开"}],"next7DayPlan":["Day1：整理模板"],"confidenceScore":82}
                         """);
 
+        fixtures.put("sre.incident.investigation.plan:v1",
+                """
+                        {"decision":"INVESTIGATE","reason":"补充目标健康和错误日志证据","toolKeys":["prom_target_up","loki_application_errors"]}
+                        """);
         fixtures.put("sre.incident.rca:v1",
                 """
                         {"executiveSummary":"目标实例不可用，当前证据支持健康检查失败。","severityAssessment":"CRITICAL","conclusionStatus":"SUPPORTED","observations":[{"statement":"up 指标为 0","evidenceIds":["31"]}],"hypotheses":[{"title":"应用实例停止响应","reasoning":"健康检查和指标在同一时间窗口失败。","confidence":0.86,"evidenceIds":["31"],"counterEvidenceIds":[],"nextChecks":["复核应用进程和最近发布记录"]}],"recommendedNextSteps":[{"description":"人工复核目标健康状态","risk":"READ_ONLY","evidenceIds":["31"]}],"limitations":[]}

@@ -1,7 +1,13 @@
 package com.xiaou.system.service;
 
 import com.xiaou.system.dto.SreRcaReport;
+import com.xiaou.system.dto.SreRcaEvaluationSample;
+import com.xiaou.system.dto.SreRcaFeedback;
+import com.xiaou.system.dto.SreRcaFeedbackRequest;
+import com.xiaou.system.dto.SreRcaRunDetail;
+import com.xiaou.system.dto.SreRcaRunSummary;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -11,5 +17,22 @@ import java.util.Optional;
  */
 public interface SreIncidentRcaService {
 
-    Optional<SreRcaReport> investigate(Long incidentId);
+    default Optional<SreRcaReport> investigate(Long incidentId) {
+        return investigate(incidentId, SreRcaTriggerSource.SYSTEM, null);
+    }
+
+    Optional<SreRcaReport> investigate(Long incidentId,
+                                       SreRcaTriggerSource triggerSource,
+                                       Long requestedBy);
+
+    List<SreRcaRunSummary> listRuns(Long incidentId, int limit);
+
+    Optional<SreRcaRunDetail> getRun(Long incidentId, Long runId);
+
+    Optional<SreRcaFeedback> saveFeedback(Long incidentId,
+                                          Long runId,
+                                          SreRcaFeedbackRequest request,
+                                          Long reviewedBy);
+
+    Optional<SreRcaEvaluationSample> getEvaluationSample(Long incidentId, Long runId);
 }

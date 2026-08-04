@@ -5,22 +5,22 @@
   <parent>
     <groupId>com.xiaou</groupId>
     <artifactId>Code-Nest</artifactId>
-    <version>v2.5.3</version>
+    <version>v2.5.4</version>
   </parent>
   <groupId>com.xiaou</groupId>
   <artifactId>xiaou-resume</artifactId>
-  <version>v2.5.3</version>
+  <version>v2.5.4</version>
   <description>在线简历制作后端模块</description>
   <dependencies>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-common</artifactId>
-      <version>v2.5.3</version>
+      <version>${revision}</version>
     </dependency>
     <dependency>
       <groupId>com.xiaou</groupId>
       <artifactId>xiaou-filestorage</artifactId>
-      <version>v2.5.3</version>
+      <version>${revision}</version>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>

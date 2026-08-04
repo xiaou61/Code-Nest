@@ -6,6 +6,8 @@
         <id property="id" column="id"/>
         <result property="incidentId" column="incident_id"/>
         <result property="outboxEventId" column="outbox_event_id"/>
+        <result property="investigationRunId" column="investigation_run_id"/>
+        <result property="queryFingerprint" column="query_fingerprint"/>
         <result property="sourceType" column="source_type"/>
         <result property="sourceRef" column="source_ref"/>
         <result property="query" column="query_text"/>
@@ -15,7 +17,8 @@
     </resultMap>
 
     <select id="selectByOutboxEventAndSource" resultMap="SreIncidentEvidenceResult">
-        SELECT id, incident_id, outbox_event_id, source_type, source_ref, query_text,
+        SELECT id, incident_id, outbox_event_id, investigation_run_id, query_fingerprint,
+               source_type, source_ref, query_text,
                snapshot_json, captured_at, create_time
         FROM sre_incident_evidence
         WHERE outbox_event_id = #{outboxEventId}
@@ -23,8 +26,18 @@
         LIMIT 1
     </select>
 
+    <select id="selectByInvestigationRunAndFingerprint" resultMap="SreIncidentEvidenceResult">
+        SELECT id, incident_id, outbox_event_id, investigation_run_id, query_fingerprint,
+               source_type, source_ref, query_text, snapshot_json, captured_at, create_time
+        FROM sre_incident_evidence
+        WHERE investigation_run_id = #{investigationRunId}
+          AND query_fingerprint = #{queryFingerprint}
+        LIMIT 1
+    </select>
+
     <select id="selectByIncidentId" resultMap="SreIncidentEvidenceResult">
-        SELECT id, incident_id, outbox_event_id, source_type, source_ref, query_text,
+        SELECT id, incident_id, outbox_event_id, investigation_run_id, query_fingerprint,
+               source_type, source_ref, query_text,
                snapshot_json, captured_at, create_time
         FROM sre_incident_evidence
         WHERE incident_id = #{incidentId}
@@ -33,7 +46,8 @@
     </select>
 
     <select id="selectForInvestigation" resultMap="SreIncidentEvidenceResult">
-        SELECT id, incident_id, outbox_event_id, source_type, source_ref, query_text,
+        SELECT id, incident_id, outbox_event_id, investigation_run_id, query_fingerprint,
+               source_type, source_ref, query_text,
                snapshot_json, captured_at, create_time
         FROM sre_incident_evidence
         WHERE incident_id = #{incidentId}
@@ -43,10 +57,12 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO sre_incident_evidence (
-            incident_id, outbox_event_id, source_type, source_ref, query_text,
+            incident_id, outbox_event_id, investigation_run_id, query_fingerprint,
+            source_type, source_ref, query_text,
             snapshot_json, captured_at, create_time
         ) VALUES (
-            #{incidentId}, #{outboxEventId}, #{sourceType}, #{sourceRef}, #{query},
+            #{incidentId}, #{outboxEventId}, #{investigationRunId}, #{queryFingerprint},
+            #{sourceType}, #{sourceRef}, #{query},
             #{snapshotJson}, #{capturedAt}, CURRENT_TIMESTAMP
         )
         ON DUPLICATE KEY UPDATE id = id

@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("smoke", "hygiene", "agent", "ai", "rag", "frontend", "backend", "release", "all")]
+    [ValidateSet("smoke", "hygiene", "agent", "ai", "sre", "rag", "frontend", "backend", "release", "all")]
     [string]$Tier = "smoke",
     [switch]$LiveAi,
     [switch]$LiveWrite,
@@ -47,6 +47,27 @@ $aiRegressionTests = @(
     "LlamaIndexClientTest"
 )
 
+$sreRegressionTests = @(
+    "SreInvestigationPromptContractTest",
+    "SreInvestigationPlannerImplTest",
+    "SreReadOnlyInvestigationToolServiceImplTest",
+    "SreMetricsRecorderTest",
+    "SreOperationalMetricsPublisherTest",
+    "SreRcaReportTest",
+    "SreRcaAnalyzerImplTest",
+    "SreIncidentRcaServiceImplTest",
+    "SreRcaEvaluationCaseServiceImplTest",
+    "SreRcaEvaluationSuiteServiceImplTest",
+    "SreRcaEvaluationRunServiceImplTest",
+    "SreRcaEvaluationQueueServiceImplTest",
+    "SreRcaEvaluationScorerTest",
+    "SreRcaEvaluationGateEvaluatorTest",
+    "SreRcaEvaluationSuiteGateTest",
+    "SreRcaEvaluationServiceImplTest",
+    "SreRcaEvaluationAdminControllerTest",
+    "SreRcaEvaluationWorkerTest"
+)
+
 $frontendTests = @(
     "vue3-admin-front/tests/admin-api-contract.test.js",
     "vue3-admin-front/tests/admin-agent-chat-ui.test.js",
@@ -54,6 +75,7 @@ $frontendTests = @(
     "vue3-admin-front/tests/no-debug-console.test.js",
     "vue3-admin-front/tests/request-options.test.js",
     "vue3-admin-front/tests/sidebar-routes.test.js",
+    "vue3-admin-front/tests/sre-workbench-contract.test.js",
     "vue3-user-front/tests/captcha-api-contract.test.js",
     "vue3-user-front/tests/career-loop-adapter.test.js",
     "vue3-user-front/tests/design-system-demo-routes.test.js",
@@ -273,6 +295,18 @@ function Invoke-Ai {
     }
 }
 
+function Invoke-Sre {
+    Invoke-Step "deterministic SRE RCA quality gate" {
+        Invoke-Maven @(
+            "-pl", "xiaou-system",
+            "-am",
+            "-Dtest=$($sreRegressionTests -join ',')",
+            "-Dsurefire.failIfNoSpecifiedTests=false",
+            "test"
+        )
+    }
+}
+
 function Invoke-Frontend {
     Invoke-Step "frontend node contract tests" {
         Invoke-Native -Command "node" -Arguments (@("--test") + $frontendTests)
@@ -300,11 +334,6 @@ function Invoke-Rag {
 }
 
 function Invoke-Backend {
-    Invoke-Step "version and migration inventory" {
-        Invoke-Native -Command $PythonCommand -Arguments @("scripts/check-version-consistency.py")
-        Invoke-Native -Command $PythonCommand -Arguments @("scripts/db-migrate.py", "--dry-run")
-    }
-
     Invoke-Step "backend module tests" {
         Invoke-Maven @(
             "-pl", ($backendModulesWithTests -join ","),
@@ -348,10 +377,45 @@ function Invoke-Release {
     }
 
     Invoke-Step "script syntax checks" {
-        Invoke-Native -Command $PythonCommand -Arguments @("-m", "py_compile", "scripts/check-version-consistency.py", "scripts/db-migrate.py", "scripts/deploy-frontends.py", "scripts/deploy-production.py", "scripts/release-smoke-test.py", "scripts/you_deserve_to_interview_sql.py")
+        Invoke-Native -Command $PythonCommand -Arguments @(
+            "-m", "py_compile",
+            "scripts/check-version-consistency.py",
+            "scripts/db-migrate.py",
+            "scripts/deploy-frontends.py",
+            "scripts/deploy-production.py",
+            "scripts/release-smoke-test.py",
+            "scripts/sre-alertmanager-e2e.py",
+            "scripts/test_sre_alertmanager_e2e.py",
+            "scripts/you_deserve_to_interview_sql.py"
+        )
         $bash = Resolve-BashCommand
-        Invoke-Native -Command $bash -Arguments @("-n", "scripts/ci-server-build-deploy.sh", "scripts/ci-server-build-deploy.test.sh", "scripts/deploy-release.sh")
-        Invoke-Native -Command $bash -Arguments @("scripts/ci-server-build-deploy.test.sh")
+        Invoke-Native -Command $bash -Arguments @(
+            "-n",
+            "scripts/ci-server-build-deploy.sh",
+            "scripts/ci-server-build-deploy.test.sh",
+            "scripts/deploy-release.sh",
+            "scripts/deploy-release.test.sh",
+            "scripts/external-uptime-check.sh",
+            "scripts/external-uptime-check.test.sh",
+            "scripts/server-capacity-governance.sh",
+            "scripts/server-capacity-governance.test.sh",
+            "scripts/verify-production-baseline.sh",
+            "scripts/verify-production-baseline.test.sh"
+        )
+    }
+
+    Invoke-Step "release script contract tests" {
+        $bash = Resolve-BashCommand
+        foreach ($contractTest in @(
+            "scripts/ci-server-build-deploy.test.sh",
+            "scripts/deploy-release.test.sh",
+            "scripts/external-uptime-check.test.sh",
+            "scripts/server-capacity-governance.test.sh",
+            "scripts/verify-production-baseline.test.sh"
+        )) {
+            Invoke-Native -Command $bash -Arguments @($contractTest)
+        }
+        Invoke-Native -Command $PythonCommand -Arguments @("scripts/test_sre_alertmanager_e2e.py")
     }
 }
 
@@ -371,6 +435,9 @@ switch ($Tier) {
     "ai" {
         Invoke-Ai
     }
+    "sre" {
+        Invoke-Sre
+    }
     "frontend" {
         Invoke-Frontend
     }
@@ -388,6 +455,7 @@ switch ($Tier) {
         Invoke-Frontend
         Invoke-Rag
         Invoke-Ai
+        Invoke-Sre
         Invoke-Backend
         Invoke-Agent
     }

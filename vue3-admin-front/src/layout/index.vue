@@ -1,8 +1,16 @@
 <template>
   <div class="layout-container">
     <el-container>
-      <el-aside :width="sidebarWidth" class="sidebar-shell">
+      <el-aside
+        id="admin-sidebar"
+        :width="sidebarWidth"
+        class="sidebar-shell"
+        :class="{ 'sidebar-shell-mobile-open': isMobile && !collapsed }"
+        :inert="isMobile && collapsed"
+        :aria-hidden="isMobile && collapsed ? 'true' : undefined"
+      >
         <CnSidebar
+          v-if="!isMobile || !collapsed"
           ref="sidebarRef"
           v-model:search-keyword="searchKeyword"
           :items="sidebarItems"
@@ -23,8 +31,11 @@
             <!-- 折叠按钮 -->
             <el-button
               type="text"
-              @click="toggleSidebar"
               class="header-toggle-btn"
+              :aria-label="collapsed ? '展开主导航' : '收起主导航'"
+              aria-controls="admin-sidebar"
+              :aria-expanded="isMobile ? !collapsed : undefined"
+              @click="toggleSidebar"
             >
               <el-icon>
                 <Expand v-if="collapsed" />
@@ -86,12 +97,20 @@
       </el-container>
     </el-container>
 
+    <button
+      v-if="isMobile && !collapsed"
+      type="button"
+      class="sidebar-backdrop"
+      aria-label="关闭主导航"
+      @click="collapsed = true"
+    />
+
     <AdminAgentDrawer />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, type Component } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { 
@@ -143,11 +162,18 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
+const MOBILE_BREAKPOINT = 768
+const isMobileViewport = () => typeof window !== 'undefined' && window.innerWidth <= MOBILE_BREAKPOINT
+
 // 侧边栏折叠状态
-const collapsed = ref(false)
+const isMobile = ref(isMobileViewport())
+const collapsed = ref(isMobile.value)
 
 // 侧边栏宽度
-const sidebarWidth = computed(() => collapsed.value ? '64px' : '200px')
+const sidebarWidth = computed(() => {
+  if (isMobile.value) return collapsed.value ? '0px' : '240px'
+  return collapsed.value ? '64px' : '200px'
+})
 
 // 当前路由
 const currentRoute = computed(() => route.path)
@@ -205,6 +231,14 @@ const resolveSidebarIcon = (iconName: string) => sidebarIconRegistry[iconName] |
 
 const sidebarItems: CnSidebarItem[] = [
   { label: '仪表板', path: '/dashboard', icon: Odometer },
+  {
+    label: 'SRE 运维中心',
+    index: '/sre',
+    icon: Monitor,
+    children: [
+      { label: '事故工作台', path: '/sre/incidents', icon: Warning }
+    ]
+  },
   { label: '用户管理', path: '/user', icon: Avatar },
   {
     label: '面试题目管理',
@@ -391,6 +425,7 @@ const getIconByPath = (path, title = '') => {
     '/dashboard': 'Odometer',
     '/user': 'Avatar',
     '/notification': 'Bell',
+    '/sre/incidents': 'Warning',
     '/system/version': 'Document',
     '/system/ai-governance': 'DataAnalysis',
     '/system/ai-config': 'SetUp'
@@ -425,6 +460,8 @@ const getIconByPath = (path, title = '') => {
     'login': 'UserFilled',
     'operation': 'Operation',
     'notification': 'Bell',
+    'sre': 'Monitor',
+    'incidents': 'Warning',
     'sensitive': 'Warning',
     'words': 'EditPen',
     'filestorage': 'FolderOpened',
@@ -484,6 +521,8 @@ const getIconByPath = (path, title = '') => {
     '登录': 'UserFilled',
     '操作': 'Operation',
     '通知': 'Bell',
+    '事故': 'Warning',
+    '运维': 'Monitor',
     '敏感词': 'Warning',
     '文件': 'FolderOpened',
     '存储': 'FolderOpened',
@@ -541,6 +580,7 @@ const generateBreadcrumb = (path, title) => {
     'community': '社区管理',
     'moments': '朋友圈管理',
     'chat': '聊天室管理',
+    'sre': 'SRE 运维中心',
     'logs': '日志管理',
     'sensitive': '敏感词管理',
     'filestorage': '文件存储管理',
@@ -642,6 +682,18 @@ const toggleSidebar = () => {
   collapsed.value = !collapsed.value
 }
 
+const syncViewportMode = () => {
+  const nextIsMobile = isMobileViewport()
+  if (nextIsMobile === isMobile.value) return
+
+  isMobile.value = nextIsMobile
+  collapsed.value = nextIsMobile
+}
+
+watch(() => route.path, () => {
+  if (isMobile.value) collapsed.value = true
+})
+
 // 过滤后的菜单项
 const filteredMenuItems = computed(() => {
   if (!searchKeyword.value.trim()) {
@@ -705,10 +757,13 @@ const handleKeyDown = (event) => {
 
 // 生命周期
 onMounted(() => {
+  syncViewportMode()
+  window.addEventListener('resize', syncViewportMode)
   document.addEventListener('keydown', handleKeyDown)
 })
 
 onUnmounted(() => {
+  window.removeEventListener('resize', syncViewportMode)
   document.removeEventListener('keydown', handleKeyDown)
 })
 
@@ -750,6 +805,15 @@ const handleUserCommand = async (command) => {
   overflow: hidden;
   background: var(--cn-color-bg-surface);
   transition: width var(--cn-motion-base) var(--cn-ease-out);
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0 0 0 240px;
+  z-index: 1190;
+  padding: 0;
+  border: 0;
+  background: color-mix(in srgb, var(--cn-color-text-primary) 38%, transparent);
 }
 
 .header {
@@ -864,6 +928,17 @@ const handleUserCommand = async (command) => {
 }
 
 @media (max-width: 768px) {
+  .sidebar-shell {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 1200;
+    height: 100vh;
+  }
+
+  .sidebar-shell-mobile-open {
+    box-shadow: 12px 0 36px color-mix(in srgb, var(--cn-color-text-primary) 22%, transparent);
+  }
+
   .main-content {
     padding: 10px;
   }

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.sre.mapper.SreInvestigationArtifactMapper">
+
+    <resultMap id="SreInvestigationArtifactResult" type="com.xiaou.sre.domain.SreInvestigationArtifact">
+        <id property="id" column="id"/>
+        <result property="incidentId" column="incident_id"/>
+        <result property="runId" column="run_id"/>
+        <result property="contextJson" column="context_json"/>
+        <result property="contextSha256" column="context_sha256"/>
+        <result property="contextLength" column="context_length"/>
+        <result property="contextTruncated" column="context_truncated"/>
+        <result property="promptId" column="prompt_id"/>
+        <result property="schemaId" column="schema_id"/>
+        <result property="provider" column="provider"/>
+        <result property="configuredModel" column="configured_model"/>
+        <result property="actualModel" column="actual_model"/>
+        <result property="invocationOutcome" column="invocation_outcome"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sre_investigation_artifact (
+            incident_id, run_id, context_json, context_sha256, context_length,
+            context_truncated, prompt_id, schema_id, provider, configured_model,
+            actual_model, invocation_outcome, created_at
+        ) VALUES (
+            #{incidentId}, #{runId}, #{contextJson}, #{contextSha256}, #{contextLength},
+            #{contextTruncated}, #{promptId}, #{schemaId}, #{provider}, #{configuredModel},
+            #{actualModel}, #{invocationOutcome}, #{createdAt}
+        )
+    </insert>
+
+    <select id="selectByIncidentIdAndRunId" resultMap="SreInvestigationArtifactResult">
+        SELECT id, incident_id, run_id, context_json, context_sha256, context_length,
+               context_truncated, prompt_id, schema_id, provider, configured_model,
+               actual_model, invocation_outcome, created_at
+        FROM sre_investigation_artifact
+        WHERE incident_id = #{incidentId}
+          AND run_id = #{runId}
+        LIMIT 1
+    </select>
+</mapper>

@@ -11,6 +11,7 @@ import com.xiaou.sre.mapper.SreAlertEventMapper;
 import com.xiaou.sre.mapper.SreIncidentAlertRelationMapper;
 import com.xiaou.sre.mapper.SreIncidentMapper;
 import com.xiaou.sre.mapper.SreOutboxEventMapper;
+import com.xiaou.sre.metrics.SreMetricsRecorder;
 import com.xiaou.sre.service.impl.SreAlertIngestionServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +26,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -43,6 +45,9 @@ class SreAlertIngestionServiceImplTest {
 
     @Mock
     private SreOutboxEventMapper outboxEventMapper;
+
+    @Mock
+    private SreMetricsRecorder metricsRecorder;
 
     @InjectMocks
     private SreAlertIngestionServiceImpl service;
@@ -73,6 +78,11 @@ class SreAlertIngestionServiceImplTest {
         assertThat(result.getDuplicates()).isZero();
         verify(relationMapper).insert(any(SreIncidentAlertRelation.class));
         verify(outboxEventMapper).insert(any(SreOutboxEvent.class));
+        verify(metricsRecorder).recordAlertIngestion(
+                org.mockito.ArgumentMatchers.eq("succeeded"),
+                org.mockito.ArgumentMatchers.eq(1),
+                anyLong());
+        verify(metricsRecorder).incrementQueueEvent("outbox", "enqueued", 1);
 
         ArgumentCaptor<SreAlertEvent> eventCaptor = ArgumentCaptor.forClass(SreAlertEvent.class);
         verify(alertEventMapper).insert(eventCaptor.capture());
@@ -104,6 +114,10 @@ class SreAlertIngestionServiceImplTest {
         verify(alertEventMapper, never()).insert(any());
         verify(incidentMapper, never()).insert(any());
         verify(outboxEventMapper, never()).insert(any());
+        verify(metricsRecorder).recordAlertIngestion(
+                org.mockito.ArgumentMatchers.eq("duplicate"),
+                org.mockito.ArgumentMatchers.eq(1),
+                anyLong());
     }
 
     @Test

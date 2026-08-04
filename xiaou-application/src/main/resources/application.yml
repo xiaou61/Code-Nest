@@ -282,6 +282,15 @@ xiaou:
       max-source-chars: ${XIAOU_GROWTH_COACH_CODE_REVIEW_MAX_SOURCE_CHARS:24000}
       review-requests-per-minute: ${XIAOU_GROWTH_COACH_CODE_REVIEW_RATE_LIMIT:3}
   sre:
+    operational-evidence:
+      # Static deployment provenance and classpath runbooks; no runtime Git, shell or database access.
+      enabled: ${XIAOU_SRE_OPERATIONAL_EVIDENCE_ENABLED:true}
+      environment: ${XIAOU_SRE_OPERATIONAL_EVIDENCE_ENVIRONMENT:${spring.profiles.active:unknown}}
+    metrics:
+      # 数据库 gauge 依赖完整 SRE 迁移；计数器和耗时指标始终由 Micrometer 记录。
+      enabled: ${XIAOU_SRE_METRICS_ENABLED:false}
+      refresh-ms: ${XIAOU_SRE_METRICS_REFRESH_MS:10000}
+      initial-delay-ms: ${XIAOU_SRE_METRICS_INITIAL_DELAY_MS:15000}
     webhook:
       # 默认关闭；只有完成 Alertmanager 机器凭据配置后才开启。
       enabled: ${XIAOU_SRE_WEBHOOK_ENABLED:false}
@@ -298,6 +307,22 @@ xiaou:
       lease-seconds: ${XIAOU_SRE_OUTBOX_LEASE_SECONDS:120}
       retry-backoff-seconds: ${XIAOU_SRE_OUTBOX_RETRY_BACKOFF_SECONDS:10}
       max-retry-backoff-seconds: ${XIAOU_SRE_OUTBOX_MAX_RETRY_BACKOFF_SECONDS:900}
+    evaluation:
+      # Apply sre_rca_evaluation_queue.sql before enabling the database-backed worker.
+      enabled: ${XIAOU_SRE_EVALUATION_ENABLED:false}
+      fixed-delay-ms: ${XIAOU_SRE_EVALUATION_FIXED_DELAY_MS:2000}
+      initial-delay-ms: ${XIAOU_SRE_EVALUATION_INITIAL_DELAY_MS:10000}
+      batch-size: ${XIAOU_SRE_EVALUATION_BATCH_SIZE:2}
+      max-attempts: ${XIAOU_SRE_EVALUATION_MAX_ATTEMPTS:3}
+      # Keep the lease above the 60-second AI read timeout.
+      lease-seconds: ${XIAOU_SRE_EVALUATION_LEASE_SECONDS:180}
+      max-duration-seconds: ${XIAOU_SRE_EVALUATION_MAX_DURATION_SECONDS:1800}
+      max-cases-per-run: ${XIAOU_SRE_EVALUATION_MAX_CASES_PER_RUN:100}
+      retry-backoff-seconds: ${XIAOU_SRE_EVALUATION_RETRY_BACKOFF_SECONDS:10}
+      max-retry-backoff-seconds: ${XIAOU_SRE_EVALUATION_MAX_RETRY_BACKOFF_SECONDS:300}
+      source-revision: ${XIAOU_SRE_EVALUATION_SOURCE_REVISION:unknown}
+      build-id: ${XIAOU_SRE_EVALUATION_BUILD_ID:local}
+      build-version: ${XIAOU_SRE_EVALUATION_BUILD_VERSION:2.5.1}
     prometheus:
       # 默认关闭；开启前确认 Prometheus 只允许本机/监控网络访问。
       enabled: ${XIAOU_SRE_PROMETHEUS_ENABLED:false}

@@ -6,6 +6,22 @@
 
 ## [Unreleased]
 
+## [v2.5.4] - 2026-08-04
+
+### Added
+
+- 合并远程 master 的生产 SRE 评测、容量治理、外部探针和运维资产，同时保留 v2.5.3 的 Growth Coach、迁移 ledger、发布烟测与 SSRF/AI 并发防护。
+- SRE 指标、告警接收和 Outbox worker 统一输出低基数运行指标，补充队列积压、租约恢复、耗时和状态计数。
+
+### Changed
+
+- 发布构建统一校验 `VERSION`、迁移清单和发布包内容；生产部署脚本支持显式迁移执行，默认仍不自动写库。
+- master 合并后的发布包同时携带运维资产、完整 SQL、迁移执行器和发布烟测脚本，便于回滚与审计。
+
+### Verification
+
+- 版本一致性、Python 语法、shell contract、后端多模块测试、SRE 定向测试、双前端契约测试和发布包 smoke test。
+
 ## [v2.5.3] - 2026-08-04
 
 ### Added

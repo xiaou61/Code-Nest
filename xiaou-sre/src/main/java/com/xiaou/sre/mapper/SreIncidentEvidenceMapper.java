@@ -17,6 +17,10 @@ public interface SreIncidentEvidenceMapper {
     SreIncidentEvidence selectByOutboxEventAndSource(@Param("outboxEventId") Long outboxEventId,
                                                       @Param("sourceType") String sourceType);
 
+    SreIncidentEvidence selectByInvestigationRunAndFingerprint(
+            @Param("investigationRunId") Long investigationRunId,
+            @Param("queryFingerprint") String queryFingerprint);
+
     List<SreIncidentEvidence> selectByIncidentId(@Param("incidentId") Long incidentId);
 
     List<SreIncidentEvidence> selectForInvestigation(@Param("incidentId") Long incidentId,

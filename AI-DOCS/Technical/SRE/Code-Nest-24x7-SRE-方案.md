@@ -127,9 +127,9 @@ flowchart LR
 | --- | --- | --- |
 | 80, 81 | 用户端和管理端 Nginx | 按现有业务需要开放 |
 | 9999 | Spring Boot 后端 | 不开放；由 Nginx 和本机监控访问 |
-| 9090 | Prometheus UI/API | 仅 `127.0.0.1` 或 SSH 隧道 |
+| 19090 | Prometheus UI/API | 仅 `127.0.0.1` 或 SSH 隧道 |
 | 3000 | Grafana | 仅 `127.0.0.1` 或认证反代 |
-| 9093, 9100, 9115 | Alertmanager、node-exporter、blackbox-exporter | 不映射公网端口 |
+| 19093, 19094, 19100, 19115 | Alertmanager、集群通信、node-exporter、blackbox-exporter | 仅 `127.0.0.1` |
 
 `/api/actuator/` 已在 Nginx 上拒绝访问，但这**不能**保护直接暴露的 `9999`。腾讯云
 安全组和服务器防火墙必须同时不允许互联网访问 TCP 9999；否则 Prometheus 指标、JVM
@@ -196,8 +196,8 @@ GC、数据库容量和可接受延迟调参。Google SRE 对告警的建议也�
 ### 7.1 上线前检查
 
 1. 在云安全组中确认只开放业务需要的 `80/81`（以及你自己的 SSH 管理端口），不开放
-   `9999/3000/9090/9093/9100/9115`。
-2. 在服务器确认 Docker Compose v2 可用，磁盘至少留出 Prometheus 30 天数据和 Grafana
+   `9999/3000/19090/19093/19094/19100/19115`。
+2. 在服务器确认 Docker Compose v2 或 Podman Compose 可用，磁盘至少留出 Prometheus 30 天数据和 Grafana
    数据卷的空间。
 3. 本机确认应用可访问：`curl -fsS http://127.0.0.1:9999/api/actuator/health`。
 4. 确认 Nginx 生效后公网 `/api/actuator/health` 返回 404，而正常业务 API 仍可用。
@@ -213,13 +213,16 @@ cp targets/code-nest.local.yml.example targets/code-nest.local.yml
 cp targets/blackbox.local.yml.example targets/blackbox.local.yml
 cp alertmanager/alertmanager.yml.example alertmanager/alertmanager.local.yml
 mkdir -p secrets
-chmod 700 secrets
+: > secrets/sre_webhook_token
+chown 65534:65534 secrets/sre_webhook_token
+chmod 400 secrets/sre_webhook_token
+chmod 711 secrets
 ```
 
 然后完成以下人工配置：
 
-1. 将 `targets/code-nest.local.yml` 的目标设为监控 Docker 网络可达的应用地址；宿主机
-   Java 进程默认是 `host.docker.internal:9999`。
+1. 监控服务使用 Linux host network 访问 loopback，保持
+   `targets/code-nest.local.yml` 的默认目标 `127.0.0.1:9999`。
 2. 将 `targets/blackbox.local.yml` 改成真实的公网 HTTPS URL，优先使用域名而非裸 IP。
 3. 在 `alertmanager.local.yml` 填 QQ 发件箱和收件箱。
 4. 将 QQ SMTP 授权码写入 `secrets/qq_smtp_auth_code`，并设置 `600` 权限。
@@ -229,13 +232,13 @@ chmod 700 secrets
 之后执行：
 
 ```bash
-chmod +x scripts/validate-config.sh
+chmod +x scripts/validate-config.sh scripts/compose.sh
 ./scripts/validate-config.sh
-docker compose --env-file .env up -d
-docker compose --env-file .env ps
+./scripts/compose.sh --env-file .env up -d
+./scripts/compose.sh --env-file .env ps
 ```
 
-`validate-config.sh` 会调用镜像内的 `promtool`、`amtool` 和 `docker compose config`。
+`validate-config.sh` 会调用镜像内的 `promtool`、`amtool` 和实际可用的 Compose 实现。
 它应在真实 Linux 服务器上执行，因为本地 Windows 工作区没有 Docker 和 Nginx 可供运行。
 
 ### 7.3 首次验收演练
@@ -247,7 +250,7 @@ docker compose --env-file .env ps
    resolved 邮件。
 4. 从手机流量或另一台独立网络访问公网 URL，确认页面可达。不要把本机 blackbox 成功
    当成异地可用性证明。
-5. 检查 `docker compose logs`、Prometheus 告警状态和 Grafana 数据源，记录验收时间与结果。
+5. 检查 `./scripts/compose.sh --env-file .env logs`、Prometheus 告警状态和 Grafana 数据源，记录验收时间与结果。
 
 ## 8. P1：完整可观测性基线
 

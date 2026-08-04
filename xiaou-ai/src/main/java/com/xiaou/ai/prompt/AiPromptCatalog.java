@@ -7,6 +7,7 @@ import com.xiaou.ai.prompt.growthcoach.GrowthCoachPromptSpecs;
 import com.xiaou.ai.prompt.interview.InterviewPromptSpecs;
 import com.xiaou.ai.prompt.jobbattle.JobBattlePromptSpecs;
 import com.xiaou.ai.prompt.sql.SqlOptimizePromptSpecs;
+import com.xiaou.ai.prompt.sre.SreInvestigationPromptSpecs;
 import com.xiaou.ai.prompt.sre.SreRcaPromptSpecs;
 
 import java.util.List;
@@ -27,6 +28,7 @@ public final class AiPromptCatalog {
             GrowthCoachPromptSpecs.class,
             InterviewPromptSpecs.class,
             JobBattlePromptSpecs.class,
+            SreInvestigationPromptSpecs.class,
             SreRcaPromptSpecs.class,
             SqlOptimizePromptSpecs.class
     );

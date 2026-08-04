@@ -1,5 +1,25 @@
 # 发布流程
 
+## v2.5.4
+
+`v2.5.4` 是 master 整合与发布治理补丁版本：合并 v2.5.1 生产 SRE 治理能力，并保留 v2.5.3 的成长闭环、数据库迁移和发布安全边界。
+
+### Highlights
+
+- SRE 评测队列、只读 RCA、容量治理、外部探针、Dashboard 和运维资产统一进入主线。
+- 告警接收、Incident、Evidence、Outbox worker 和 RCA 评测共享低基数指标；Outbox 继续暴露积压、处理中、耗时和租约恢复指标。
+- 发布包同时包含完整 `sql/`、`VERSION`、迁移执行器、运维资产和发布烟测；数据库迁移仍需显式设置 `CODE_NEST_RUN_MIGRATIONS=true`。
+
+### Verification
+
+- 版本一致性与迁移清单 dry-run。
+- Maven 后端构建与定向测试、双前端契约测试、文档构建、SRE contract、发布脚本 syntax/smoke 验证。
+
+### Migration
+
+- v2.5.3 已应用的生产 ledger 可继续复用；master 新增的 SRE 评测/运维 SQL 由同一迁移执行器按 checksum 顺序补齐。
+- 生产执行前必须先备份数据库；失败迁移保留 `FAILED` 记录，只有人工核验后才允许 `--retry-failed`。
+
 ## v2.5.3
 
 `v2.5.3` 是 Growth Coach 与生产交付治理版本：在 v2.5.0/v2.5.2 的成长闭环能力上，补齐版本、迁移、发布、SSRF 和 AI 运行时的生产边界。

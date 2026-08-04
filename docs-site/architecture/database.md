@@ -1,6 +1,6 @@
 # 数据库设计
 
-Code-Nest 使用单一 MySQL 数据库 `code_nest`。当前 `sql/MySql/code_nest.sql` 已合并为 **145 张表**的完整结构基线；`sql/v*` 下的版本脚本用于旧环境升级和演进追溯，不需要在全新数据库上重复执行。
+Code-Nest 使用单一 MySQL 数据库 `code_nest`。当前 `sql/MySql/code_nest.sql` 已合并为 **161 张表**的完整结构基线；`sql/v*` 下的版本脚本用于旧环境升级和演进追溯，不需要在全新数据库上重复执行。
 
 ## 设计原则
 
@@ -37,6 +37,7 @@ Code-Nest 使用单一 MySQL 数据库 `code_nest`。当前 `sql/MySql/code_nest
 | `oj_` | xiaou-oj | 9 | 题目/提交/测试用例/题解/赛事/标签 |
 | `plan_` | xiaou-plan | 2 | 计划/签到记录 |
 | `resume_` | xiaou-resume | 6 | 简历/模板/版本/分析/分享/段落 |
+| `sre_` | xiaou-sre, xiaou-system | 16 | 告警、事故、证据、事务 Outbox、RCA 调查、反馈、评测套件、运行队列与结果 |
 | `sensitive_` | xiaou-sensitive | 11 | 敏感词/策略/分类/日志/统计/白名单/版本 |
 | `sql_monitor_` | xiaou-sql-optimizer | 1 | SQL 监控日志 |
 | `storage_` | xiaou-filestorage | 1 | 存储配置 |
@@ -243,7 +244,7 @@ Redis 使用多个 database 索引隔离不同数据：
 ```text
 sql/
 ├── MySql/
-│   ├── code_nest.sql          ← 当前完整结构基线 (145 表)
+│   ├── code_nest.sql          ← 当前完整结构基线 (161 表)
 │   └── code_nest_data.sql     ← 初始化数据
 ├── v1.2.0/                    ← 初始版本
 ├── v1.2.1/                    ← 敏感词/知识图谱增量
@@ -259,7 +260,8 @@ sql/
 ├── v1.8.0/                    ← OJ 判题增量
 ├── v1.8.1/                    ← OJ 赛事增量
 ├── v1.8.2/                    ← 求职闭环/SQL优化增量
-└── v1.8.4/                    ← 学习资产增量
+├── v1.8.4/                    ← 学习资产增量
+└── v2.5.0/                    ← SRE 告警、事故、调查、评测套件和运行队列增量
 ```
 
 ## 新增脚本原则
@@ -298,6 +300,6 @@ sql/
 | --- | --- |
 | [架构总览](/architecture/overview) | 整体架构和部署拓扑 |
 | [后端模块](/architecture/backend-modules) | 后端 Maven 子模块详解 |
-| [数据表索引](/reference/database-tables) | 当前 145 张表清单 |
+| [数据表索引](/reference/database-tables) | 当前 161 张表清单 |
 | [数据库字段阅读指南](/reference/database-field-guide) | 命名规范和类型说明 |
 | [模块总览](/modules/) | 各模块的数据表分布 |

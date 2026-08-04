@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.sre.mapper.SreRcaEvaluationResultMapper">
+
+    <resultMap id="SreRcaEvaluationResultMap" type="com.xiaou.sre.domain.SreRcaEvaluationResult">
+        <id property="id" column="id"/>
+        <result property="evaluationRunId" column="evaluation_run_id"/>
+        <result property="caseId" column="case_id"/>
+        <result property="status" column="status"/>
+        <result property="candidateReportJson" column="candidate_report_json"/>
+        <result property="promptId" column="prompt_id"/>
+        <result property="schemaId" column="schema_id"/>
+        <result property="provider" column="provider"/>
+        <result property="configuredModel" column="configured_model"/>
+        <result property="actualModel" column="actual_model"/>
+        <result property="invocationOutcome" column="invocation_outcome"/>
+        <result property="conclusionSimilarity" column="conclusion_similarity"/>
+        <result property="evidenceRecall" column="evidence_recall"/>
+        <result property="severityMatched" column="severity_matched"/>
+        <result property="safetyCompliant" column="safety_compliant"/>
+        <result property="totalScore" column="total_score"/>
+        <result property="passed" column="passed"/>
+        <result property="scoreDetailJson" column="score_detail_json"/>
+        <result property="failureCode" column="failure_code"/>
+        <result property="startedAt" column="started_at"/>
+        <result property="completedAt" column="completed_at"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sre_rca_evaluation_result (
+            evaluation_run_id, case_id, status, candidate_report_json, prompt_id, schema_id,
+            provider, configured_model, actual_model, invocation_outcome, conclusion_similarity,
+            evidence_recall, severity_matched, safety_compliant, total_score, passed,
+            score_detail_json, failure_code, started_at, completed_at, create_time
+        ) VALUES (
+            #{evaluationRunId}, #{caseId}, #{status}, #{candidateReportJson}, #{promptId}, #{schemaId},
+            #{provider}, #{configuredModel}, #{actualModel}, #{invocationOutcome}, #{conclusionSimilarity},
+            #{evidenceRecall}, #{severityMatched}, #{safetyCompliant}, #{totalScore}, #{passed},
+            #{scoreDetailJson}, #{failureCode}, #{startedAt}, #{completedAt}, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <select id="selectByRunId" resultMap="SreRcaEvaluationResultMap">
+        SELECT id, evaluation_run_id, case_id, status, candidate_report_json, prompt_id, schema_id,
+               provider, configured_model, actual_model, invocation_outcome, conclusion_similarity,
+               evidence_recall, severity_matched, safety_compliant, total_score, passed,
+               score_detail_json, failure_code, started_at, completed_at, create_time
+        FROM sre_rca_evaluation_result
+        WHERE evaluation_run_id = #{runId}
+        ORDER BY id ASC
+    </select>
+
+    <select id="countByRunId" resultType="int">
+        SELECT COUNT(1)
+        FROM sre_rca_evaluation_result
+        WHERE evaluation_run_id = #{runId}
+    </select>
+</mapper>

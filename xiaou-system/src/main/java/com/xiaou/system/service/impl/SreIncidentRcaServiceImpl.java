@@ -1,24 +1,40 @@
 package com.xiaou.system.service.impl;
 
-import cn.hutool.json.JSONArray;
-import cn.hutool.json.JSONObject;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.xiaou.ai.prompt.sre.SreRcaPromptSpecs;
-import com.xiaou.ai.structured.AiStructuredOutputValidator;
-import com.xiaou.ai.structured.sre.SreRcaStructuredOutputSpecs;
-import com.xiaou.ai.support.AiExecutionSupport;
-import com.xiaou.ai.util.AiJsonResponseParser;
+import com.xiaou.ai.support.AiExecutionResult;
+import com.xiaou.sre.domain.SreInvestigationArtifact;
+import com.xiaou.sre.domain.SreInvestigationRun;
+import com.xiaou.sre.domain.SreInvestigationStep;
+import com.xiaou.sre.domain.SreInvestigationFeedback;
+import com.xiaou.sre.dto.request.SreInvestigationArtifactCapture;
 import com.xiaou.sre.dto.response.SreInvestigationContext;
+import com.xiaou.sre.metrics.SreMetricsRecorder;
+import com.xiaou.sre.service.SreInvestigationArtifactService;
 import com.xiaou.sre.service.SreInvestigationFacade;
+import com.xiaou.sre.service.SreInvestigationFeedbackService;
+import com.xiaou.sre.service.SreInvestigationRunService;
+import com.xiaou.sre.service.SreReadOnlyInvestigationToolService;
+import com.xiaou.sre.service.SreReadOnlyToolResult;
+import com.xiaou.sre.service.SreValidationException;
+import com.xiaou.system.dto.SreRcaEvaluationSample;
+import com.xiaou.system.dto.SreRcaFeedback;
+import com.xiaou.system.dto.SreRcaFeedbackRequest;
 import com.xiaou.system.dto.SreRcaReport;
+import com.xiaou.system.dto.SreRcaRunDetail;
+import com.xiaou.system.dto.SreRcaRunSummary;
+import com.xiaou.system.service.SreInvestigationPlan;
+import com.xiaou.system.service.SreInvestigationPlanner;
+import com.xiaou.system.service.SreInvestigationPlanningInput;
+import com.xiaou.system.service.SreRcaAnalysisInput;
+import com.xiaou.system.service.SreRcaAnalyzer;
 import com.xiaou.system.service.SreIncidentRcaService;
+import com.xiaou.system.service.SreRcaTriggerSource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -28,7 +44,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 
 /**
@@ -41,7 +56,7 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
 
-    private static final String SCENE = "sre.incident.rca";
+    private static final String EVALUATION_SCHEMA_VERSION = "code-nest.sre.rca-eval.v1";
     private static final int MAX_CONTEXT_LENGTH = 60_000;
     private static final int MAX_ALERTS = 10;
     private static final int MAX_EVIDENCE = 12;
@@ -55,20 +70,52 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
     private static final int MAX_SNAPSHOT_MAP_ENTRIES = 40;
     private static final int MAX_SNAPSHOT_LIST_ENTRIES = 20;
     private static final int MAX_SNAPSHOT_KEY_LENGTH = 128;
+    private static final int MAX_INVESTIGATION_ROUNDS = 5;
 
     private static final Pattern BEARER_PATTERN = Pattern.compile(
             "(?i)\\bBearer\\s+[A-Za-z0-9._~+/=-]{6,}");
     private static final Pattern INLINE_SECRET_PATTERN = Pattern.compile(
             "(?i)\\b(authorization|password|passwd|token|secret|api[-_ ]?key|cookie|credential)"
                     + "\\b\\s*[:=]\\s*([^\\s,;]+)");
+    private static final Pattern STANDALONE_CREDENTIAL_PATTERN = Pattern.compile(
+            "(?i)\\b(?:sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})\\b");
     private static final Pattern CONTROL_PATTERN = Pattern.compile("[\\p{Cntrl}&&[^\\r\\n\\t]]");
 
     private final SreInvestigationFacade investigationFacade;
-    private final AiExecutionSupport aiExecutionSupport;
+    private final SreInvestigationPlanner investigationPlanner;
+    private final SreReadOnlyInvestigationToolService readOnlyToolService;
+    private final SreRcaAnalyzer rcaAnalyzer;
     private final ObjectMapper objectMapper;
+    private final SreInvestigationRunService investigationRunService;
+    private final SreInvestigationFeedbackService investigationFeedbackService;
+    private final SreInvestigationArtifactService investigationArtifactService;
+    private final SreMetricsRecorder metricsRecorder;
 
     @Override
-    public Optional<SreRcaReport> investigate(Long incidentId) {
+    public Optional<SreRcaReport> investigate(Long incidentId,
+                                              SreRcaTriggerSource triggerSource,
+                                              Long requestedBy) {
+        long startNanos = System.nanoTime();
+        InvestigationMetrics metrics = new InvestigationMetrics();
+        try {
+            Optional<SreRcaReport> result = investigateInternal(
+                    incidentId, triggerSource, requestedBy, metrics);
+            if (result.isEmpty()) {
+                metrics.outcome = "skipped";
+            }
+            return result;
+        } catch (RuntimeException exception) {
+            metrics.outcome = "failed";
+            throw exception;
+        } finally {
+            recordInvestigationMetrics(metrics, System.nanoTime() - startNanos);
+        }
+    }
+
+    private Optional<SreRcaReport> investigateInternal(Long incidentId,
+                                                       SreRcaTriggerSource triggerSource,
+                                                       Long requestedBy,
+                                                       InvestigationMetrics metrics) {
         if (incidentId == null || incidentId <= 0) {
             return Optional.empty();
         }
@@ -78,31 +125,392 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
         }
 
         SreInvestigationContext context = contextOptional.get();
-        ModelContext modelContext;
+        SreInvestigationRun run = investigationRunService.start(
+                incidentId,
+                triggerSource == null ? SreRcaTriggerSource.SYSTEM.name() : triggerSource.name(),
+                requestedBy,
+                context.alerts().size(),
+                context.evidence().size(),
+                context.alertsTruncated() || context.evidenceTruncated()
+        );
         try {
-            modelContext = buildModelContext(context);
+            investigationRunService.recordStep(
+                    run.getId(), 1, "CONTEXT_LOADED", "SUCCEEDED", contextStepDetail(context));
+        } catch (RuntimeException exception) {
+            markRunFailed(run.getId(), exception);
+            throw exception;
+        }
+
+        ModelContext initialModelContext;
+        try {
+            initialModelContext = buildModelContext(context);
         } catch (RuntimeException exception) {
             log.warn("SRE RCA 上下文构建失败，返回证据不足报告: incidentId={}, reason={}",
                     incidentId, exception.getClass().getSimpleName());
-            return Optional.of(fallbackReport(context, references(context, Set.of()), true));
+            SreRcaReport report = rcaAnalyzer.fallback(analysisInput(context, "{}", Set.of(), true));
+            try {
+                investigationRunService.recordStep(
+                        run.getId(), 2, "INVESTIGATION_PLAN", "SKIPPED", "上下文构建失败，未生成调查计划。"
+                );
+                investigationRunService.recordStep(
+                        run.getId(), 3, "MODEL_CONTEXT_BUILT", "DEGRADED", "上下文构建失败，已进入确定性降级。"
+                );
+                investigationRunService.recordStep(
+                        run.getId(), 4, "MODEL_ANALYSIS", "SKIPPED", "未调用模型。"
+                );
+                investigationRunService.recordStep(
+                        run.getId(), 5, "REPORT_VALIDATED", "SUCCEEDED", "已生成只含事实的降级报告。"
+                );
+                persistCompletedRun(run.getId(), report);
+            } catch (RuntimeException persistenceException) {
+                markRunFailed(run.getId(), persistenceException);
+                throw persistenceException;
+            }
+            metrics.generationMode = "fallback";
+            metrics.outcome = "degraded";
+            return Optional.of(report);
         }
 
-        SreRcaReport report = aiExecutionSupport.chatWithFallback(
-                SCENE,
-                SreRcaPromptSpecs.INVESTIGATE,
-                Map.of("incidentContextJson", modelContext.json()),
-                response -> parseReport(response, context, modelContext),
-                () -> fallbackReport(context, references(context, modelContext.evidenceIds()),
-                        modelContext.truncated())
+        int nextStepOrder = 2;
+        SreInvestigationPlan plan;
+        try {
+            List<String> availableToolKeys = Optional.ofNullable(readOnlyToolService.availableToolKeys())
+                    .orElse(List.of());
+            plan = investigationPlanner.plan(new SreInvestigationPlanningInput(
+                    initialModelContext.json(),
+                    new LinkedHashSet<>(availableToolKeys),
+                    readOnlyToolService.fallbackToolKeys(context.incident().alertName())
+            ));
+            List<String> plannedTools = boundedPlannedTools(plan, availableToolKeys);
+            plan = normalizedPlan(plan, plannedTools);
+            investigationRunService.recordStep(
+                    run.getId(), nextStepOrder++, "INVESTIGATION_PLAN", planStepStatus(plan), planStepDetail(plan));
+        } catch (RuntimeException exception) {
+            markRunFailed(run.getId(), exception);
+            throw exception;
+        }
+
+        try {
+            int createdEvidence = 0;
+            for (String toolKey : plan.toolKeys()) {
+                SreReadOnlyToolResult toolResult = readOnlyToolService.execute(
+                        incidentId, run.getId(), toolKey);
+                metrics.rounds++;
+                investigationRunService.recordStep(
+                        run.getId(),
+                        nextStepOrder++,
+                        "READ_ONLY_TOOL",
+                        toolStepStatus(toolResult),
+                        toolStepDetail(metrics.rounds, toolResult)
+                );
+                if (!toolResult.created()) {
+                    break;
+                }
+                createdEvidence++;
+            }
+
+            if (createdEvidence > 0) {
+                context = investigationFacade.findByIncidentId(incidentId)
+                        .orElseThrow(() -> new IllegalStateException("只读调查后无法重新加载事故证据"));
+                investigationRunService.recordStep(
+                        run.getId(),
+                        nextStepOrder++,
+                        "EVIDENCE_RELOADED",
+                        "SUCCEEDED",
+                        "只读调查新增 " + createdEvidence + " 条证据，已重新加载受限上下文。"
+                );
+            }
+
+            ModelContext modelContext = buildModelContext(context);
+            investigationRunService.recordStep(
+                    run.getId(),
+                    nextStepOrder++,
+                    "MODEL_CONTEXT_BUILT",
+                    "SUCCEEDED",
+                    modelContextStepDetail(modelContext)
+            );
+            SreRcaAnalysisInput analysisInput = analysisInput(context, modelContext);
+            AiExecutionResult<SreRcaReport> execution = rcaAnalyzer.analyze(analysisInput);
+            SreRcaReport report = execution.value();
+            if (report == null) {
+                report = rcaAnalyzer.fallback(analysisInput);
+            }
+
+            captureArtifact(incidentId, run.getId(), modelContext, execution);
+
+            String analysisStatus = "AI".equals(report.generationMode()) ? "SUCCEEDED" : "DEGRADED";
+            String analysisDetail = "AI".equals(report.generationMode())
+                    ? "模型返回了通过结构化契约校验的报告。"
+                    : "模型不可用或输出无效，已使用确定性降级报告。";
+            investigationRunService.recordStep(
+                    run.getId(), nextStepOrder++, "MODEL_ANALYSIS", analysisStatus, analysisDetail);
+            investigationRunService.recordStep(
+                    run.getId(), nextStepOrder, "REPORT_VALIDATED", "SUCCEEDED", "证据引用和只读风险边界校验完成。"
+            );
+            persistCompletedRun(run.getId(), report);
+
+            metrics.generationMode = report.generationMode().toLowerCase(Locale.ROOT);
+            metrics.outcome = "AI".equals(report.generationMode()) ? "succeeded" : "degraded";
+
+            log.info("SRE RCA 调查完成: incidentId={}, runId={}, mode={}, conclusionStatus={}, evidenceIds={}",
+                    incidentId, run.getId(), report.generationMode(), report.conclusionStatus(),
+                    modelContext.evidenceIds());
+            return Optional.of(report);
+        } catch (RuntimeException exception) {
+            markRunFailed(run.getId(), exception);
+            throw exception;
+        }
+    }
+
+    private List<String> boundedPlannedTools(SreInvestigationPlan plan,
+                                             List<String> availableToolKeys) {
+        if (plan == null || !"INVESTIGATE".equalsIgnoreCase(plan.decision())
+                || plan.toolKeys() == null || plan.toolKeys().isEmpty()) {
+            return List.of();
+        }
+        Set<String> allowed = availableToolKeys == null
+                ? Set.of()
+                : availableToolKeys.stream()
+                .filter(StringUtils::hasText)
+                .map(value -> value.trim().toLowerCase(Locale.ROOT))
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        LinkedHashSet<String> result = new LinkedHashSet<>();
+        for (String toolKey : plan.toolKeys()) {
+            if (result.size() >= MAX_INVESTIGATION_ROUNDS) {
+                break;
+            }
+            if (!StringUtils.hasText(toolKey)) {
+                continue;
+            }
+            String normalized = toolKey.trim().toLowerCase(Locale.ROOT);
+            if (allowed.contains(normalized)) {
+                result.add(normalized);
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private SreInvestigationPlan normalizedPlan(SreInvestigationPlan plan, List<String> plannedTools) {
+        String generationMode = plan == null ? "FALLBACK" : safeText(
+                plan.generationMode(), 16, "FALLBACK").toUpperCase(Locale.ROOT);
+        String invocationOutcome = plan == null ? "UNEXPECTED_FAILURE" : safeText(
+                plan.invocationOutcome(), 64, "UNEXPECTED_FAILURE").toUpperCase(Locale.ROOT);
+        String reason = plan == null
+                ? "调查计划不可用。"
+                : safeText(plan.reason(), 120, "未提供调查理由。");
+        return new SreInvestigationPlan(
+                plannedTools.isEmpty() ? "STOP" : "INVESTIGATE",
+                reason,
+                plannedTools,
+                generationMode,
+                invocationOutcome
         );
-        if (report == null) {
-            report = fallbackReport(context, references(context, modelContext.evidenceIds()),
-                    modelContext.truncated());
-        }
+    }
 
-        log.info("SRE RCA 调查完成: incidentId={}, mode={}, conclusionStatus={}, evidenceIds={}",
-                incidentId, report.generationMode(), report.conclusionStatus(), modelContext.evidenceIds());
-        return Optional.of(report);
+    private String planStepStatus(SreInvestigationPlan plan) {
+        return "AI".equals(plan.generationMode()) && "SUCCESS".equals(plan.invocationOutcome())
+                ? "SUCCEEDED"
+                : "DEGRADED";
+    }
+
+    private String planStepDetail(SreInvestigationPlan plan) {
+        return "固定只读调查计划已收敛；计划轮数=" + plan.toolKeys().size()
+                + "；工具=" + (plan.toolKeys().isEmpty() ? "无" : String.join(",", plan.toolKeys()))
+                + "；生成模式=" + plan.generationMode()
+                + "；结果=" + plan.invocationOutcome()
+                + "；理由=" + plan.reason() + "。";
+    }
+
+    private String toolStepStatus(SreReadOnlyToolResult result) {
+        if (result == null) {
+            return "FAILED";
+        }
+        return switch (result.status()) {
+            case "AVAILABLE" -> "SUCCEEDED";
+            case "DUPLICATE" -> "SKIPPED";
+            case "UNAVAILABLE" -> "DEGRADED";
+            default -> "FAILED";
+        };
+    }
+
+    private String toolStepDetail(int round, SreReadOnlyToolResult result) {
+        if (result == null) {
+            return "第 " + round + " 轮固定只读工具未返回结果。";
+        }
+        return "第 " + round + " 轮固定只读工具=" + result.toolKey()
+                + "；状态=" + result.status()
+                + "；证据ID=" + result.evidenceId() + "。";
+    }
+
+    private void recordInvestigationMetrics(InvestigationMetrics metrics, long durationNanos) {
+        try {
+            metricsRecorder.recordInvestigation(
+                    metrics.outcome, metrics.generationMode, metrics.rounds, durationNanos);
+        } catch (RuntimeException exception) {
+            log.warn("SRE RCA 调查指标记录失败: reason={}", exception.getClass().getSimpleName());
+        }
+    }
+
+    @Override
+    public List<SreRcaRunSummary> listRuns(Long incidentId, int limit) {
+        return investigationRunService.listByIncidentId(incidentId, limit).stream()
+                .map(this::toRunSummary)
+                .toList();
+    }
+
+    @Override
+    public Optional<SreRcaRunDetail> getRun(Long incidentId, Long runId) {
+        return investigationRunService.findByIncidentIdAndRunId(incidentId, runId)
+                .map(run -> new SreRcaRunDetail(
+                        toRunSummary(run),
+                        investigationRunService.listSteps(run.getId()).stream()
+                                .map(this::toRunStep)
+                                .toList(),
+                        readPersistedReport(run),
+                        investigationArtifactService.findByIncidentIdAndRunId(incidentId, runId)
+                                .map(this::toProvenance)
+                                .orElse(null),
+                        investigationFeedbackService.findLatest(incidentId, runId)
+                                .map(this::toFeedback)
+                                .orElse(null)
+                ));
+    }
+
+    @Override
+    public Optional<SreRcaFeedback> saveFeedback(Long incidentId,
+                                                 Long runId,
+                                                 SreRcaFeedbackRequest request,
+                                                 Long reviewedBy) {
+        if (request == null) {
+            throw new IllegalArgumentException("RCA 反馈不能为空");
+        }
+        try {
+            return investigationFeedbackService.save(
+                    incidentId,
+                    runId,
+                    request.accuracy(),
+                    request.gapType(),
+                    request.note(),
+                    request.expectedConclusion(),
+                    reviewedBy
+            ).map(this::toFeedback);
+        } catch (SreValidationException exception) {
+            throw new IllegalArgumentException(exception.getMessage(), exception);
+        }
+    }
+
+    @Override
+    public Optional<SreRcaEvaluationSample> getEvaluationSample(Long incidentId, Long runId) {
+        return getRun(incidentId, runId)
+                .filter(detail -> detail.report() != null && detail.feedback() != null)
+                .map(detail -> {
+                    SreRcaFeedback feedback = detail.feedback();
+                    SreRcaReport report = sanitizeEvaluationReport(detail.report());
+                    String expectedConclusion = safeText(feedback.expectedConclusion(), 2_000, null);
+                    if (!StringUtils.hasText(expectedConclusion)
+                            && "ACCURATE".equals(feedback.accuracy())) {
+                        expectedConclusion = report.executiveSummary();
+                    }
+                    return new SreRcaEvaluationSample(
+                            EVALUATION_SCHEMA_VERSION,
+                            detail.run().id(),
+                            detail.run().generationMode(),
+                            detail.run().conclusionStatus(),
+                            report,
+                            new SreRcaEvaluationSample.Evaluation(
+                                    feedback.accuracy(),
+                                    feedback.gapType(),
+                                    expectedConclusion,
+                                    feedback.reviewedAt()
+                            )
+                    );
+                });
+    }
+
+    private SreRcaReport sanitizeEvaluationReport(SreRcaReport report) {
+        List<SreRcaReport.Observation> observations = report.observations().stream()
+                .limit(MAX_OBSERVATIONS)
+                .map(item -> new SreRcaReport.Observation(
+                        safeText(item.statement(), 1_000, ""),
+                        sanitizeEvidenceIds(item.evidenceIds())
+                ))
+                .toList();
+        List<SreRcaReport.Hypothesis> hypotheses = report.hypotheses().stream()
+                .limit(MAX_HYPOTHESES)
+                .map(item -> new SreRcaReport.Hypothesis(
+                        safeText(item.title(), 200, ""),
+                        safeText(item.reasoning(), 2_000, ""),
+                        Double.isFinite(item.confidence())
+                                ? Math.max(0D, Math.min(1D, item.confidence()))
+                                : 0D,
+                        safeText(item.evidenceStatus(), 32, "INSUFFICIENT"),
+                        sanitizeEvidenceIds(item.evidenceIds()),
+                        sanitizeEvidenceIds(item.counterEvidenceIds()),
+                        sanitizeStrings(item.nextChecks(), 8, 500)
+                ))
+                .toList();
+        List<SreRcaReport.RecommendedNextStep> recommendations = report.recommendedNextSteps().stream()
+                .limit(MAX_RECOMMENDATIONS)
+                .map(item -> new SreRcaReport.RecommendedNextStep(
+                        safeText(item.description(), 1_000, ""),
+                        safeText(item.risk(), 32, "READ_ONLY"),
+                        sanitizeEvidenceIds(item.evidenceIds())
+                ))
+                .toList();
+        List<SreRcaReport.EvidenceReference> references = report.evidenceReferences().stream()
+                .limit(MAX_EVIDENCE)
+                .map(item -> new SreRcaReport.EvidenceReference(
+                        item.id(),
+                        safeText(item.sourceType(), 64, "UNKNOWN"),
+                        safeText(item.sourceRef(), 200, "UNKNOWN"),
+                        item.capturedAt(),
+                        safeText(item.status(), 32, "UNKNOWN")
+                ))
+                .toList();
+        return new SreRcaReport(
+                report.incidentId(),
+                safeText(report.incidentNo(), 64, "UNKNOWN"),
+                safeText(report.generationMode(), 16, "UNKNOWN"),
+                safeText(report.conclusionStatus(), 32, "INSUFFICIENT_EVIDENCE"),
+                safeText(report.severityAssessment(), 32, "UNKNOWN"),
+                safeText(report.executiveSummary(), 2_000, ""),
+                observations,
+                hypotheses,
+                recommendations,
+                references,
+                sanitizeStrings(report.limitations(), MAX_LIMITATIONS, 1_000),
+                report.contextTruncated(),
+                false,
+                report.generatedAt()
+        );
+    }
+
+    private List<Long> sanitizeEvidenceIds(Collection<Long> ids) {
+        if (ids == null) {
+            return List.of();
+        }
+        return ids.stream()
+                .filter(id -> id != null && id > 0)
+                .distinct()
+                .limit(MAX_EVIDENCE)
+                .toList();
+    }
+
+    private List<String> sanitizeStrings(Collection<String> values, int maxItems, int maxLength) {
+        if (values == null) {
+            return List.of();
+        }
+        LinkedHashSet<String> result = new LinkedHashSet<>();
+        for (String value : values) {
+            if (result.size() >= maxItems) {
+                break;
+            }
+            String sanitized = safeText(value, maxLength, "");
+            if (StringUtils.hasText(sanitized)) {
+                result.add(sanitized);
+            }
+        }
+        return List.copyOf(result);
     }
 
     private ModelContext buildModelContext(SreInvestigationContext context) {
@@ -281,173 +689,6 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
         return "[REDACTED]";
     }
 
-    private SreRcaReport parseReport(String response,
-                                     SreInvestigationContext context,
-                                     ModelContext modelContext) {
-        JSONObject json = AiJsonResponseParser.parse(response);
-        AiStructuredOutputValidator.ValidationResult validation =
-                SreRcaStructuredOutputSpecs.REPORT.validateObject(json);
-        if (!validation.valid()) {
-            throw new IllegalArgumentException("SRE RCA 输出不符合结构化契约: " + validation.reason());
-        }
-
-        ParseState state = new ParseState();
-        List<SreRcaReport.Observation> observations = parseObjects(
-                json.getJSONArray("observations"),
-                MAX_OBSERVATIONS,
-                item -> observation(item, modelContext.evidenceIds(), state)
-        ).stream().filter(java.util.Objects::nonNull).toList();
-        List<SreRcaReport.Hypothesis> hypotheses = parseObjects(
-                json.getJSONArray("hypotheses"),
-                MAX_HYPOTHESES,
-                item -> hypothesis(item, modelContext.evidenceIds(), state)
-        );
-        List<SreRcaReport.RecommendedNextStep> recommendations = parseObjects(
-                json.getJSONArray("recommendedNextSteps"),
-                MAX_RECOMMENDATIONS,
-                item -> recommendation(item, modelContext.evidenceIds(), state)
-        );
-        List<String> limitations = stringList(json.getJSONArray("limitations"), MAX_LIMITATIONS, 500);
-        if (state.invalidReference) {
-            limitations = appendDistinct(limitations, "模型输出包含无有效证据引用，已由后端移除或降级。",
-                    MAX_LIMITATIONS);
-        }
-        if (modelContext.truncated()) {
-            limitations = appendDistinct(limitations, "输入模型的事故上下文已按安全上限裁剪。",
-                    MAX_LIMITATIONS);
-        }
-
-        String conclusionStatus = normalizeConclusion(
-                json.getStr("conclusionStatus"), observations, hypotheses);
-        return new SreRcaReport(
-                context.incident().id(),
-                safeText(context.incident().incidentNo(), 64, "UNKNOWN"),
-                "AI",
-                conclusionStatus,
-                json.getStr("severityAssessment"),
-                safeText(json.getStr("executiveSummary"), 2_000, "未生成有效摘要。"),
-                observations,
-                hypotheses,
-                recommendations,
-                references(context, modelContext.evidenceIds()),
-                limitations,
-                modelContext.truncated(),
-                false,
-                LocalDateTime.now()
-        );
-    }
-
-    private SreRcaReport.Observation observation(JSONObject item,
-                                                 Set<Long> allowedEvidenceIds,
-                                                 ParseState state) {
-        List<Long> evidenceIds = evidenceIds(item.getJSONArray("evidenceIds"), allowedEvidenceIds, state);
-        if (evidenceIds.isEmpty()) {
-            return null;
-        }
-        return new SreRcaReport.Observation(
-                safeText(item.getStr("statement"), 1_000, "未提供观察描述。"),
-                evidenceIds
-        );
-    }
-
-    private SreRcaReport.Hypothesis hypothesis(JSONObject item,
-                                               Set<Long> allowedEvidenceIds,
-                                               ParseState state) {
-        List<Long> evidenceIds = evidenceIds(item.getJSONArray("evidenceIds"), allowedEvidenceIds, state);
-        List<Long> counterEvidenceIds = evidenceIds(
-                item.getJSONArray("counterEvidenceIds"), allowedEvidenceIds, state);
-        boolean supported = !evidenceIds.isEmpty();
-        Double rawConfidence = item.getDouble("confidence", 0D);
-        double confidence = rawConfidence == null ? 0D : Math.max(0D, Math.min(1D, rawConfidence));
-        if (!supported) {
-            confidence = Math.min(confidence, 0.2D);
-        }
-        return new SreRcaReport.Hypothesis(
-                safeText(item.getStr("title"), 200, "未命名假设"),
-                safeText(item.getStr("reasoning"), 2_000, "证据不足。"),
-                confidence,
-                supported ? "SUPPORTED" : "INSUFFICIENT",
-                evidenceIds,
-                counterEvidenceIds,
-                stringList(item.getJSONArray("nextChecks"), 5, 500)
-        );
-    }
-
-    private SreRcaReport.RecommendedNextStep recommendation(JSONObject item,
-                                                            Set<Long> allowedEvidenceIds,
-                                                            ParseState state) {
-        return new SreRcaReport.RecommendedNextStep(
-                safeText(item.getStr("description"), 1_000, "人工复核事故证据。"),
-                item.getStr("risk"),
-                evidenceIds(item.getJSONArray("evidenceIds"), allowedEvidenceIds, state)
-        );
-    }
-
-    private String normalizeConclusion(String requested,
-                                       List<SreRcaReport.Observation> observations,
-                                       List<SreRcaReport.Hypothesis> hypotheses) {
-        long supportedHypotheses = hypotheses.stream()
-                .filter(item -> "SUPPORTED".equals(item.evidenceStatus()))
-                .count();
-        if (observations.isEmpty() && supportedHypotheses == 0) {
-            return "INSUFFICIENT_EVIDENCE";
-        }
-        if (hypotheses.isEmpty()) {
-            return "PARTIAL";
-        }
-        if (supportedHypotheses < hypotheses.size() && "SUPPORTED".equals(requested)) {
-            return "PARTIAL";
-        }
-        return requested;
-    }
-
-    private SreRcaReport fallbackReport(SreInvestigationContext context,
-                                        List<SreRcaReport.EvidenceReference> references,
-                                        boolean contextTruncated) {
-        List<SreRcaReport.Observation> observations = references.stream()
-                .limit(MAX_OBSERVATIONS)
-                .map(item -> new SreRcaReport.Observation(
-                        "已采集 " + safeText(item.sourceType(), 64, "UNKNOWN")
-                                + " 证据，状态为 " + safeText(item.status(), 32, "UNKNOWN") + "。",
-                        List.of(item.id())
-                ))
-                .toList();
-        List<Long> referenceIds = references.stream()
-                .map(SreRcaReport.EvidenceReference::id)
-                .filter(java.util.Objects::nonNull)
-                .limit(5)
-                .toList();
-        List<String> limitations = new ArrayList<>(List.of(
-                "AI 运行时不可用、超时或输出不符合结构化契约。",
-                "当前仅返回已采集事实，未形成自动根因结论。"
-        ));
-        if (contextTruncated) {
-            limitations.add("事故上下文已按安全上限裁剪。");
-        }
-        String summary = "事故 " + safeText(context.incident().incidentNo(), 64, "UNKNOWN")
-                + " 已收集 " + references.size() + " 条可引用证据；当前证据不足以生成可靠自动根因结论。";
-        return new SreRcaReport(
-                context.incident().id(),
-                safeText(context.incident().incidentNo(), 64, "UNKNOWN"),
-                "FALLBACK",
-                "INSUFFICIENT_EVIDENCE",
-                severity(context.incident().severity()),
-                summary,
-                observations,
-                List.of(),
-                List.of(new SreRcaReport.RecommendedNextStep(
-                        "由管理员人工复核现有事故证据和监控时间窗口。",
-                        "READ_ONLY",
-                        referenceIds
-                )),
-                references,
-                limitations,
-                contextTruncated,
-                false,
-                LocalDateTime.now()
-        );
-    }
-
     private List<SreRcaReport.EvidenceReference> references(SreInvestigationContext context,
                                                             Set<Long> allowedEvidenceIds) {
         return context.evidence().stream()
@@ -462,56 +703,156 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
                 .toList();
     }
 
-    private List<Long> evidenceIds(JSONArray array, Set<Long> allowed, ParseState state) {
-        LinkedHashSet<Long> result = new LinkedHashSet<>();
-        if (array == null) {
-            state.invalidReference = true;
-            return List.of();
-        }
-        for (int i = 0; i < array.size() && result.size() < MAX_EVIDENCE; i++) {
-            try {
-                Long id = Long.valueOf(String.valueOf(array.get(i)).trim());
-                if (allowed.contains(id)) {
-                    result.add(id);
-                } else {
-                    state.invalidReference = true;
-                }
-            } catch (RuntimeException ignored) {
-                state.invalidReference = true;
-            }
-        }
-        return List.copyOf(result);
+    private SreRcaAnalysisInput analysisInput(SreInvestigationContext context, ModelContext modelContext) {
+        return analysisInput(
+                context,
+                modelContext.json(),
+                modelContext.evidenceIds(),
+                modelContext.truncated()
+        );
     }
 
-    private List<String> stringList(JSONArray array, int maxItems, int maxLength) {
-        if (array == null) {
-            return List.of();
-        }
-        LinkedHashSet<String> result = new LinkedHashSet<>();
-        for (int i = 0; i < array.size() && result.size() < maxItems; i++) {
-            String value = safeText(String.valueOf(array.get(i)), maxLength, "");
-            if (StringUtils.hasText(value)) {
-                result.add(value);
-            }
-        }
-        return List.copyOf(result);
+    private SreRcaAnalysisInput analysisInput(SreInvestigationContext context,
+                                              String contextJson,
+                                              Set<Long> evidenceIds,
+                                              boolean contextTruncated) {
+        return new SreRcaAnalysisInput(
+                contextJson,
+                context.incident().id(),
+                context.incident().incidentNo(),
+                context.incident().severity(),
+                references(context, evidenceIds),
+                contextTruncated
+        );
     }
 
-    private <T> List<T> parseObjects(JSONArray array, int maxItems, Function<JSONObject, T> mapper) {
-        List<T> result = new ArrayList<>();
-        for (int i = 0; array != null && i < array.size() && result.size() < maxItems; i++) {
-            JSONObject item = array.getJSONObject(i);
-            if (item != null) {
-                result.add(mapper.apply(item));
-            }
-        }
-        return result;
+    private String contextStepDetail(SreInvestigationContext context) {
+        boolean truncated = context.alertsTruncated() || context.evidenceTruncated();
+        return "已加载 " + context.alerts().size() + " 条告警、" + context.evidence().size()
+                + " 条证据；输入裁剪=" + truncated + "。";
     }
 
-    private List<String> appendDistinct(List<String> values, String value, int maxItems) {
-        LinkedHashSet<String> result = new LinkedHashSet<>(values);
-        result.add(value);
-        return result.stream().limit(maxItems).toList();
+    private String modelContextStepDetail(ModelContext modelContext) {
+        return "已选择 " + modelContext.evidenceIds().size() + " 条可引用证据；模型上下文裁剪="
+                + modelContext.truncated() + "。";
+    }
+
+    private void persistCompletedRun(Long runId, SreRcaReport report) {
+        String status = "AI".equals(report.generationMode()) ? "SUCCEEDED" : "DEGRADED";
+        investigationRunService.complete(
+                runId,
+                status,
+                report.generationMode(),
+                report.conclusionStatus(),
+                report.contextTruncated(),
+                writeJson(report)
+        );
+    }
+
+    private void captureArtifact(Long incidentId,
+                                 Long runId,
+                                 ModelContext modelContext,
+                                 AiExecutionResult<SreRcaReport> execution) {
+        investigationArtifactService.capture(new SreInvestigationArtifactCapture(
+                incidentId,
+                runId,
+                modelContext.json(),
+                modelContext.truncated(),
+                rcaAnalyzer.promptId(),
+                rcaAnalyzer.schemaId(),
+                execution.provider(),
+                execution.configuredModel(),
+                execution.actualModel(),
+                execution.outcome()
+        )).orElseThrow(() -> new IllegalStateException("SRE 调查回放产物归属校验失败"));
+    }
+
+    private void markRunFailed(Long runId, RuntimeException exception) {
+        try {
+            investigationRunService.recordStep(
+                    runId, 99, "RUN_FAILED", "FAILED", "调查运行异常中止，未执行任何修复动作。"
+            );
+        } catch (RuntimeException stepException) {
+            log.warn("SRE RCA 失败步骤记录失败: runId={}, reason={}",
+                    runId, stepException.getClass().getSimpleName());
+        }
+        try {
+            investigationRunService.fail(runId, exception.getClass().getSimpleName());
+        } catch (RuntimeException failureException) {
+            log.warn("SRE RCA 运行失败状态写入失败: runId={}, reason={}",
+                    runId, failureException.getClass().getSimpleName());
+        }
+    }
+
+    private SreRcaRunSummary toRunSummary(SreInvestigationRun run) {
+        return new SreRcaRunSummary(
+                run.getId(),
+                run.getIncidentId(),
+                run.getStatus(),
+                run.getTriggerSource(),
+                run.getRequestedBy(),
+                run.getGenerationMode(),
+                run.getConclusionStatus(),
+                run.getAlertCount() == null ? 0 : run.getAlertCount(),
+                run.getEvidenceCount() == null ? 0 : run.getEvidenceCount(),
+                Boolean.TRUE.equals(run.getContextTruncated()),
+                run.getFailureCode(),
+                run.getStartedAt(),
+                run.getCompletedAt()
+        );
+    }
+
+    private SreRcaRunDetail.Step toRunStep(SreInvestigationStep step) {
+        return new SreRcaRunDetail.Step(
+                step.getId(),
+                step.getStepOrder() == null ? 0 : step.getStepOrder(),
+                step.getStepCode(),
+                step.getStatus(),
+                step.getDetail(),
+                step.getRecordedAt()
+        );
+    }
+
+    private SreRcaFeedback toFeedback(SreInvestigationFeedback feedback) {
+        return new SreRcaFeedback(
+                feedback.getId(),
+                feedback.getRunId(),
+                feedback.getAccuracy(),
+                feedback.getGapType(),
+                feedback.getNote(),
+                feedback.getExpectedConclusion(),
+                feedback.getReviewedBy(),
+                feedback.getReviewedAt()
+        );
+    }
+
+    private SreRcaRunDetail.Provenance toProvenance(SreInvestigationArtifact artifact) {
+        return new SreRcaRunDetail.Provenance(
+                artifact.getId(),
+                artifact.getPromptId(),
+                artifact.getSchemaId(),
+                artifact.getProvider(),
+                artifact.getConfiguredModel(),
+                artifact.getActualModel(),
+                artifact.getInvocationOutcome(),
+                artifact.getContextSha256(),
+                artifact.getContextLength() == null ? 0 : artifact.getContextLength(),
+                Boolean.TRUE.equals(artifact.getContextTruncated()),
+                artifact.getCreatedAt()
+        );
+    }
+
+    private SreRcaReport readPersistedReport(SreInvestigationRun run) {
+        if (!StringUtils.hasText(run.getReportJson())) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(run.getReportJson(), SreRcaReport.class);
+        } catch (JsonProcessingException exception) {
+            log.warn("SRE RCA 持久化报告解析失败: runId={}, reason={}",
+                    run.getId(), exception.getClass().getSimpleName());
+            return null;
+        }
     }
 
     private String writeJson(Object value) {
@@ -529,18 +870,8 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
         String sanitized = CONTROL_PATTERN.matcher(value).replaceAll("").trim();
         sanitized = BEARER_PATTERN.matcher(sanitized).replaceAll("Bearer [REDACTED]");
         sanitized = INLINE_SECRET_PATTERN.matcher(sanitized).replaceAll("$1=[REDACTED]");
+        sanitized = STANDALONE_CREDENTIAL_PATTERN.matcher(sanitized).replaceAll("[REDACTED]");
         return sanitized.length() <= maxLength ? sanitized : sanitized.substring(0, maxLength);
-    }
-
-    private String severity(String value) {
-        String normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
-        return switch (normalized) {
-            case "critical" -> "CRITICAL";
-            case "high" -> "HIGH";
-            case "warning", "medium" -> "MEDIUM";
-            case "low", "info" -> "LOW";
-            default -> "UNKNOWN";
-        };
     }
 
     private String text(Object value) {
@@ -548,10 +879,6 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
     }
 
     private record ModelContext(String json, Set<Long> evidenceIds, boolean truncated) {
-    }
-
-    private static final class ParseState {
-        private boolean invalidReference;
     }
 
     private static final class MutableFlag {
@@ -578,5 +905,11 @@ public class SreIncidentRcaServiceImpl implements SreIncidentRcaService {
             remaining--;
             return true;
         }
+    }
+
+    private static final class InvestigationMetrics {
+        private String outcome = "skipped";
+        private String generationMode = "unknown";
+        private int rounds;
     }
 }

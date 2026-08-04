@@ -51,3 +51,7 @@ export function normalizeBodyRequestConfig(config = {}) {
     params: config
   }
 }
+
+export function isSuccessfulHttpStatus(status) {
+  return Number.isInteger(status) && status >= 200 && status < 300
+}

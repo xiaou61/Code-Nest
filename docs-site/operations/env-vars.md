@@ -97,6 +97,61 @@ RAG 默认关闭。开启后需要同时启动 `llamaindex-service` 容器，并
 
 如果 RAG 不可用，AI 功能会降级返回，不影响其他业务。
 
+## SRE 自身指标
+
+| 变量 | 默认值 | 来源 | 说明 |
+| --- | --- | --- | --- |
+| `XIAOU_SRE_METRICS_ENABLED` | `false` | `application.yml` | 是否定时刷新数据库型 SRE gauge；完整执行 SRE 事故、调查与评测迁移前保持关闭 |
+| `XIAOU_SRE_METRICS_REFRESH_MS` | `10000` | `application.yml` | 数据库 gauge 快照刷新间隔 ms；Prometheus scrape 不直接查询数据库 |
+| `XIAOU_SRE_METRICS_INITIAL_DELAY_MS` | `15000` | `application.yml` | 应用启动后首次刷新数据库 gauge 的延迟 ms |
+
+告警、证据、调查、只读工具和队列事件的 Counter/Timer 始终通过 Micrometer 记录；这个开关只
+控制需要查询 SRE 表的积压、最老任务年龄、开放事故和活动调查 gauge。
+
+## SRE RCA 评测队列
+
+| 变量 | 默认值 | 来源 | 说明 |
+| --- | --- | --- | --- |
+| `XIAOU_SRE_EVALUATION_ENABLED` | `false` | `application.yml` | 是否启用数据库评测 Worker；完成 queue 迁移前必须保持关闭 |
+| `XIAOU_SRE_EVALUATION_FIXED_DELAY_MS` | `2000` | `application.yml` | 两轮队列扫描之间的延迟 ms |
+| `XIAOU_SRE_EVALUATION_INITIAL_DELAY_MS` | `10000` | `application.yml` | 应用启动后的首次扫描延迟 ms |
+| `XIAOU_SRE_EVALUATION_BATCH_SIZE` | `2` | `application.yml` | 单轮最多领取数，运行时限制为 1-20 |
+| `XIAOU_SRE_EVALUATION_MAX_ATTEMPTS` | `3` | `application.yml` | 单次运行最大领取次数，运行时限制为 1-10 |
+| `XIAOU_SRE_EVALUATION_LEASE_SECONDS` | `180` | `application.yml` | 无心跳后的租约恢复阈值，最低 90 秒且应高于 AI 读取超时 |
+| `XIAOU_SRE_EVALUATION_MAX_DURATION_SECONDS` | `1800` | `application.yml` | 入队时冻结的绝对运行时限，范围 60-86400 秒 |
+| `XIAOU_SRE_EVALUATION_MAX_CASES_PER_RUN` | `100` | `application.yml` | 单次运行最大冻结成员数，范围 1-100 |
+| `XIAOU_SRE_EVALUATION_RETRY_BACKOFF_SECONDS` | `10` | `application.yml` | 首次重试退避秒数 |
+| `XIAOU_SRE_EVALUATION_MAX_RETRY_BACKOFF_SECONDS` | `300` | `application.yml` | 指数退避上限秒数 |
+| `XIAOU_SRE_EVALUATION_SOURCE_REVISION` | `unknown` | `application.yml` | 源码修订，生产应注入完整或可唯一定位的提交 SHA |
+| `XIAOU_SRE_EVALUATION_BUILD_ID` | `local` | `application.yml` | 构建/发布流水线 ID |
+| `XIAOU_SRE_EVALUATION_BUILD_VERSION` | `2.5.1` | `application.yml` | 应用构建版本；生产发布脚本从 RELEASE 元数据更新 |
+
+已有环境必须在 Worker 关闭时，依次执行 `sre_rca_evaluation.sql`、
+`sre_rca_evaluation_suite.sql` 和 `sre_rca_evaluation_queue.sql`。suite 与 queue 脚本包含
+不可重复的 `ALTER TABLE`，不可重复执行。运行入队后会冻结最后三项 provenance；Worker 实际
+执行时若配置已变化，会以 `EVALUATION_RUNTIME_PROVENANCE_MISMATCH` 结束，防止结果被归到
+错误构建。队列关闭时创建运行返回业务码 `503`，不会写入待消费任务。
+
+## 生产治理脚本
+
+以下变量只影响服务器发布/验收脚本，不进入 Spring 配置。生产默认值已与 `/opt/code-nest` 布局对齐；测试环境可覆盖为隔离目录。
+
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `CODE_NEST_APP_ROOT` | `/opt/code-nest` | 所有可清理与大部分受管目标的安全根目录 |
+| `CODE_NEST_KEEP_RELEASE_BACKUPS` | `4` | 容量治理保留的 release backup 数 |
+| `CODE_NEST_KEEP_DATABASE_BACKUPS` | `14` | 保留的 `.sql.gz` 数据库备份数 |
+| `CODE_NEST_KEEP_BUILD_BUNDLES` | `2` | Runner release bundle 保留数 |
+| `CODE_NEST_ORPHAN_STAGE_MINUTES` | `1440` | 孤儿 release stage 最小年龄 |
+| `CODE_NEST_MIN_FREE_GB` | `8` | 发布后生产基线要求的最小可用 GiB |
+| `CODE_NEST_MIN_PROMETHEUS_TARGETS` | `4` | 必须全部为 `up` 的最小 active target 数 |
+| `CODE_NEST_GRAFANA_REQUIRED` | `false` | 单独运行基线时 Grafana 是否为硬失败；发布验收会传 `--require-grafana` |
+| `CODE_NEST_MANAGE_OPERATIONS` | `true` | 是否安装/回滚白名单运维资产 |
+| `CODE_NEST_MANAGE_MONITORING` | `true` | 是否校验并 apply 监控 Compose |
+| `CODE_NEST_VERIFY_BASELINE` | `true` | 部署成功前是否执行完整生产基线 |
+
+这些变量不能把 Nginx、systemd 或应用环境文件指向任意路径。发布脚本只允许生产固定目标，或测试时位于 `CODE_NEST_APP_ROOT` 下的隔离目标。
+
 ## OJ 判题
 
 | 变量 | 默认值 | 来源 | 说明 |
@@ -201,6 +256,12 @@ XIAOU_AI_EMBEDDING_MODEL=text-embedding-3-small
 # ---- RAG ----
 XIAOU_AI_RAG_ENABLED=true
 XIAOU_AI_RAG_ENDPOINT=http://llamaindex-service:18080
+
+# ---- SRE RCA evaluation (enable only after queue migration) ----
+XIAOU_SRE_EVALUATION_ENABLED=false
+XIAOU_SRE_EVALUATION_SOURCE_REVISION=your_git_commit_sha
+XIAOU_SRE_EVALUATION_BUILD_ID=your_ci_build_id
+XIAOU_SRE_EVALUATION_BUILD_VERSION=2.5.1
 
 # ---- JWT ----
 XIAOU_JWT_SECRET=your-jwt-secret-at-least-32-characters

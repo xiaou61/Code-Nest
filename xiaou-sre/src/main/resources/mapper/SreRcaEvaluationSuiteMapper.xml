@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.sre.mapper.SreRcaEvaluationSuiteMapper">
+
+    <resultMap id="SreRcaEvaluationSuiteResult" type="com.xiaou.sre.domain.SreRcaEvaluationSuite">
+        <id property="id" column="id"/>
+        <result property="suiteKey" column="suite_key"/>
+        <result property="name" column="name"/>
+        <result property="description" column="description"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <sql id="allColumns">
+        id, suite_key, name, description, created_by, created_at, create_time
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sre_rca_evaluation_suite (
+            suite_key, name, description, created_by, created_at, create_time
+        ) VALUES (
+            #{suiteKey}, #{name}, #{description}, #{createdBy}, #{createdAt}, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <select id="selectById" resultMap="SreRcaEvaluationSuiteResult">
+        SELECT <include refid="allColumns"/>
+        FROM sre_rca_evaluation_suite
+        WHERE id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="selectByIdForUpdate" resultMap="SreRcaEvaluationSuiteResult">
+        SELECT <include refid="allColumns"/>
+        FROM sre_rca_evaluation_suite
+        WHERE id = #{id}
+        LIMIT 1
+        FOR UPDATE
+    </select>
+
+    <select id="selectBySuiteKey" resultMap="SreRcaEvaluationSuiteResult">
+        SELECT <include refid="allColumns"/>
+        FROM sre_rca_evaluation_suite
+        WHERE suite_key = #{suiteKey}
+        LIMIT 1
+    </select>
+
+    <select id="selectRecent" resultMap="SreRcaEvaluationSuiteResult">
+        SELECT <include refid="allColumns"/>
+        FROM sre_rca_evaluation_suite
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+</mapper>

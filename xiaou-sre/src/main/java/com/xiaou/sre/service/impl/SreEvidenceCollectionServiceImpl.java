@@ -10,8 +10,11 @@ import com.xiaou.sre.client.SrePrometheusEvidence;
 import com.xiaou.sre.mapper.SreAlertEventMapper;
 import com.xiaou.sre.mapper.SreIncidentEvidenceMapper;
 import com.xiaou.sre.mapper.SreIncidentMapper;
+import com.xiaou.sre.metrics.SreMetricsRecorder;
 import com.xiaou.sre.service.SreEvidenceCollectionService;
 import com.xiaou.sre.service.SreLokiEvidenceCollector;
+import com.xiaou.sre.service.SreOperationalEvidence;
+import com.xiaou.sre.service.SreOperationalEvidenceCollector;
 import com.xiaou.sre.service.SrePrometheusEvidenceCollector;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,7 +22,9 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 第一版只读证据采集：把告警事件、事故当前状态和可选 Prometheus 指标固化成可回溯快照。
@@ -35,15 +40,29 @@ public class SreEvidenceCollectionServiceImpl implements SreEvidenceCollectionSe
     private static final String EVIDENCE_EVENT_TYPE = "EVIDENCE_COLLECTION_REQUESTED";
     private static final String SOURCE_TYPE = "ALERT_SNAPSHOT";
     private static final int MAX_SNAPSHOT_LENGTH = 1_000_000;
+    private static final Set<String> OPERATIONAL_SOURCE_TYPES = Set.of(
+            "DEPLOYMENT_SNAPSHOT", "RUNBOOK_SNAPSHOT");
 
     private final SreAlertEventMapper alertEventMapper;
     private final SreIncidentMapper incidentMapper;
     private final SreIncidentEvidenceMapper evidenceMapper;
     private final SrePrometheusEvidenceCollector prometheusEvidenceCollector;
     private final SreLokiEvidenceCollector lokiEvidenceCollector;
+    private final SreOperationalEvidenceCollector operationalEvidenceCollector;
+    private final SreMetricsRecorder metricsRecorder;
 
     @Override
     public void collect(SreOutboxEvent event) {
+        long startNanos = System.nanoTime();
+        String outcome = "failed";
+        try {
+            outcome = collectInternal(event);
+        } finally {
+            recordCollectionMetric(outcome, System.nanoTime() - startNanos);
+        }
+    }
+
+    private String collectInternal(SreOutboxEvent event) {
         if (!EVIDENCE_EVENT_TYPE.equals(event.getEventType())) {
             throw new IllegalArgumentException("不支持的 SRE Outbox 事件类型");
         }
@@ -53,10 +72,12 @@ public class SreEvidenceCollectionServiceImpl implements SreEvidenceCollectionSe
         boolean prometheusEnabled = prometheusEvidenceCollector != null
                 && prometheusEvidenceCollector.isEnabled();
         boolean lokiEnabled = lokiEvidenceCollector != null && lokiEvidenceCollector.isEnabled();
-        boolean externalEvidenceEnabled = prometheusEnabled || lokiEnabled;
+        boolean operationalEnabled = operationalEvidenceCollector != null
+                && operationalEvidenceCollector.isEnabled();
+        boolean externalEvidenceEnabled = prometheusEnabled || lokiEnabled || operationalEnabled;
         boolean snapshotExists = evidenceMapper.selectByOutboxEventAndSource(event.getId(), SOURCE_TYPE) != null;
         if (snapshotExists && !externalEvidenceEnabled) {
-            return;
+            return "duplicate";
         }
         if (!JsonUtils.isValidJson(event.getPayloadJson())) {
             throw new IllegalArgumentException("证据任务载荷不是合法 JSON");
@@ -116,6 +137,24 @@ public class SreEvidenceCollectionServiceImpl implements SreEvidenceCollectionSe
             SreLokiEvidence lokiEvidence = lokiEvidenceCollector.collect(event, alertEvent, incident);
             insertExternalEvidence(incidentId, event.getId(), lokiEvidence);
         }
+        if (operationalEnabled) {
+            List<SreOperationalEvidence> operationalEvidence = operationalEvidenceCollector.collect(
+                    event, alertEvent, incident);
+            if (operationalEvidence != null) {
+                for (SreOperationalEvidence evidence : operationalEvidence) {
+                    insertOperationalEvidence(incidentId, event.getId(), evidence);
+                }
+            }
+        }
+        return "succeeded";
+    }
+
+    private void recordCollectionMetric(String outcome, long durationNanos) {
+        try {
+            metricsRecorder.recordEvidenceCollection(outcome, durationNanos);
+        } catch (RuntimeException ignored) {
+            // 指标不可用不能改变 Outbox 证据事务结果。
+        }
     }
 
     private void insertExternalEvidence(Long incidentId,
@@ -131,6 +170,37 @@ public class SreEvidenceCollectionServiceImpl implements SreEvidenceCollectionSe
         evidence.setSourceRef(prometheusEvidence.getSourceRef());
         evidence.setQuery(prometheusEvidence.getQuery());
         evidence.setSnapshotJson(prometheusEvidence.getSnapshotJson());
+        evidence.setCapturedAt(LocalDateTime.now());
+        evidenceMapper.insert(evidence);
+    }
+
+    private void insertOperationalEvidence(Long incidentId,
+                                           Long outboxEventId,
+                                           SreOperationalEvidence operationalEvidence) {
+        if (operationalEvidence == null) {
+            return;
+        }
+        if (!OPERATIONAL_SOURCE_TYPES.contains(operationalEvidence.sourceType())
+                || !StringUtils.hasText(operationalEvidence.sourceRef())
+                || operationalEvidence.sourceRef().length() > 200
+                || !StringUtils.hasText(operationalEvidence.query())
+                || operationalEvidence.query().length() > 500
+                || !JsonUtils.isValidJson(operationalEvidence.snapshotJson())
+                || operationalEvidence.snapshotJson().length() > MAX_SNAPSHOT_LENGTH) {
+            throw new IllegalStateException("运维证据不符合固定只读边界");
+        }
+        if (evidenceMapper.selectByOutboxEventAndSource(
+                outboxEventId, operationalEvidence.sourceType()) != null) {
+            return;
+        }
+
+        SreIncidentEvidence evidence = new SreIncidentEvidence();
+        evidence.setIncidentId(incidentId);
+        evidence.setOutboxEventId(outboxEventId);
+        evidence.setSourceType(operationalEvidence.sourceType());
+        evidence.setSourceRef(operationalEvidence.sourceRef());
+        evidence.setQuery(operationalEvidence.query());
+        evidence.setSnapshotJson(operationalEvidence.snapshotJson());
         evidence.setCapturedAt(LocalDateTime.now());
         evidenceMapper.insert(evidence);
     }

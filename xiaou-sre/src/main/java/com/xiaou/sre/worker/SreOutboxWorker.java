@@ -2,11 +2,12 @@ package com.xiaou.sre.worker;
 
 import com.xiaou.sre.config.SreOutboxProperties;
 import com.xiaou.sre.domain.SreOutboxEvent;
+import com.xiaou.sre.metrics.SreMetricsRecorder;
 import com.xiaou.sre.metrics.SreOutboxMetricsRecorder;
 import com.xiaou.sre.service.SreOutboxClaimService;
 import com.xiaou.sre.service.SreOutboxEventProcessor;
+import com.xiaou.sre.service.SreQueueRecoveryResult;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -28,25 +29,28 @@ public class SreOutboxWorker {
     private final SreOutboxProperties properties;
     private final SreOutboxClaimService claimService;
     private final SreOutboxEventProcessor eventProcessor;
-    private final SreOutboxMetricsRecorder metrics;
+    private final SreMetricsRecorder metricsRecorder;
+    private final SreOutboxMetricsRecorder outboxMetrics;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
-    @Autowired
     public SreOutboxWorker(SreOutboxProperties properties,
                            SreOutboxClaimService claimService,
                            SreOutboxEventProcessor eventProcessor,
-                           SreOutboxMetricsRecorder metrics) {
+                           SreMetricsRecorder metricsRecorder,
+                           SreOutboxMetricsRecorder outboxMetrics) {
         this.properties = properties;
         this.claimService = claimService;
         this.eventProcessor = eventProcessor;
-        this.metrics = metrics == null ? SreOutboxMetricsRecorder.noop() : metrics;
+        this.metricsRecorder = metricsRecorder;
+        this.outboxMetrics = outboxMetrics == null ? SreOutboxMetricsRecorder.noop() : outboxMetrics;
     }
 
-    /** Compatibility constructor for focused unit tests and embedded callers. */
+    /** Compatibility constructor for existing focused tests and embedded callers. */
     public SreOutboxWorker(SreOutboxProperties properties,
                            SreOutboxClaimService claimService,
-                           SreOutboxEventProcessor eventProcessor) {
-        this(properties, claimService, eventProcessor, SreOutboxMetricsRecorder.noop());
+                           SreOutboxEventProcessor eventProcessor,
+                           SreMetricsRecorder metricsRecorder) {
+        this(properties, claimService, eventProcessor, metricsRecorder, SreOutboxMetricsRecorder.noop());
     }
 
     @Scheduled(
@@ -61,9 +65,8 @@ public class SreOutboxWorker {
         long started = System.nanoTime();
         String outcome = "success";
         try {
-            int recovered = claimService.recoverStaleProcessing();
-            metrics.recordLeaseRecovered(recovered);
-            metrics.recordPending(claimService.countPending());
+            recordRecovery(claimService.recoverStaleProcessing());
+            outboxMetrics.recordPending(claimService.countPending());
             List<Long> pendingIds = claimService.listPendingIds(properties.normalizedBatchSize());
             if (pendingIds == null || pendingIds.isEmpty()) {
                 return;
@@ -75,7 +78,7 @@ public class SreOutboxWorker {
             outcome = "error";
             log.error("SRE Outbox 扫描失败: {}", exception.getClass().getSimpleName(), exception);
         } finally {
-            metrics.recordWorkerRun(outcome, System.nanoTime() - started);
+            outboxMetrics.recordWorkerRun(outcome, System.nanoTime() - started);
             running.set(false);
         }
     }
@@ -91,18 +94,19 @@ public class SreOutboxWorker {
         if (event == null) {
             return;
         }
-
-        metrics.beginProcessing();
+        incrementQueueEvent("claimed", 1);
+        outboxMetrics.beginProcessing();
         long started = System.nanoTime();
         String outcome = "success";
+
         try {
             eventProcessor.process(event);
             log.info("SRE Outbox 处理成功: eventId={}, eventType={}", event.getId(), event.getEventType());
         } catch (RuntimeException exception) {
             outcome = handleFailure(event, exception);
         } finally {
-            metrics.endProcessing();
-            metrics.recordEvent(event.getEventType(), outcome, System.nanoTime() - started);
+            outboxMetrics.endProcessing();
+            outboxMetrics.recordEvent(event.getEventType(), outcome, System.nanoTime() - started);
         }
     }
 
@@ -111,6 +115,7 @@ public class SreOutboxWorker {
         if (attempts >= properties.normalizedMaxAttempts()) {
             try {
                 claimService.markFailed(event.getId());
+                incrementQueueEvent("terminal_failure", 1);
             } catch (RuntimeException stateException) {
                 log.error("SRE Outbox 标记失败状态异常: eventId={}, reason={}",
                         event.getId(), stateException.getClass().getSimpleName(), stateException);
@@ -123,6 +128,7 @@ public class SreOutboxWorker {
         long delaySeconds = retryDelaySeconds(attempts);
         try {
             claimService.markRetry(event.getId(), delaySeconds);
+            incrementQueueEvent("retry", 1);
         } catch (RuntimeException stateException) {
             log.error("SRE Outbox 标记重试异常: eventId={}, reason={}",
                     event.getId(), stateException.getClass().getSimpleName(), stateException);
@@ -140,5 +146,21 @@ public class SreOutboxWorker {
             delay = Math.min(maxDelay, delay * 2L);
         }
         return delay;
+    }
+
+    private void recordRecovery(SreQueueRecoveryResult result) {
+        if (result == null) {
+            return;
+        }
+        incrementQueueEvent("lease_recovered", result.recovered());
+        incrementQueueEvent("terminal_failure", result.terminalFailures());
+    }
+
+    private void incrementQueueEvent(String event, long amount) {
+        try {
+            metricsRecorder.incrementQueueEvent("outbox", event, amount);
+        } catch (RuntimeException exception) {
+            log.warn("SRE Outbox 指标记录失败: reason={}", exception.getClass().getSimpleName());
+        }
     }
 }

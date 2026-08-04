@@ -2,6 +2,7 @@ package com.xiaou.sre.mapper;
 
 import com.xiaou.sre.domain.SreIncident;
 import com.xiaou.sre.dto.request.SreIncidentQuery;
+import com.xiaou.sre.dto.response.SreIncidentSummary;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
@@ -21,6 +22,8 @@ public interface SreIncidentMapper {
     List<SreIncident> selectList(SreIncidentQuery query);
 
     long countOpen();
+
+    SreIncidentSummary selectSummary();
 
     int insert(SreIncident incident);
 

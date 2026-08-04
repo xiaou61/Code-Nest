@@ -106,6 +106,37 @@ jobs:
           path: ${{ matrix.app.path }}/dist
           if-no-files-found: error
 
+  sre:
+    name: Deterministic SRE RCA Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Run frozen SRE evaluation suite
+        shell: pwsh
+        run: ./scripts/code-nest-eval.ps1 -Tier sre
+
+      - name: Upload SRE Surefire reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-nest-sre-surefire-reports
+          path: |
+            **/target/surefire-reports/**
+            **/target/*.dump
+            **/target/*.dumpstream
+          if-no-files-found: ignore
+
   docs:
     name: Docs Site Build
     runs-on: ubuntu-latest
@@ -175,14 +206,55 @@ jobs:
         shell: pwsh
         run: ./scripts/code-nest-eval.ps1 -Tier hygiene
 
+      - name: Verify repository version
+        run: python scripts/check-version-consistency.py
+
+      - name: Validate migration inventory
+        run: python scripts/db-migrate.py --dry-run
+
       - name: Python syntax check
-        run: python -m py_compile scripts/check-version-consistency.py scripts/db-migrate.py scripts/deploy-frontends.py scripts/deploy-production.py scripts/release-smoke-test.py scripts/you_deserve_to_interview_sql.py
+        run: >-
+          python -m py_compile
+          scripts/check-version-consistency.py
+          scripts/db-migrate.py
+          scripts/deploy-frontends.py
+          scripts/deploy-production.py
+          scripts/release-smoke-test.py
+          scripts/sre-alertmanager-e2e.py
+          scripts/test_sre_alertmanager_e2e.py
+          scripts/you_deserve_to_interview_sql.py
+
+      - name: Synthetic Alertmanager E2E contract
+        run: python scripts/test_sre_alertmanager_e2e.py
 
       - name: Shell syntax check
-        run: bash -n scripts/ci-server-build-deploy.sh scripts/ci-server-build-deploy.test.sh scripts/deploy-release.sh
+        run: >-
+          bash -n
+          scripts/ci-server-build-deploy.sh
+          scripts/ci-server-build-deploy.test.sh
+          scripts/deploy-release.sh
+          scripts/deploy-release.test.sh
+          scripts/external-uptime-check.sh
+          scripts/external-uptime-check.test.sh
+          scripts/server-capacity-governance.sh
+          scripts/server-capacity-governance.test.sh
+          scripts/verify-production-baseline.sh
+          scripts/verify-production-baseline.test.sh
 
       - name: Deployment dependency refresh contract
         run: bash scripts/ci-server-build-deploy.test.sh
+
+      - name: Capacity governance contract
+        run: bash scripts/server-capacity-governance.test.sh
+
+      - name: Production baseline contract
+        run: bash scripts/verify-production-baseline.test.sh
+
+      - name: Release deployment and rollback contract
+        run: bash scripts/deploy-release.test.sh
+
+      - name: External uptime probe contract
+        run: bash scripts/external-uptime-check.test.sh
 
   ci-summary:
     name: CI Summary
@@ -190,6 +262,7 @@ jobs:
     needs:
       - backend
       - frontend
+      - sre
       - docs
       - rag
       - scripts

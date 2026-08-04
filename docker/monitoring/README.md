@@ -94,6 +94,10 @@ not depend on them. Before enabling the worker on the application server:
 
 1. Apply `sql/v2.5.0/sre_incident.sql`, or apply the incremental
    `sql/v2.5.0/sre_incident_evidence.sql` when the four original SRE tables already exist.
+   For investigation persistence and RCA evaluation, also apply
+   `sql/v2.5.0/sre_investigation_run.sql`, `sql/v2.5.0/sre_investigation_loop.sql`,
+   `sql/v2.5.0/sre_rca_evaluation.sql`, `sql/v2.5.0/sre_rca_evaluation_suite.sql`, and
+   `sql/v2.5.0/sre_rca_evaluation_queue.sql` in that order (the scripts are idempotent).
 2. Set a dedicated `XIAOU_SRE_WEBHOOK_TOKEN`; do not reuse an administrator token.
 3. Enable `XIAOU_SRE_WEBHOOK_ENABLED=true` only after the Alertmanager receiver is
    configured to call the backend directly over the monitoring path.

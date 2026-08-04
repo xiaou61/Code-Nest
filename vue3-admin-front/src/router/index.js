@@ -312,6 +312,20 @@ const routes = [
     ]
   },
   {
+    path: '/sre',
+    component: Layout,
+    redirect: '/sre/incidents',
+    meta: { title: 'SRE 运维中心' },
+    children: [
+      {
+        path: 'incidents',
+        name: 'SreIncidents',
+        component: () => import('@/views/sre/incidents/index.vue'),
+        meta: { title: '事故工作台' }
+      }
+    ]
+  },
+  {
     path: '/notification',
     component: Layout,
     children: [

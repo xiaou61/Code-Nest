@@ -7,6 +7,7 @@ import com.xiaou.ai.structured.growthcoach.GrowthCoachStructuredOutputSpecs;
 import com.xiaou.ai.structured.interview.InterviewStructuredOutputSpecs;
 import com.xiaou.ai.structured.jobbattle.JobBattleStructuredOutputSpecs;
 import com.xiaou.ai.structured.sql.SqlStructuredOutputSpecs;
+import com.xiaou.ai.structured.sre.SreInvestigationStructuredOutputSpecs;
 import com.xiaou.ai.structured.sre.SreRcaStructuredOutputSpecs;
 
 import java.util.List;
@@ -31,6 +32,7 @@ public final class AiStructuredOutputCatalog {
             JobBattleStructuredOutputSpecs.RESUME_MATCH,
             JobBattleStructuredOutputSpecs.PLAN_GENERATE,
             JobBattleStructuredOutputSpecs.INTERVIEW_REVIEW,
+            SreInvestigationStructuredOutputSpecs.PLAN,
             SreRcaStructuredOutputSpecs.REPORT,
             SqlStructuredOutputSpecs.ANALYZE,
             SqlStructuredOutputSpecs.ANALYZE_V2,

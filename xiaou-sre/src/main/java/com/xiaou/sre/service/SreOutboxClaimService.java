@@ -18,8 +18,7 @@ public interface SreOutboxClaimService {
 
     SreOutboxEvent claim(Long id);
 
-    /** Recover leased events and return the number made pending again. */
-    int recoverStaleProcessing();
+    SreQueueRecoveryResult recoverStaleProcessing();
 
     void markSucceeded(Long id);
 
