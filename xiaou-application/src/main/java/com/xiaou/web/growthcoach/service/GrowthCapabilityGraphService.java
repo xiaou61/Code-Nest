@@ -82,7 +82,7 @@ public class GrowthCapabilityGraphService {
         response.setNodes(nodes);
         response.setOverallScore(overallScore(nodes));
         response.setEdges(defaultEdges());
-        response.setGaps(toGaps(userId));
+        response.setGaps(toGaps(userId, evidence));
         return response;
     }
 
@@ -182,11 +182,14 @@ public class GrowthCapabilityGraphService {
         return clamp(Math.max(Math.max(stageScore, applicationScore), interviewScore), 0, 100);
     }
 
-    private List<GrowthCapabilityGraphResponse.Gap> toGaps(Long userId) {
+    private List<GrowthCapabilityGraphResponse.Gap> toGaps(
+            Long userId,
+            List<GrowthEvidenceSummaryResponse> evidence
+    ) {
         if (userId == null || userId <= 0) {
             return List.of();
         }
-        List<GrowthSkillInsightResponse> insights = skillInsightService.listForUser(userId);
+        List<GrowthSkillInsightResponse> insights = skillInsightService.listForUser(userId, evidence);
         if (insights == null) {
             return List.of();
         }

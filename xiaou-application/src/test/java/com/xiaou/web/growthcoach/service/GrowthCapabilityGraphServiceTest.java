@@ -14,6 +14,9 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -49,7 +52,7 @@ class GrowthCapabilityGraphServiceTest {
                 new GrowthSkillInsightResponse.PracticeRecommendation();
         recommendation.setRoutePath("/interview/questions/11/21");
         insight.setRecommendation(recommendation);
-        when(skillInsightService.listForUser(7L)).thenReturn(List.of(insight));
+        when(skillInsightService.listForUser(eq(7L), anyList())).thenReturn(List.of(insight));
 
         GrowthCapabilityGraphResponse response = new GrowthCapabilityGraphService(
                 evidenceQueryService,
@@ -65,6 +68,7 @@ class GrowthCapabilityGraphServiceTest {
         assertThat(response.getNodes().get(1).getScore()).isEqualTo(82);
         assertThat(response.getNodes().get(1).getEvidenceRefs()).hasSize(1);
         assertThat(response.getEdges()).hasSize(5);
+        verify(skillInsightService).listForUser(eq(7L), anyList());
         assertThat(response.getGaps()).singleElement().satisfies(gap -> {
             assertThat(gap.getSkillKey()).isEqualTo("question_set:11");
             assertThat(gap.getRoutePath()).isEqualTo("/interview/questions/11/21");

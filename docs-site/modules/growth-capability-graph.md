@@ -48,7 +48,7 @@ Authorization: Bearer <token>
 
 后端实现位于 `xiaou-application`：
 
-- `GrowthCapabilityGraphService`：读取 `GrowthEvidenceQueryService` 和 `GrowthSkillInsightService`，执行有界、只读的确定性计算。
+- `GrowthCapabilityGraphService`：读取一次 `GrowthEvidenceQueryService` 的有界快照，再交给 `GrowthSkillInsightService` 复用，执行有界、只读的确定性计算。
 - `GrowthCapabilityGraphResponse`：稳定的用户端响应契约。
 - `GrowthCapabilityGraphServiceTest`：覆盖无证据降级、节点计算、关系和短板转换。
 

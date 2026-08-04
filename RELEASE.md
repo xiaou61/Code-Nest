@@ -9,6 +9,7 @@
 - 新增 `GET /user/growth-coach/capability-graph`，按用户已落库证据计算能力节点、分数、可信度、趋势、证据引用和关系边。
 - 新增用户端 `/growth-capabilities` 页面，并从成长自动驾驶和学习导航提供入口。
 - 能力图谱复用 `GrowthEvidenceQueryService` 与 `GrowthSkillInsightService`，只读计算，不自动改计划、不新增数据库表、不把模型建议写成事实。
+- 图谱与短板洞察复用同一份 30 条有界证据快照，减少单次请求的重复投影和查询。
 
 ### Verification
 

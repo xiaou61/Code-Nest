@@ -54,7 +54,20 @@ public class GrowthSkillInsightService {
     private final OjProblemMapper problemMapper;
 
     public List<GrowthSkillInsightResponse> listForUser(Long userId) {
-        return buildCandidates(userId).stream()
+        return listForUser(userId, loadEvidence(userId));
+    }
+
+    /**
+     * 使用调用方已经加载的有界证据快照计算短板，避免同一请求重复刷新投影和查询证据。
+     *
+     * 该重载不改变短板规则，只把证据读取边界交给聚合调用方；传入的列表应来自
+     * {@link GrowthEvidenceQueryService#listForUser(Long, Integer)}，并保持在 30 条以内。
+     */
+    public List<GrowthSkillInsightResponse> listForUser(
+            Long userId,
+            List<GrowthEvidenceSummaryResponse> evidence
+    ) {
+        return buildCandidates(userId, evidence).stream()
                 .sorted(candidateComparator())
                 .limit(MAX_INSIGHTS)
                 .map(InsightCandidate::response)
@@ -79,11 +92,24 @@ public class GrowthSkillInsightService {
         return List.copyOf(moduleKeys);
     }
 
-    private List<InsightCandidate> buildCandidates(Long userId) {
+    private List<GrowthEvidenceSummaryResponse> loadEvidence(Long userId) {
         if (userId == null || userId <= 0) {
             return List.of();
         }
-        List<GrowthEvidenceSummaryResponse> evidence = evidenceQueryService.listForUser(userId, EVIDENCE_LIMIT);
+        return evidenceQueryService.listForUser(userId, EVIDENCE_LIMIT);
+    }
+
+    private List<InsightCandidate> buildCandidates(Long userId) {
+        return buildCandidates(userId, loadEvidence(userId));
+    }
+
+    private List<InsightCandidate> buildCandidates(
+            Long userId,
+            List<GrowthEvidenceSummaryResponse> evidence
+    ) {
+        if (userId == null || userId <= 0) {
+            return List.of();
+        }
         if (evidence == null || evidence.isEmpty()) {
             return List.of();
         }

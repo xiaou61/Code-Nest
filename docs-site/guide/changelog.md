@@ -39,6 +39,7 @@
 
 - 新增 `GET /user/growth-coach/capability-graph`，将已落库成长证据聚合为五类能力节点。
 - 新增用户端 `/growth-capabilities` 页面，展示能力分数、可信度、趋势、证据引用、关系边和既有短板补强项。
+- 能力图谱与短板洞察复用同一份有界证据快照，避免单次刷新重复投影和查询。
 
 ### Notes
 
