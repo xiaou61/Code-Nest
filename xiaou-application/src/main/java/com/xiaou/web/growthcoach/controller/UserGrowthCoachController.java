@@ -6,6 +6,7 @@ import com.xiaou.web.growthcoach.dto.GrowthCoachActionRunResponse;
 import com.xiaou.web.growthcoach.dto.GrowthApplicationOutcomeResponse;
 import com.xiaou.web.growthcoach.dto.GrowthCoachBriefingResponse;
 import com.xiaou.web.growthcoach.dto.GrowthCoachConfirmRequest;
+import com.xiaou.web.growthcoach.dto.GrowthCapabilityGraphResponse;
 import com.xiaou.web.growthcoach.dto.GrowthCodeArtifactAttachRequest;
 import com.xiaou.web.growthcoach.dto.GrowthCodeArtifactPreviewResponse;
 import com.xiaou.web.growthcoach.dto.GrowthCodeArtifactResponse;
@@ -28,6 +29,7 @@ import com.xiaou.web.growthcoach.dto.GrowthSkillInsightResponse;
 import com.xiaou.web.growthcoach.service.GrowthCoachApplicationService;
 import com.xiaou.web.growthcoach.service.GrowthApplicationOutcomeService;
 import com.xiaou.web.growthcoach.service.GrowthCoachBriefingService;
+import com.xiaou.web.growthcoach.service.GrowthCapabilityGraphService;
 import com.xiaou.web.growthcoach.service.GrowthCodeArtifactService;
 import com.xiaou.web.growthcoach.service.GrowthCodeReviewService;
 import com.xiaou.web.growthcoach.service.GrowthEvidenceQueryService;
@@ -76,6 +78,7 @@ public class UserGrowthCoachController {
 
     private final GrowthCoachApplicationService growthCoachApplicationService;
     private final GrowthCoachBriefingService growthCoachBriefingService;
+    private final GrowthCapabilityGraphService growthCapabilityGraphService;
     private final GrowthJourneyEventService growthJourneyEventService;
     private final GrowthCodeArtifactService growthCodeArtifactService;
     private final GrowthCodeReviewService growthCodeReviewService;
@@ -254,6 +257,12 @@ public class UserGrowthCoachController {
     public Result<List<GrowthSkillInsightResponse>> listSkillInsights() {
         StpUserUtil.checkLogin();
         return Result.success(growthSkillInsightService.listForUser(StpUserUtil.getLoginIdAsLong()));
+    }
+
+    @GetMapping("/capability-graph")
+    public Result<GrowthCapabilityGraphResponse> getCapabilityGraph() {
+        StpUserUtil.checkLogin();
+        return Result.success(growthCapabilityGraphService.getForUser(StpUserUtil.getLoginIdAsLong()));
     }
 
     @GetMapping("/career-next-action")

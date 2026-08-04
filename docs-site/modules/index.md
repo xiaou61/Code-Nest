@@ -128,7 +128,7 @@ Code Nest 的功能可以按读者视角分成五组：成长学习、内容社�
 | 分组 | 文档页 |
 | --- | --- |
 | 账号与安全 | [鉴权与用户体系](/modules/auth)、[用户账户与个人中心](/modules/user-account)、[敏感词风控](/modules/sensitive) |
-| 学习成长 | [面试题库](/modules/interview)、[模拟面试与求职作战台](/modules/mock-interview-job-battle)、[学习资产](/modules/learning-assets)、[闪卡](/modules/flashcard)、[计划与学习小组](/modules/plan-team)、[知识图谱](/modules/knowledge)、[SQL 优化工作台](/modules/sql-optimizer) |
+| 学习成长 | [面试题库](/modules/interview)、[模拟面试与求职作战台](/modules/mock-interview-job-battle)、[学习资产](/modules/learning-assets)、[闪卡](/modules/flashcard)、[计划与学习小组](/modules/plan-team)、[知识图谱](/modules/knowledge)、[成长能力图谱](/modules/growth-capability-graph)、[SQL 优化工作台](/modules/sql-optimizer) |
 | 内容社区 | [社区帖子](/modules/community)、[动态广场](/modules/moments)、[博客](/modules/blog)、[代码工坊](/modules/codepen) |
 | 平台运营 | [IM 聊天室](/modules/chat)、[简历系统](/modules/resume)、[积分与抽奖](/modules/points)、[文件存储](/modules/file-storage)、[通知中心](/modules/notification)、[系统运营后台](/modules/system-ops)、[仪表盘与日志](/modules/dashboard-logs) |
 | 轻工具与版本 | [开发者工具](/modules/dev-tools)、[摸鱼工具](/modules/moyu)、[版本历史](/modules/version-history)、[工具、摸鱼与版本](/modules/tools-moyu-version) |

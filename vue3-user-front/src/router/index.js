@@ -292,6 +292,16 @@ const routes = [
     }
   },
   {
+    path: '/growth-capabilities',
+    name: 'GrowthCapabilities',
+    component: () => import('@/views/growth-capabilities/Index.vue'),
+    meta: {
+      title: '成长能力图谱',
+      requiresAuth: true,
+      keepAlive: true
+    }
+  },
+  {
     path: '/learning-assets',
     name: 'LearningAssets',
     component: () => import('@/views/learning-assets/Index.vue'),

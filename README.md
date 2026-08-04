@@ -1,6 +1,6 @@
 # Code Nest
 
-![Version](https://img.shields.io/badge/version-v2.5.4-blue.svg)
+![Version](https://img.shields.io/badge/version-v2.5.5-blue.svg)
 ![Java](https://img.shields.io/badge/java-17-orange.svg)
 ![Spring Boot](https://img.shields.io/badge/spring%20boot-3.4.4-brightgreen.svg)
 ![Vue](https://img.shields.io/badge/vue-3.x-4fc08d.svg)
@@ -9,6 +9,20 @@
 ## 📖 项目简介
 
 Code Nest 是一个面向开发者的成长型社区与知识运营平台，采用 Spring Boot 3.4.4 + Vue3 + Vite 的前后端分离架构，后台整合 Sa-Token 权限、Redisson 缓存、MySQL 题库/内容系统以及 Prometheus 监控指标，提供包含题库、面试辅导、学习资产转化引擎、知识图谱、博客、代码工坊、在线简历、IM 聊天、积分激励与抽奖等在内的多模块能力。
+
+## v2.5.5 Evidence-Backed Capability Graph
+
+`v2.5.5` 把已经落库的成长证据进一步组织成可解释的能力结构，让用户看到“哪些能力正在形成、依据是什么、下一步补哪里”。
+
+### 本次版本完成
+
+- **能力图谱 API**：新增 `GET /user/growth-coach/capability-graph`，提供问题解决、面试表达、项目交付、持续执行和求职准备五类能力节点。
+- **证据可回溯**：每个节点返回分数、可信度、近期趋势、证据类型和最近证据引用；综合分只纳入有证据的节点。
+- **关系与补强**：展示能力之间的确定性支撑关系，并复用既有短板洞察生成补强项和练习入口。
+- **用户端入口**：新增 `/growth-capabilities` 页面，并接入成长自动驾驶、学习导航和命令入口。
+- **只读边界**：不创建任务、不修改计划、不新增数据库表，不把模型建议当成能力事实。
+
+能力图谱不需要迁移，生产发布继续沿用 v2.5.4 的显式迁移开关和发布前验证流程。
 
 ## v2.5.4 Master Integration And Production Governance
 
@@ -400,7 +414,7 @@ mvn clean package -DskipTests
 mvn -pl xiaou-application -am spring-boot:run
 
 # 或直接运行打包后的 jar
-java -jar xiaou-application/target/xiaou-application-v2.5.4.jar --spring.profiles.active=prod
+java -jar xiaou-application/target/xiaou-application-v2.5.5.jar --spring.profiles.active=prod
 ```
 
 - API 根地址：`http://localhost:9999/api`
@@ -568,7 +582,7 @@ management:
 
 ```bash
 # 构建镜像
-docker build -t code-nest:v2.5.4 -f docker/Dockerfile .
+docker build -t code-nest:v2.5.5 -f docker/Dockerfile .
 
 # 运行容器
 docker run -d \
@@ -576,7 +590,7 @@ docker run -d \
   -p 9999:9999 \
   -e SPRING_PROFILES_ACTIVE=prod \
   --env-file docker/env/example.env \
-  code-nest:v2.5.4
+  code-nest:v2.5.5
 ```
 
 如果要把 MySQL / Redis / Java 主服务 / `llamaindex-service` 一起编排起来，推荐使用：

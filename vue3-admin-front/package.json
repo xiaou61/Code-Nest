@@ -1,6 +1,6 @@
 {
   "name": "code-nest-admin-desktop",
-  "version": "2.5.4",
+  "version": "2.5.5",
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {

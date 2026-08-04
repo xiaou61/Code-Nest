@@ -1,5 +1,25 @@
 # 发布流程
 
+## v2.5.5
+
+`v2.5.5` 是成长证据到能力结构的纵向切片版本：在既有 Growth Coach 证据链上提供可解释、可回溯的用户侧能力图谱。
+
+### Highlights
+
+- 新增 `GET /user/growth-coach/capability-graph`，按用户已落库证据计算能力节点、分数、可信度、趋势、证据引用和关系边。
+- 新增用户端 `/growth-capabilities` 页面，并从成长自动驾驶和学习导航提供入口。
+- 能力图谱复用 `GrowthEvidenceQueryService` 与 `GrowthSkillInsightService`，只读计算，不自动改计划、不新增数据库表、不把模型建议写成事实。
+
+### Verification
+
+- `python scripts/check-version-consistency.py`
+- 用户端与管理端契约测试、用户端生产构建、文档站构建
+- `mvn -B -pl xiaou-application -am test`（含能力图谱单元测试）
+
+### Migration
+
+- 无数据库迁移、无新增环境变量；现有成长证据和短板洞察可直接使用。
+
 ## v2.5.4
 
 `v2.5.4` 是 master 整合与发布治理补丁版本：合并 v2.5.1 生产 SRE 治理能力，并保留 v2.5.3 的成长闭环、数据库迁移和发布安全边界。
