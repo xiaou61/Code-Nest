@@ -4,6 +4,8 @@ import com.xiaou.common.config.AiProperties;
 import com.xiaou.common.exception.ai.AiConfigurationException;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.http.client.jdk.JdkHttpClient;
+import dev.langchain4j.http.client.jdk.JdkHttpClientBuilder;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
@@ -14,9 +16,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.net.InetSocketAddress;
+import java.net.ProxySelector;
+import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * 统一 AI 模型工厂。
@@ -29,6 +35,10 @@ import java.util.Locale;
 @Component
 @RequiredArgsConstructor
 public class AiModelFactory {
+
+    private static final Set<String> SUPPORTED_REASONING_EFFORTS = Set.of(
+            "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"
+    );
 
     private final AiProperties aiProperties;
 
@@ -92,9 +102,15 @@ public class AiModelFactory {
             throw new AiConfigurationException("暂不支持的 AI provider: " + aiProperties.getProvider());
         }
 
-        log.info("初始化统一 AI ChatModel: provider={}, model={}", provider, aiProperties.getModel().getChat());
+        String reasoningEffort = reasoningEffort();
+        JdkHttpClientBuilder proxyHttpClient = proxyHttpClientBuilder();
+        log.info("初始化统一 AI ChatModel: provider={}, model={}, reasoningEffort={}, proxyEnabled={}",
+                provider,
+                aiProperties.getModel().getChat(),
+                reasoningEffort == null ? "provider-default" : reasoningEffort,
+                proxyHttpClient != null);
 
-        return OpenAiChatModel.builder()
+        var builder = OpenAiChatModel.builder()
                 .baseUrl(aiProperties.getBaseUrl())
                 .apiKey(aiProperties.getApiKey())
                 .modelName(aiProperties.getModel().getChat())
@@ -102,8 +118,62 @@ public class AiModelFactory {
                 .timeout(Duration.ofMillis(aiProperties.getTimeout().getReadMs()))
                 .maxRetries(aiProperties.getRetry().getMaxAttempts())
                 .logRequests(false)
-                .logResponses(false)
-                .build();
+                .logResponses(false);
+        if (reasoningEffort != null) {
+            builder.reasoningEffort(reasoningEffort);
+        }
+        if (proxyHttpClient != null) {
+            builder.httpClientBuilder(proxyHttpClient);
+        }
+        return builder.build();
+    }
+
+    private JdkHttpClientBuilder proxyHttpClientBuilder() {
+        if (!StringUtils.hasText(aiProperties.getProxyUrl())) {
+            return null;
+        }
+
+        URI proxyUri;
+        try {
+            proxyUri = URI.create(aiProperties.getProxyUrl().trim());
+        } catch (IllegalArgumentException exception) {
+            throw new AiConfigurationException("无效的 AI proxy URL");
+        }
+
+        int port = proxyUri.getPort() == -1 ? 80 : proxyUri.getPort();
+        boolean invalid = !"http".equalsIgnoreCase(proxyUri.getScheme())
+                || !StringUtils.hasText(proxyUri.getHost())
+                || proxyUri.getUserInfo() != null
+                || (StringUtils.hasText(proxyUri.getPath()) && !"/".equals(proxyUri.getPath()))
+                || proxyUri.getQuery() != null
+                || proxyUri.getFragment() != null
+                || port < 1
+                || port > 65535;
+        if (invalid) {
+            throw new AiConfigurationException("无效的 AI proxy URL，仅支持 http://host:port");
+        }
+
+        var jdkBuilder = java.net.http.HttpClient.newBuilder()
+                .proxy(ProxySelector.of(new InetSocketAddress(proxyUri.getHost(), port)));
+        return JdkHttpClient.builder()
+                .httpClientBuilder(jdkBuilder)
+                .connectTimeout(Duration.ofMillis(aiProperties.getTimeout().getConnectMs()))
+                .readTimeout(Duration.ofMillis(aiProperties.getTimeout().getReadMs()));
+    }
+
+    private String reasoningEffort() {
+        String configured = aiProperties.getModel() == null
+                ? null
+                : aiProperties.getModel().getReasoningEffort();
+        if (!StringUtils.hasText(configured)) {
+            return null;
+        }
+
+        String normalized = configured.trim().toLowerCase(Locale.ROOT);
+        if (!SUPPORTED_REASONING_EFFORTS.contains(normalized)) {
+            throw new AiConfigurationException("不支持的 AI reasoning effort: " + configured);
+        }
+        return normalized;
     }
 
     private String defaultText(String value) {

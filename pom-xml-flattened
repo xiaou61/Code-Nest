@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.xiaou</groupId>
   <artifactId>Code-Nest</artifactId>
-  <version>v2.5.7</version>
+  <version>v2.5.8</version>
   <packaging>pom</packaging>
   <modules>
     <module>xiaou-common-core</module>
@@ -61,7 +61,7 @@
     <maven.compiler.source>17</maven.compiler.source>
     <versions-maven-plugin.version>2.16.2</versions-maven-plugin.version>
     <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
-    <revision>v2.5.7</revision>
+    <revision>v2.5.8</revision>
     <lombok.version>1.18.36</lombok.version>
     <maven.compiler.target>17</maven.compiler.target>
     <druid.version>1.2.20</druid.version>

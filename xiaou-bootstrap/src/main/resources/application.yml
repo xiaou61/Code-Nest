@@ -208,9 +208,11 @@ xiaou:
     provider: ${XIAOU_AI_PROVIDER:openai-compatible}
     base-url: ${XIAOU_AI_BASE_URL:}
     api-key: ${XIAOU_AI_API_KEY:}
+    proxy-url: ${XIAOU_AI_PROXY_URL:}
     model:
       chat: ${XIAOU_AI_CHAT_MODEL:gpt-5.4}
       max-completion-tokens: ${XIAOU_AI_MAX_COMPLETION_TOKENS:2048}
+      reasoning-effort: ${XIAOU_AI_REASONING_EFFORT:}
       embedding: ${XIAOU_AI_EMBEDDING_MODEL:text-embedding-3-small}
     pricing:
       currency: ${XIAOU_AI_PRICING_CURRENCY:USD}
