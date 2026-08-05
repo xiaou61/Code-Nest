@@ -39,6 +39,11 @@ public class AiProperties {
     private String apiKey;
 
     /**
+     * AI provider 专用 HTTP 代理地址。空值表示直连。
+     */
+    private String proxyUrl;
+
+    /**
      * 模型配置。
      */
     private Model model = new Model();
@@ -96,6 +101,11 @@ public class AiProperties {
          * 防止复杂 Prompt 在没有边界时持续占用请求连接。</p>
          */
         private Integer maxCompletionTokens = 2048;
+
+        /**
+         * OpenAI-compatible reasoning effort. Blank keeps the provider default.
+         */
+        private String reasoningEffort;
 
         /**
          * 向量模型名称。

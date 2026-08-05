@@ -6,6 +6,30 @@
 
 ## [Unreleased]
 
+## [v2.5.8] - 2026-08-05
+
+### Added
+
+- 新增 `XIAOU_AI_REASONING_EFFORT`，统一 AI 运行时可向 OpenAI-compatible provider 发送显式推理等级。
+- 新增可选 `XIAOU_AI_PROXY_URL`，受限网络环境下仅代理 AI provider 请求，不影响 JVM 其他 HTTP 调用。
+- 模型请求契约测试同时覆盖默认 completion token 上限与场景级覆盖请求，确保两条路径都保留推理等级。
+
+### Changed
+
+- 推理等级按固定白名单规范化为小写；空值继续使用 provider 默认值，非法推理等级或代理地址在模型初始化阶段失败。
+
+### Security
+
+- Base URL 与 API Key 仍只从生产环境变量读取，请求和响应日志保持关闭，仓库与发布包不包含真实凭据。
+
+### Migration
+
+- 无数据库迁移；新增可选生产环境变量 `XIAOU_AI_REASONING_EFFORT` 和 `XIAOU_AI_PROXY_URL`，数据库 schema 基线仍为 `v2.5.3`。
+
+### Verification
+
+- LangChain4j OpenAI-compatible 请求体契约、非法配置回归测试、AI 模块测试和完整发布门禁。
+
 ## [v2.5.7] - 2026-08-05
 
 ### Fixed

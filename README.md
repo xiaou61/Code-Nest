@@ -1,6 +1,6 @@
 # Code Nest
 
-![Version](https://img.shields.io/badge/version-v2.5.7-blue.svg)
+![Version](https://img.shields.io/badge/version-v2.5.8-blue.svg)
 ![Java](https://img.shields.io/badge/java-17-orange.svg)
 ![Spring Boot](https://img.shields.io/badge/spring%20boot-3.4.4-brightgreen.svg)
 ![Vue](https://img.shields.io/badge/vue-3.x-4fc08d.svg)
@@ -9,6 +9,17 @@
 ## 📖 项目简介
 
 Code Nest 是一个面向开发者的成长型社区与知识运营平台，采用 Spring Boot 3.4.4 + Vue3 + Vite 的前后端分离架构，后台整合 Sa-Token 权限、Redisson 缓存、MySQL 题库/内容系统以及 Prometheus 监控指标，提供包含题库、面试辅导、学习资产转化引擎、知识图谱、博客、代码工坊、在线简历、IM 聊天、积分激励与抽奖等在内的多模块能力。
+
+## v2.5.8 AI Reasoning Configuration
+
+`v2.5.8` 为统一 AI 运行时增加可验证的 OpenAI-compatible 推理等级配置。
+
+- **推理等级透传**：`XIAOU_AI_REASONING_EFFORT` 会进入模型默认请求参数，普通请求和覆盖 completion token 上限的场景都会保留该值。
+- **受控配置**：支持 `none`、`minimal`、`low`、`medium`、`high`、`xhigh`、`max` 和 `ultra`；空值继续使用提供商默认值，非法值会在模型初始化时失败。
+- **专用出站代理**：受限网络环境可设置 `XIAOU_AI_PROXY_URL=http://host:port`，仅 AI provider 请求走代理，不修改 JVM 其他 HTTP 调用。
+- **密钥边界**：真实 Base URL 与 API Key 仍只通过生产环境变量提供，不进入仓库、发布包或应用日志。
+
+本版本无数据库迁移；数据库 schema 基线仍为 `v2.5.3`。
 
 ## v2.5.7 Startup Hotfix
 
@@ -454,7 +465,7 @@ mvn clean package -DskipTests
 mvn -pl xiaou-bootstrap -am clean package -DskipTests
 
 # 或直接运行打包后的 jar
-java -jar xiaou-bootstrap/target/xiaou-bootstrap-v2.5.7.jar --spring.profiles.active=prod
+java -jar xiaou-bootstrap/target/xiaou-bootstrap-v2.5.8.jar --spring.profiles.active=prod
 ```
 
 - API 根地址：`http://localhost:9999/api`
@@ -622,7 +633,7 @@ management:
 
 ```bash
 # 构建镜像
-docker build -t code-nest:v2.5.7 -f docker/Dockerfile .
+docker build -t code-nest:v2.5.8 -f docker/Dockerfile .
 
 # 运行容器
 docker run -d \
@@ -630,7 +641,7 @@ docker run -d \
   -p 9999:9999 \
   -e SPRING_PROFILES_ACTIVE=prod \
   --env-file docker/env/example.env \
-  code-nest:v2.5.7
+  code-nest:v2.5.8
 ```
 
 如果要把 MySQL / Redis / Java 主服务 / `llamaindex-service` 一起编排起来，推荐使用：
@@ -701,6 +712,12 @@ server {
 ## 📝 更新日志
 
 仅列出最近版本，更多历史可查看 `git log`。
+
+### v2.5.8 AI Reasoning Configuration
+
+- **运行参数**：OpenAI-compatible 请求支持显式 `reasoning_effort`，生产可选择 `max` 等受支持等级。
+- **配置可靠性**：请求体契约测试覆盖全局与场景级 token 上限，非法推理等级和代理地址会被拒绝；可选代理仅作用于 AI provider。
+- **迁移边界**：不写数据库，schema 基线保持 `v2.5.3`。
 
 ### v2.5.7 Startup Hotfix
 
