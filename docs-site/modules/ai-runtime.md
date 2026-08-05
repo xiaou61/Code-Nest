@@ -70,7 +70,7 @@ Prompt Catalog 当前收集四组场景：
 
 ## 运行配置
 
-配置入口在 `xiaou-application/src/main/resources/application.yml` 的 `xiaou.ai`。
+配置入口在 `xiaou-bootstrap/src/main/resources/application.yml` 的 `xiaou.ai`。
 
 | 配置 | 说明 |
 | --- | --- |

@@ -18,6 +18,8 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from release_manifest import ReleaseManifest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -42,10 +44,7 @@ def require_file(path: Path, label: str) -> None:
 
 
 def repository_version() -> str:
-    value = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
-    if not value:
-        raise SystemExit("VERSION is empty")
-    return f"v{value}"
+    return ReleaseManifest.load(REPO_ROOT).release_version
 
 
 def ensure_clean_worktree(allow_dirty: bool) -> None:
@@ -61,14 +60,16 @@ def normalize_release_version(value: str | None) -> str:
     if not candidate.startswith("v"):
         candidate = f"v{candidate}"
     if candidate != expected:
-        raise SystemExit(f"release version {candidate} does not match repository VERSION {expected}")
+        raise SystemExit(f"release version {candidate} does not match release manifest {expected}")
     return candidate
 
 
 def discover_backend_jar() -> Path:
-    target_dir = REPO_ROOT / "xiaou-application" / "target"
+    manifest = ReleaseManifest.load(REPO_ROOT)
+    source_pattern = Path(manifest.get("artifacts.backend.sourcePattern"))
+    target_dir = REPO_ROOT / source_pattern.parent
     jars = sorted(
-        target_dir.glob("xiaou-application-*.jar"),
+        target_dir.glob(source_pattern.name),
         key=lambda item: item.stat().st_mtime,
         reverse=True,
     )
@@ -139,24 +140,19 @@ def build_artifacts(args: argparse.Namespace) -> None:
     if args.skip_build:
         return
 
-    run([sys.executable, str(REPO_ROOT / "scripts" / "check-version-consistency.py")])
+    manifest = ReleaseManifest.load(REPO_ROOT)
+    run([sys.executable, str(REPO_ROOT / "scripts" / "release_manifest.py"), "validate"])
     run([
-        "mvn", "-B", "-pl", "xiaou-application", "-am", "clean", "package",
-        "-DskipTests", f"-Drevision={repository_version()}",
+        "mvn", "-B", "-pl", manifest.get("artifacts.backend.module"), "-am", "clean", "package",
+        "-DskipTests", f"-Drevision={manifest.maven_revision}",
     ])
-    run(["npm", "run", "build"], cwd=REPO_ROOT / "vue3-admin-front")
-    run(["npm", "run", "build"], cwd=REPO_ROOT / "vue3-user-front")
+    run(["npm", "run", "build"], cwd=REPO_ROOT / manifest.get("artifacts.admin.workspace"))
+    run(["npm", "run", "build"], cwd=REPO_ROOT / manifest.get("artifacts.user.workspace"))
 
 
 def assemble_bundle(args: argparse.Namespace) -> Path:
-    version = args.version
-    if not version:
-        try:
-            branch = capture(["git", "rev-parse", "--abbrev-ref", "HEAD"])
-            sha = capture(["git", "rev-parse", "--short", "HEAD"])
-            version = f"{branch}-{sha}"
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            version = "manual"
+    manifest = ReleaseManifest.load(REPO_ROOT)
+    version = args.version or manifest.release_version
     safe_version = "".join(ch if ch.isalnum() or ch in "._-" else "-" for ch in version)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
 
@@ -164,23 +160,29 @@ def assemble_bundle(args: argparse.Namespace) -> Path:
     bundle = Path(tempfile.gettempdir()) / f"code-nest-{safe_version}-{stamp}.tar.gz"
 
     try:
-        backend_dir = stage / "backend"
-        admin_dir = stage / "admin"
-        user_dir = stage / "user"
-        backend_dir.mkdir(parents=True)
-        admin_dir.mkdir()
-        user_dir.mkdir()
+        backend_target = stage / manifest.get("artifacts.backend.bundlePath")
+        admin_dir = stage / manifest.get("artifacts.admin.bundlePath")
+        user_dir = stage / manifest.get("artifacts.user.bundlePath")
+        backend_target.parent.mkdir(parents=True)
 
         backend_jar = Path(args.jar) if args.jar else discover_backend_jar()
         require_file(backend_jar, "backend jar")
-        shutil.copy2(backend_jar, backend_dir / "app.jar")
+        shutil.copy2(backend_jar, backend_target)
 
-        copy_tree_contents(REPO_ROOT / "vue3-admin-front" / "dist", admin_dir)
-        copy_tree_contents(REPO_ROOT / "vue3-user-front" / "dist", user_dir)
+        copy_tree_contents(REPO_ROOT / manifest.get("artifacts.admin.sourceDirectory"), admin_dir)
+        copy_tree_contents(REPO_ROOT / manifest.get("artifacts.user.sourceDirectory"), user_dir)
         assemble_operational_assets(stage)
         copy_release_file(REPO_ROOT / "scripts" / "db-migrate.py", stage / "scripts" / "db-migrate.py")
+        copy_release_file(REPO_ROOT / "scripts" / "release_manifest.py", stage / "scripts" / "release_manifest.py")
         copy_release_file(REPO_ROOT / "scripts" / "release-smoke-test.py", stage / "scripts" / "release-smoke-test.py")
-        copy_release_file(REPO_ROOT / "VERSION", stage / "VERSION")
+        copy_release_file(
+            REPO_ROOT / "release" / "manifest.json",
+            stage / manifest.get("bundle.manifestPath"),
+        )
+        copy_release_file(
+            REPO_ROOT / manifest.get("projections.versionFile"),
+            stage / manifest.get("projections.versionFile"),
+        )
         shutil.copytree(REPO_ROOT / "sql", stage / "sql")
 
         try:
@@ -196,7 +198,7 @@ def assemble_bundle(args: argparse.Namespace) -> Path:
                     f"sha={sha}",
                     f"build_id={build_id}",
                     f"built_at={datetime.now(timezone.utc).isoformat()}",
-                    f"schema_version={safe_version}",
+                    f"schema_version={manifest.schema_version}",
                     "",
                 ]
             ),
@@ -284,6 +286,9 @@ def main() -> None:
     args = parse_args()
     if not args.host:
         raise SystemExit("missing --host or CODE_NEST_DEPLOY_HOST")
+    manifest_errors = ReleaseManifest.load(REPO_ROOT).validate_repository()
+    if manifest_errors:
+        raise SystemExit("release manifest validation failed:\n" + "\n".join(manifest_errors))
     args.version = normalize_release_version(args.version)
     ensure_clean_worktree(args.allow_dirty)
     args.reload_nginx = not args.no_reload_nginx

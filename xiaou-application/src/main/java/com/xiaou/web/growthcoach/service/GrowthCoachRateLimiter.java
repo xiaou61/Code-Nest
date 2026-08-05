@@ -1,6 +1,6 @@
 package com.xiaou.web.growthcoach.service;
 
-import com.xiaou.common.cache.RedisValueStore;
+import com.xiaou.common.cache.CacheStore;
 import com.xiaou.common.exception.BusinessException;
 import com.xiaou.web.growthcoach.config.GrowthCoachProperties;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +19,7 @@ import java.time.Instant;
 @RequiredArgsConstructor
 public class GrowthCoachRateLimiter {
 
-    private final RedisValueStore redisValueStore;
+    private final CacheStore cacheStore;
     private final GrowthCoachProperties properties;
 
     public void checkPreview(Long userId) {
@@ -71,7 +71,7 @@ public class GrowthCoachRateLimiter {
 
         long currentCount;
         try {
-            currentCount = redisValueStore.increment(key, 1L, ttl);
+            currentCount = cacheStore.increment(key, 1L, ttl);
         } catch (RuntimeException exception) {
             log.warn("Growth Coach 请求保护不可用: {}", exception.getClass().getSimpleName());
             throw new BusinessException("请求保护服务暂不可用，请稍后重试");

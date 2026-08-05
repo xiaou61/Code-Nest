@@ -1,7 +1,7 @@
 package com.xiaou.community.service.impl;
 
 import com.xiaou.common.utils.JsonUtils;
-import com.xiaou.common.cache.RedisValueStore;
+import com.xiaou.common.cache.CacheStore;
 import com.xiaou.community.config.CommunityProperties;
 import com.xiaou.community.domain.CommunityCategory;
 import com.xiaou.community.domain.CommunityPost;
@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CommunityCacheServiceImpl implements CommunityCacheService {
     
-    private final RedisValueStore redisValueStore;
+    private final CacheStore cacheStore;
     private final RedissonClient redissonClient;
     private final CommunityProperties communityProperties;
     
@@ -46,7 +46,7 @@ public class CommunityCacheServiceImpl implements CommunityCacheService {
     @Override
     public void cachePost(CommunityPost post) {
         String key = POST_DETAIL_KEY + post.getId();
-        cacheWrite("cache post " + post.getId(), () -> redisValueStore.put(
+        cacheWrite("cache post " + post.getId(), () -> cacheStore.put(
                 key,
                 JsonUtils.toJsonString(post),
                 Duration.ofSeconds(communityProperties.getCache().getPostDetailTtl())
@@ -58,7 +58,7 @@ public class CommunityCacheServiceImpl implements CommunityCacheService {
     public CommunityPost getCachedPost(Long postId) {
         String key = POST_DETAIL_KEY + postId;
         String cachedData = cacheRead("read post " + postId,
-                () -> redisValueStore.find(key, String.class).orElse(null), null);
+                () -> cacheStore.find(key, String.class).orElse(null), null);
         if (cachedData != null) {
             log.debug("从缓存获取帖子详情，帖子ID: {}", postId);
             return JsonUtils.parseObject(cachedData, CommunityPost.class);
@@ -69,13 +69,13 @@ public class CommunityCacheServiceImpl implements CommunityCacheService {
     @Override
     public void evictPost(Long postId) {
         String key = POST_DETAIL_KEY + postId;
-        cacheWrite("evict post " + postId, () -> redisValueStore.delete(key));
+        cacheWrite("evict post " + postId, () -> cacheStore.delete(key));
         log.debug("清除帖子缓存，帖子ID: {}", postId);
     }
     
     @Override
     public void cacheCategories(List<CommunityCategory> categories) {
-        cacheWrite("cache categories", () -> redisValueStore.put(
+        cacheWrite("cache categories", () -> cacheStore.put(
                 CATEGORIES_KEY,
                 JsonUtils.toJsonString(categories),
                 Duration.ofSeconds(communityProperties.getCache().getTagsTtl())
@@ -86,7 +86,7 @@ public class CommunityCacheServiceImpl implements CommunityCacheService {
     @Override
     public List<CommunityCategory> getCachedCategories() {
         String cachedData = cacheRead("read categories",
-                () -> redisValueStore.find(CATEGORIES_KEY, String.class).orElse(null), null);
+                () -> cacheStore.find(CATEGORIES_KEY, String.class).orElse(null), null);
         if (cachedData != null) {
             log.debug("从缓存获取分类列表");
             return JsonUtils.parseArray(cachedData, CommunityCategory.class);
@@ -96,13 +96,13 @@ public class CommunityCacheServiceImpl implements CommunityCacheService {
     
     @Override
     public void evictCategories() {
-        cacheWrite("evict categories", () -> redisValueStore.delete(CATEGORIES_KEY));
+        cacheWrite("evict categories", () -> cacheStore.delete(CATEGORIES_KEY));
         log.debug("清除分类缓存");
     }
     
     @Override
     public void cacheTags(List<CommunityTag> tags) {
-        cacheWrite("cache tags", () -> redisValueStore.put(
+        cacheWrite("cache tags", () -> cacheStore.put(
                 TAGS_KEY,
                 JsonUtils.toJsonString(tags),
                 Duration.ofSeconds(communityProperties.getCache().getTagsTtl())
@@ -113,7 +113,7 @@ public class CommunityCacheServiceImpl implements CommunityCacheService {
     @Override
     public List<CommunityTag> getCachedTags() {
         String cachedData = cacheRead("read tags",
-                () -> redisValueStore.find(TAGS_KEY, String.class).orElse(null), null);
+                () -> cacheStore.find(TAGS_KEY, String.class).orElse(null), null);
         if (cachedData != null) {
             log.debug("从缓存获取标签列表");
             return JsonUtils.parseArray(cachedData, CommunityTag.class);
@@ -123,7 +123,7 @@ public class CommunityCacheServiceImpl implements CommunityCacheService {
     
     @Override
     public void evictTags() {
-        cacheWrite("evict tags", () -> redisValueStore.delete(TAGS_KEY));
+        cacheWrite("evict tags", () -> cacheStore.delete(TAGS_KEY));
         log.debug("清除标签缓存");
     }
     
@@ -131,7 +131,7 @@ public class CommunityCacheServiceImpl implements CommunityCacheService {
     public void cacheUserLikeStatus(Long userId, Set<Long> likedPostIds) {
         String key = USER_LIKE_KEY + userId;
         cacheWrite("cache user likes " + userId, () -> {
-            redisValueStore.delete(key);
+            cacheStore.delete(key);
             if (likedPostIds != null && !likedPostIds.isEmpty()) {
                 RSet<Object> likes = redissonClient.getSet(key);
                 likedPostIds.forEach(likes::add);
@@ -174,7 +174,7 @@ public class CommunityCacheServiceImpl implements CommunityCacheService {
     public void cacheUserCollectStatus(Long userId, Set<Long> collectedPostIds) {
         String key = USER_COLLECT_KEY + userId;
         cacheWrite("cache user collections " + userId, () -> {
-            redisValueStore.delete(key);
+            cacheStore.delete(key);
             if (collectedPostIds != null && !collectedPostIds.isEmpty()) {
                 RSet<Object> collections = redissonClient.getSet(key);
                 collectedPostIds.forEach(collections::add);
@@ -265,7 +265,7 @@ public class CommunityCacheServiceImpl implements CommunityCacheService {
     @Override
     public void clearHotSearchKeywords() {
         try {
-            redisValueStore.delete(HOT_SEARCH_KEY);
+            cacheStore.delete(HOT_SEARCH_KEY);
             log.debug("清除热门搜索词缓存");
         } catch (Exception e) {
             log.error("清除热门搜索词缓存失败", e);
@@ -289,4 +289,3 @@ public class CommunityCacheServiceImpl implements CommunityCacheService {
         }
     }
 }
-

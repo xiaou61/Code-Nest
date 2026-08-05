@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { readRouterSource } from './helpers/router-source.js'
 
 const projectRoot = resolve(import.meta.dirname, '..')
 
@@ -11,7 +12,7 @@ function readProjectSource(...segments) {
 
 test('first login should route an incomplete target profile through onboarding', () => {
   const authSource = readProjectSource('src', 'views', 'auth', 'Auth.vue')
-  const routerSource = readProjectSource('src', 'router', 'index.js')
+  const routerSource = readRouterSource(projectRoot)
 
   assert.match(authSource, /careerLoopApi\.getCurrent\(\)/)
   assert.match(authSource, /router\.push\('\/onboarding'\)/)

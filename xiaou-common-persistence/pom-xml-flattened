@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.xiaou</groupId>
+    <artifactId>Code-Nest</artifactId>
+    <version>v2.5.6</version>
+  </parent>
+  <groupId>com.xiaou</groupId>
+  <artifactId>xiaou-common-persistence</artifactId>
+  <version>v2.5.6</version>
+  <name>xiaou-common-persistence</name>
+  <dependencies>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-common-core</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.mybatis.spring.boot</groupId>
+      <artifactId>mybatis-spring-boot-starter</artifactId>
+      <version>${mybatis-spring-boot.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.alibaba</groupId>
+      <artifactId>druid-spring-boot-starter</artifactId>
+      <version>${druid.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>p6spy</groupId>
+      <artifactId>p6spy</artifactId>
+      <version>${p6spy.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.github.pagehelper</groupId>
+      <artifactId>pagehelper-spring-boot-starter</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+    </dependency>
+  </dependencies>
+</project>

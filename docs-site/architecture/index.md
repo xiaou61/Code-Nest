@@ -5,7 +5,7 @@
 ## 架构阅读顺序
 
 1. [整体架构](/architecture/overview)：理解单体模块化边界、运行形态和基础设施。
-2. [后端模块](/architecture/backend-modules)：查看 28 个 Maven 子模块的职责与依赖。
+2. [后端模块](/architecture/backend-modules)：查看 36 个 Maven 子模块的职责与依赖。
 3. [前端应用](/architecture/frontend-apps)：理解用户端、管理端、共享设计系统和 Electron 构建。
 4. [数据库与脚本](/architecture/database)：理解主库基线、版本脚本和迁移原则。
 
@@ -21,7 +21,7 @@
 
 ## 架构约束
 
-- 后端保持单体模块化部署，由 `xiaou-application` 聚合启动。
+- 后端保持单体模块化部署，由 `xiaou-bootstrap` 启动，`xiaou-application` 负责应用编排。
 - 模块间通过明确依赖和 API 契约协作，避免循环依赖。
 - 用户端与管理端共享设计系统，但保留独立路由、权限和构建产物。
 - 数据库以 `sql/MySql/code_nest.sql` 为当前基线，增量脚本用于版本演进。

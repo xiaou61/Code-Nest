@@ -1,6 +1,6 @@
 # Code Nest
 
-![Version](https://img.shields.io/badge/version-v2.5.5-blue.svg)
+![Version](https://img.shields.io/badge/version-v2.5.6-blue.svg)
 ![Java](https://img.shields.io/badge/java-17-orange.svg)
 ![Spring Boot](https://img.shields.io/badge/spring%20boot-3.4.4-brightgreen.svg)
 ![Vue](https://img.shields.io/badge/vue-3.x-4fc08d.svg)
@@ -9,6 +9,24 @@
 ## 📖 项目简介
 
 Code Nest 是一个面向开发者的成长型社区与知识运营平台，采用 Spring Boot 3.4.4 + Vue3 + Vite 的前后端分离架构，后台整合 Sa-Token 权限、Redisson 缓存、MySQL 题库/内容系统以及 Prometheus 监控指标，提供包含题库、面试辅导、学习资产转化引擎、知识图谱、博客、代码工坊、在线简历、IM 聊天、积分激励与抽奖等在内的多模块能力。
+
+## v2.5.6 Architecture Governance
+
+`v2.5.6` 不增加业务功能，集中治理启动、基础模块、领域所有权、跨模块读取、缓存与韧性、前后端契约、路由注册和发布元数据。
+
+### 本次版本完成
+
+- **独立启动壳**：`xiaou-bootstrap` 独占 Spring Boot 启动类、运行配置和可执行 JAR；`xiaou-application` 只保留跨领域应用编排。
+- **基础模块拆分**：公共能力按 core、web、security、cache、persistence 五类拆开，`xiaou-common` 仅作为旧模块迁移期兼容聚合。
+- **领域所有权**：SRE RCA/评测完整归入 `xiaou-sre`，通知实体、Mapper、配置和发布接口归入 `xiaou-notification`。
+- **端口与适配器**：Growth Coach、首页和学习驾驶舱的跨领域读取通过应用端口访问，不再由编排逻辑直接持有其他领域 Mapper/Entity。
+- **共享运行策略**：缓存访问收敛到 `CacheStore` / `TextStateStore`，聚合查询统一使用 `xiaou-resilience` 的有界超时和降级结果。
+- **统一接口契约**：后端错误映射为 4xx/5xx HTTP 语义，同时保留业务码；双前端共享 `@code-nest/api-contract` 的解包、错误分类和通知 DTO。
+- **路由业务切片**：用户端和管理端路由按业务域拆分，入口文件只负责组合、守卫和滚动行为。
+- **发布单一事实源**：`release/manifest.json` 统一版本、数据库基线、Docker 标签和制品布局，其余版本文件由同步器生成并由 CI/CD 校验。
+- **架构门禁**：`scripts/check-architecture.py` 和契约测试阻止启动职责、跨领域持久化、通知实现、缓存实现和前端契约重新泄漏。
+
+本版本无数据库迁移；数据库 schema 基线仍为 `v2.5.3`。
 
 ## v2.5.5 Evidence-Backed Capability Graph
 
@@ -35,7 +53,7 @@ Code Nest 是一个面向开发者的成长型社区与知识运营平台，采�
 - **计划调整可审计**：成长计划调整提供预览、版本基线、幂等应用和变更记录，任务保留真实资源引用，避免重复重排覆盖历史。
 - **远程来源安全**：敏感词远程来源只允许 HTTP(S)，拒绝回环、内网、link-local、云元数据地址和重定向，并限制响应大小。
 - **AI 运行时保护**：统一 AI 调用增加并发上限、permit 等待超时、拒绝指标和 operation id 日志。
-- **发布与数据库治理**：根目录 `VERSION`、版本一致性检查、checksum 迁移 ledger、release bundle smoke test、磁盘/备份容量检查和失败回滚全部接入 CI/CD。
+- **发布与数据库治理**：发布清单、版本一致性检查、checksum 迁移 ledger、release bundle smoke test、磁盘/备份容量检查和失败回滚全部接入 CI/CD。
 - **主线治理整合**：SRE 评测队列、容量治理、外部探针、运维资产和发布前后基线校验统一进入同一发布链路。
 
 生产迁移入口见 [`sql/MIGRATIONS.md`](sql/MIGRATIONS.md)，发布流程见 [`RELEASE.md`](RELEASE.md)。生产部署默认不执行数据库写操作，只有显式设置 `CODE_NEST_RUN_MIGRATIONS=true` 才会应用迁移。
@@ -44,7 +62,8 @@ Code Nest 是一个面向开发者的成长型社区与知识运营平台，采�
 
 - **vue3-admin-front**：面向运营/管理员的后台，覆盖菜单/角色、内容审核、题库管理、版本追踪、任务配置、观测看板等能力。
 - **vue3-user-front**：面向开发者的用户端，提供刷题、简历制作、动态广场、博客阅读、代码分享、学习资产沉淀、通知消息等场景。
-- **xiaou-application**：多模块聚合的 Spring Boot API，整合 `xiaou-*` 业务模块，对外暴露统一的 `/api` 网关、鉴权、日志与监控。
+- **xiaou-bootstrap**：唯一 Spring Boot 启动壳，组装运行配置并产出可执行 JAR。
+- **xiaou-application**：跨领域应用编排模块，承载首页、学习驾驶舱和 Growth Coach 等组合用例。
 
 ## v2.4.3 Guided First Week And Home Overview
 
@@ -269,8 +288,15 @@ Code Nest 是一个面向开发者的成长型社区与知识运营平台，采�
 
 | 模块 | 说明 | 关键功能 |
 | --- | --- | --- |
-| xiaou-application | 主 API 工程 | 聚合所有业务模块、统一配置、网关、鉴权与监控出口 |
-| xiaou-common | 通用基础库 | 自定义注解、AOP、统一返回体、异常、工具集 |
+| xiaou-bootstrap | 启动壳 | Spring Boot 入口、运行配置、线程池和可执行 JAR |
+| xiaou-application | 应用编排 | 跨领域用例、聚合查询和端口适配器 |
+| xiaou-common-core | 核心契约 | `Result`、分页、业务异常、常量和纯工具 |
+| xiaou-common-web | Web 适配 | 全局异常、HTTP 状态映射、CORS 和资源映射 |
+| xiaou-common-security | 安全能力 | Sa-Token 双端鉴权、管理权限切面和密码工具 |
+| xiaou-common-cache | 缓存能力 | `CacheStore`、`TextStateStore` 与 Redis 适配器 |
+| xiaou-common-persistence | 持久化基础 | MyBatis/PageHelper 与 SQL 日志配置 |
+| xiaou-common | 兼容聚合 | 旧业务模块迁移期间聚合基础模块，不承载新实现 |
+| xiaou-resilience | 韧性执行 | 有界并发、超时、降级和来源状态结果 |
 | xiaou-ai | 统一 AI 服务 | AI Runtime 编排、Prompt/RAG/Schema 治理、AI 结果兜底与治理总览 |
 | xiaou-system | 系统管理 | 组织、角色、菜单、字典、参数、审计日志 |
 | xiaou-user / xiaou-user-api | 用户中心 | 用户注册、认证、资料、登录态 API 隔离 |
@@ -331,8 +357,11 @@ Code-Nest/
 │   └── v1.8.4/                 # 学习资产转化引擎增量脚本
 ├── vue3-admin-front/           # 管理端前端
 ├── vue3-user-front/            # 用户端前端
-├── xiaou-common/               # 通用模块
-├── xiaou-application/          # Spring Boot 聚合工程（启动入口）
+├── release/                    # 发布清单（版本与制品单一事实源）
+├── xiaou-bootstrap/            # Spring Boot 启动壳与运行配置
+├── xiaou-application/          # 跨领域应用编排
+├── xiaou-common-*/             # core/web/security/cache/persistence 基础模块
+├── xiaou-resilience/           # 聚合查询韧性执行
 ├── xiaou-*/                    # 业务子模块（interview、blog、resume…）
 ├── pom.xml                     # 多模块 Maven 配置
 └── README.md
@@ -370,7 +399,7 @@ SOURCE sql/MySql/code_nest_data.sql;
 
 ### 3. 配置文件
 
-编辑 `xiaou-application/src/main/resources/application-dev.yml`（或新建 `application-local.yml`）：
+编辑 `xiaou-bootstrap/src/main/resources/application-dev.yml`（本地密钥放在被忽略的 `application-sec.yml`）：
 
 ```yaml
 spring:
@@ -411,11 +440,11 @@ xiaou:
 # 一键编译
 mvn clean package -DskipTests
 
-# 开发模式启动（默认使用 dev 配置）
-mvn -pl xiaou-application -am spring-boot:run
+# 构建唯一可执行后端制品
+mvn -pl xiaou-bootstrap -am clean package -DskipTests
 
 # 或直接运行打包后的 jar
-java -jar xiaou-application/target/xiaou-application-v2.5.5.jar --spring.profiles.active=prod
+java -jar xiaou-bootstrap/target/xiaou-bootstrap-v2.5.6.jar --spring.profiles.active=prod
 ```
 
 - API 根地址：`http://localhost:9999/api`
@@ -448,7 +477,7 @@ java -jar xiaou-application/target/xiaou-application-v2.5.5.jar --spring.profile
 - 新开一个 PowerShell 窗口启动 `llamaindex-service`
 - 在当前终端注入 Java 侧所需的 `XIAOU_AI_RAG_*` 环境变量
 - 可选导入样例知识
-- 直接运行 `mvn -pl xiaou-application -am spring-boot:run`
+- 直接运行 `mvn -pl xiaou-bootstrap -am spring-boot:run`
 
 导入一份本地样例知识：
 
@@ -583,7 +612,7 @@ management:
 
 ```bash
 # 构建镜像
-docker build -t code-nest:v2.5.5 -f docker/Dockerfile .
+docker build -t code-nest:v2.5.6 -f docker/Dockerfile .
 
 # 运行容器
 docker run -d \
@@ -591,7 +620,7 @@ docker run -d \
   -p 9999:9999 \
   -e SPRING_PROFILES_ACTIVE=prod \
   --env-file docker/env/example.env \
-  code-nest:v2.5.5
+  code-nest:v2.5.6
 ```
 
 如果要把 MySQL / Redis / Java 主服务 / `llamaindex-service` 一起编排起来，推荐使用：
@@ -663,9 +692,15 @@ server {
 
 仅列出最近版本，更多历史可查看 `git log`。
 
+### v2.5.6 Architecture Governance
+
+- **模块职责**：启动、公共基础、SRE、通知和应用编排均有明确所有权，依赖方向由架构脚本守护。
+- **契约与路由**：双前端共享响应/错误/DTO 契约，路由入口按业务切片组合。
+- **发布可追溯**：`release/manifest.json` 是版本、schema、Docker 与制品布局的单一事实源。
+
 ### v2.5.3 Growth Coach And Production Governance
 
-- **生产可追溯**：统一 `VERSION`、版本一致性检查、release bundle `RELEASE` 元数据和发布包 smoke test。
+- **生产可追溯**：统一版本一致性检查、release bundle `RELEASE` 元数据和发布包 smoke test。
 - **数据库治理**：迁移执行器记录 checksum、状态、耗时和失败原因；生产默认跳过写库，显式开启才应用。
 - **运行时韧性**：Growth Coach 有界并发与短缓存、事件契约版本化、远程来源 SSRF 防护、AI 并发 permit 和失败回滚。
 

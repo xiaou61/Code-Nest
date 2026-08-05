@@ -8,6 +8,9 @@ const __dirname = path.dirname(__filename)
 const docsRoot = path.resolve(__dirname, '..')
 const repoRoot = path.resolve(docsRoot, '..')
 const outputPath = path.resolve(docsRoot, '.vitepress', 'cache', 'docs-sync-baseline.json')
+const releaseManifest = JSON.parse(
+  readFileSync(path.resolve(repoRoot, 'release', 'manifest.json'), 'utf8')
+)
 
 function countMarkdownFiles(directory) {
   let count = 0
@@ -34,10 +37,7 @@ function readText(filePath) {
 }
 
 const rootPom = readText(path.resolve(repoRoot, 'pom.xml'))
-const projectVersion =
-  rootPom.match(/<revision>\s*([^<]+)\s*<\/revision>/)?.[1]?.trim() ||
-  rootPom.match(/<version>\s*(v?\d+\.\d+\.\d+)\s*<\/version>/)?.[1]?.trim() ||
-  'unknown'
+const projectVersion = releaseManifest.releaseVersion
 const mavenModules = [...rootPom.matchAll(/<module>([^<]+)<\/module>/g)].length
 const databaseSql = readText(path.resolve(repoRoot, 'sql', 'MySql', 'code_nest.sql'))
 const databaseTables = [...databaseSql.matchAll(/^\s*CREATE TABLE\b/gim)].length

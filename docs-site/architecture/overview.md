@@ -1,6 +1,6 @@
 # 整体架构
 
-Code-Nest 是一个基于 Spring Boot 3.4.4 + Vue 3 的全栈学习成长平台，采用**单体模块化架构**（Modular Monolith）。根 POM 声明 28 个 Maven 子模块，最终由 `xiaou-application` 聚合启动为一个 JAR。
+Code-Nest 是一个基于 Spring Boot 3.4.4 + Vue 3 的全栈学习成长平台，采用**单体模块化架构**（Modular Monolith）。根 POM 声明 36 个 Maven 子模块，由 `xiaou-bootstrap` 组装运行时并产出唯一可执行 JAR；`xiaou-application` 只承载跨领域应用编排。
 
 ## 技术栈总览
 
@@ -37,7 +37,7 @@ Code-Nest 是一个基于 Spring Boot 3.4.4 + Vue 3 的全栈学习成长平台�
                     └────────┬───────────┘
                              │ HTTP / WebSocket
                     ┌────────▼────────────────────────────────┐
-                    │        xiaou-application (Spring Boot)   │
+                    │        xiaou-bootstrap (Spring Boot)     │
                     │        CodeNestApplication.java          │
                     │        Port: 9999                        │
                     ├──────────────────────────────────────────┤
@@ -83,7 +83,7 @@ Code-Nest 是一个基于 Spring Boot 3.4.4 + Vue 3 的全栈学习成长平台�
 
 ## 部署形态
 
-项目以**单 JAR 部署**方式运行，所有模块聚合在 `xiaou-application` 中，由 `CodeNestApplication.java` 启动：
+项目以**单 JAR 部署**方式运行。`xiaou-bootstrap` 持有启动类、运行配置、日志配置和 Spring Boot 打包插件，并依赖 `xiaou-application` 完成业务模块组合：
 
 ```text
 java -jar code-nest.jar --spring.profiles.active=prod
@@ -127,7 +127,8 @@ Code-Nest 采用 Sa-Token **多端鉴权**，用户端和管理端使用完全�
 ```
 
 - 业务错误码范围：600-899
-- Sa-Token 异常返回 HTTP 200 + 业务码 701/702/703
+- 登录态错误返回 HTTP 401 + 业务码 701/702，权限或账号禁用返回 HTTP 403 + 703/704
+- 普通业务拒绝返回 HTTP 422 并保留原业务码；参数、路由和系统异常继续使用对应 4xx/5xx
 - 完整错误码见 [响应与错误码](/reference/response-errors)
 
 ## 跨模块调用机制
@@ -151,37 +152,30 @@ Code-Nest 采用 Sa-Token **多端鉴权**，用户端和管理端使用完全�
 | 签到事件 | team/plan | points | 积分奖励 |
 | 通知事件 | 各模块 | notification | 站内通知推送 |
 
-### 3. 直接 Service 调用
+### 3. 应用端口与适配器
 
-同一进程内的模块间直接 `@Autowired` 注入，依赖方向遵循：
+跨领域组合用例在 `xiaou-application` 定义读取端口，持久化适配器负责把各领域 Mapper/Entity 转成应用模型。编排逻辑只依赖端口，不直接持有其他领域的持久化类型：
 
 ```text
-xiaou-application (聚合)
-    ├── xiaou-ai, xiaou-oj, xiaou-chat, ...
-    │       └── xiaou-user-api (接口契约)
-    │       └── xiaou-sensitive-api (接口契约)
-    │       └── xiaou-common (公共工具)
-    └── xiaou-user (用户核心, 实现 user-api)
-    └── xiaou-sensitive (敏感词, 实现 sensitive-api)
-    └── xiaou-system (系统管理)
+application service
+    → application port
+        → persistence adapter
+            → owning domain Mapper/Entity
 ```
 
-**关键约束**：业务模块只依赖 `xiaou-user-api`（接口），不依赖 `xiaou-user`（实现），避免循环依赖。
+通知调用使用 `xiaou-notification.api.NotificationPublisher`；缓存调用使用 `CacheStore` / `TextStateStore`。业务模块不得导入其他领域的 Mapper/Entity，也不得绕过这些公开接口依赖实现类。
 
 ## 模块依赖关系图
 
 ```text
-                        xiaou-application (启动入口)
-                               │
-          ┌────────────────────┼────────────────────────┐
-          │                    │                         │
-    xiaou-common          xiaou-user-api          xiaou-sensitive-api
-    (全局公共)             (用户信息接口)            (敏感词接口)
-          │                    │                         │
-    ┌─────┴──────┐        ┌────┴─────┐             ┌────┴─────┐
-    │            │        │          │             │          │
-  xiaou-user  xiaou-system  xiaou-sensitive    (各业务模块)
-  (实现)       (系统管理)     (实现)           依赖接口不依赖实现
+xiaou-bootstrap (启动与运行配置)
+    → xiaou-application (应用编排)
+        → 业务领域模块
+            → xiaou-common-core / 所需专项基础模块
+            → xiaou-user-api / xiaou-sensitive-api 等公开契约
+
+xiaou-common-web/security/cache/persistence → xiaou-common-core
+xiaou-resilience → Spring Context（不依赖业务领域）
 ```
 
 ## 请求处理链路
@@ -245,11 +239,17 @@ xiaou-application (聚合)
 
 ## Maven 模块清单
 
-Code-Nest 当前包含 28 个 Maven 子模块，最终由 `xiaou-application` 聚合启动：
+Code-Nest 当前包含 36 个 Maven 子模块，最终由 `xiaou-bootstrap` 组装启动：
 
 | 分组 | 模块 | 说明 |
 |------|------|------|
-| **核心基础** | `xiaou-common` | 全局配置、工具、异常处理、鉴权、CORS |
+| **核心基础** | `xiaou-common-core` | 统一响应、分页、业务异常、常量和纯工具 |
+| | `xiaou-common-web` | 全局异常、HTTP 状态映射、CORS 和资源映射 |
+| | `xiaou-common-security` | Sa-Token 双端鉴权、权限切面和密码工具 |
+| | `xiaou-common-cache` | 缓存接口与 Redis 适配器 |
+| | `xiaou-common-persistence` | MyBatis/PageHelper 与 SQL 日志配置 |
+| | `xiaou-common` | 旧模块迁移期兼容聚合，不承载新实现 |
+| | `xiaou-resilience` | 聚合查询的有界执行、超时、降级和来源状态 |
 | | `xiaou-system` | 管理员、角色、权限、操作日志、仪表盘 |
 | | `xiaou-user` | 用户信息、注册、登录、个人中心（实现 user-api） |
 | | `xiaou-user-api` | 跨模块用户信息接口契约（不包含实现） |
@@ -276,7 +276,9 @@ Code-Nest 当前包含 28 个 Maven 子模块，最终由 `xiaou-application` �
 | | `xiaou-filestorage` | 文件上传、存储策略、迁移 |
 | | `xiaou-version` | 版本历史、发布、隐藏 |
 | | `xiaou-sql-optimizer` | SQL 优化建议、AI 分析 |
-| **启动聚合** | `xiaou-application` | 聚合所有模块，Spring Boot 启动入口 |
+| | `xiaou-sre` | 告警摄取、Incident、只读 RCA、评测队列和运行指标 |
+| **应用编排** | `xiaou-application` | 首页、学习驾驶舱、Growth Coach 等跨领域组合用例 |
+| **启动聚合** | `xiaou-bootstrap` | 唯一启动类、运行配置和可执行 JAR |
 
 ## Redis 数据分布
 
@@ -395,9 +397,11 @@ curl -s $XIAOU_AI_BASE_URL/models -H "Authorization: Bearer $XIAOU_AI_API_KEY"
 
 | 文件 | 说明 |
 |------|------|
-| `xiaou-application/.../CodeNestApplication.java` | Spring Boot 启动类 |
-| `xiaou-application/.../application.yml` | 主配置文件 |
-| `xiaou-application/.../application-dev.yml` | 开发环境配置 |
+| `xiaou-bootstrap/src/main/java/com/xiaou/bootstrap/CodeNestApplication.java` | Spring Boot 启动类 |
+| `xiaou-bootstrap/src/main/resources/application.yml` | 主运行配置 |
+| `xiaou-application/src/main/java/com/xiaou/web/` | 跨领域应用编排与端口适配器 |
+| `xiaou-bootstrap/.../application.yml` | 主配置文件 |
+| `xiaou-bootstrap/.../application-dev.yml` | 开发环境配置 |
 | `xiaou-common/.../config/SaTokenConfig.java` | Sa-Token 双端鉴权配置 |
 | `xiaou-common/.../config/RedisConfig.java` | Redis + Redisson 配置 |
 | `xiaou-common/.../config/CorsConfig.java` | CORS 跨域配置 |

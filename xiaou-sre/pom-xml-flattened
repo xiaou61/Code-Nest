@@ -5,18 +5,37 @@
   <parent>
     <groupId>com.xiaou</groupId>
     <artifactId>Code-Nest</artifactId>
-    <version>v2.5.5</version>
+    <version>v2.5.6</version>
   </parent>
   <groupId>com.xiaou</groupId>
   <artifactId>xiaou-sre</artifactId>
-  <version>v2.5.5</version>
+  <version>v2.5.6</version>
   <name>xiaou-sre</name>
   <description>SRE 告警、事故生命周期与证据领域模块</description>
   <dependencies>
     <dependency>
       <groupId>com.xiaou</groupId>
-      <artifactId>xiaou-common</artifactId>
+      <artifactId>xiaou-common-core</artifactId>
       <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-common-web</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-common-security</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-common-persistence</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-core</artifactId>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>

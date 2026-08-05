@@ -200,7 +200,7 @@
 | 任务 | 给低风险业务模块补一两个缺失字段的读写逻辑 |
 | 适合理由 | 训练后端 Controller/Service/Mapper 闭环 |
 | 预期交付 | 后端字段读写修复 |
-| 最低验证 | `mvn -pl xiaou-application -am clean package -DskipTests` + 对应页面或接口烟测 |
+| 最低验证 | `mvn -pl xiaou-bootstrap -am clean package -DskipTests` + 对应页面或接口烟测 |
 | 文档同步 | API 路由索引、模块页、必要时数据表索引 |
 
 ### L2-02 SQL 查询条件小修

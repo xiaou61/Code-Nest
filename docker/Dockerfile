@@ -2,14 +2,14 @@ FROM maven:3.9.11-eclipse-temurin-17 AS builder
 
 WORKDIR /build
 COPY . .
-RUN mvn -pl xiaou-application -am clean package -DskipTests
+RUN mvn -pl xiaou-bootstrap -am clean package -DskipTests
 
 FROM eclipse-temurin:17-jre
 
 WORKDIR /app
 ENV TZ=Asia/Shanghai
 ENV SPRING_PROFILES_ACTIVE=docker
-COPY --from=builder /build/xiaou-application/target/xiaou-application-*.jar /app/app.jar
+COPY --from=builder /build/xiaou-bootstrap/target/xiaou-bootstrap-*.jar /app/app.jar
 
 EXPOSE 9999
 

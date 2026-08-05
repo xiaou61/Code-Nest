@@ -1,6 +1,6 @@
 package com.xiaou.chat.service;
 
-import com.xiaou.common.cache.RedisValueStore;
+import com.xiaou.common.cache.CacheStore;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -15,24 +15,24 @@ class ChatWebSocketTicketServiceTest {
 
     @Test
     void shouldConsumeTicketWithAtomicTake() {
-        RedisValueStore redisValueStore = mock(RedisValueStore.class);
-        when(redisValueStore.take("xiaou:chat:ws-ticket:valid_ticket", String.class))
+        CacheStore cacheStore = mock(CacheStore.class);
+        when(cacheStore.take("xiaou:chat:ws-ticket:valid_ticket", String.class))
                 .thenReturn(Optional.of("42"));
-        ChatWebSocketTicketService service = new ChatWebSocketTicketService(redisValueStore);
+        ChatWebSocketTicketService service = new ChatWebSocketTicketService(cacheStore);
 
         assertThat(service.consumeTicket("valid_ticket")).isEqualTo(42L);
 
-        verify(redisValueStore).take("xiaou:chat:ws-ticket:valid_ticket", String.class);
-        verify(redisValueStore, never()).delete("xiaou:chat:ws-ticket:valid_ticket");
+        verify(cacheStore).take("xiaou:chat:ws-ticket:valid_ticket", String.class);
+        verify(cacheStore, never()).delete("xiaou:chat:ws-ticket:valid_ticket");
     }
 
     @Test
     void shouldRejectMalformedTicketWithoutReadingRedis() {
-        RedisValueStore redisValueStore = mock(RedisValueStore.class);
-        ChatWebSocketTicketService service = new ChatWebSocketTicketService(redisValueStore);
+        CacheStore cacheStore = mock(CacheStore.class);
+        ChatWebSocketTicketService service = new ChatWebSocketTicketService(cacheStore);
 
         assertThat(service.consumeTicket("../invalid")).isNull();
 
-        verify(redisValueStore, never()).take("xiaou:chat:ws-ticket:../invalid", String.class);
+        verify(cacheStore, never()).take("xiaou:chat:ws-ticket:../invalid", String.class);
     }
 }

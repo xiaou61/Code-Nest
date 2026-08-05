@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.xiaou.notification.mapper.NotificationUserReadRecordMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="BaseResultMap" type="com.xiaou.notification.domain.NotificationUserReadRecord">
+        <id column="id" property="id" />
+        <result column="user_id" property="userId" />
+        <result column="notification_id" property="notificationId" />
+        <result column="read_time" property="readTime" />
+        <result column="created_time" property="createdTime" />
+    </resultMap>
+
+    <!-- 基础字段 -->
+    <sql id="Base_Column_List">
+        id, user_id, notification_id, read_time, created_time
+    </sql>
+
+    <!-- 插入阅读记录 -->
+    <insert id="insert" parameterType="com.xiaou.notification.domain.NotificationUserReadRecord" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO notification_user_read_record (
+            user_id, notification_id, read_time, created_time
+        ) VALUES (
+            #{userId}, #{notificationId}, #{readTime}, #{createdTime}
+        )
+    </insert>
+
+    <!-- 批量插入阅读记录 -->
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO notification_user_read_record (
+            user_id, notification_id, read_time, created_time
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.userId}, #{item.notificationId}, #{item.readTime}, #{item.createdTime})
+        </foreach>
+    </insert>
+
+    <!-- 检查用户是否已读指定通知 -->
+    <select id="selectByUserAndNotification" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM notification_user_read_record
+        WHERE user_id = #{userId} AND notification_id = #{notificationId}
+    </select>
+
+    <!-- 获取用户已读的公告ID列表 -->
+    <select id="selectReadAnnouncementIds" resultType="java.lang.Long">
+        SELECT DISTINCT r.notification_id
+        FROM notification_user_read_record r
+        INNER JOIN notification n ON r.notification_id = n.id
+        WHERE r.user_id = #{userId}
+          AND n.receiver_id IS NULL
+          AND n.status != 'DELETED'
+    </select>
+
+    <!-- 删除阅读记录（当通知被删除时） -->
+    <delete id="deleteByNotificationId">
+        DELETE FROM notification_user_read_record
+        WHERE notification_id = #{notificationId}
+    </delete>
+
+    <!-- 删除用户的阅读记录（当用户被删除时） -->
+    <delete id="deleteByUserId">
+        DELETE FROM notification_user_read_record
+        WHERE user_id = #{userId}
+    </delete>
+
+</mapper>

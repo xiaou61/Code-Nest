@@ -1,4 +1,8 @@
 import axios from 'axios'
+import {
+  classifyApiFailure,
+  unwrapApiResponse
+} from '@code-nest/api-contract'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import router from '@/router'
@@ -51,6 +55,18 @@ function showRequestError(message, config) {
   }
 }
 
+function handleApiError(error, config) {
+  if (error.kind === 'authentication') {
+    handleTokenError(error.message)
+    return
+  }
+
+  showRequestError(error.message, config)
+  if (error.code === 704) {
+    handleLogout()
+  }
+}
+
 // 响应拦截器
 // 注意：Sa-Token 已经在后端配置了持久化机制
 // activity-timeout: -1（不启用活动超时）
@@ -59,89 +75,22 @@ function showRequestError(message, config) {
 service.interceptors.response.use(
   (response) => {
     NProgress.done()
-    
-    const { data, status } = response
-    
-    // HTTP状态码检查
-    if (status !== 200) {
-      showRequestError(`HTTP错误: ${status}`, response.config)
-      return Promise.reject(new Error(`HTTP Error: ${status}`))
+
+    try {
+      return unwrapApiResponse(response.data, { httpStatus: response.status })
+    } catch (error) {
+      const apiError = classifyApiFailure(error)
+      handleApiError(apiError, response.config)
+      return Promise.reject(apiError)
     }
-    
-    // 业务状态码检查
-    if (data.code !== undefined) {
-      const { code, message, data: responseData } = data
-      
-      // 成功响应
-      if (code === 200) {
-        return responseData
-      }
-      
-      // Token相关错误
-      if (code === 701 || code === 702) {
-        handleTokenError(message || '登录已过期，请重新登录')
-        return Promise.reject(new Error(message))
-      }
-      
-      // 权限不足（业务状态码 703）
-      if (code === 703) {
-        showRequestError(message || '权限不足', response.config)
-        return Promise.reject(new Error(message || '权限不足'))
-      }
-      
-      // 账户被禁用
-      if (code === 704) {
-        showRequestError(message, response.config)
-        handleLogout()
-        return Promise.reject(new Error(message))
-      }
-      
-      // 其他业务错误
-      showRequestError(message || '请求失败', response.config)
-      return Promise.reject(new Error(message || '请求失败'))
-    }
-    
-    return data
   },
   (error) => {
     NProgress.done()
-    
     console.error('响应错误:', error)
-    
-    if (error.response) {
-      const { status, data } = error.response
-      const config = error.config
-      
-      switch (status) {
-        case 401:
-          handleTokenError('登录已过期，请重新登录')
-          break
-        case 403:
-          showRequestError('权限不足', config)
-          break
-        case 404:
-          showRequestError('请求的资源不存在', config)
-          break
-        case 500:
-          showRequestError('服务器内部错误', config)
-          break
-        case 502:
-        case 503:
-        case 504:
-          showRequestError('服务暂时不可用，请稍后重试', config)
-          break
-        default:
-          showRequestError(data?.message || `请求失败 (${status})`, config)
-      }
-    } else if (error.code === 'ECONNABORTED') {
-      showRequestError('请求超时，请稍后重试', error.config)
-    } else if (error.code === 'ERR_NETWORK') {
-      showRequestError('网络连接异常，请检查网络', error.config)
-    } else {
-      showRequestError('网络连接异常，请检查网络', error.config)
-    }
-    
-    return Promise.reject(error)
+
+    const apiError = classifyApiFailure(error)
+    handleApiError(apiError, error.config)
+    return Promise.reject(apiError)
   }
 )
 

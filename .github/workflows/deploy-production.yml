@@ -42,19 +42,6 @@ jobs:
       CODE_NEST_RELOAD_NGINX: ${{ github.event_name == 'workflow_dispatch' && format('{0}', inputs.reload_nginx) || 'true' }}
 
     steps:
-      - name: Resolve release metadata
-        run: |
-          set -euo pipefail
-          target_ref="${CODE_NEST_TARGET_REF:-${GITHUB_REF}}"
-          release_version="${target_ref#refs/heads/}"
-          release_version="${release_version#refs/tags/}"
-          release_version="${release_version//\//-}"
-          release_version="$(printf '%s' "$release_version" | sed 's/[^A-Za-z0-9._-]/-/g')"
-          if [[ -z "$release_version" ]]; then
-            release_version="manual"
-          fi
-          echo "CODE_NEST_RELEASE_VERSION=$release_version" >> "$GITHUB_ENV"
-
       - name: Prepare source checkout
         run: |
           set -euo pipefail
@@ -98,6 +85,18 @@ jobs:
           git clean -fd \
             -e "vue3-admin-front/node_modules" \
             -e "vue3-user-front/node_modules"
+
+      - name: Resolve release metadata
+        run: |
+          set -euo pipefail
+          cd "${CODE_NEST_SOURCE_DIR}"
+          python3 scripts/release_manifest.py validate
+          release_version="$(python3 scripts/release_manifest.py get releaseVersion)"
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF_NAME}" == v* && "${GITHUB_REF_NAME}" != "$release_version" ]]; then
+            echo "trigger ref ${GITHUB_REF_NAME} does not match release manifest $release_version" >&2
+            exit 64
+          fi
+          echo "CODE_NEST_RELEASE_VERSION=$release_version" >> "$GITHUB_ENV"
 
       - name: Build and deploy
         run: |

@@ -8,9 +8,10 @@ import com.xiaou.common.utils.PageHelper;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.exception.BusinessException;
 import com.xiaou.common.satoken.StpUserUtil;
-import com.xiaou.common.utils.NotificationUtil;
 import com.xiaou.common.utils.SensitiveWordUtils;
 import com.xiaou.moment.service.MomentViewService;
+import com.xiaou.notification.api.NotificationCommand;
+import com.xiaou.notification.api.NotificationPublisher;
 import com.xiaou.user.api.UserInfoApiService;
 import com.xiaou.user.api.dto.SimpleUserInfo;
 import com.xiaou.moment.domain.Moment;
@@ -48,6 +49,7 @@ public class MomentServiceImpl implements MomentService {
     private final MomentFavoriteMapper momentFavoriteMapper;
     private final UserInfoApiService userInfoApiService;
     private final MomentViewService momentViewService;
+    private final NotificationPublisher notificationPublisher;
     
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -167,11 +169,11 @@ public class MomentServiceImpl implements MomentService {
                     SimpleUserInfo currentUser = userInfoApiService.getSimpleUserInfo(currentUserId);
                     String userName = currentUser != null ? currentUser.getDisplayName() : "用户" + currentUserId;
                     
-                    NotificationUtil.sendPersonalMessage(
+                    notificationPublisher.publish(NotificationCommand.personal(
                         moment.getUserId(),
                         "您的动态收到新点赞",
                         "用户 " + userName + " 点赞了您的动态"
-                    );
+                    ));
                 } catch (Exception e) {
                     log.warn("发送动态点赞通知失败，用户ID: {}, 动态ID: {}, 错误: {}", 
                             moment.getUserId(), momentId, e.getMessage());
@@ -225,11 +227,11 @@ public class MomentServiceImpl implements MomentService {
                 SimpleUserInfo currentUser = userInfoApiService.getSimpleUserInfo(currentUserId);
                 String userName = currentUser != null ? currentUser.getDisplayName() : "用户" + currentUserId;
                 
-                NotificationUtil.sendPersonalMessage(
+                notificationPublisher.publish(NotificationCommand.personal(
                     moment.getUserId(),
                     "您的动态收到新评论",
                     "用户 " + userName + " 评论了您的动态：" + checkResult.getProcessedText()
-                );
+                ));
             } catch (Exception e) {
                 log.warn("发送动态评论通知失败，用户ID: {}, 动态ID: {}, 错误: {}", 
                         moment.getUserId(), request.getMomentId(), e.getMessage());
@@ -729,11 +731,11 @@ public class MomentServiceImpl implements MomentService {
                     SimpleUserInfo currentUser = userInfoApiService.getSimpleUserInfo(currentUserId);
                     String userName = currentUser != null ? currentUser.getDisplayName() : "用户" + currentUserId;
                     
-                    NotificationUtil.sendPersonalMessage(
+                    notificationPublisher.publish(NotificationCommand.personal(
                         moment.getUserId(),
                         "您的动态收到新收藏",
                         "用户 " + userName + " 收藏了您的动态"
-                    );
+                    ));
                 } catch (Exception e) {
                     log.warn("发送动态收藏通知失败，用户ID: {}, 动态ID: {}, 错误: {}", 
                             moment.getUserId(), momentId, e.getMessage());

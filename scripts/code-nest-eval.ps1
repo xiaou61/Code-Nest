@@ -24,6 +24,11 @@ Set-Location $repoRoot
 $backendModulesWithTests = @(
     "xiaou-system",
     "xiaou-ai",
+    "xiaou-application",
+    "xiaou-bootstrap",
+    "xiaou-chat",
+    "xiaou-common-cache",
+    "xiaou-common-web",
     "xiaou-oj",
     "xiaou-learning-asset",
     "xiaou-mock-interview",
@@ -31,9 +36,14 @@ $backendModulesWithTests = @(
     "xiaou-user",
     "xiaou-points",
     "xiaou-filestorage",
+    "xiaou-moment",
+    "xiaou-notification",
+    "xiaou-plan",
+    "xiaou-resilience",
     "xiaou-sensitive",
     "xiaou-moyu",
-    "xiaou-sql-optimizer"
+    "xiaou-sql-optimizer",
+    "xiaou-sre"
 )
 
 $aiRegressionTests = @(
@@ -72,10 +82,14 @@ $frontendTests = @(
     "vue3-admin-front/tests/admin-api-contract.test.js",
     "vue3-admin-front/tests/admin-agent-chat-ui.test.js",
     "vue3-admin-front/tests/design-system-demo-routes.test.js",
+    "vue3-admin-front/tests/growth-analytics-contract.test.js",
     "vue3-admin-front/tests/no-debug-console.test.js",
+    "vue3-admin-front/tests/notification-contract.test.js",
     "vue3-admin-front/tests/request-options.test.js",
+    "vue3-admin-front/tests/route-slices.test.js",
     "vue3-admin-front/tests/sidebar-routes.test.js",
     "vue3-admin-front/tests/sre-workbench-contract.test.js",
+    "vue3-user-front/tests/capability-graph-contract.test.js",
     "vue3-user-front/tests/captcha-api-contract.test.js",
     "vue3-user-front/tests/career-loop-adapter.test.js",
     "vue3-user-front/tests/design-system-demo-routes.test.js",
@@ -84,8 +98,14 @@ $frontendTests = @(
     "vue3-user-front/tests/moyu-api-contract.test.js",
     "vue3-user-front/tests/navigation-routes.test.js",
     "vue3-user-front/tests/no-debug-console.test.js",
+    "vue3-user-front/tests/notification-contract.test.js",
     "vue3-user-front/tests/oj-contest-adapter.test.js",
-    "vue3-user-front/tests/request-options.test.js"
+    "vue3-user-front/tests/request-options.test.js",
+    "vue3-user-front/tests/route-slices.test.js",
+    "vue3-user-front/tests/v242-ux-shell.test.js",
+    "vue3-user-front/tests/v243-workflow.test.js",
+    "vue3-user-front/tests/v250-growth-coach-contract.test.js",
+    "vue3-user-front/tests/v252-business-growth-funnel.test.js"
 )
 
 function Invoke-Step {
@@ -217,6 +237,15 @@ function Test-AllowedSecretPlaceholder {
 }
 
 function Invoke-Hygiene {
+    Invoke-Step "release manifest contracts" {
+        Invoke-Native -Command $PythonCommand -Arguments @("scripts/release_manifest.py", "validate")
+        Invoke-Native -Command $PythonCommand -Arguments @("scripts/test_release_manifest.py", "-v")
+    }
+
+    Invoke-Step "architecture contracts" {
+        Invoke-Native -Command $PythonCommand -Arguments @("scripts/check-architecture.py")
+    }
+
     Invoke-Step "git diff whitespace check" {
         Invoke-Native -Command "git" -Arguments @("diff", "--check")
     }
@@ -298,7 +327,7 @@ function Invoke-Ai {
 function Invoke-Sre {
     Invoke-Step "deterministic SRE RCA quality gate" {
         Invoke-Maven @(
-            "-pl", "xiaou-system",
+            "-pl", "xiaou-ai,xiaou-sre",
             "-am",
             "-Dtest=$($sreRegressionTests -join ',')",
             "-Dsurefire.failIfNoSpecifiedTests=false",
@@ -346,7 +375,7 @@ function Invoke-Backend {
 
 function Invoke-Release {
     Invoke-Step "backend package without tests" {
-        Invoke-Maven @("-B", "-pl", "xiaou-application", "-am", "clean", "package", "-DskipTests")
+        Invoke-Maven @("-B", "-pl", "xiaou-bootstrap", "-am", "clean", "package", "-DskipTests")
     }
 
     Invoke-Step "admin frontend build" {
@@ -379,10 +408,12 @@ function Invoke-Release {
     Invoke-Step "script syntax checks" {
         Invoke-Native -Command $PythonCommand -Arguments @(
             "-m", "py_compile",
+            "scripts/check-architecture.py",
             "scripts/check-version-consistency.py",
             "scripts/db-migrate.py",
             "scripts/deploy-frontends.py",
             "scripts/deploy-production.py",
+            "scripts/release_manifest.py",
             "scripts/release-smoke-test.py",
             "scripts/sre-alertmanager-e2e.py",
             "scripts/test_sre_alertmanager_e2e.py",

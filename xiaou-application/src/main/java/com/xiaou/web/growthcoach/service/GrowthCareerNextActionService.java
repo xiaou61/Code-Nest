@@ -1,9 +1,8 @@
 package com.xiaou.web.growthcoach.service;
 
-import com.xiaou.mockinterview.domain.CareerLoopAction;
-import com.xiaou.mockinterview.dto.response.CareerLoopCurrentResponse;
-import com.xiaou.mockinterview.service.CareerLoopService;
 import com.xiaou.web.growthcoach.dto.GrowthCareerNextActionResponse;
+import com.xiaou.web.growthcoach.port.GrowthCareerDataPort;
+import com.xiaou.web.growthcoach.port.GrowthCareerDataPort.CareerActionData;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -18,49 +17,45 @@ import java.util.Locale;
 @RequiredArgsConstructor
 public class GrowthCareerNextActionService {
 
-    private final CareerLoopService careerLoopService;
+    private final GrowthCareerDataPort careerDataPort;
 
     public GrowthCareerNextActionResponse getNextAction(Long userId) {
-        CareerLoopCurrentResponse current = careerLoopService.findCurrentIfPresent(userId);
-        if (current == null || current.getActions() == null) {
-            return null;
-        }
-        CareerLoopAction action = current.getActions().stream()
+        CareerActionData action = careerDataPort.currentCareerActions(userId).stream()
                 .filter(this::isOpenAction)
                 .sorted(Comparator.comparingInt(this::statusWeight)
-                        .thenComparingInt(item -> priorityWeight(item.getPriority()))
-                        .thenComparing(CareerLoopAction::getDueDate, Comparator.nullsLast(Comparator.naturalOrder()))
-                        .thenComparing(CareerLoopAction::getId, Comparator.nullsLast(Long::compareTo)))
+                        .thenComparingInt(item -> priorityWeight(item.priority()))
+                        .thenComparing(CareerActionData::dueDate, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(CareerActionData::id, Comparator.nullsLast(Long::compareTo)))
                 .findFirst()
                 .orElse(null);
         return action == null ? null : toResponse(action);
     }
 
     public void markDone(Long userId, Long actionId) {
-        careerLoopService.markExistingActionDone(userId, actionId);
+        careerDataPort.markCareerActionDone(userId, actionId);
     }
 
-    private GrowthCareerNextActionResponse toResponse(CareerLoopAction action) {
+    private GrowthCareerNextActionResponse toResponse(CareerActionData action) {
         GrowthCareerNextActionResponse response = new GrowthCareerNextActionResponse();
-        response.setActionId(action.getId());
-        response.setStage(action.getStage());
-        response.setActionType(action.getActionType());
-        response.setTitle(action.getTitle());
-        response.setDescription(action.getDescription());
-        response.setPriority(action.getPriority());
-        response.setStatus(action.getStatus());
-        response.setDueDate(action.getDueDate());
-        response.setRoutePath(resolveRoute(action.getActionType()));
+        response.setActionId(action.id());
+        response.setStage(action.stage());
+        response.setActionType(action.actionType());
+        response.setTitle(action.title());
+        response.setDescription(action.description());
+        response.setPriority(action.priority());
+        response.setStatus(action.status());
+        response.setDueDate(action.dueDate());
+        response.setRoutePath(resolveRoute(action.actionType()));
         response.setExpectedChange("完成后会记录当前阶段动作完成；阶段推进由对应业务事件同步。");
         return response;
     }
 
-    private boolean isOpenAction(CareerLoopAction action) {
-        return action != null && ("todo".equalsIgnoreCase(action.getStatus()) || "doing".equalsIgnoreCase(action.getStatus()));
+    private boolean isOpenAction(CareerActionData action) {
+        return action != null && ("todo".equalsIgnoreCase(action.status()) || "doing".equalsIgnoreCase(action.status()));
     }
 
-    private int statusWeight(CareerLoopAction action) {
-        return "todo".equalsIgnoreCase(action.getStatus()) ? 0 : 1;
+    private int statusWeight(CareerActionData action) {
+        return "todo".equalsIgnoreCase(action.status()) ? 0 : 1;
     }
 
     private int priorityWeight(String priority) {

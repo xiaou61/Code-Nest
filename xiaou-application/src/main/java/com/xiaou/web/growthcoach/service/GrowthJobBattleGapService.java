@@ -5,12 +5,11 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xiaou.ai.dto.jobbattle.JobBattlePlanResult;
 import com.xiaou.ai.dto.jobbattle.JobBattleResumeMatchResult;
-import com.xiaou.mockinterview.domain.JobBattleMatchRecord;
-import com.xiaou.mockinterview.domain.JobBattlePlanRecord;
 import com.xiaou.mockinterview.dto.response.JobBattleMatchEngineResult;
-import com.xiaou.mockinterview.mapper.JobBattleMatchRecordMapper;
-import com.xiaou.mockinterview.mapper.JobBattlePlanRecordMapper;
 import com.xiaou.web.growthcoach.dto.GrowthJobBattleGapResponse;
+import com.xiaou.web.growthcoach.port.GrowthCareerDataPort;
+import com.xiaou.web.growthcoach.port.GrowthCareerDataPort.JobBattleMatchData;
+import com.xiaou.web.growthcoach.port.GrowthCareerDataPort.JobBattlePlanData;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,8 +36,7 @@ public class GrowthJobBattleGapService {
     private static final String RESUME_MATCH_ROUTE = "/job-battle?step=1";
     private static final String PLAN_ROUTE = "/job-battle?step=2";
 
-    private final JobBattleMatchRecordMapper matchRecordMapper;
-    private final JobBattlePlanRecordMapper planRecordMapper;
+    private final GrowthCareerDataPort careerDataPort;
     private final ObjectMapper objectMapper;
 
     public GrowthJobBattleGapResponse getCurrentGap(Long userId) {
@@ -46,8 +44,8 @@ public class GrowthJobBattleGapService {
             return null;
         }
 
-        JobBattleMatchRecord matchRecord = matchRecordMapper.selectLatestByUserId(userId);
-        JobBattlePlanRecord planRecord = planRecordMapper.selectLatestByUserId(userId);
+        JobBattleMatchData matchRecord = careerDataPort.latestJobBattleMatch(userId);
+        JobBattlePlanData planRecord = careerDataPort.latestJobBattlePlan(userId);
         if (matchRecord == null && planRecord == null) {
             return null;
         }
@@ -58,16 +56,16 @@ public class GrowthJobBattleGapService {
         List<JobBattleResumeMatchResult.Gap> gaps = selectGaps(bestTarget, planRecord);
 
         GrowthJobBattleGapResponse response = new GrowthJobBattleGapResponse();
-        response.setMatchRecordId(matchRecord == null ? null : matchRecord.getId());
-        response.setPlanRecordId(planRecord == null ? null : planRecord.getId());
+        response.setMatchRecordId(matchRecord == null ? null : matchRecord.id());
+        response.setPlanRecordId(planRecord == null ? null : planRecord.id());
         response.setTargetRole(firstText(
                 bestTarget == null ? null : bestTarget.getTargetRole(),
-                matchRecord == null ? null : matchRecord.getBestTargetRole()
+                matchRecord == null ? null : matchRecord.bestTargetRole()
         ));
         response.setMatchScore(firstNumber(
                 bestTarget == null ? null : bestTarget.getEngineScore(),
                 bestTarget == null ? null : bestTarget.getOverallScore(),
-                matchRecord == null ? null : matchRecord.getBestScore()
+                matchRecord == null ? null : matchRecord.bestScore()
         ));
         response.setEstimatedPassRate(bestTarget == null ? null : bestTarget.getEstimatedPassRate());
         response.setP0GapCount(firstNumber(
@@ -76,36 +74,36 @@ public class GrowthJobBattleGapService {
         ));
         response.setFallback(bestTarget != null && bestTarget.getFallback() != null
                 ? bestTarget.getFallback()
-                : matchRecord != null && matchRecord.getFallbackCount() != null
-                        ? matchRecord.getFallbackCount() > 0
+                : matchRecord != null && matchRecord.fallbackCount() != null
+                        ? matchRecord.fallbackCount() > 0
                         : null);
-        response.setAnalyzedAt(matchRecord == null ? null : matchRecord.getCreateTime());
+        response.setAnalyzedAt(matchRecord == null ? null : matchRecord.createdAt());
         response.setGaps(toGapItems(gaps));
         response.setNextAction(buildNextAction(matchRecord, matchResult, planRecord, planResult, gaps));
         response.setSourceRefs(buildSourceReferences(matchRecord, planRecord));
         return response;
     }
 
-    private JobBattleMatchEngineResult readMatchResult(JobBattleMatchRecord record) {
-        if (record == null || !StringUtils.hasText(record.getResultJson())) {
+    private JobBattleMatchEngineResult readMatchResult(JobBattleMatchData record) {
+        if (record == null || !StringUtils.hasText(record.resultJson())) {
             return null;
         }
         try {
-            return objectMapper.readValue(record.getResultJson(), JobBattleMatchEngineResult.class);
+            return objectMapper.readValue(record.resultJson(), JobBattleMatchEngineResult.class);
         } catch (JsonProcessingException exception) {
-            log.warn("解析岗位匹配成长摘要失败，recordId={}", record.getId());
+            log.warn("解析岗位匹配成长摘要失败，recordId={}", record.id());
             return null;
         }
     }
 
-    private JobBattlePlanResult readPlanResult(JobBattlePlanRecord record) {
-        if (record == null || !StringUtils.hasText(record.getPlanResultJson())) {
+    private JobBattlePlanResult readPlanResult(JobBattlePlanData record) {
+        if (record == null || !StringUtils.hasText(record.planResultJson())) {
             return null;
         }
         try {
-            return objectMapper.readValue(record.getPlanResultJson(), JobBattlePlanResult.class);
+            return objectMapper.readValue(record.planResultJson(), JobBattlePlanResult.class);
         } catch (JsonProcessingException exception) {
-            log.warn("解析补短板计划成长摘要失败，recordId={}", record.getId());
+            log.warn("解析补短板计划成长摘要失败，recordId={}", record.id());
             return null;
         }
     }
@@ -126,19 +124,19 @@ public class GrowthJobBattleGapService {
 
     private List<JobBattleResumeMatchResult.Gap> selectGaps(
             JobBattleMatchEngineResult.TargetScore target,
-            JobBattlePlanRecord planRecord
+            JobBattlePlanData planRecord
     ) {
         if (target != null && target.getTopGaps() != null && !target.getTopGaps().isEmpty()) {
             return sanitizeGaps(target.getTopGaps());
         }
-        if (planRecord == null || !StringUtils.hasText(planRecord.getGapsJson())) {
+        if (planRecord == null || !StringUtils.hasText(planRecord.gapsJson())) {
             return List.of();
         }
         try {
-            return sanitizeGaps(objectMapper.readValue(planRecord.getGapsJson(), new TypeReference<>() {
+            return sanitizeGaps(objectMapper.readValue(planRecord.gapsJson(), new TypeReference<>() {
             }));
         } catch (JsonProcessingException exception) {
-            log.warn("解析补短板计划差距项失败，recordId={}", planRecord.getId());
+            log.warn("解析补短板计划差距项失败，recordId={}", planRecord.id());
             return List.of();
         }
     }
@@ -171,9 +169,9 @@ public class GrowthJobBattleGapService {
     }
 
     private GrowthJobBattleGapResponse.NextAction buildNextAction(
-            JobBattleMatchRecord matchRecord,
+            JobBattleMatchData matchRecord,
             JobBattleMatchEngineResult matchResult,
-            JobBattlePlanRecord planRecord,
+            JobBattlePlanData planRecord,
             JobBattlePlanResult planResult,
             List<JobBattleResumeMatchResult.Gap> gaps
     ) {
@@ -187,7 +185,7 @@ public class GrowthJobBattleGapService {
                 action.setDeliverable(task.getDeliverable());
                 action.setRoutePath(PLAN_ROUTE);
                 action.setSourceLabel("补短板计划：" + displayPlanName(planRecord));
-                action.setSourceObservedAt(planRecord.getCreateTime());
+                action.setSourceObservedAt(planRecord.createdAt());
                 return action;
             }
         }
@@ -200,7 +198,7 @@ public class GrowthJobBattleGapService {
             action.setDescription(firstText(firstGap.getSuggestedAction(), firstGap.getWhy(), "在求职作战台补充对应能力证据"));
             action.setRoutePath(RESUME_MATCH_ROUTE);
             action.setSourceLabel("岗位匹配分析");
-            action.setSourceObservedAt(matchRecord == null ? null : matchRecord.getCreateTime());
+            action.setSourceObservedAt(matchRecord == null ? null : matchRecord.createdAt());
             return action;
         }
 
@@ -211,20 +209,20 @@ public class GrowthJobBattleGapService {
             action.setDescription("来自最近一次岗位匹配引擎的已保存建议");
             action.setRoutePath(MATCH_ENGINE_ROUTE);
             action.setSourceLabel("岗位匹配分析");
-            action.setSourceObservedAt(matchRecord == null ? null : matchRecord.getCreateTime());
+            action.setSourceObservedAt(matchRecord == null ? null : matchRecord.createdAt());
             return action;
         }
         return null;
     }
 
-    private boolean isPlanCurrent(JobBattlePlanRecord planRecord, JobBattleMatchRecord matchRecord) {
+    private boolean isPlanCurrent(JobBattlePlanData planRecord, JobBattleMatchData matchRecord) {
         if (planRecord == null) {
             return false;
         }
-        if (matchRecord == null || matchRecord.getCreateTime() == null || planRecord.getCreateTime() == null) {
+        if (matchRecord == null || matchRecord.createdAt() == null || planRecord.createdAt() == null) {
             return true;
         }
-        return !planRecord.getCreateTime().isBefore(matchRecord.getCreateTime());
+        return !planRecord.createdAt().isBefore(matchRecord.createdAt());
     }
 
     private JobBattlePlanResult.DailyTask firstPlanTask(JobBattlePlanResult planResult) {
@@ -239,7 +237,7 @@ public class GrowthJobBattleGapService {
                 .orElse(null);
     }
 
-    private String planTaskDescription(JobBattlePlanRecord planRecord, JobBattlePlanResult.DailyTask task) {
+    private String planTaskDescription(JobBattlePlanData planRecord, JobBattlePlanResult.DailyTask task) {
         String prefix = "来自" + displayPlanName(planRecord)
                 + (task.getDay() == null ? "的任务" : "第 " + task.getDay() + " 天任务");
         if (StringUtils.hasText(task.getDeliverable())) {
@@ -256,25 +254,25 @@ public class GrowthJobBattleGapService {
     }
 
     private List<GrowthJobBattleGapResponse.SourceReference> buildSourceReferences(
-            JobBattleMatchRecord matchRecord,
-            JobBattlePlanRecord planRecord
+            JobBattleMatchData matchRecord,
+            JobBattlePlanData planRecord
     ) {
         List<GrowthJobBattleGapResponse.SourceReference> sources = new ArrayList<>();
         if (matchRecord != null) {
             GrowthJobBattleGapResponse.SourceReference source = new GrowthJobBattleGapResponse.SourceReference();
             source.setSourceType("JOB_BATTLE_MATCH");
-            source.setSourceId(matchRecord.getId());
-            source.setLabel("岗位匹配分析：" + firstText(matchRecord.getAnalysisName(), matchRecord.getBestTargetRole(), "未命名分析"));
-            source.setObservedAt(matchRecord.getCreateTime());
+            source.setSourceId(matchRecord.id());
+            source.setLabel("岗位匹配分析：" + firstText(matchRecord.analysisName(), matchRecord.bestTargetRole(), "未命名分析"));
+            source.setObservedAt(matchRecord.createdAt());
             source.setRoutePath(MATCH_ENGINE_ROUTE);
             sources.add(source);
         }
         if (planRecord != null) {
             GrowthJobBattleGapResponse.SourceReference source = new GrowthJobBattleGapResponse.SourceReference();
             source.setSourceType("JOB_BATTLE_PLAN");
-            source.setSourceId(planRecord.getId());
+            source.setSourceId(planRecord.id());
             source.setLabel("补短板计划：" + displayPlanName(planRecord));
-            source.setObservedAt(planRecord.getCreateTime());
+            source.setObservedAt(planRecord.createdAt());
             source.setRoutePath(PLAN_ROUTE);
             sources.add(source);
         }
@@ -300,8 +298,8 @@ public class GrowthJobBattleGapService {
         };
     }
 
-    private String displayPlanName(JobBattlePlanRecord record) {
-        return firstText(record == null ? null : record.getPlanName(), "补短板计划");
+    private String displayPlanName(JobBattlePlanData record) {
+        return firstText(record == null ? null : record.planName(), "补短板计划");
     }
 
     private String firstText(String... values) {

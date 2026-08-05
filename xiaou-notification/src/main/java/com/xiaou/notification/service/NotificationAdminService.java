@@ -1,20 +1,21 @@
 package com.xiaou.notification.service;
 
 import com.xiaou.common.core.domain.PageResult;
-import com.xiaou.common.domain.Notification;
-import com.xiaou.common.domain.NotificationTemplate;
-import com.xiaou.common.enums.NotificationTypeEnum;
 import com.xiaou.common.exception.BusinessException;
-import com.xiaou.common.mapper.NotificationMapper;
-import com.xiaou.common.mapper.NotificationTemplateMapper;
-import com.xiaou.common.mapper.NotificationUserReadRecordMapper;
-import com.xiaou.common.service.NotificationService;
-import com.xiaou.common.utils.NotificationUtil;
 import com.xiaou.common.utils.PageHelper;
+import com.xiaou.notification.api.NotificationCommand;
+import com.xiaou.notification.api.NotificationPublisher;
+import com.xiaou.notification.domain.Notification;
+import com.xiaou.notification.domain.NotificationTemplate;
 import com.xiaou.notification.dto.BatchSendRequest;
 import com.xiaou.notification.dto.NotificationQueryRequest;
 import com.xiaou.notification.dto.NotificationStatistics;
 import com.xiaou.notification.dto.StatisticsRequest;
+import com.xiaou.notification.enums.NotificationPriorityEnum;
+import com.xiaou.notification.enums.NotificationTypeEnum;
+import com.xiaou.notification.mapper.NotificationMapper;
+import com.xiaou.notification.mapper.NotificationTemplateMapper;
+import com.xiaou.notification.mapper.NotificationUserReadRecordMapper;
 import cn.hutool.core.util.StrUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,7 @@ public class NotificationAdminService {
     private final NotificationTemplateMapper notificationTemplateMapper;
     private final NotificationUserReadRecordMapper notificationUserReadRecordMapper;
     private final UserInfoApiService userInfoApiService;
+    private final NotificationPublisher notificationPublisher;
     
     /**
      * 获取消息统计信息
@@ -129,12 +131,17 @@ public class NotificationAdminService {
             for (Long receiverId : request.getReceiverIds()) {
                 requireExistingUser(receiverId);
             }
-            NotificationUtil.sendBatchMessage(
-                request.getReceiverIds(), 
-                request.getTitle(), 
-                request.getContent(),
-                type
-            );
+            List<NotificationCommand> commands = request.getReceiverIds().stream()
+                    .map(receiverId -> NotificationCommand.toUser(
+                            receiverId,
+                            request.getTitle(),
+                            request.getContent(),
+                            type,
+                            NotificationPriorityEnum.LOW.getCode(),
+                            null,
+                            null))
+                    .toList();
+            notificationPublisher.publishBatchAsync(commands);
             log.info("管理员批量发送消息成功，接收者数量: {}", request.getReceiverIds().size());
             return true;
         } catch (BusinessException e) {
@@ -143,6 +150,11 @@ public class NotificationAdminService {
             log.error("管理员批量发送消息失败", e);
             return false;
         }
+    }
+
+    public boolean publishAnnouncement(String title, String content, String priority) {
+        return notificationPublisher.publish(
+                NotificationCommand.announcement(title, content, priority)).isPresent();
     }
     
     /**

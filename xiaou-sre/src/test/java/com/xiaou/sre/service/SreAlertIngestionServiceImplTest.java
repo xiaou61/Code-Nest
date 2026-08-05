@@ -4,8 +4,6 @@ import com.xiaou.sre.domain.SreAlertEvent;
 import com.xiaou.sre.domain.SreIncident;
 import com.xiaou.sre.domain.SreIncidentAlertRelation;
 import com.xiaou.sre.domain.SreOutboxEvent;
-import com.xiaou.sre.dto.request.AlertmanagerAlert;
-import com.xiaou.sre.dto.request.AlertmanagerWebhookRequest;
 import com.xiaou.sre.dto.response.SreIngestionResult;
 import com.xiaou.sre.mapper.SreAlertEventMapper;
 import com.xiaou.sre.mapper.SreIncidentAlertRelationMapper;
@@ -13,6 +11,8 @@ import com.xiaou.sre.mapper.SreIncidentMapper;
 import com.xiaou.sre.mapper.SreOutboxEventMapper;
 import com.xiaou.sre.metrics.SreMetricsRecorder;
 import com.xiaou.sre.service.impl.SreAlertIngestionServiceImpl;
+import com.xiaou.sre.service.model.SreAlertBatch;
+import com.xiaou.sre.service.model.SreAlertRecord;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -54,7 +54,7 @@ class SreAlertIngestionServiceImplTest {
 
     @Test
     void firingAlertCreatesEventIncidentRelationAndOutbox() {
-        AlertmanagerWebhookRequest request = request(alert("firing", "fp-1", "api", "CodeNestTargetDown"));
+        SreAlertBatch request = request(alert("firing", "fp-1", "api", "CodeNestTargetDown"));
         when(alertEventMapper.selectByFingerprintAndStartsAt(any(), any())).thenReturn(null);
         when(incidentMapper.selectActiveByIncidentKey("api|CodeNestTargetDown")).thenReturn(null);
         when(alertEventMapper.insert(any())).thenAnswer(invocation -> {
@@ -136,8 +136,7 @@ class SreAlertIngestionServiceImplTest {
         when(relationMapper.countActiveByIncidentId(11L)).thenReturn(0);
         when(incidentMapper.selectById(11L)).thenReturn(incident);
 
-        AlertmanagerAlert resolvedAlert = alert("resolved", "fp-1", "api", "CodeNestTargetDown");
-        resolvedAlert.setGeneratorUrl("x".repeat(1200));
+        SreAlertRecord resolvedAlert = alert("resolved", "fp-1", "api", "CodeNestTargetDown", "x".repeat(1200));
         SreIngestionResult result = service.ingest(request(resolvedAlert));
 
         assertThat(result.getUpdatedEvents()).isEqualTo(1);
@@ -152,8 +151,10 @@ class SreAlertIngestionServiceImplTest {
 
     @Test
     void invalidAlertTimeIsRejectedWithoutPersistence() {
-        AlertmanagerAlert alert = alert("firing", "fp-1", "api", "CodeNestTargetDown");
-        alert.setStartsAt("not-an-iso-time");
+        SreAlertRecord original = alert("firing", "fp-1", "api", "CodeNestTargetDown");
+        SreAlertRecord alert = new SreAlertRecord(
+                original.status(), original.labels(), original.annotations(), "not-an-iso-time",
+                original.endsAt(), original.generatorUrl(), original.fingerprint(), original.rawPayload());
 
         assertThatThrownBy(() -> service.ingest(request(alert)))
                 .isInstanceOf(SreValidationException.class)
@@ -163,30 +164,35 @@ class SreAlertIngestionServiceImplTest {
         verify(incidentMapper, never()).insert(any());
     }
 
-    private AlertmanagerWebhookRequest request(AlertmanagerAlert alert) {
-        AlertmanagerWebhookRequest request = new AlertmanagerWebhookRequest();
-        request.setStatus(alert.getStatus());
-        request.setReceiver("qq-email");
-        request.setAlerts(List.of(alert));
-        return request;
+    private SreAlertBatch request(SreAlertRecord alert) {
+        return new SreAlertBatch("alertmanager", List.of(alert));
     }
 
-    private AlertmanagerAlert alert(String status, String fingerprint, String service, String alertName) {
-        AlertmanagerAlert alert = new AlertmanagerAlert();
-        alert.setStatus(status);
-        alert.setFingerprint(fingerprint);
-        alert.setStartsAt("2026-07-20T00:00:00Z");
-        alert.setEndsAt("0001-01-01T00:00:00Z");
-        alert.setLabels(Map.of(
+    private SreAlertRecord alert(String status, String fingerprint, String service, String alertName) {
+        return alert(status, fingerprint, service, alertName, "http://prometheus/graph");
+    }
+
+    private SreAlertRecord alert(String status,
+                                 String fingerprint,
+                                 String service,
+                                 String alertName,
+                                 String generatorUrl) {
+        return new SreAlertRecord(
+                status,
+                Map.of(
                 "alertname", alertName,
                 "service", service,
                 "severity", "critical"
-        ));
-        alert.setAnnotations(Map.of(
+                ),
+                Map.of(
                 "summary", "Code-Nest target is down",
                 "description", "test alert"
-        ));
-        alert.setGeneratorUrl("http://prometheus/graph");
-        return alert;
+                ),
+                "2026-07-20T00:00:00Z",
+                "0001-01-01T00:00:00Z",
+                generatorUrl,
+                fingerprint,
+                "{\"status\":\"" + status + "\"}"
+        );
     }
 }

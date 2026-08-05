@@ -1,10 +1,9 @@
 package com.xiaou.system.agent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xiaou.common.cache.TextStateStore;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 
 import java.time.Duration;
 import java.util.List;
@@ -27,28 +26,29 @@ class RedisAgentSessionContextRepositoryTest {
         RedisFixture fixture = redisFixture();
         AgentSessionProperties properties = properties();
         RedisAgentSessionContextRepository repository = repository(fixture, properties);
-        when(fixture.valueOperations.get("xiaou:admin:agent:session:session-1"))
-                .thenReturn(objectMapper.writeValueAsString(List.of(
+        when(fixture.stateStore.find("xiaou:admin:agent:session:session-1"))
+                .thenReturn(java.util.Optional.of(objectMapper.writeValueAsString(List.of(
                         turn("message-1", "tool-1"),
                         turn("message-2", "tool-2")
-                )));
+                ))));
 
         repository.appendTurn("session-1", turn("message-3", "tool-3"), 2);
 
-        verify(fixture.valueOperations).set(eq("xiaou:admin:agent:session:session-1"),
+        verify(fixture.stateStore).put(eq("xiaou:admin:agent:session:session-1"),
                 org.mockito.ArgumentMatchers.argThat(json ->
                         json.contains("message-2")
                                 && json.contains("message-3")
-                                && !json.contains("message-1")));
-        verify(fixture.redisTemplate).expire("xiaou:admin:agent:session:session-1", Duration.ofSeconds(3600));
+                                && !json.contains("message-1")),
+                eq(Duration.ofSeconds(3600)));
     }
 
     @Test
     void shouldReadSnapshotFromRedis() throws Exception {
         RedisFixture fixture = redisFixture();
         RedisAgentSessionContextRepository repository = repository(fixture, properties());
-        when(fixture.valueOperations.get("xiaou:admin:agent:session:session-1"))
-                .thenReturn(objectMapper.writeValueAsString(List.of(turn("message-1", "tool-1"))));
+        when(fixture.stateStore.find("xiaou:admin:agent:session:session-1"))
+                .thenReturn(java.util.Optional.of(
+                        objectMapper.writeValueAsString(List.of(turn("message-1", "tool-1")))));
 
         AgentSessionSnapshot snapshot = repository.snapshot("session-1");
 
@@ -63,7 +63,7 @@ class RedisAgentSessionContextRepositoryTest {
         RedisAgentSessionContextRepository repository = new RedisAgentSessionContextRepository(
                 objectMapper,
                 properties(),
-                new StaticListableBeanFactory().getBeanProvider(StringRedisTemplate.class)
+                new StaticListableBeanFactory().getBeanProvider(TextStateStore.class)
         );
 
         AgentSessionSnapshot snapshot = repository.snapshot("session-1");
@@ -81,26 +81,25 @@ class RedisAgentSessionContextRepositoryTest {
 
         repository.appendTurn("session-1", turn("message-1", "tool-1"), 6);
 
-        verify(fixture.valueOperations).set(eq("xiaou:admin:agent:session:session-1"), anyString());
-        verify(fixture.redisTemplate, never()).expire(eq("xiaou:admin:agent:session:session-1"), org.mockito.ArgumentMatchers.any(Duration.class));
+        verify(fixture.stateStore).put(eq("xiaou:admin:agent:session:session-1"), anyString());
+        verify(fixture.stateStore, never()).put(
+                eq("xiaou:admin:agent:session:session-1"), anyString(),
+                org.mockito.ArgumentMatchers.any(Duration.class));
     }
 
     private RedisAgentSessionContextRepository repository(RedisFixture fixture, AgentSessionProperties properties) {
         StaticListableBeanFactory beanFactory = new StaticListableBeanFactory();
-        beanFactory.addBean("stringRedisTemplate", fixture.redisTemplate);
+        beanFactory.addBean("textStateStore", fixture.stateStore);
         return new RedisAgentSessionContextRepository(
                 objectMapper,
                 properties,
-                beanFactory.getBeanProvider(StringRedisTemplate.class)
+                beanFactory.getBeanProvider(TextStateStore.class)
         );
     }
 
     @SuppressWarnings("unchecked")
     private RedisFixture redisFixture() {
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        return new RedisFixture(redisTemplate, valueOperations);
+        return new RedisFixture(mock(TextStateStore.class));
     }
 
     private AgentSessionProperties properties() {
@@ -120,6 +119,6 @@ class RedisAgentSessionContextRepositoryTest {
         return turn;
     }
 
-    private record RedisFixture(StringRedisTemplate redisTemplate, ValueOperations<String, String> valueOperations) {
+    private record RedisFixture(TextStateStore stateStore) {
     }
 }

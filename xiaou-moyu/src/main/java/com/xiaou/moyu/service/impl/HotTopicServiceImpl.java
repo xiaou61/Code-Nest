@@ -2,7 +2,7 @@ package com.xiaou.moyu.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
-import com.xiaou.common.cache.RedisValueStore;
+import com.xiaou.common.cache.CacheStore;
 import com.xiaou.moyu.domain.HotTopicData;
 import com.xiaou.moyu.domain.HotTopicCategory;
 import com.xiaou.moyu.domain.HotTopicResponse;
@@ -37,17 +37,17 @@ import java.util.stream.Collectors;
 @Service
 public class HotTopicServiceImpl implements HotTopicService {
     
-    private final RedisValueStore redisValueStore;
+    private final CacheStore cacheStore;
     private final RestTemplate restTemplate;
     private final Executor hotTopicExecutor;
     private final AtomicBoolean refreshing = new AtomicBoolean(false);
 
     public HotTopicServiceImpl(
-            RedisValueStore redisValueStore,
+            CacheStore cacheStore,
             RestTemplate restTemplate,
             @Qualifier("hotTopicExecutor") Executor hotTopicExecutor
     ) {
-        this.redisValueStore = redisValueStore;
+        this.cacheStore = cacheStore;
         this.restTemplate = restTemplate;
         this.hotTopicExecutor = hotTopicExecutor;
     }
@@ -202,7 +202,7 @@ public class HotTopicServiceImpl implements HotTopicService {
             String[] checkPlatforms = {"weibo", "zhihu", "douyin", "kuaishou"};
             for (String platform : checkPlatforms) {
                 String cacheKey = CACHE_KEY_PREFIX + "data:" + platform;
-                if (redisValueStore.exists(cacheKey)) {
+                if (cacheStore.exists(cacheKey)) {
                     hasCache = true;
                     break;
                 }
@@ -224,7 +224,7 @@ public class HotTopicServiceImpl implements HotTopicService {
                 try {
                     String cacheKey = CACHE_KEY_PREFIX + "data:" + platform.getCode();
                     // 再次检查单个平台缓存，防止在循环过程中其他地方设置了缓存
-                    if (!redisValueStore.exists(cacheKey)) {
+                    if (!cacheStore.exists(cacheKey)) {
                         String url = baseUrl + "/" + platform.getCode();
                         HotTopicData data = restTemplate.getForObject(url, HotTopicData.class);
                         
@@ -252,12 +252,12 @@ public class HotTopicServiceImpl implements HotTopicService {
     }
 
     private String getCachedData(String cacheKey) {
-        return redisValueStore.find(cacheKey, String.class).orElse(null);
+        return cacheStore.find(cacheKey, String.class).orElse(null);
     }
 
     private void cacheHotTopicData(String cacheKey, String jsonData) {
-        redisValueStore.put(cacheKey, jsonData, Duration.ofSeconds(cacheExpireSeconds()));
-        redisValueStore.put(toStaleCacheKey(cacheKey), jsonData, Duration.ofSeconds(staleCacheExpireSeconds()));
+        cacheStore.put(cacheKey, jsonData, Duration.ofSeconds(cacheExpireSeconds()));
+        cacheStore.put(toStaleCacheKey(cacheKey), jsonData, Duration.ofSeconds(staleCacheExpireSeconds()));
     }
 
     private <T> T getStaleData(String cacheKey, Class<T> clazz) {

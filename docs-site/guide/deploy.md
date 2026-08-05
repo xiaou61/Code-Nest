@@ -8,7 +8,7 @@
 
 | 组件 | 默认端口 | 源码目录 | 产物目录 | 依赖 |
 | --- | --- | --- | --- | --- |
-| 后端聚合应用 | 9999 | `xiaou-application` | `xiaou-application/target/*.jar` | MySQL、Redis |
+| 后端启动应用 | 9999 | `xiaou-bootstrap` | `xiaou-bootstrap/target/*.jar` | MySQL、Redis |
 | 用户端 | 3001（dev）/ Nginx（prod） | `vue3-user-front` | `vue3-user-front/dist` | 后端 API |
 | 管理端 | 3000（dev）/ Nginx（prod） | `vue3-admin-front` | `vue3-admin-front/dist` | 后端 API |
 | 文档站 | 5175（dev）/ Nginx（prod） | `docs-site` | `docs-site/.vitepress/dist` | 无 |
@@ -26,10 +26,10 @@
 mvn clean package -DskipTests
 
 # 或只构建启动模块（-am 会自动构建依赖模块）
-mvn -pl xiaou-application -am clean package -DskipTests
+mvn -pl xiaou-bootstrap -am clean package -DskipTests
 
 # 运行（默认 dev profile）
-java -jar xiaou-application/target/xiaou-application-*.jar
+java -jar xiaou-bootstrap/target/xiaou-bootstrap-*.jar
 ```
 
 ### Spring Profile
@@ -66,20 +66,20 @@ Docker 环境下通过 `SPRING_PROFILES_ACTIVE=docker` 激活。
 FROM maven:3.9.11-eclipse-temurin-17 AS builder
 WORKDIR /build
 COPY . .
-RUN mvn -pl xiaou-application -am clean package -DskipTests
+RUN mvn -pl xiaou-bootstrap -am clean package -DskipTests
 
 # 阶段2：JRE 运行
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 ENV TZ=Asia/Shanghai
 ENV SPRING_PROFILES_ACTIVE=docker
-COPY --from=builder /build/xiaou-application/target/xiaou-application-*.jar /app/app.jar
+COPY --from=builder /build/xiaou-bootstrap/target/xiaou-bootstrap-*.jar /app/app.jar
 EXPOSE 9999
 ENTRYPOINT ["sh", "-c", "java ${JAVA_OPTS} -jar /app/app.jar"]
 ```
 
 关键点：
-- 构建阶段使用 Maven 3.9.11 + JDK 17，执行 `mvn -pl xiaou-application -am clean package -DskipTests`
+- 构建阶段使用 Maven 3.9.11 + JDK 17，执行 `mvn -pl xiaou-bootstrap -am clean package -DskipTests`
 - 运行阶段使用 JRE 17，只拷贝 jar 文件，不包含源码和 Maven
 - 通过 `JAVA_OPTS` 传递 JVM 参数（如 `-Xms512m -Xmx1024m`）
 - 默认激活 `docker` profile，所有敏感配置通过环境变量注入

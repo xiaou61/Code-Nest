@@ -124,7 +124,7 @@ if ($SkipJava) {
 Write-Host "[AI] 开始启动 Java 主服务（profile=$SpringProfile）..." -ForegroundColor Cyan
 Push-Location $repoRoot
 try {
-    & $Maven "-Dspring-boot.run.profiles=$SpringProfile" -pl xiaou-application -am spring-boot:run
+    & $Maven "-Dspring-boot.run.profiles=$SpringProfile" -pl xiaou-bootstrap -am spring-boot:run
 } finally {
     Pop-Location
 }

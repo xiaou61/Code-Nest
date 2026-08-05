@@ -1,6 +1,6 @@
 package com.xiaou.chat.service;
 
-import com.xiaou.common.cache.RedisValueStore;
+import com.xiaou.common.cache.CacheStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -22,7 +22,7 @@ public class ChatWebSocketTicketService {
     private static final long TICKET_TTL_SECONDS = 60L;
     private static final int MAX_TICKET_LENGTH = 128;
 
-    private final RedisValueStore redisValueStore;
+    private final CacheStore cacheStore;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public String createTicket(Long userId) {
@@ -33,7 +33,7 @@ public class ChatWebSocketTicketService {
         byte[] randomBytes = new byte[TICKET_BYTE_LENGTH];
         secureRandom.nextBytes(randomBytes);
         String ticket = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
-        redisValueStore.put(buildKey(ticket), String.valueOf(userId), Duration.ofSeconds(TICKET_TTL_SECONDS));
+        cacheStore.put(buildKey(ticket), String.valueOf(userId), Duration.ofSeconds(TICKET_TTL_SECONDS));
         return ticket;
     }
 
@@ -42,7 +42,7 @@ public class ChatWebSocketTicketService {
             return null;
         }
 
-        String cachedUserId = redisValueStore.take(buildKey(ticket), String.class).orElse(null);
+        String cachedUserId = cacheStore.take(buildKey(ticket), String.class).orElse(null);
         if (cachedUserId == null) {
             return null;
         }

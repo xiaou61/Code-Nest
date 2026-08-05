@@ -6,7 +6,8 @@
 
 ```
 Code-Nest/
-├── xiaou-application/     # Spring Boot 启动模块 (9999 端口)
+├── xiaou-bootstrap/       # Spring Boot 启动模块 (9999 端口)
+├── xiaou-application/     # 跨领域应用编排
 ├── xiaou-common/          # 公共模块 (配置、工具、异常)
 ├── xiaou-user-api/        # 用户 API 模块 (跨模块调用契约)
 ├── xiaou-sensitive-api/   # 敏感词 API 模块 (跨模块调用契约)

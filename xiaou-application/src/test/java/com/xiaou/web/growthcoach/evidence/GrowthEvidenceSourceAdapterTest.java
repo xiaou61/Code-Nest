@@ -1,5 +1,7 @@
 package com.xiaou.web.growthcoach.evidence;
 
+import com.xiaou.web.growthcoach.adapter.persistence.evidence.GrowthAutopilotTaskEvidenceAdapter;
+import com.xiaou.web.growthcoach.adapter.persistence.evidence.MockInterviewEvidenceAdapter;
 import com.xiaou.mockinterview.domain.MockInterviewSession;
 import com.xiaou.mockinterview.mapper.MockInterviewSessionMapper;
 import com.xiaou.plan.domain.GrowthAutopilotTask;

@@ -302,11 +302,11 @@ Spring Boot 配置优先级从高到低：
 
 | 文件 | 覆盖的变量域 |
 | --- | --- |
-| `xiaou-application/src/main/resources/application.yml` | 主配置、Sa-Token、AI、OJ、文件存储、CORS、Actuator |
-| `xiaou-application/src/main/resources/application-dev.yml` | P6Spy、localhost MySQL/Redis、Sa-Token alone-redis |
-| `xiaou-application/src/main/resources/application-docker.yml` | Docker 环境变量注入模板 |
-| `xiaou-application/src/main/resources/application-prod.yml` | 生产占位配置 |
-| `xiaou-application/src/main/resources/application-sec.yml` | 敏感配置（密钥、Token），不提交仓库 |
+| `xiaou-bootstrap/src/main/resources/application.yml` | 主配置、Sa-Token、AI、OJ、文件存储、CORS、Actuator |
+| `xiaou-bootstrap/src/main/resources/application-dev.yml` | P6Spy、localhost MySQL/Redis、Sa-Token alone-redis |
+| `xiaou-bootstrap/src/main/resources/application-docker.yml` | Docker 环境变量注入模板 |
+| `xiaou-bootstrap/src/main/resources/application-prod.yml` | 生产占位配置 |
+| `xiaou-bootstrap/src/main/resources/application-sec.yml` | 敏感配置（密钥、Token），不提交仓库 |
 | `docker/ai/.env.example` | AI 联调 Compose 环境变量模板 |
 | `docker/env/example.env` | Docker 运行环境变量模板 |
 

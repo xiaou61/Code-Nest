@@ -77,7 +77,7 @@
                 >
                   {{ getPriorityText(message.priority) }}
                 </CnStatusTag>
-                <span class="message-time">{{ formatTime(message.createdTime || message.createTime) }}</span>
+                <span class="message-time">{{ formatTime(message.createdTime) }}</span>
               </div>
             </div>
 
@@ -135,7 +135,7 @@
             >
               {{ getPriorityText(currentMessage.priority) }}
             </CnStatusTag>
-            <span class="detail-time">{{ formatTime(currentMessage.createTime || currentMessage.createdTime) }}</span>
+            <span class="detail-time">{{ formatTime(currentMessage.createdTime) }}</span>
           </div>
         </div>
 
@@ -163,6 +163,8 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import type { Component } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
+import { getApiErrorMessage as getErrorMessage } from '@code-nest/api-contract'
+import type { ApiId, NotificationRecord, PageResult } from '@code-nest/api-contract'
 import {
   Bell,
   ChatDotSquare,
@@ -194,31 +196,15 @@ import {
   markAsRead
 } from '@/api/notification'
 
-interface NotificationMessage {
-  id: number | string
-  title?: string
-  content?: string
-  status?: 'UNREAD' | 'READ' | string
-  type?: string
-  priority?: string
-  createdTime?: string
-  createTime?: string
-}
-
-interface MessageQueryResponse {
-  records?: NotificationMessage[]
-  total?: number
-}
-
 interface MessageActionCommand {
   action: 'markRead' | 'delete'
-  id: number | string
+  id: ApiId
 }
 
 const router = useRouter()
 
 const loading = ref(false)
-const messageList = ref<NotificationMessage[]>([])
+const messageList = ref<NotificationRecord[]>([])
 const totalCount = ref(0)
 const unreadCount = ref(0)
 
@@ -235,7 +221,7 @@ const pagination = reactive({
 })
 
 const detailDialogVisible = ref(false)
-const currentMessage = ref<NotificationMessage | null>(null)
+const currentMessage = ref<NotificationRecord | null>(null)
 
 const readCount = computed(() => Math.max(totalCount.value - unreadCount.value, 0))
 
@@ -297,9 +283,9 @@ const searchMessages = async () => {
       params.endTime = dateRange[1]
     }
 
-    const response = (await getMessages(params)) as MessageQueryResponse
-    messageList.value = response.records || []
-    totalCount.value = response.total || 0
+    const response = (await getMessages(params)) as PageResult<NotificationRecord>
+    messageList.value = response.records
+    totalCount.value = response.total
   } catch (error) {
     ElMessage.error(`获取消息列表失败：${getErrorMessage(error)}`)
   } finally {
@@ -343,9 +329,9 @@ const getUnreadCountData = async () => {
   }
 }
 
-const viewMessageDetail = async (message: NotificationMessage) => {
+const viewMessageDetail = async (message: NotificationRecord) => {
   try {
-    const response = (await getMessageDetail(message.id)) as NotificationMessage
+    const response = (await getMessageDetail(message.id)) as NotificationRecord
     currentMessage.value = response
     detailDialogVisible.value = true
 
@@ -357,7 +343,7 @@ const viewMessageDetail = async (message: NotificationMessage) => {
   }
 }
 
-const markMessageAsRead = async (messageId: number | string, showMessage = true) => {
+const markMessageAsRead = async (messageId: ApiId, showMessage = true) => {
   try {
     await markAsRead({ messageId })
     if (showMessage) {
@@ -379,7 +365,7 @@ const markMessageAsRead = async (messageId: number | string, showMessage = true)
   }
 }
 
-const deleteMessageById = async (messageId: number | string) => {
+const deleteMessageById = async (messageId: ApiId) => {
   try {
     await ElMessageBox.confirm('确定要删除这条消息吗？', '确认删除', {
       confirmButtonText: '确定',
@@ -527,9 +513,6 @@ const escapeHtml = (text: string) => {
     .replace(/'/g, '&#39;')
 }
 
-const getErrorMessage = (error: unknown) => {
-  return error instanceof Error ? error.message : '未知错误'
-}
 </script>
 
 <style scoped>

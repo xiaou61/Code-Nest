@@ -1,16 +1,13 @@
 package com.xiaou.web.growthcoach.service;
 
-import com.xiaou.mockinterview.domain.JobBattleMatchRecord;
-import com.xiaou.mockinterview.domain.JobBattlePlanRecord;
-import com.xiaou.mockinterview.domain.MockInterviewDirection;
-import com.xiaou.mockinterview.domain.MockInterviewSession;
-import com.xiaou.mockinterview.mapper.JobBattleMatchRecordMapper;
-import com.xiaou.mockinterview.mapper.JobBattlePlanRecordMapper;
-import com.xiaou.mockinterview.mapper.MockInterviewSessionMapper;
-import com.xiaou.mockinterview.service.MockInterviewService;
 import com.xiaou.web.growthcoach.dto.GrowthApplicationOutcomeResponse;
 import com.xiaou.web.growthcoach.dto.GrowthJobBattleGapResponse;
 import com.xiaou.web.growthcoach.dto.GrowthJobPreparationLoopResponse;
+import com.xiaou.web.growthcoach.port.GrowthCareerDataPort;
+import com.xiaou.web.growthcoach.port.GrowthCareerDataPort.JobBattleMatchData;
+import com.xiaou.web.growthcoach.port.GrowthCareerDataPort.JobBattlePlanData;
+import com.xiaou.web.growthcoach.port.GrowthCareerDataPort.MockInterviewDirectionData;
+import com.xiaou.web.growthcoach.port.GrowthCareerDataPort.MockInterviewSessionData;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -41,10 +38,7 @@ public class GrowthJobPreparationLoopService {
     private static final String MOCK_INTERVIEW_ROUTE = "/mock-interview";
     private static final String APPLICATION_ROUTE = "/career-loop?focus=applications";
 
-    private final JobBattleMatchRecordMapper matchRecordMapper;
-    private final JobBattlePlanRecordMapper planRecordMapper;
-    private final MockInterviewSessionMapper mockInterviewSessionMapper;
-    private final MockInterviewService mockInterviewService;
+    private final GrowthCareerDataPort careerDataPort;
     private final GrowthJobBattleGapService growthJobBattleGapService;
     private final GrowthApplicationOutcomeService growthApplicationOutcomeService;
 
@@ -53,23 +47,23 @@ public class GrowthJobPreparationLoopService {
             return null;
         }
 
-        JobBattleMatchRecord matchRecord = matchRecordMapper.selectLatestByUserId(userId);
+        JobBattleMatchData matchRecord = careerDataPort.latestJobBattleMatch(userId);
         if (matchRecord == null) {
             return null;
         }
 
         GrowthJobBattleGapResponse gap = safely("job_battle_gap",
                 () -> growthJobBattleGapService.getCurrentGap(userId));
-        JobBattlePlanRecord planRecord = planRecordMapper.selectLatestByUserId(userId);
+        JobBattlePlanData planRecord = careerDataPort.latestJobBattlePlan(userId);
         GrowthApplicationOutcomeResponse applications = safely("application_outcomes",
                 () -> growthApplicationOutcomeService.getForUser(userId));
 
         GrowthJobPreparationLoopResponse response = new GrowthJobPreparationLoopResponse();
-        response.setMatchRecordId(matchRecord.getId());
-        response.setPlanRecordId(planRecord == null ? null : planRecord.getId());
+        response.setMatchRecordId(matchRecord.id());
+        response.setPlanRecordId(planRecord == null ? null : planRecord.id());
         response.setTargetRole(firstText(
                 gap == null ? null : gap.getTargetRole(),
-                matchRecord.getBestTargetRole(),
+                matchRecord.bestTargetRole(),
                 "当前目标岗位"
         ));
         response.setFocusSkills(focusSkills(gap));
@@ -80,10 +74,10 @@ public class GrowthJobPreparationLoopService {
         }
 
         boolean planCurrent = isCurrentPlan(planRecord, matchRecord);
-        MockInterviewSession completedMock = planCurrent
-                ? latestCompletedAfter(userId, planRecord == null ? null : planRecord.getCreateTime())
+        MockInterviewSessionData completedMock = planCurrent
+                ? latestCompletedAfter(userId, planRecord == null ? null : planRecord.createdAt())
                 : null;
-        response.setMockInterviewSessionId(completedMock == null ? null : completedMock.getId());
+        response.setMockInterviewSessionId(completedMock == null ? null : completedMock.id());
 
         if (!planCurrent) {
             fillPlanStage(response, matchRecord, planRecord, applications);
@@ -99,8 +93,8 @@ public class GrowthJobPreparationLoopService {
 
     private void fillFallbackMatchStage(
             GrowthJobPreparationLoopResponse response,
-            JobBattleMatchRecord matchRecord,
-            JobBattlePlanRecord planRecord,
+            JobBattleMatchData matchRecord,
+            JobBattlePlanData planRecord,
             GrowthApplicationOutcomeResponse applications
     ) {
         response.setStage("GAP_ANALYSIS");
@@ -113,8 +107,8 @@ public class GrowthJobPreparationLoopService {
                 "重新保存可靠的匹配结论后，才能形成可追溯的准备闭环。"
         ));
         response.setSteps(List.of(
-                step("GAP_ANALYSIS", "岗位差距", "current", "先复核最近一次匹配结果。", matchRecord.getCreateTime()),
-                step("STUDY_PLAN", "补短板计划", "pending", "等待可靠的岗位差距结论。", planRecord == null ? null : planRecord.getCreateTime()),
+                step("GAP_ANALYSIS", "岗位差距", "current", "先复核最近一次匹配结果。", matchRecord.createdAt()),
+                step("STUDY_PLAN", "补短板计划", "pending", "等待可靠的岗位差距结论。", planRecord == null ? null : planRecord.createdAt()),
                 step("MOCK_INTERVIEW", "模拟面试", "pending", "先形成可靠的准备范围。", null),
                 applicationStep("pending", applications)
         ));
@@ -123,8 +117,8 @@ public class GrowthJobPreparationLoopService {
 
     private void fillPlanStage(
             GrowthJobPreparationLoopResponse response,
-            JobBattleMatchRecord matchRecord,
-            JobBattlePlanRecord planRecord,
+            JobBattleMatchData matchRecord,
+            JobBattlePlanData planRecord,
             GrowthApplicationOutcomeResponse applications
     ) {
         response.setStage("STUDY_PLAN");
@@ -137,8 +131,8 @@ public class GrowthJobPreparationLoopService {
                 "会形成当前岗位匹配之后的补短板计划，再进入模拟面试验证。"
         ));
         response.setSteps(List.of(
-                step("GAP_ANALYSIS", "岗位差距", "completed", "最近一次岗位匹配已保存。", matchRecord.getCreateTime()),
-                step("STUDY_PLAN", "补短板计划", "current", "需要基于当前匹配生成计划。", planRecord == null ? null : planRecord.getCreateTime()),
+                step("GAP_ANALYSIS", "岗位差距", "completed", "最近一次岗位匹配已保存。", matchRecord.createdAt()),
+                step("STUDY_PLAN", "补短板计划", "current", "需要基于当前匹配生成计划。", planRecord == null ? null : planRecord.createdAt()),
                 step("MOCK_INTERVIEW", "模拟面试", "pending", "计划形成后再进行能力验证。", null),
                 applicationStep("pending", applications)
         ));
@@ -147,14 +141,14 @@ public class GrowthJobPreparationLoopService {
 
     private void fillMockInterviewStage(
             GrowthJobPreparationLoopResponse response,
-            JobBattleMatchRecord matchRecord,
-            JobBattlePlanRecord planRecord,
+            JobBattleMatchData matchRecord,
+            JobBattlePlanData planRecord,
             GrowthApplicationOutcomeResponse applications
     ) {
-        MockInterviewDirection direction = resolveDirection(response.getTargetRole());
+        MockInterviewDirectionData direction = resolveDirection(response.getTargetRole());
         response.setStage("MOCK_INTERVIEW");
-        response.setRecommendedDirection(direction == null ? null : direction.getDirectionCode());
-        response.setRecommendedDirectionName(direction == null ? null : direction.getDirectionName());
+        response.setRecommendedDirection(direction == null ? null : direction.code());
+        response.setRecommendedDirectionName(direction == null ? null : direction.name());
         if (direction == null) {
             response.setSummary("当前补短板计划已经保存；下一步是在模拟面试中手动选择最贴近岗位的技术方向进行验证。");
             response.setCurrentAction(action(
@@ -170,16 +164,16 @@ public class GrowthJobPreparationLoopService {
                     : "AI 出题会优先覆盖已确认的技术主题：" + String.join("、", response.getFocusSkills()) + "。";
             response.setSummary("当前补短板计划已经保存；用一次模拟面试把准备阶段转成可回溯的能力验证。");
             response.setCurrentAction(action(
-                    "开始一次" + direction.getDirectionName() + "模拟面试",
+                    "开始一次" + direction.name() + "模拟面试",
                     focusDescription + " 题目生成仍受现有方向、数量和结构化输出约束。",
-                    mockConfigRoute(direction.getDirectionCode(), response.getFocusSkills()),
+                    mockConfigRoute(direction.code(), response.getFocusSkills()),
                     30,
                     "完成后会生成一条可回溯的模拟面试表现记录，并进入投递跟进阶段。"
             ));
         }
         response.setSteps(List.of(
-                step("GAP_ANALYSIS", "岗位差距", "completed", "最近一次岗位匹配已保存。", matchRecord.getCreateTime()),
-                step("STUDY_PLAN", "补短板计划", "completed", "已使用当前匹配之后生成的计划。", planRecord.getCreateTime()),
+                step("GAP_ANALYSIS", "岗位差距", "completed", "最近一次岗位匹配已保存。", matchRecord.createdAt()),
+                step("STUDY_PLAN", "补短板计划", "completed", "已使用当前匹配之后生成的计划。", planRecord.createdAt()),
                 step("MOCK_INTERVIEW", "模拟面试", "current", "通过一次真实面试会话验证当前准备。", null),
                 applicationStep("pending", applications)
         ));
@@ -188,9 +182,9 @@ public class GrowthJobPreparationLoopService {
 
     private void fillApplicationStage(
             GrowthJobPreparationLoopResponse response,
-            JobBattleMatchRecord matchRecord,
-            JobBattlePlanRecord planRecord,
-            MockInterviewSession completedMock,
+            JobBattleMatchData matchRecord,
+            JobBattlePlanData planRecord,
+            MockInterviewSessionData completedMock,
             GrowthApplicationOutcomeResponse applications
     ) {
         GrowthApplicationOutcomeResponse.NextAction next = applications == null ? null : applications.getNextAction();
@@ -205,13 +199,13 @@ public class GrowthJobPreparationLoopService {
                 firstText(next == null ? null : next.getExpectedChange(), "投递记录会进入后续跟进汇总。")
         ));
         response.setSteps(List.of(
-                step("GAP_ANALYSIS", "岗位差距", "completed", "最近一次岗位匹配已保存。", matchRecord.getCreateTime()),
-                step("STUDY_PLAN", "补短板计划", "completed", "已使用当前匹配之后生成的计划。", planRecord.getCreateTime()),
+                step("GAP_ANALYSIS", "岗位差距", "completed", "最近一次岗位匹配已保存。", matchRecord.createdAt()),
+                step("STUDY_PLAN", "补短板计划", "completed", "已使用当前匹配之后生成的计划。", planRecord.createdAt()),
                 step("MOCK_INTERVIEW", "模拟面试", "completed", "已完成一次模拟面试。", observedAt(completedMock)),
                 applicationStep(hasApplication ? "observed" : "current", applications)
         ));
         List<GrowthJobPreparationLoopResponse.SourceReference> sources = matchAndPlanSources(matchRecord, planRecord);
-        sources.add(source("MOCK_INTERVIEW", completedMock.getId(), "最近一次已完成模拟面试", observedAt(completedMock)));
+        sources.add(source("MOCK_INTERVIEW", completedMock.id(), "最近一次已完成模拟面试", observedAt(completedMock)));
         response.setSourceRefs(sources);
     }
 
@@ -235,13 +229,13 @@ public class GrowthJobPreparationLoopService {
     }
 
     private List<GrowthJobPreparationLoopResponse.SourceReference> matchAndPlanSources(
-            JobBattleMatchRecord matchRecord,
-            JobBattlePlanRecord planRecord
+            JobBattleMatchData matchRecord,
+            JobBattlePlanData planRecord
     ) {
         List<GrowthJobPreparationLoopResponse.SourceReference> sources = new java.util.ArrayList<>();
-        sources.add(source("JOB_BATTLE_MATCH", matchRecord.getId(), "最近一次岗位匹配", matchRecord.getCreateTime()));
+        sources.add(source("JOB_BATTLE_MATCH", matchRecord.id(), "最近一次岗位匹配", matchRecord.createdAt()));
         if (planRecord != null) {
-            sources.add(source("JOB_BATTLE_PLAN", planRecord.getId(), "最近一次补短板计划", planRecord.getCreateTime()));
+            sources.add(source("JOB_BATTLE_PLAN", planRecord.id(), "最近一次补短板计划", planRecord.createdAt()));
         }
         return sources;
     }
@@ -292,18 +286,18 @@ public class GrowthJobPreparationLoopService {
         return action;
     }
 
-    private boolean isCurrentPlan(JobBattlePlanRecord planRecord, JobBattleMatchRecord matchRecord) {
+    private boolean isCurrentPlan(JobBattlePlanData planRecord, JobBattleMatchData matchRecord) {
         if (planRecord == null) {
             return false;
         }
-        if (matchRecord == null || matchRecord.getCreateTime() == null || planRecord.getCreateTime() == null) {
+        if (matchRecord == null || matchRecord.createdAt() == null || planRecord.createdAt() == null) {
             return true;
         }
-        return !planRecord.getCreateTime().isBefore(matchRecord.getCreateTime());
+        return !planRecord.createdAt().isBefore(matchRecord.createdAt());
     }
 
-    private MockInterviewSession latestCompletedAfter(Long userId, LocalDateTime after) {
-        List<MockInterviewSession> sessions = mockInterviewSessionMapper.selectRecentCompleted(
+    private MockInterviewSessionData latestCompletedAfter(Long userId, LocalDateTime after) {
+        List<MockInterviewSessionData> sessions = careerDataPort.recentCompletedMockInterviews(
                 userId,
                 RECENT_COMPLETED_INTERVIEW_LIMIT
         );
@@ -313,22 +307,25 @@ public class GrowthJobPreparationLoopService {
                 .orElse(null);
     }
 
-    private MockInterviewDirection resolveDirection(String targetRole) {
+    private MockInterviewDirectionData resolveDirection(String targetRole) {
         if (!StringUtils.hasText(targetRole)) {
             return null;
         }
-        List<MockInterviewDirection> directions = safely("mock_interview_directions", mockInterviewService::getDirections);
+        List<MockInterviewDirectionData> directions = safely(
+                "mock_interview_directions",
+                careerDataPort::mockInterviewDirections
+        );
         String normalizedRole = normalize(targetRole);
-        for (MockInterviewDirection direction : safeDirections(directions)) {
-            String code = normalize(direction.getDirectionCode());
-            String name = normalize(direction.getDirectionName());
+        for (MockInterviewDirectionData direction : safeDirections(directions)) {
+            String code = normalize(direction.code());
+            String name = normalize(direction.name());
             if ((StringUtils.hasText(code) && normalizedRole.contains(code))
                     || (StringUtils.hasText(name) && normalizedRole.contains(name))) {
                 return direction;
             }
         }
         return safeDirections(directions).stream()
-                .filter(direction -> matchesKnownDirection(normalizedRole, normalize(direction.getDirectionCode())))
+                .filter(direction -> matchesKnownDirection(normalizedRole, normalize(direction.code())))
                 .findFirst()
                 .orElse(null);
     }
@@ -381,11 +378,11 @@ public class GrowthJobPreparationLoopService {
                 : normalized.substring(0, MAX_FOCUS_SKILL_LENGTH);
     }
 
-    private LocalDateTime observedAt(MockInterviewSession session) {
+    private LocalDateTime observedAt(MockInterviewSessionData session) {
         if (session == null) {
             return null;
         }
-        return firstTime(session.getEndTime(), session.getUpdateTime(), session.getCreateTime());
+        return firstTime(session.endedAt(), session.updatedAt(), session.createdAt());
     }
 
     private LocalDateTime firstTime(LocalDateTime... values) {
@@ -418,11 +415,11 @@ public class GrowthJobPreparationLoopService {
         return value == null ? 0 : value;
     }
 
-    private List<MockInterviewSession> safeSessions(List<MockInterviewSession> sessions) {
+    private List<MockInterviewSessionData> safeSessions(List<MockInterviewSessionData> sessions) {
         return sessions == null ? List.of() : sessions.stream().filter(Objects::nonNull).toList();
     }
 
-    private List<MockInterviewDirection> safeDirections(List<MockInterviewDirection> directions) {
+    private List<MockInterviewDirectionData> safeDirections(List<MockInterviewDirectionData> directions) {
         return directions == null ? List.of() : directions.stream().filter(Objects::nonNull).toList();
     }
 

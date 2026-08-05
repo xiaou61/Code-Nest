@@ -17,8 +17,8 @@ Code Nest 使用 Sa-Token 做鉴权，但不是"一套登录态走天下"。项�
 | 位置 | 作用 | 行数 |
 | --- | --- | --- |
 | `xiaou-common/src/main/java/com/xiaou/common/config/SaTokenConfig.java` | 注册 Sa-Token 拦截器，定义放行/拦截路径 | ~50 |
-| `xiaou-common/src/main/java/com/xiaou/common/satoken/StpAdminUtil.java` | 管理端登录工具，`loginType = "admin"` | ~30 |
-| `xiaou-common/src/main/java/com/xiaou/common/satoken/StpUserUtil.java` | 用户端登录工具，`loginType = "user"` | ~30 |
+| `xiaou-common-security/src/main/java/com/xiaou/common/satoken/StpAdminUtil.java` | 管理端登录工具，`loginType = "admin"` | ~30 |
+| `xiaou-common-security/src/main/java/com/xiaou/common/satoken/StpUserUtil.java` | 用户端登录工具，`loginType = "user"` | ~30 |
 | `xiaou-common/src/main/java/com/xiaou/common/aspect/AdminAuthAspect.java` | `@RequireAdmin` 管理员权限切面 | ~40 |
 | `xiaou-common/src/main/java/com/xiaou/common/annotation/RequireAdmin.java` | 管理员权限注解定义 | ~15 |
 | `xiaou-common/src/main/java/com/xiaou/common/annotation/Log.java` | 操作日志注解定义 | ~20 |

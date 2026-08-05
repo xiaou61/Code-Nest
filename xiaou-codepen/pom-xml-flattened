@@ -5,17 +5,32 @@
   <parent>
     <groupId>com.xiaou</groupId>
     <artifactId>Code-Nest</artifactId>
-    <version>v2.5.5</version>
+    <version>v2.5.6</version>
   </parent>
   <groupId>com.xiaou</groupId>
   <artifactId>xiaou-codepen</artifactId>
-  <version>v2.5.5</version>
+  <version>v2.5.6</version>
   <name>xiaou-codepen</name>
   <description>代码共享器模块 - 在线代码编辑、分享和知识变现</description>
   <dependencies>
     <dependency>
       <groupId>com.xiaou</groupId>
-      <artifactId>xiaou-common</artifactId>
+      <artifactId>xiaou-common-core</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-common-web</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-common-security</artifactId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.xiaou</groupId>
+      <artifactId>xiaou-common-persistence</artifactId>
       <version>${revision}</version>
     </dependency>
     <dependency>

@@ -1,6 +1,8 @@
 # 生产 CI/CD 自动发布
 
-本页说明 Code Nest `v2.5.3` 的生产 CI/CD 流程。目标是每次准备发布版本后，由 GitHub Actions 自动构建后端、用户端、管理端和文档站，并在触发生产部署时同步更新服务器，同时保留可追溯的版本、迁移和回滚证据。
+本页说明 Code Nest `v2.5.6` 的生产 CI/CD 流程。目标是每次准备发布版本后，由 GitHub Actions 自动构建后端、用户端、管理端和文档站，并在触发生产部署时同步更新服务器，同时保留可追溯的版本、迁移和回滚证据。
+
+生产版本不再从分支名推导。源码检出后，workflow 校验 `release/manifest.json`，并以其中的 `releaseVersion`、`database.schemaVersion` 和制品路径组装发布包。`v*` push 的 ref 必须与清单版本一致。
 
 ## 流水线总览
 
@@ -118,7 +120,9 @@ admin/*
 user/*
 scripts/deploy-release.sh
 scripts/db-migrate.py
+scripts/release_manifest.py
 scripts/release-smoke-test.py
+release-manifest.json
 VERSION
 sql/v*/**
 RELEASE
@@ -126,7 +130,7 @@ RELEASE
 
 服务器端脚本会执行：
 
-1. 在解压前检查 tar 路径和版本元数据，解压后再次运行 release smoke test。
+1. 在解压前检查 tar 路径和版本元数据，解压后再次按内置发布清单运行 release smoke test。
 2. 解压 release bundle 到临时 stage。
 3. 校验 Jar、用户端 `index.html`、管理端 `index.html`、版本和迁移执行器是否存在。
 4. 只有设置 `CODE_NEST_RUN_MIGRATIONS=true` 时才执行 checksum 迁移；默认只记录跳过。

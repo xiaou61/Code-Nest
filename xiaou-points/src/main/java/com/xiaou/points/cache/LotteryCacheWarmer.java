@@ -1,6 +1,6 @@
 package com.xiaou.points.cache;
 
-import com.xiaou.common.cache.RedisValueStore;
+import com.xiaou.common.cache.CacheStore;
 import com.xiaou.points.domain.LotteryPrizeConfig;
 import com.xiaou.points.mapper.LotteryPrizeConfigMapper;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +23,7 @@ import java.time.Duration;
 public class LotteryCacheWarmer implements CommandLineRunner {
     
     private final LotteryPrizeConfigMapper prizeConfigMapper;
-    private final RedisValueStore redisValueStore;
+    private final CacheStore cacheStore;
     
     /**
      * 缓存Key前缀
@@ -63,13 +63,13 @@ public class LotteryCacheWarmer implements CommandLineRunner {
         for (LotteryPrizeConfig prize : prizes) {
             // 缓存单个奖品配置，1小时 = 3600秒
             String prizeKey = PRIZE_CONFIG_KEY + prize.getId();
-            redisValueStore.put(prizeKey, prize, Duration.ofHours(1));
+            cacheStore.put(prizeKey, prize, Duration.ofHours(1));
             
             log.debug("预热奖品配置：{} - {}", prize.getId(), prize.getPrizeName());
         }
         
         // 缓存奖品列表，1小时 = 3600秒
-        redisValueStore.put(PRIZE_LIST_KEY, prizes, Duration.ofHours(1));
+        cacheStore.put(PRIZE_LIST_KEY, prizes, Duration.ofHours(1));
         
         log.info("预热奖品配置完成，奖品数量：{}", prizes.size());
     }
@@ -90,7 +90,7 @@ public class LotteryCacheWarmer implements CommandLineRunner {
             // 缓存奖品库存
             String stockKey = PRIZE_STOCK_KEY + prize.getId();
             Integer currentStock = prize.getCurrentStock() != null ? prize.getCurrentStock() : prize.getTotalStock();
-            redisValueStore.put(stockKey, currentStock);
+            cacheStore.put(stockKey, currentStock);
             
             count++;
             log.debug("预热奖品库存：{} - {} (库存：{})", prize.getId(), prize.getPrizeName(), currentStock);
@@ -108,4 +108,3 @@ public class LotteryCacheWarmer implements CommandLineRunner {
         warmUpPrizeStock();
     }
 }
-

@@ -15,8 +15,42 @@
         <!-- 引入common模块 -->
         <dependency>
             <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-common-core</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-common-web</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-common-security</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-common-persistence</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-common-cache</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaou</groupId>
             <artifactId>xiaou-common</artifactId>
             <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-resilience</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
         </dependency>
         
         <!-- 引入system模块 -->
@@ -205,52 +239,10 @@
             <scope>test</scope>
         </dependency>
         
-        <!-- Mysql驱动包 -->
-        <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
-        </dependency>
-        <!-- SpringBoot Web容器 -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-            <exclusions>
-                <exclusion>
-                    <artifactId>spring-boot-starter-tomcat</artifactId>
-                    <groupId>org.springframework.boot</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <!-- web 容器使用 undertow 性能更强 -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-undertow</artifactId>
-        </dependency>
-
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
         </dependency>
     </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>${spring-boot.version}</version>
-                <configuration>
-                    <mainClass>com.xiaou.CodeNestApplication</mainClass>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>repackage</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
 
 </project>

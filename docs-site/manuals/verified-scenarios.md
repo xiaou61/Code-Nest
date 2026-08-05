@@ -26,7 +26,7 @@ v2.2.2 版本在 v2.2.1 基础上对团队工作流契约和发布流程做了�
 
 | 构建项 | 命令 | 结果 |
 | --- | --- | --- |
-| 后端聚合构建 | `mvn -pl xiaou-application -am clean package -DskipTests` | BUILD SUCCESS |
+| 后端启动制品构建 | `mvn -pl xiaou-bootstrap -am clean package -DskipTests` | BUILD SUCCESS |
 | 用户端构建 | `cd vue3-user-front && npm run build` | built in Xms |
 | 管理端构建 | `cd vue3-admin-front && npm run build` | built in Xms |
 | 文档站构建 | `cd docs-site && npm run build` | built in Xms |
@@ -76,7 +76,7 @@ v2.2.2 版本在 v2.2.1 基础上对团队工作流契约和发布流程做了�
 | 热榜服务外部 Cookie 依赖失败 | `/moyu-tools/hot-topics` 可能无完整数据 | 调整热榜抓取策略或缓存兜底 |
 | RAG 相关能力需要 sidecar | AI 配置页、模拟面试、SQL 优化的知识库召回无法完整验证 | 使用 `scripts/ai/start-ai-dev-stack.ps1` 启动 |
 | 当前 PowerShell PATH 未直接包含 `java` | 直接 `java -version` 不可用 | 显式设置 `JAVA_HOME` |
-| `spring-boot:run` 在当前环境不稳定 | 启动后端容易失败 | 先 `mvn -pl xiaou-application -am install -DskipTests`，再运行 jar |
+| `spring-boot:run` 在当前环境不稳定 | 启动后端容易失败 | 先 `mvn -pl xiaou-bootstrap -am install -DskipTests`，再运行 jar |
 | Sa-Token `activity-timeout` 配置已过期 | 启动有告警，不阻断 | 改为 `active-timeout` |
 | go-judge 远端不可达 | OJ 完整 AC/WA/CE/TLE 结果无法稳定验证 | 部署本地 go-judge 或恢复远端服务 |
 | 积分页签到字段不一致 | 实际签到成功，但按钮文案可能不更新 | 前端兼容 `todayCheckedIn` 或后端补 `hasCheckedToday` |

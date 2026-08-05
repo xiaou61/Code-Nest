@@ -17,11 +17,6 @@
     
     <dependencies>
         <!-- 只依赖common模块，避免循环依赖 -->
-        <dependency>
-            <groupId>com.xiaou</groupId>
-            <artifactId>xiaou-common</artifactId>
-            <version>${revision}</version>
-        </dependency>
         
         <!-- Lombok -->
         <dependency>

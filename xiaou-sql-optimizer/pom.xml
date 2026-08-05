@@ -17,7 +17,22 @@
         <!-- 公共模块 -->
         <dependency>
             <groupId>com.xiaou</groupId>
-            <artifactId>xiaou-common</artifactId>
+            <artifactId>xiaou-common-core</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-common-web</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-common-security</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-common-persistence</artifactId>
             <version>${revision}</version>
         </dependency>
 

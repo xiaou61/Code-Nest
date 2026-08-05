@@ -1,11 +1,11 @@
 package com.xiaou.system.service.impl.support;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xiaou.common.cache.TextStateStore;
 import com.xiaou.common.config.AiProperties;
 import com.xiaou.system.dto.AiRegressionRunResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
-import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.util.List;
 
@@ -16,7 +16,7 @@ class AiRegressionRunStateRepositoryTest {
     private final AiRegressionRunStateRepository repository = new AiRegressionRunStateRepository(
             new ObjectMapper(),
             new AiProperties(),
-            new StaticListableBeanFactory().getBeanProvider(StringRedisTemplate.class)
+            new StaticListableBeanFactory().getBeanProvider(TextStateStore.class)
     );
 
     @Test

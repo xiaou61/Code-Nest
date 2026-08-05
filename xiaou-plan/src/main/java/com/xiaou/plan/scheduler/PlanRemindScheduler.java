@@ -1,8 +1,7 @@
 package com.xiaou.plan.scheduler;
 
-import com.xiaou.common.domain.Notification;
-import com.xiaou.common.enums.NotificationStatusEnum;
-import com.xiaou.common.service.NotificationService;
+import com.xiaou.notification.api.NotificationCommand;
+import com.xiaou.notification.api.NotificationPublisher;
 import com.xiaou.plan.domain.PlanRemindTask;
 import com.xiaou.plan.domain.UserPlan;
 import com.xiaou.plan.mapper.PlanRemindTaskMapper;
@@ -30,7 +29,7 @@ public class PlanRemindScheduler {
     
     private final UserPlanMapper planMapper;
     private final PlanRemindTaskMapper remindTaskMapper;
-    private final NotificationService notificationService;
+    private final NotificationPublisher notificationPublisher;
     
     /**
      * 每天凌晨生成当日的提醒任务
@@ -151,20 +150,15 @@ public class PlanRemindScheduler {
                         formatTime(plan.getDailyEndTime()) + " 截止，还未完成哦~";
             }
             
-            // 创建通知
-            Notification notification = new Notification();
-            notification.setTitle(title);
-            notification.setContent(content);
-            notification.setType("SYSTEM");
-            notification.setPriority("NORMAL");
-            notification.setReceiverId(task.getUserId());
-            notification.setSourceModule("plan");
-            notification.setSourceId(String.valueOf(plan.getId()));
-            notification.setStatus(NotificationStatusEnum.UNREAD.getCode());
-            notification.setCreatedTime(LocalDateTime.now());
-            
-            // 发送通知
-            notificationService.sendNotification(notification);
+            notificationPublisher.publish(NotificationCommand.toUser(
+                    task.getUserId(),
+                    title,
+                    content,
+                    "SYSTEM",
+                    "NORMAL",
+                    "plan",
+                    String.valueOf(plan.getId())
+            ));
             
             // 更新任务状态
             remindTaskMapper.updateStatus(task.getId(), 1, LocalDateTime.now());

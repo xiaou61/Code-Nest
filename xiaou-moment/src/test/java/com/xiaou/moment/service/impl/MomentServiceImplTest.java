@@ -9,6 +9,7 @@ import com.xiaou.moment.mapper.MomentFavoriteMapper;
 import com.xiaou.moment.mapper.MomentLikeMapper;
 import com.xiaou.moment.mapper.MomentMapper;
 import com.xiaou.moment.service.MomentViewService;
+import com.xiaou.notification.api.NotificationPublisher;
 import com.xiaou.user.api.UserInfoApiService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,8 @@ class MomentServiceImplTest {
     private UserInfoApiService userInfoApiService;
     @Mock
     private MomentViewService momentViewService;
+    @Mock
+    private NotificationPublisher notificationPublisher;
 
     private MomentServiceImpl service;
 
@@ -53,7 +56,8 @@ class MomentServiceImplTest {
                 momentCommentMapper,
                 momentFavoriteMapper,
                 userInfoApiService,
-                momentViewService
+                momentViewService,
+                notificationPublisher
         );
     }
 

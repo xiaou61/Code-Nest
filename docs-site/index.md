@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: Code Nest
-  text: v2.5.5 工程文档中心
+  text: v2.5.6 工程文档中心
   tagline: 按角色、任务和系统边界组织的开发、接口、操作与运维手册。
   image:
     src: /code-nest-mark.svg
@@ -24,7 +24,7 @@ features:
     details: 环境搭建、学习路线、模块接手、功能开发、测试与发布流程。
     link: /guide/
   - title: 系统架构
-    details: 单体模块化边界、28 个 Maven 子模块、双前端和数据演进方式。
+    details: 单体模块化边界、36 个 Maven 子模块、双前端和数据演进方式。
     link: /architecture/
   - title: 功能模块
     details: 按学习成长、内容社交、平台能力和工具运营定位源码与影响面。
@@ -55,14 +55,14 @@ features:
 
 | 维度 | 当前值 | 权威来源 |
 | --- | --- | --- |
-| 后端 | Spring Boot 3.4.4、JDK 17、28 个 Maven 子模块 | 根 `pom.xml` |
+| 后端 | Spring Boot 3.4.4、JDK 17、36 个 Maven 子模块 | 根 `pom.xml` |
 | 数据库 | MySQL 8.0+、主库基线 145 张表 | `sql/MySql/code_nest.sql` |
 | 缓存与会话 | Redis 7.x + Redisson，业务缓存和 Sa-Token 分库 | 应用配置 |
 | 前端 | Vue 3 用户端、管理端、共享设计系统、Electron 构建 | 双前端工程 |
 | AI | LangChain4j + LangGraph4j + LlamaIndex Sidecar | `xiaou-ai`、`llamaindex-service` |
 | 文档 | VitePress 2.x，120+ Markdown 页面 | `docs-site` |
 
-当前发布基线为 `v2.5.5`。版本、提交和统计见 [文档同步基线](/reference/docs-sync-baseline)，迁移执行规则见 [数据库迁移指南](/guide/database-migration)。能力图谱说明见 [成长能力图谱](/modules/growth-capability-graph)。
+当前发布基线为 `v2.5.6`，版本与制品布局以 `release/manifest.json` 为准。版本、提交和统计见 [文档同步基线](/reference/docs-sync-baseline)，迁移执行规则见 [数据库迁移指南](/guide/database-migration)。
 
 ## 常用任务
 

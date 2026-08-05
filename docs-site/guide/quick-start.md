@@ -72,7 +72,7 @@ SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'code_nest';
 
 ## 第 3 步：配置后端
 
-后端配置文件位于 `xiaou-application/src/main/resources/`：
+后端配置文件位于 `xiaou-bootstrap/src/main/resources/`：
 
 | 文件 | 用途 |
 | --- | --- |
@@ -153,7 +153,7 @@ xiaou:
 ## 第 4 步：启动后端
 
 ```powershell
-mvn -pl xiaou-application -am clean package -DskipTests
+mvn -pl xiaou-bootstrap -am clean package -DskipTests
 ```
 
 启动成功后，后端默认监听 `http://localhost:9999`：

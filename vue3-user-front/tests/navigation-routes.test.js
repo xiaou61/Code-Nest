@@ -2,10 +2,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { resolve, relative } from 'node:path'
+import { readRouterSource } from './helpers/router-source.js'
 
 const projectRoot = resolve(import.meta.dirname, '..')
 const srcRoot = resolve(projectRoot, 'src')
-const routerSource = readFileSync(resolve(srcRoot, 'router/index.js'), 'utf8')
+const routerSource = readRouterSource(projectRoot)
 const navigationSource = readFileSync(resolve(srcRoot, 'config/navigation.js'), 'utf8')
 
 function collectSourceFiles(dir) {

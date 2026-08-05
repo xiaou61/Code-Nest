@@ -70,7 +70,8 @@ Code Nest 很多模块不是简单 CRUD，而是有状态流转、计数、积�
 | 业务逻辑 | `xiaou-*/src/main/java/com/xiaou/*/service/impl` |
 | 数据访问 | `xiaou-*/src/main/java/com/xiaou/*/mapper` |
 | 跨模块公共能力 | 对应 `*-api` 模块或已有工具类 |
-| 启动聚合 | `xiaou-application` 只负责启动和配置聚合，不应承载业务逻辑 |
+| 启动壳 | `xiaou-bootstrap` 只负责启动和运行配置，不承载业务逻辑 |
+| 应用编排 | `xiaou-application` 通过端口与适配器组合跨领域用例，不拥有其他领域持久化模型 |
 
 ## 4. 写前端页面
 
@@ -365,7 +366,7 @@ public class VersionHistoryServiceImpl implements VersionHistoryService {
 
 最低验证项：
 
-1. 后端构建：`mvn -pl xiaou-application -am clean package -DskipTests`
+1. 后端构建：`mvn -pl xiaou-bootstrap -am clean package -DskipTests`
 2. 管理端构建：`cd vue3-admin-front && npm run build`
 3. 用户端构建：`cd vue3-user-front && npm run build`
 4. 烟测：管理端创建 → 发布 → 用户端看到 → 管理端隐藏 → 用户端消失

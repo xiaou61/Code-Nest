@@ -3,10 +3,10 @@ package com.xiaou.system.agent;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xiaou.common.cache.TextStateStore;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -29,14 +29,14 @@ public class RedisAgentSessionContextRepository implements AgentSessionContextRe
 
     private final ObjectMapper objectMapper;
     private final AgentSessionProperties properties;
-    private final StringRedisTemplate stringRedisTemplate;
+    private final TextStateStore stateStore;
 
     public RedisAgentSessionContextRepository(ObjectMapper objectMapper,
                                               AgentSessionProperties properties,
-                                              ObjectProvider<StringRedisTemplate> stringRedisTemplateProvider) {
+                                              ObjectProvider<TextStateStore> stateStoreProvider) {
         this.objectMapper = objectMapper;
         this.properties = properties;
-        this.stringRedisTemplate = stringRedisTemplateProvider.getIfAvailable();
+        this.stateStore = stateStoreProvider.getIfAvailable();
     }
 
     @Override
@@ -44,11 +44,11 @@ public class RedisAgentSessionContextRepository implements AgentSessionContextRe
         AgentSessionSnapshot snapshot = new AgentSessionSnapshot();
         String normalizedSessionId = normalize(sessionId);
         snapshot.setSessionId(normalizedSessionId);
-        if (!StringUtils.hasText(normalizedSessionId) || stringRedisTemplate == null) {
+        if (!StringUtils.hasText(normalizedSessionId) || stateStore == null) {
             return snapshot;
         }
 
-        String json = stringRedisTemplate.opsForValue().get(redisKey(normalizedSessionId));
+        String json = stateStore.find(redisKey(normalizedSessionId)).orElse(null);
         if (!StringUtils.hasText(json)) {
             return snapshot;
         }
@@ -65,7 +65,7 @@ public class RedisAgentSessionContextRepository implements AgentSessionContextRe
     @Override
     public synchronized void appendTurn(String sessionId, AgentSessionTurn turn, int maxRecentTurns) {
         String normalizedSessionId = normalize(sessionId);
-        if (!StringUtils.hasText(normalizedSessionId) || turn == null || stringRedisTemplate == null) {
+        if (!StringUtils.hasText(normalizedSessionId) || turn == null || stateStore == null) {
             return;
         }
 
@@ -75,8 +75,13 @@ public class RedisAgentSessionContextRepository implements AgentSessionContextRe
 
         String key = redisKey(normalizedSessionId);
         try {
-            stringRedisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(turns));
-            applyTtl(key);
+            String json = objectMapper.writeValueAsString(turns);
+            long ttlSeconds = properties == null ? 0L : properties.getTtlSeconds();
+            if (ttlSeconds > 0L) {
+                stateStore.put(key, json, Duration.ofSeconds(ttlSeconds));
+            } else {
+                stateStore.put(key, json);
+            }
         } catch (JsonProcessingException e) {
             log.warn("保存管理员智能体 Redis 会话上下文失败 sessionId={}, message={}", normalizedSessionId, e.getMessage());
         }
@@ -88,13 +93,6 @@ public class RedisAgentSessionContextRepository implements AgentSessionContextRe
             return turns;
         }
         return new ArrayList<>(turns.subList(turns.size() - maxTurns, turns.size()));
-    }
-
-    private void applyTtl(String key) {
-        long ttlSeconds = properties == null ? 0L : properties.getTtlSeconds();
-        if (ttlSeconds > 0L) {
-            stringRedisTemplate.expire(key, Duration.ofSeconds(ttlSeconds));
-        }
     }
 
     private String redisKey(String sessionId) {

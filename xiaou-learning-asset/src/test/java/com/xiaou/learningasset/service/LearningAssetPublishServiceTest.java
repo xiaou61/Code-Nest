@@ -1,8 +1,6 @@
 package com.xiaou.learningasset.service;
 
 import cn.hutool.json.JSONUtil;
-import com.xiaou.common.domain.Notification;
-import com.xiaou.common.service.NotificationService;
 import com.xiaou.flashcard.dto.request.FlashcardBatchCreateRequest;
 import com.xiaou.flashcard.dto.request.FlashcardDeckCreateRequest;
 import com.xiaou.flashcard.service.FlashcardDeckService;
@@ -25,6 +23,8 @@ import com.xiaou.learningasset.mapper.LearningAssetCandidateMapper;
 import com.xiaou.learningasset.mapper.LearningAssetPublishLogMapper;
 import com.xiaou.learningasset.mapper.LearningAssetRecordMapper;
 import com.xiaou.learningasset.service.impl.LearningAssetPublishServiceImpl;
+import com.xiaou.notification.api.NotificationCommand;
+import com.xiaou.notification.api.NotificationPublisher;
 import com.xiaou.plan.service.PlanService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -78,7 +78,7 @@ class LearningAssetPublishServiceTest {
     private InterviewQuestionSetService interviewQuestionSetService;
 
     @Mock
-    private NotificationService notificationService;
+    private NotificationPublisher notificationPublisher;
 
     @InjectMocks
     private LearningAssetPublishServiceImpl publishService;
@@ -138,10 +138,10 @@ class LearningAssetPublishServiceTest {
         verify(flashcardService).batchCreateCards(batchCaptor.capture(), eq(1001L));
         assertEquals(1, batchCaptor.getValue().getCards().size());
         verify(recordMapper).update(any(LearningAssetRecord.class));
-        verify(notificationService).sendNotification(argThat((Notification notification) ->
-                notification != null
-                        && Long.valueOf(1001L).equals(notification.getReceiverId())
-                        && "学习资产已发布，部分内容进入审核".equals(notification.getTitle())
+        verify(notificationPublisher).publish(argThat((NotificationCommand command) ->
+                command != null
+                        && Long.valueOf(1001L).equals(command.receiverId())
+                        && "学习资产已发布，部分内容进入审核".equals(command.title())
         ));
     }
 
@@ -186,10 +186,10 @@ class LearningAssetPublishServiceTest {
         assertEquals(LearningAssetCandidateStatus.PUBLISHED.name(), candidate.getStatus());
         verify(candidateMapper).updateStatus(202L, LearningAssetCandidateStatus.PUBLISHED.name(), 701L, "内容可发布");
         verify(recordMapper).update(any(LearningAssetRecord.class));
-        verify(notificationService).sendNotification(argThat((Notification notification) ->
-                notification != null
-                        && Long.valueOf(1001L).equals(notification.getReceiverId())
-                        && "学习资产审核通过".equals(notification.getTitle())
+        verify(notificationPublisher).publish(argThat((NotificationCommand command) ->
+                command != null
+                        && Long.valueOf(1001L).equals(command.receiverId())
+                        && "学习资产审核通过".equals(command.title())
         ));
     }
 

@@ -1,12 +1,10 @@
 package com.xiaou.web.growthcoach.service;
 
-import com.xiaou.plan.domain.GrowthAutopilotEvent;
-import com.xiaou.plan.domain.GrowthAutopilotGoal;
-import com.xiaou.plan.domain.GrowthAutopilotTask;
-import com.xiaou.plan.mapper.GrowthAutopilotEventMapper;
-import com.xiaou.plan.mapper.GrowthAutopilotGoalMapper;
-import com.xiaou.plan.mapper.GrowthAutopilotTaskMapper;
 import com.xiaou.web.growthcoach.dto.GrowthWeeklyReviewResponse;
+import com.xiaou.web.growthcoach.port.GrowthCareerDataPort;
+import com.xiaou.web.growthcoach.port.GrowthCareerDataPort.WeeklyEventData;
+import com.xiaou.web.growthcoach.port.GrowthCareerDataPort.WeeklyPlanData;
+import com.xiaou.web.growthcoach.port.GrowthCareerDataPort.WeeklyTaskData;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -30,9 +28,7 @@ public class GrowthWeeklyReviewService {
     private static final int EVENT_LIMIT = 100;
     private static final int MULTIPLE_POSTPONES = 2;
 
-    private final GrowthAutopilotGoalMapper goalMapper;
-    private final GrowthAutopilotTaskMapper taskMapper;
-    private final GrowthAutopilotEventMapper eventMapper;
+    private final GrowthCareerDataPort careerDataPort;
 
     public GrowthWeeklyReviewResponse getCurrentReview(Long userId) {
         if (userId == null || userId <= 0) {
@@ -40,32 +36,32 @@ public class GrowthWeeklyReviewService {
         }
 
         LocalDate today = LocalDate.now();
-        GrowthAutopilotGoal goal = goalMapper.selectByUserAndWeek(userId, currentWeekStart(today));
-        if (goal == null || !Objects.equals(goal.getUserId(), userId)) {
+        WeeklyPlanData goal = careerDataPort.weeklyPlan(userId, currentWeekStart(today), EVENT_LIMIT);
+        if (goal == null || !Objects.equals(goal.userId(), userId)) {
             return null;
         }
 
-        List<GrowthAutopilotTask> tasks = safeTasks(taskMapper.selectByGoalId(goal.getId())).stream()
+        List<WeeklyTaskData> tasks = goal.tasks().stream()
                 .filter(this::isActiveTask)
                 .toList();
-        List<GrowthAutopilotEvent> events = safeEvents(eventMapper.selectLatestByGoalId(goal.getId(), EVENT_LIMIT));
+        List<WeeklyEventData> events = goal.events();
 
         int totalTasks = tasks.size();
         int completedTasks = countStatus(tasks, "done");
         int missedTasks = countStatus(tasks, "missed");
         int overdueTasks = (int) tasks.stream()
                 .filter(task -> hasStatus(task, "todo"))
-                .filter(task -> task.getTaskDate() != null && task.getTaskDate().isBefore(today))
+                .filter(task -> task.taskDate() != null && task.taskDate().isBefore(today))
                 .count();
         int postponedCount = (int) events.stream()
-                .filter(event -> event != null && "postpone".equalsIgnoreCase(event.getEventType()))
+                .filter(event -> event != null && "postpone".equalsIgnoreCase(event.eventType()))
                 .count();
         int targetChangeCount = (int) events.stream()
-                .filter(event -> event != null && "target_change".equalsIgnoreCase(event.getEventType()))
+                .filter(event -> event != null && "target_change".equalsIgnoreCase(event.eventType()))
                 .count();
         int remainingMinutes = tasks.stream()
                 .filter(task -> hasStatus(task, "todo"))
-                .mapToInt(task -> nvl(task.getPlannedMinutes()))
+                .mapToInt(task -> nvl(task.plannedMinutes()))
                 .sum();
         int remainingCapacity = remainingCapacityMinutes(goal, today);
         int completionRate = totalTasks == 0 ? 0 : (int) Math.round(completedTasks * 100.0 / totalTasks);
@@ -74,8 +70,8 @@ public class GrowthWeeklyReviewService {
                 missedTasks, overdueTasks, postponedCount, targetChangeCount, remainingMinutes, remainingCapacity
         );
         GrowthWeeklyReviewResponse response = new GrowthWeeklyReviewResponse();
-        response.setWeekStart(goal.getWeekStart());
-        response.setWeekEnd(goal.getWeekEnd());
+        response.setWeekStart(goal.weekStart());
+        response.setWeekEnd(goal.weekEnd());
         response.setReviewedAt(LocalDateTime.now());
         response.setTotalTasks(totalTasks);
         response.setCompletedTasks(completedTasks);
@@ -192,20 +188,20 @@ public class GrowthWeeklyReviewService {
         return signal;
     }
 
-    private int remainingCapacityMinutes(GrowthAutopilotGoal goal, LocalDate today) {
-        int weeklyMinutes = nvl(goal.getWeeklyMinutes());
+    private int remainingCapacityMinutes(WeeklyPlanData goal, LocalDate today) {
+        int weeklyMinutes = nvl(goal.weeklyMinutes());
         if (weeklyMinutes <= 0) {
-            weeklyMinutes = nvl(goal.getWeeklyHours()) * 60;
+            weeklyMinutes = nvl(goal.weeklyHours()) * 60;
         }
-        if (weeklyMinutes <= 0 || goal.getWeekStart() == null || goal.getWeekEnd() == null) {
+        if (weeklyMinutes <= 0 || goal.weekStart() == null || goal.weekEnd() == null) {
             return 0;
         }
 
-        LocalDate start = today.isBefore(goal.getWeekStart()) ? goal.getWeekStart() : today;
-        if (start.isAfter(goal.getWeekEnd())) {
+        LocalDate start = today.isBefore(goal.weekStart()) ? goal.weekStart() : today;
+        if (start.isAfter(goal.weekEnd())) {
             return 0;
         }
-        int remainingDays = (int) java.time.temporal.ChronoUnit.DAYS.between(start, goal.getWeekEnd()) + 1;
+        int remainingDays = (int) java.time.temporal.ChronoUnit.DAYS.between(start, goal.weekEnd()) + 1;
         int dailyCapacity = (int) Math.ceil(weeklyMinutes / 7.0);
         return dailyCapacity * remainingDays;
     }
@@ -214,24 +210,16 @@ public class GrowthWeeklyReviewService {
         return date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
     }
 
-    private boolean isActiveTask(GrowthAutopilotTask task) {
+    private boolean isActiveTask(WeeklyTaskData task) {
         return hasStatus(task, "todo") || hasStatus(task, "done") || hasStatus(task, "missed");
     }
 
-    private boolean hasStatus(GrowthAutopilotTask task, String expected) {
-        return task != null && expected.equalsIgnoreCase(task.getStatus());
+    private boolean hasStatus(WeeklyTaskData task, String expected) {
+        return task != null && expected.equalsIgnoreCase(task.status());
     }
 
-    private int countStatus(List<GrowthAutopilotTask> tasks, String status) {
+    private int countStatus(List<WeeklyTaskData> tasks, String status) {
         return (int) tasks.stream().filter(task -> hasStatus(task, status)).count();
-    }
-
-    private List<GrowthAutopilotTask> safeTasks(List<GrowthAutopilotTask> tasks) {
-        return tasks == null ? List.of() : tasks;
-    }
-
-    private List<GrowthAutopilotEvent> safeEvents(List<GrowthAutopilotEvent> events) {
-        return events == null ? List.of() : events;
     }
 
     private int nvl(Integer value) {

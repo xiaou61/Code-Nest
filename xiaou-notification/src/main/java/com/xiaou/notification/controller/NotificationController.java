@@ -4,10 +4,10 @@ import com.xiaou.common.annotation.Log;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.core.domain.Result;
 import com.xiaou.common.core.domain.ResultCode;
-import com.xiaou.common.domain.Notification;
 import com.xiaou.notification.dto.DeleteMessageRequest;
 import com.xiaou.notification.dto.MarkReadRequest;
 import com.xiaou.notification.dto.NotificationQueryRequest;
+import com.xiaou.notification.dto.NotificationResponse;
 import com.xiaou.notification.service.NotificationUserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,9 +30,10 @@ public class NotificationController {
      */
     @Log(module = "消息通知", type = Log.OperationType.SELECT, description = "查询消息列表")
     @PostMapping("/list")
-    public Result<PageResult<Notification>> getMessages(@RequestBody NotificationQueryRequest request) {
+    public Result<PageResult<NotificationResponse>> getMessages(@RequestBody NotificationQueryRequest request) {
         log.info("Controller收到消息列表查询请求: {}", request);
-        PageResult<Notification> result = notificationUserService.getMessageList(request);
+        PageResult<NotificationResponse> result = NotificationResponse.page(
+                notificationUserService.getMessageList(request));
         log.info("Controller返回结果，total: {}", result.getTotal());
         return Result.success(result);
     }
@@ -53,9 +54,8 @@ public class NotificationController {
      */
     @Log(module = "消息通知", type = Log.OperationType.SELECT, description = "查询消息详情")
     @GetMapping("/{id}")
-    public Result<Notification> getMessageDetail(@PathVariable Long id) {
-        Notification notification = notificationUserService.getMessageDetail(id);
-        return Result.success(notification);
+    public Result<NotificationResponse> getMessageDetail(@PathVariable Long id) {
+        return Result.success(NotificationResponse.from(notificationUserService.getMessageDetail(id)));
     }
     
     /**

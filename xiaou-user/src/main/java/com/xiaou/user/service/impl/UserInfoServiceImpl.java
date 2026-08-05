@@ -3,9 +3,10 @@ package com.xiaou.user.service.impl;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.exception.BusinessException;
 import com.xiaou.common.satoken.StpUserUtil;
-import com.xiaou.common.utils.NotificationUtil;
 import com.xiaou.common.utils.PageHelper;
 import com.xiaou.common.utils.PasswordUtil;
+import com.xiaou.notification.api.NotificationCommand;
+import com.xiaou.notification.api.NotificationPublisher;
 import com.xiaou.user.domain.UserInfo;
 import com.xiaou.user.dto.*;
 import com.xiaou.user.mapper.UserInfoMapper;
@@ -36,6 +37,7 @@ public class UserInfoServiceImpl implements UserInfoService {
     private final UserInfoMapper userInfoMapper;
     private final CaptchaService captchaService;
     private final PointsService pointsService;
+    private final NotificationPublisher notificationPublisher;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -99,11 +101,11 @@ public class UserInfoServiceImpl implements UserInfoService {
 
             // 发送欢迎消息
             try {
-                NotificationUtil.sendSystemMessage(
+                notificationPublisher.publish(NotificationCommand.system(
                     user.getId(),
                     "欢迎加入 Code-Nest",
                     "亲爱的 " + user.getNickname() + "，欢迎您加入 Code-Nest 学习社区！这里有丰富的技术内容和活跃的学习氛围，祝您学习愉快！"
-                );
+                ));
             } catch (Exception e) {
                 log.warn("发送用户注册欢迎消息失败，用户ID: {}, 错误: {}", user.getId(), e.getMessage());
             }
@@ -363,11 +365,11 @@ public class UserInfoServiceImpl implements UserInfoService {
                     }
                     details += "。如非本人操作，请立即联系客服。";
                     
-                    NotificationUtil.sendSystemMessage(
+                    notificationPublisher.publish(NotificationCommand.system(
                         userId,
                         "账户信息变更通知",
                         details
-                    );
+                    ));
                 }
             } catch (Exception e) {
                 log.warn("发送用户信息变更通知失败，用户ID: {}, 错误: {}", userId, e.getMessage());
@@ -436,11 +438,11 @@ public class UserInfoServiceImpl implements UserInfoService {
 
             // 发送密码修改成功通知
             try {
-                NotificationUtil.sendSystemMessage(
+                notificationPublisher.publish(NotificationCommand.system(
                     userId,
                     "密码修改成功",
                     "您的账户密码已成功修改，修改时间：" + LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + "。如非本人操作，请立即联系客服。"
-                );
+                ));
             } catch (Exception e) {
                 log.warn("发送密码修改通知失败，用户ID: {}, 错误: {}", userId, e.getMessage());
             }
@@ -738,4 +740,4 @@ public class UserInfoServiceImpl implements UserInfoService {
         return response;
     }
 
-} 
+}

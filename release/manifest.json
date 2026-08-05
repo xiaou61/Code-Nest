@@ -1,0 +1,79 @@
+{
+  "manifestSchema": 1,
+  "version": "2.5.6",
+  "releaseVersion": "v2.5.6",
+  "mavenRevision": "v2.5.6",
+  "database": {
+    "schemaVersion": "v2.5.3",
+    "requiredMigration": "sql/v2.5.3/production_governance.sql"
+  },
+  "docker": {
+    "image": "code-nest",
+    "tag": "v2.5.6"
+  },
+  "artifacts": {
+    "backend": {
+      "module": "xiaou-bootstrap",
+      "sourcePattern": "xiaou-bootstrap/target/xiaou-bootstrap-*.jar",
+      "bundlePath": "backend/app.jar",
+      "ciArtifactName": "code-nest-backend-jar"
+    },
+    "admin": {
+      "workspace": "vue3-admin-front",
+      "sourceDirectory": "vue3-admin-front/dist",
+      "bundlePath": "admin",
+      "ciArtifactName": "code-nest-admin-dist"
+    },
+    "user": {
+      "workspace": "vue3-user-front",
+      "sourceDirectory": "vue3-user-front/dist",
+      "bundlePath": "user",
+      "ciArtifactName": "code-nest-user-dist"
+    },
+    "docs": {
+      "workspace": "docs-site",
+      "sourceDirectory": "docs-site/.vitepress/dist",
+      "ciArtifactName": "code-nest-docs-site"
+    }
+  },
+  "bundle": {
+    "manifestPath": "release-manifest.json",
+    "requiredPaths": [
+      "RELEASE",
+      "VERSION",
+      "release-manifest.json",
+      "backend/app.jar",
+      "user/index.html",
+      "admin/index.html",
+      "scripts/deploy-release.sh",
+      "scripts/db-migrate.py",
+      "scripts/release_manifest.py",
+      "scripts/release-smoke-test.py",
+      "sql/v2.5.3/production_governance.sql"
+    ]
+  },
+  "projections": {
+    "versionFile": "VERSION",
+    "rootPom": "pom.xml",
+    "flattenedPomGlob": "**/pom-xml-flattened",
+    "packageJson": [
+      "vue3-user-front/package.json",
+      "vue3-admin-front/package.json",
+      "code-nest-design-system/package.json",
+      "code-nest-api-contract/package.json",
+      "docs-site/package.json"
+    ],
+    "packageLocks": [
+      "vue3-user-front/package-lock.json",
+      "vue3-admin-front/package-lock.json",
+      "docs-site/package-lock.json"
+    ],
+    "environment": [
+      {
+        "path": "docker/env/example.env",
+        "key": "XIAOU_SRE_EVALUATION_BUILD_VERSION",
+        "source": "version"
+      }
+    ]
+  }
+}

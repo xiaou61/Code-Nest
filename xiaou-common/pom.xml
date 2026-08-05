@@ -14,6 +14,31 @@
     <description>通用工具模块</description>
     
     <dependencies>
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-common-core</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-common-web</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-common-security</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-common-cache</artifactId>
+            <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaou</groupId>
+            <artifactId>xiaou-common-persistence</artifactId>
+            <version>${revision}</version>
+        </dependency>
         <!-- Spring Boot Web相关依赖，用于异常处理和响应格式 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

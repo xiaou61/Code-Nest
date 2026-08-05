@@ -3,7 +3,7 @@ package com.xiaou.community.service.impl;
 
 import com.xiaou.ai.dto.community.PostSummaryResult;
 import com.xiaou.ai.service.AiCommunityService;
-import com.xiaou.common.cache.RedisValueStore;
+import com.xiaou.common.cache.CacheStore;
 import com.xiaou.common.exception.BusinessException;
 import com.xiaou.common.utils.JsonUtils;
 import com.xiaou.community.config.CommunityProperties;
@@ -33,7 +33,7 @@ public class CommunityAiSummaryServiceImpl implements CommunityAiSummaryService 
     private final CommunityPostMapper communityPostMapper;
     private final CommunityProperties communityProperties;
     private final AiCommunityService aiCommunityService;
-    private final RedisValueStore redisValueStore;
+    private final CacheStore cacheStore;
     private final CommunityCacheService communityCacheService;
     
     private static final String SUMMARY_CACHE_KEY = "community:post:summary:";
@@ -146,7 +146,7 @@ public class CommunityAiSummaryServiceImpl implements CommunityAiSummaryService 
 
     private String getCachedSummary(String cacheKey) {
         try {
-            return redisValueStore.find(cacheKey, String.class).orElse(null);
+            return cacheStore.find(cacheKey, String.class).orElse(null);
         } catch (RuntimeException error) {
             log.warn("读取帖子摘要缓存失败，key={}", cacheKey, error);
             return null;
@@ -155,7 +155,7 @@ public class CommunityAiSummaryServiceImpl implements CommunityAiSummaryService 
 
     private void cacheSummary(String cacheKey, Map<String, Object> value) {
         try {
-            redisValueStore.put(
+            cacheStore.put(
                     cacheKey,
                     JsonUtils.toJsonString(value),
                     Duration.ofSeconds(communityProperties.getAi().getSummaryCacheTtl())
@@ -165,4 +165,3 @@ public class CommunityAiSummaryServiceImpl implements CommunityAiSummaryService 
         }
     }
 }
-

@@ -4,15 +4,9 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
-import com.xiaou.common.domain.Notification;
 import com.xiaou.common.core.domain.PageResult;
-import com.xiaou.common.enums.NotificationPriorityEnum;
-import com.xiaou.common.enums.NotificationSourceEnum;
-import com.xiaou.common.enums.NotificationStatusEnum;
-import com.xiaou.common.enums.NotificationTypeEnum;
 import com.xiaou.common.exception.BusinessException;
 import com.xiaou.common.utils.PageHelper;
-import com.xiaou.common.service.NotificationService;
 import com.xiaou.flashcard.dto.request.FlashcardBatchCreateRequest;
 import com.xiaou.flashcard.dto.request.FlashcardDeckCreateRequest;
 import com.xiaou.flashcard.service.FlashcardDeckService;
@@ -43,6 +37,8 @@ import com.xiaou.learningasset.mapper.LearningAssetCandidateMapper;
 import com.xiaou.learningasset.mapper.LearningAssetPublishLogMapper;
 import com.xiaou.learningasset.mapper.LearningAssetRecordMapper;
 import com.xiaou.learningasset.service.LearningAssetPublishService;
+import com.xiaou.notification.api.NotificationCommand;
+import com.xiaou.notification.api.NotificationPublisher;
 import com.xiaou.plan.dto.PlanCreateRequest;
 import com.xiaou.plan.dto.PlanResponse;
 import com.xiaou.plan.service.PlanService;
@@ -76,7 +72,7 @@ public class LearningAssetPublishServiceImpl implements LearningAssetPublishServ
     private final KnowledgeNodeService knowledgeNodeService;
     private final InterviewQuestionService interviewQuestionService;
     private final InterviewQuestionSetService interviewQuestionSetService;
-    private final NotificationService notificationService;
+    private final NotificationPublisher notificationPublisher;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -535,19 +531,15 @@ public class LearningAssetPublishServiceImpl implements LearningAssetPublishServ
         if (receiverId == null) {
             return;
         }
-        Notification notification = new Notification();
-        notification.setTitle(title);
-        notification.setContent(content);
-        notification.setType(NotificationTypeEnum.SYSTEM.getCode());
-        notification.setPriority(NotificationPriorityEnum.MEDIUM.getCode());
-        notification.setSenderId(0L);
-        notification.setReceiverId(receiverId);
-        notification.setSourceModule(NotificationSourceEnum.SYSTEM.getCode());
-        notification.setSourceId(sourceId == null ? null : String.valueOf(sourceId));
-        notification.setStatus(NotificationStatusEnum.UNREAD.getCode());
-        notification.setCreatedTime(LocalDateTime.now());
-        notification.setUpdatedTime(LocalDateTime.now());
-        notificationService.sendNotification(notification);
+        notificationPublisher.publish(NotificationCommand.toUser(
+                receiverId,
+                title,
+                content,
+                "SYSTEM",
+                "MEDIUM",
+                "system",
+                sourceId == null ? null : String.valueOf(sourceId)
+        ));
     }
 
     private List<LearningAssetStatisticsResponse.SourceStat> enrichSourceStats(List<LearningAssetStatisticsResponse.SourceStat> stats) {

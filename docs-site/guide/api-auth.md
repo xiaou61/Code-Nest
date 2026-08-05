@@ -164,6 +164,7 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
 
 ```javascript
 import axios from 'axios'
+import { classifyApiFailure, unwrapApiResponse } from '@code-nest/api-contract'
 
 const request = axios.create({
   baseURL: '/api',
@@ -187,28 +188,14 @@ request.interceptors.request.use(
 
 // 响应拦截器
 request.interceptors.response.use(
-  response => {
-    const { code, message, data } = response.data
-    if (code === 200) {
-      return data
-    }
-    // Token 无效或过期
-    if (code === 701 || code === 702) {
-      // 清除登录状态
-      localStorage.removeItem('token')
-      localStorage.removeItem('user_token')
-      // 跳转登录页
-      window.location.href = '/login'
-    }
-    return Promise.reject(new Error(message))
-  },
-  error => {
-    return Promise.reject(error)
-  }
+  response => unwrapApiResponse(response.data, { httpStatus: response.status }),
+  error => Promise.reject(classifyApiFailure(error))
 )
 
 export default request
 ```
+
+应用层只在 `ApiError.kind === 'authentication'` 时清理登录态。业务码 `705 LOGIN_FAILED` 会优先分类为 `business`，不会把一次密码错误误判成现有会话过期。
 
 ### Vue 组件调用示例
 

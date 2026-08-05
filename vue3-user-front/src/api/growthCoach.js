@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import { version as packageVersion } from '../../package.json'
 
 /**
  * AI 成长教练受控计划调整 API。
@@ -13,7 +14,7 @@ export const growthCoachApi = {
     return request.post('/user/growth-coach/journey-events', {
       ...data,
       schemaVersion: data.schemaVersion || '1',
-      clientVersion: data.clientVersion || import.meta.env.VITE_APP_VERSION || '2.5.5',
+      clientVersion: data.clientVersion || import.meta.env.VITE_APP_VERSION || packageVersion,
       entryPage
     }, { silent: true })
   },

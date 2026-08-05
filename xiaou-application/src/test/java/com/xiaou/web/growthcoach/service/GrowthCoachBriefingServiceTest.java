@@ -1,5 +1,6 @@
 package com.xiaou.web.growthcoach.service;
 
+import com.xiaou.resilience.ResilientExecutor;
 import com.xiaou.web.growthcoach.dto.GrowthApplicationOutcomeResponse;
 import com.xiaou.web.growthcoach.dto.GrowthCoachBriefingResponse;
 import com.xiaou.web.growthcoach.dto.GrowthCoachTodayActionResponse;
@@ -84,6 +85,7 @@ class GrowthCoachBriefingServiceTest {
                 growthSkillInsightService,
                 growthJobMarketSignalService,
                 new com.xiaou.web.growthcoach.config.GrowthCoachProperties(),
+                new ResilientExecutor(),
                 (Executor) Runnable::run,
                 metricsRecorder
         );

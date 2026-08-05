@@ -26,7 +26,7 @@
 后端聚合构建：
 
 ```powershell
-mvn -pl xiaou-application -am clean package -DskipTests
+mvn -pl xiaou-bootstrap -am clean package -DskipTests
 ```
 
 按模块跑测试：
@@ -453,7 +453,7 @@ npm run build
 | 改了什么 | 至少跑什么 |
 | --- | --- |
 | 只改文档 | `docs-site npm run build` |
-| 后端普通业务 | `mvn -pl xiaou-application -am clean package -DskipTests` + 相关接口 |
+| 后端普通业务 | `mvn -pl xiaou-bootstrap -am clean package -DskipTests` + 相关接口 |
 | AI Runtime | AI 回归命令 + 管理端场景调试 |
 | OJ | `mvn -pl xiaou-oj -am test` + go-judge 联调 |
 | 模拟面试/求职 | `mvn -pl xiaou-mock-interview -am test` + 页面流程 |

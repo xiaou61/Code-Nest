@@ -52,7 +52,7 @@ ss -tlnp | grep 3306         # Linux
 mysql -u root -p -h 127.0.0.1 -P 3306 code_nest
 
 # 4. 检查配置文件
-# xiaou-application/src/main/resources/application-dev.yml
+# xiaou-bootstrap/src/main/resources/application-dev.yml
 # spring.datasource.url / username / password
 ```
 

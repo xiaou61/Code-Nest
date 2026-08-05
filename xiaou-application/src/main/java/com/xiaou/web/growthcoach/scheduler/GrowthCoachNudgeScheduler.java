@@ -1,8 +1,8 @@
 package com.xiaou.web.growthcoach.scheduler;
 
-import com.xiaou.plan.mapper.GrowthAutopilotGoalMapper;
 import com.xiaou.web.growthcoach.config.GrowthCoachProperties;
 import com.xiaou.web.growthcoach.dto.GrowthWeeklyReviewResponse;
+import com.xiaou.web.growthcoach.port.GrowthCareerDataPort;
 import com.xiaou.web.growthcoach.service.GrowthCoachNudgeService;
 import com.xiaou.web.growthcoach.service.GrowthWeeklyReviewService;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +23,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class GrowthCoachNudgeScheduler {
 
-    private final GrowthAutopilotGoalMapper goalMapper;
+    private final GrowthCareerDataPort careerDataPort;
     private final GrowthWeeklyReviewService weeklyReviewService;
     private final GrowthCoachNudgeService nudgeService;
     private final GrowthCoachProperties properties;
@@ -36,8 +36,11 @@ public class GrowthCoachNudgeScheduler {
         }
 
         LocalDate weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        List<Long> userIds = goalMapper.selectActiveUserIdsByWeek(weekStart, normalizedLimit(config.getUserBatchSize()));
-        for (Long userId : userIds == null ? List.<Long>of() : userIds) {
+        List<Long> userIds = careerDataPort.activeWeeklyPlanUserIds(
+                weekStart,
+                normalizedLimit(config.getUserBatchSize())
+        );
+        for (Long userId : userIds) {
             if (userId == null || userId <= 0) {
                 continue;
             }
