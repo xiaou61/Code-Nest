@@ -8,6 +8,7 @@ import com.xiaou.sre.service.SreOutboxClaimService;
 import com.xiaou.sre.service.SreOutboxEventProcessor;
 import com.xiaou.sre.service.SreQueueRecoveryResult;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -33,6 +34,7 @@ public class SreOutboxWorker {
     private final SreOutboxMetricsRecorder outboxMetrics;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
+    @Autowired
     public SreOutboxWorker(SreOutboxProperties properties,
                            SreOutboxClaimService claimService,
                            SreOutboxEventProcessor eventProcessor,

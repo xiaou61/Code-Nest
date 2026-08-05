@@ -1,6 +1,6 @@
 # Code Nest
 
-![Version](https://img.shields.io/badge/version-v2.5.6-blue.svg)
+![Version](https://img.shields.io/badge/version-v2.5.7-blue.svg)
 ![Java](https://img.shields.io/badge/java-17-orange.svg)
 ![Spring Boot](https://img.shields.io/badge/spring%20boot-3.4.4-brightgreen.svg)
 ![Vue](https://img.shields.io/badge/vue-3.x-4fc08d.svg)
@@ -9,6 +9,16 @@
 ## 📖 项目简介
 
 Code Nest 是一个面向开发者的成长型社区与知识运营平台，采用 Spring Boot 3.4.4 + Vue3 + Vite 的前后端分离架构，后台整合 Sa-Token 权限、Redisson 缓存、MySQL 题库/内容系统以及 Prometheus 监控指标，提供包含题库、面试辅导、学习资产转化引擎、知识图谱、博客、代码工坊、在线简历、IM 聊天、积分激励与抽奖等在内的多模块能力。
+
+## v2.5.7 Startup Hotfix
+
+`v2.5.7` 修复 `v2.5.6` 在生产启动与发布权限匹配阶段暴露的问题，不增加业务功能。
+
+- **SRE Worker 启动修复**：显式标记 `SreOutboxWorker` 的生产注入构造器，避免兼容构造器导致 Spring 回退到不存在的默认构造器。
+- **启动回归测试**：最小 Spring 容器直接验证 Worker 的生产依赖装配，锁定此前只在完整应用启动时出现的异常。
+- **发布权限契约**：生产工作流通过 sudoers 批准的绝对路径调用容量治理脚本，并由 release contract 测试持续校验。
+
+本版本无数据库迁移和新增生产环境变量；数据库 schema 基线仍为 `v2.5.3`。
 
 ## v2.5.6 Architecture Governance
 
@@ -444,7 +454,7 @@ mvn clean package -DskipTests
 mvn -pl xiaou-bootstrap -am clean package -DskipTests
 
 # 或直接运行打包后的 jar
-java -jar xiaou-bootstrap/target/xiaou-bootstrap-v2.5.6.jar --spring.profiles.active=prod
+java -jar xiaou-bootstrap/target/xiaou-bootstrap-v2.5.7.jar --spring.profiles.active=prod
 ```
 
 - API 根地址：`http://localhost:9999/api`
@@ -612,7 +622,7 @@ management:
 
 ```bash
 # 构建镜像
-docker build -t code-nest:v2.5.6 -f docker/Dockerfile .
+docker build -t code-nest:v2.5.7 -f docker/Dockerfile .
 
 # 运行容器
 docker run -d \
@@ -620,7 +630,7 @@ docker run -d \
   -p 9999:9999 \
   -e SPRING_PROFILES_ACTIVE=prod \
   --env-file docker/env/example.env \
-  code-nest:v2.5.6
+  code-nest:v2.5.7
 ```
 
 如果要把 MySQL / Redis / Java 主服务 / `llamaindex-service` 一起编排起来，推荐使用：
@@ -691,6 +701,12 @@ server {
 ## 📝 更新日志
 
 仅列出最近版本，更多历史可查看 `git log`。
+
+### v2.5.7 Startup Hotfix
+
+- **启动可靠性**：SRE Outbox Worker 的主构造器显式参与 Spring 注入，生产启动不再因兼容构造器歧义失败。
+- **发布可靠性**：容量治理使用 sudoers 匹配的绝对脚本路径，并增加对应契约测试。
+- **迁移边界**：不写数据库，schema 基线保持 `v2.5.3`。
 
 ### v2.5.6 Architecture Governance
 

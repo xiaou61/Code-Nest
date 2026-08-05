@@ -83,4 +83,10 @@ for forbidden_path in \
   fi
 done
 
+capacity_command='sudo -n /usr/bin/bash "${CODE_NEST_SOURCE_DIR}/scripts/server-capacity-governance.sh" --apply'
+if ! grep -Fq "$capacity_command" "$repo_root/.github/workflows/deploy-production.yml"; then
+  printf 'production workflow must invoke capacity governance through the sudoers-approved absolute path\n' >&2
+  exit 1
+fi
+
 printf 'deployment dependency refresh contract passed\n'
