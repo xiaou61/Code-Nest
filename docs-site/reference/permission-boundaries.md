@@ -260,10 +260,10 @@ if (!plan.getUserId().equals(userId)) {
 | 管理端权限切面 | `xiaou-common/src/main/java/com/xiaou/common/aspect/AdminAuthAspect.java` |
 | @Log 注解 | `xiaou-common/src/main/java/com/xiaou/common/annotation/Log.java` |
 | 操作日志切面 | `xiaou-common/src/main/java/com/xiaou/common/aspect/LogAspect.java` |
-| Sa-Token 用户端 | `xiaou-common/src/main/java/com/xiaou/common/satoken/StpUserUtil.java` |
-| Sa-Token 管理端 | `xiaou-common/src/main/java/com/xiaou/common/satoken/StpAdminUtil.java` |
-| 用户上下文 | `xiaou-common/src/main/java/com/xiaou/common/satoken/SaTokenUserUtil.java` |
-| 权限接口实现 | `xiaou-common/src/main/java/com/xiaou/common/satoken/StpInterfaceImpl.java` |
+| Sa-Token 用户端 | `xiaou-common-security/src/main/java/com/xiaou/common/satoken/StpUserUtil.java` |
+| Sa-Token 管理端 | `xiaou-common-security/src/main/java/com/xiaou/common/satoken/StpAdminUtil.java` |
+| 用户上下文 | `xiaou-common-security/src/main/java/com/xiaou/common/satoken/SaTokenUserUtil.java` |
+| 权限接口实现 | `xiaou-common-security/src/main/java/com/xiaou/common/satoken/StpInterfaceImpl.java` |
 | Sa-Token 配置 | `xiaou-common/src/main/java/com/xiaou/common/config/SaTokenConfig.java` |
 
 

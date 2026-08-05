@@ -1,14 +1,13 @@
 package com.xiaou.web.growthcoach.service;
 
-import com.xiaou.interview.domain.InterviewQuestionSet;
-import com.xiaou.interview.mapper.InterviewQuestionSetMapper;
-import com.xiaou.oj.domain.OjProblem;
-import com.xiaou.oj.mapper.OjProblemMapper;
 import com.xiaou.plan.dto.GrowthAutopilotDashboardResponse;
 import com.xiaou.plan.service.GrowthAutopilotService;
 import com.xiaou.web.growthcoach.dto.GrowthEvidenceReference;
 import com.xiaou.web.growthcoach.dto.GrowthEvidenceSummaryResponse;
 import com.xiaou.web.growthcoach.dto.GrowthSkillInsightResponse;
+import com.xiaou.web.growthcoach.port.GrowthLearningResourcePort;
+import com.xiaou.web.growthcoach.port.GrowthLearningResourcePort.OjProblemData;
+import com.xiaou.web.growthcoach.port.GrowthLearningResourcePort.QuestionSetData;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -50,8 +49,7 @@ public class GrowthSkillInsightService {
 
     private final GrowthEvidenceQueryService evidenceQueryService;
     private final GrowthAutopilotService growthAutopilotService;
-    private final InterviewQuestionSetMapper questionSetMapper;
-    private final OjProblemMapper problemMapper;
+    private final GrowthLearningResourcePort learningResourcePort;
 
     public List<GrowthSkillInsightResponse> listForUser(Long userId) {
         return listForUser(userId, loadEvidence(userId));
@@ -146,14 +144,17 @@ public class GrowthSkillInsightService {
             }
             Long questionSetId = questionSetId(target);
             Long questionId = questionId(target);
-            if (questionSetId == null || questionId == null || !questionSetMapper.hasAccessPermission(questionSetId, userId)) {
+            if (questionSetId == null || questionId == null) {
                 continue;
             }
 
-            InterviewQuestionSet questionSet = questionSetMapper.selectById(questionSetId);
-            String questionSetTitle = questionSet == null || !StringUtils.hasText(questionSet.getTitle())
+            QuestionSetData questionSet = learningResourcePort.questionSetForUser(questionSetId, userId);
+            if (questionSet == null || !questionSet.accessible()) {
+                continue;
+            }
+            String questionSetTitle = !StringUtils.hasText(questionSet.title())
                     ? "当前题单"
-                    : questionSet.getTitle();
+                    : questionSet.title();
             int levelOneCount = (int) group.stream().filter(item -> masteryLevel(item) == 1).count();
             int lowCount = group.size();
             int currentMastery = masteryLevel(target);
@@ -236,8 +237,8 @@ public class GrowthSkillInsightService {
             if (problemId == null || !isActionableOjFailure(status)) {
                 continue;
             }
-            OjProblem problem = problemMapper.selectById(problemId);
-            if (problem == null || !Integer.valueOf(1).equals(problem.getStatus())) {
+            OjProblemData problem = learningResourcePort.ojProblem(problemId);
+            if (problem == null || !Integer.valueOf(1).equals(problem.status())) {
                 continue;
             }
 
@@ -246,7 +247,7 @@ public class GrowthSkillInsightService {
                     .count();
             GrowthSkillInsightResponse response = new GrowthSkillInsightResponse();
             response.setSkillKey(OJ_PROBLEM_PREFIX + problemId);
-            response.setTitle("算法题「" + problem.getTitle() + "」需要重试");
+            response.setTitle("算法题「" + problem.title() + "」需要重试");
             response.setLevel(failureCount >= 3 ? "urgent" : "needs_practice");
             response.setConfidence(100);
             response.setEvidenceCount(failureCount);
@@ -341,14 +342,14 @@ public class GrowthSkillInsightService {
         return recheck;
     }
 
-    private GrowthSkillInsightResponse.PracticeRecommendation ojPractice(OjProblem problem) {
+    private GrowthSkillInsightResponse.PracticeRecommendation ojPractice(OjProblemData problem) {
         GrowthSkillInsightResponse.PracticeRecommendation recommendation = new GrowthSkillInsightResponse.PracticeRecommendation();
-        recommendation.setTitle("重新完成「" + problem.getTitle() + "」");
+        recommendation.setTitle("重新完成「" + problem.title() + "」");
         recommendation.setDescription("基于本次判题结果修正思路后重新提交。");
-        recommendation.setRoutePath("/oj/problem/" + problem.getId());
+        recommendation.setRoutePath("/oj/problem/" + problem.id());
         recommendation.setResourceType("oj_problem");
-        recommendation.setResourceId(String.valueOf(problem.getId()));
-        recommendation.setExpectedMinutes(ojExpectedMinutes(problem.getDifficulty()));
+        recommendation.setResourceId(String.valueOf(problem.id()));
+        recommendation.setExpectedMinutes(ojExpectedMinutes(problem.difficulty()));
         return recommendation;
     }
 

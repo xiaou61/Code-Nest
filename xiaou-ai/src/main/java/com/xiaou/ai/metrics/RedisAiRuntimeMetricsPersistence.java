@@ -1,9 +1,9 @@
 package com.xiaou.ai.metrics;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xiaou.common.cache.TextStateStore;
 import com.xiaou.common.config.AiProperties;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.util.StringUtils;
 
 /**
@@ -16,14 +16,14 @@ public class RedisAiRuntimeMetricsPersistence implements AiRuntimeMetricsPersist
 
     private static final String DEFAULT_REDIS_KEY = "xiaou:ai:runtime:metrics";
 
-    private final StringRedisTemplate stringRedisTemplate;
+    private final TextStateStore stateStore;
     private final ObjectMapper objectMapper;
     private final AiProperties aiProperties;
 
-    public RedisAiRuntimeMetricsPersistence(StringRedisTemplate stringRedisTemplate,
+    public RedisAiRuntimeMetricsPersistence(TextStateStore stateStore,
                                            ObjectMapper objectMapper,
                                            AiProperties aiProperties) {
-        this.stringRedisTemplate = stringRedisTemplate;
+        this.stateStore = stateStore;
         this.objectMapper = objectMapper;
         this.aiProperties = aiProperties;
     }
@@ -35,7 +35,7 @@ public class RedisAiRuntimeMetricsPersistence implements AiRuntimeMetricsPersist
 
     @Override
     public AiRuntimeMetricsStoreState load() {
-        String json = stringRedisTemplate.opsForValue().get(resolveRedisKey());
+        String json = stateStore.find(resolveRedisKey()).orElse(null);
         if (!StringUtils.hasText(json)) {
             return null;
         }
@@ -52,7 +52,7 @@ public class RedisAiRuntimeMetricsPersistence implements AiRuntimeMetricsPersist
             return;
         }
         try {
-            stringRedisTemplate.opsForValue().set(resolveRedisKey(), objectMapper.writeValueAsString(state));
+            stateStore.put(resolveRedisKey(), objectMapper.writeValueAsString(state));
         } catch (Exception e) {
             throw new IllegalStateException("保存 AI 运行观测 Redis 状态失败", e);
         }
@@ -60,7 +60,7 @@ public class RedisAiRuntimeMetricsPersistence implements AiRuntimeMetricsPersist
 
     @Override
     public void clear() {
-        stringRedisTemplate.delete(resolveRedisKey());
+        stateStore.delete(resolveRedisKey());
     }
 
     private String resolveRedisKey() {

@@ -1,6 +1,6 @@
 {
   "name": "code-nest-user-desktop",
-  "version": "2.5.5",
+  "version": "2.5.6",
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
@@ -17,6 +17,7 @@
     "dist:win": "electron-vite build && electron-builder --win"
   },
   "dependencies": {
+    "@code-nest/api-contract": "file:../code-nest-api-contract",
     "@antv/g6": "^4.8.24",
     "@code-nest/design-system": "file:../code-nest-design-system",
     "@element-plus/icons-vue": "^2.3.1",

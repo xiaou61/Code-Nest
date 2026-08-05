@@ -1,15 +1,14 @@
 package com.xiaou.notification.service;
 
 import com.xiaou.common.core.domain.PageResult;
-import com.xiaou.common.domain.Notification;
-import com.xiaou.common.enums.NotificationStatusEnum;
-import com.xiaou.common.mapper.NotificationMapper;
 import com.xiaou.common.satoken.StpUserUtil;
-import com.xiaou.common.service.NotificationService;
 import com.xiaou.common.utils.PageHelper;
+import com.xiaou.notification.domain.Notification;
 import com.xiaou.notification.dto.DeleteMessageRequest;
 import com.xiaou.notification.dto.MarkReadRequest;
 import com.xiaou.notification.dto.NotificationQueryRequest;
+import com.xiaou.notification.enums.NotificationStatusEnum;
+import com.xiaou.notification.mapper.NotificationMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

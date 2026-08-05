@@ -1,0 +1,397 @@
+# Runtime configuration owned by xiaou-bootstrap.
+server:
+  # 服务器的HTTP端口，默认为9999
+  port: 9999
+  servlet:
+    context-path: /api
+
+spring:
+  config:
+    #这里里面放着一些私密的不能开源的配置
+    import: "optional:application-sec.yml"
+  profiles:
+    active: dev
+  application:
+    name: Code-Nest
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+  
+  # Jackson JSON序列化配置
+  jackson:
+    # 时间格式配置
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    # LocalDateTime序列化配置
+    serialization:
+      write-dates-as-timestamps: false
+    # 反序列化配置
+    deserialization:
+      fail-on-unknown-properties: false
+  
+  # Spring Security 全局配置
+  security:
+    user:
+      # 完全禁用默认用户
+      name: 
+      password: 
+      roles:
+
+# JWT配置（保留兼容旧代码）
+jwt:
+  # JWT密钥（HS512算法要求至少64字节）
+  # 生产环境必须通过环境变量或 application-sec.yml 覆盖，避免把真实密钥提交到仓库。
+  secret: ${XIAOU_JWT_SECRET:change-me-code-nest-jwt-secret-at-least-64-bytes-for-dev-only-2026}
+  # 访问令牌过期时间（秒）7天 - 与前端Cookie保持一致
+  expiration: 604800
+  # 刷新令牌过期时间（秒）30天
+  refresh-expiration: 2592000
+  # 签发者
+  issuer: code-nest
+
+# Sa-Token 配置
+sa-token:
+  # Token 名称（同时也是 Cookie 名称）
+  token-name: Authorization
+  # Token 有效期（单位：秒）-1表示永不过期，7天
+  timeout: 604800
+  # Token 临时有效期（指定时间内无操作就视为Token过期）（单位：秒）
+  # -1 表示不启用临时过期机制，即在 timeout 时间内一直有效
+  # 如果设置为正数（如1800），则30分钟无操作会过期
+  activity-timeout: -1
+  # 是否允许同一账号并发登录（为true时允许一起登录，为false时新登录挤掉旧登录）
+  is-concurrent: true
+  # 在多人登录同一账号时，是否共用一个Token（为true时所有登录共用一个Token，为false时每次登录新建一个Token）
+  is-share: false
+  # Token 风格（可选：uuid、simple-uuid、random-32、random-64、random-128、tik）
+  token-style: uuid
+  # 是否输出操作日志
+  is-log: true
+  # 是否从 Cookie 中读取 Token
+  is-read-cookie: false
+  # 是否从请求头中读取 Token
+  is-read-header: true
+  # Token 前缀（前端提交 Token 时需要加上的前缀）
+  token-prefix: Bearer
+  # 是否在初始化配置时打印版本字符画
+  is-print: true
+
+# MyBatis 配置
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+    # 关闭 MyBatis 原生 SQL 日志，由 P6Spy 接管
+    # log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  mapper-locations: 
+    - classpath*:mapper/**/*.xml
+    - classpath*:com/xiaou/*/mapper/*.xml
+  # 实体类别名包路径（支持所有模块的domain包）
+  type-aliases-package: com.xiaou.*.domain
+  # 开启驼峰命名转换
+  # 开启二级缓存
+  # 延迟加载
+  # 开启驼峰命名转换
+  # 开启二级缓存
+  # 延迟加载
+
+# PageHelper 分页插件配置
+pagehelper:
+  helper-dialect: mysql
+  # 分页参数合理化，当pageNum<=0时会查询第一页，pageNum>总页数时会查询最后一页
+  reasonable: true
+  # 支持通过Mapper接口参数来传递分页参数
+  support-methods-arguments: true
+  # 为了支持startPage(Object params)方法
+  params: count=countSql;reasonable=reasonable;pageSizeZero=pageSizeZero
+  # 启用自动分页
+  auto-runtime-dialect: true
+  # 关闭banner
+  banner: false
+
+# 日志配置（使用logback-spring.xml配置文件）
+logging:
+  config: classpath:logback-spring.xml
+  level:
+    # 禁用 Spring Security 的默认日志
+    org.springframework.boot.autoconfigure.security: OFF
+    org.springframework.security: WARN
+    # 业务日志级别（INFO 可避免 Mapper 的 DEBUG SQL 输出，SQL 由 P6Spy 接管）
+    com.xiaou: INFO
+    org.springframework.web: WARN
+
+# SpringDoc OpenAPI 3.0 配置
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+    display-request-duration: true
+    doc-expansion: none
+  group-configs:
+    - group: 'default'
+      display-name: 'Code-Nest API'
+      paths-to-match: '/**'
+
+# ==================== SaToken Redis 配置说明 ====================
+# SaToken 使用 sa-token-alone-redis 插件 + Jedis 实现 Redis 持久化
+# 配置位置：application-dev.yml 中的 sa-token.alone-redis 节点
+# 
+# 重要说明：
+# 1. 项目重启后，只要 Redis 服务不重启，Token 数据就不会丢失
+# 2. Redis 本身是内存数据库，只有 Redis 服务重启时才需要考虑持久化（RDB/AOF）
+# 3. 如果需要 Redis 重启后也保留数据，请在 redis.conf 中配置 RDB 或 AOF 持久化
+
+# ==================== Prometheus 监控配置 ====================
+# Spring Boot Actuator + Micrometer Prometheus 集成
+# 提供生产级应用监控能力，包括：JVM、数据库连接池、HTTP请求、自定义业务指标等
+# 
+# 使用说明：
+# 1. Prometheus 指标端点：http://localhost:9999/api/actuator/prometheus
+# 2. 健康检查端点：http://localhost:9999/api/actuator/health
+# 3. 所有指标端点：http://localhost:9999/api/actuator/metrics
+# 
+# Prometheus 配置示例（prometheus.yml）：
+# scrape_configs:
+#   - job_name: 'code-nest'
+#     metrics_path: '/api/actuator/prometheus'
+#     static_configs:
+#       - targets: ['localhost:9999']
+#
+# Grafana Dashboard 推荐：
+# - Spring Boot 2.1 Statistics (ID: 11378)
+# - JVM (Micrometer) (ID: 4701)
+# - Spring Boot Statistics (ID: 6756)
+management:
+  endpoints:
+    web:
+      # 端点基础路径，默认为 /actuator
+      base-path: /actuator
+      exposure:
+        # 暴露的端点，* 表示全部，生产环境建议只暴露必要的端点
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      # 健康详情不向未受信任的调用方暴露；巡检只依赖聚合状态。
+      show-details: never
+      probes:
+        enabled: true
+    prometheus:
+      # 启用 Prometheus 端点
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        # 启用 Prometheus 指标导出
+        enabled: true
+    tags:
+      # 添加全局标签，用于在 Prometheus 中标识应用
+      application: ${spring.application.name}
+    distribution:
+      # HTTP 请求延迟直方图配置
+      percentiles-histogram:
+        http.server.requests: true
+      # 自定义百分位数统计
+      percentiles:
+        http.server.requests: 0.5, 0.95, 0.99
+      # SLA 边界配置（用于生成 _bucket 指标）
+      sla:
+        http.server.requests: 10ms, 50ms, 100ms, 200ms, 500ms, 1s, 2s, 5s
+
+xiaou:
+  ai:
+    enabled: true
+    provider: ${XIAOU_AI_PROVIDER:openai-compatible}
+    base-url: ${XIAOU_AI_BASE_URL:}
+    api-key: ${XIAOU_AI_API_KEY:}
+    model:
+      chat: ${XIAOU_AI_CHAT_MODEL:gpt-5.4}
+      max-completion-tokens: ${XIAOU_AI_MAX_COMPLETION_TOKENS:2048}
+      embedding: ${XIAOU_AI_EMBEDDING_MODEL:text-embedding-3-small}
+    pricing:
+      currency: ${XIAOU_AI_PRICING_CURRENCY:USD}
+      input-per-million: ${XIAOU_AI_INPUT_PRICE_PER_MILLION:0}
+      output-per-million: ${XIAOU_AI_OUTPUT_PRICE_PER_MILLION:0}
+    metrics:
+      persistence:
+        enabled: ${XIAOU_AI_METRICS_PERSIST_ENABLED:true}
+        redis-key: ${XIAOU_AI_METRICS_REDIS_KEY:xiaou:ai:runtime:metrics}
+    timeout:
+      connect-ms: 10000
+      read-ms: 60000
+    retry:
+      max-attempts: 2
+      backoff-ms: 1000
+    max-concurrent-calls: ${XIAOU_AI_MAX_CONCURRENT_CALLS:8}
+    permit-acquire-timeout-ms: ${XIAOU_AI_PERMIT_ACQUIRE_TIMEOUT_MS:1000}
+    rag:
+      enabled: ${XIAOU_AI_RAG_ENABLED:false}
+      endpoint: ${XIAOU_AI_RAG_ENDPOINT:http://localhost:18080}
+      api-key: ${XIAOU_AI_RAG_API_KEY:}
+      default-top-k: 5
+  growth-coach:
+    enabled: ${XIAOU_GROWTH_COACH_ENABLED:false}
+    preview-enabled: ${XIAOU_GROWTH_COACH_PREVIEW_ENABLED:false}
+    confirm-enabled: ${XIAOU_GROWTH_COACH_CONFIRM_ENABLED:false}
+    briefing-timeout-millis: ${XIAOU_GROWTH_COACH_BRIEFING_TIMEOUT_MS:1500}
+    briefing-cache-ttl-millis: ${XIAOU_GROWTH_COACH_BRIEFING_CACHE_TTL_MS:5000}
+    briefing-cache-max-entries: ${XIAOU_GROWTH_COACH_BRIEFING_CACHE_MAX_ENTRIES:10000}
+    planning-lock-key-prefix: ${XIAOU_GROWTH_COACH_PLANNING_LOCK_KEY_PREFIX:xiaou:growth-coach:planning}
+    rate-limit:
+      redis-key-prefix: ${XIAOU_GROWTH_COACH_RATE_KEY_PREFIX:xiaou:growth-coach:rate}
+      window-seconds: ${XIAOU_GROWTH_COACH_RATE_WINDOW_SECONDS:60}
+      preview-requests-per-minute: ${XIAOU_GROWTH_COACH_PREVIEW_RATE_LIMIT:6}
+      confirm-requests-per-minute: ${XIAOU_GROWTH_COACH_CONFIRM_RATE_LIMIT:12}
+    evidence-projection:
+      enabled: ${XIAOU_GROWTH_COACH_EVIDENCE_ENABLED:true}
+      compensation-enabled: ${XIAOU_GROWTH_COACH_EVIDENCE_COMPENSATION_ENABLED:true}
+      compensation-cron: "${XIAOU_GROWTH_COACH_EVIDENCE_COMPENSATION_CRON:0 */10 * * * ?}"
+      compensation-lookback-minutes: ${XIAOU_GROWTH_COACH_EVIDENCE_LOOKBACK_MINUTES:1440}
+      compensation-user-batch-size: ${XIAOU_GROWTH_COACH_EVIDENCE_BATCH_SIZE:100}
+    proactive-nudge:
+      enabled: ${XIAOU_GROWTH_COACH_PROACTIVE_NUDGE_ENABLED:false}
+      cron: "${XIAOU_GROWTH_COACH_PROACTIVE_NUDGE_CRON:0 15 9 * * ?}"
+      user-batch-size: ${XIAOU_GROWTH_COACH_PROACTIVE_NUDGE_BATCH_SIZE:100}
+    code-artifact:
+      enabled: ${XIAOU_GROWTH_COACH_CODE_ARTIFACT_ENABLED:false}
+      connect-timeout-millis: ${XIAOU_GROWTH_COACH_CODE_ARTIFACT_CONNECT_TIMEOUT_MS:3000}
+      read-timeout-millis: ${XIAOU_GROWTH_COACH_CODE_ARTIFACT_READ_TIMEOUT_MS:8000}
+      preview-requests-per-minute: ${XIAOU_GROWTH_COACH_CODE_ARTIFACT_PREVIEW_RATE_LIMIT:5}
+      attach-requests-per-minute: ${XIAOU_GROWTH_COACH_CODE_ARTIFACT_ATTACH_RATE_LIMIT:5}
+      ownership-recheck-limit: ${XIAOU_GROWTH_COACH_CODE_ARTIFACT_OWNERSHIP_RECHECK_LIMIT:8}
+    github-oauth:
+      enabled: ${XIAOU_GROWTH_COACH_GITHUB_OAUTH_ENABLED:false}
+      client-id: ${GITHUB_OAUTH_CLIENT_ID:}
+      client-secret: ${GITHUB_OAUTH_CLIENT_SECRET:}
+      callback-url: ${GITHUB_OAUTH_CALLBACK_URL:}
+      success-redirect-url: ${GITHUB_OAUTH_SUCCESS_REDIRECT_URL:}
+      failure-redirect-url: ${GITHUB_OAUTH_FAILURE_REDIRECT_URL:}
+      token-encryption-key: ${GITHUB_OAUTH_TOKEN_ENCRYPTION_KEY:}
+      state-key-prefix: ${XIAOU_GROWTH_COACH_GITHUB_OAUTH_STATE_KEY_PREFIX:xiaou:growth-coach:github-oauth:state}
+      state-ttl-seconds: ${XIAOU_GROWTH_COACH_GITHUB_OAUTH_STATE_TTL_SECONDS:600}
+      connect-timeout-millis: ${XIAOU_GROWTH_COACH_GITHUB_OAUTH_CONNECT_TIMEOUT_MS:3000}
+      read-timeout-millis: ${XIAOU_GROWTH_COACH_GITHUB_OAUTH_READ_TIMEOUT_MS:8000}
+      authorize-requests-per-minute: ${XIAOU_GROWTH_COACH_GITHUB_OAUTH_AUTHORIZE_RATE_LIMIT:3}
+      callback-requests-per-minute: ${XIAOU_GROWTH_COACH_GITHUB_OAUTH_CALLBACK_RATE_LIMIT:3}
+    code-review:
+      enabled: ${XIAOU_GROWTH_COACH_CODE_REVIEW_ENABLED:false}
+      max-source-chars: ${XIAOU_GROWTH_COACH_CODE_REVIEW_MAX_SOURCE_CHARS:24000}
+      review-requests-per-minute: ${XIAOU_GROWTH_COACH_CODE_REVIEW_RATE_LIMIT:3}
+  sre:
+    operational-evidence:
+      # Static deployment provenance and classpath runbooks; no runtime Git, shell or database access.
+      enabled: ${XIAOU_SRE_OPERATIONAL_EVIDENCE_ENABLED:true}
+      environment: ${XIAOU_SRE_OPERATIONAL_EVIDENCE_ENVIRONMENT:${spring.profiles.active:unknown}}
+    metrics:
+      # 数据库 gauge 依赖完整 SRE 迁移；计数器和耗时指标始终由 Micrometer 记录。
+      enabled: ${XIAOU_SRE_METRICS_ENABLED:false}
+      refresh-ms: ${XIAOU_SRE_METRICS_REFRESH_MS:10000}
+      initial-delay-ms: ${XIAOU_SRE_METRICS_INITIAL_DELAY_MS:15000}
+    webhook:
+      # 默认关闭；只有完成 Alertmanager 机器凭据配置后才开启。
+      enabled: ${XIAOU_SRE_WEBHOOK_ENABLED:false}
+      token: ${XIAOU_SRE_WEBHOOK_TOKEN:}
+      max-requests-per-minute: ${XIAOU_SRE_WEBHOOK_MAX_REQUESTS_PER_MINUTE:120}
+      max-body-bytes: ${XIAOU_SRE_WEBHOOK_MAX_BODY_BYTES:2000000}
+    outbox:
+      # 数据库迁移完成并接入证据表后再开启后台消费。
+      enabled: ${XIAOU_SRE_OUTBOX_ENABLED:false}
+      fixed-delay-ms: ${XIAOU_SRE_OUTBOX_FIXED_DELAY_MS:5000}
+      initial-delay-ms: ${XIAOU_SRE_OUTBOX_INITIAL_DELAY_MS:10000}
+      batch-size: ${XIAOU_SRE_OUTBOX_BATCH_SIZE:20}
+      max-attempts: ${XIAOU_SRE_OUTBOX_MAX_ATTEMPTS:5}
+      lease-seconds: ${XIAOU_SRE_OUTBOX_LEASE_SECONDS:120}
+      retry-backoff-seconds: ${XIAOU_SRE_OUTBOX_RETRY_BACKOFF_SECONDS:10}
+      max-retry-backoff-seconds: ${XIAOU_SRE_OUTBOX_MAX_RETRY_BACKOFF_SECONDS:900}
+    evaluation:
+      # Apply sre_rca_evaluation_queue.sql before enabling the database-backed worker.
+      enabled: ${XIAOU_SRE_EVALUATION_ENABLED:false}
+      fixed-delay-ms: ${XIAOU_SRE_EVALUATION_FIXED_DELAY_MS:2000}
+      initial-delay-ms: ${XIAOU_SRE_EVALUATION_INITIAL_DELAY_MS:10000}
+      batch-size: ${XIAOU_SRE_EVALUATION_BATCH_SIZE:2}
+      max-attempts: ${XIAOU_SRE_EVALUATION_MAX_ATTEMPTS:3}
+      # Keep the lease above the 60-second AI read timeout.
+      lease-seconds: ${XIAOU_SRE_EVALUATION_LEASE_SECONDS:180}
+      max-duration-seconds: ${XIAOU_SRE_EVALUATION_MAX_DURATION_SECONDS:1800}
+      max-cases-per-run: ${XIAOU_SRE_EVALUATION_MAX_CASES_PER_RUN:100}
+      retry-backoff-seconds: ${XIAOU_SRE_EVALUATION_RETRY_BACKOFF_SECONDS:10}
+      max-retry-backoff-seconds: ${XIAOU_SRE_EVALUATION_MAX_RETRY_BACKOFF_SECONDS:300}
+      source-revision: ${XIAOU_SRE_EVALUATION_SOURCE_REVISION:unknown}
+      build-id: ${XIAOU_SRE_EVALUATION_BUILD_ID:local}
+      build-version: ${XIAOU_SRE_EVALUATION_BUILD_VERSION:2.5.1}
+    prometheus:
+      # 默认关闭；开启前确认 Prometheus 只允许本机/监控网络访问。
+      enabled: ${XIAOU_SRE_PROMETHEUS_ENABLED:false}
+      endpoint: ${XIAOU_SRE_PROMETHEUS_ENDPOINT:http://127.0.0.1:9090}
+      connect-timeout-millis: ${XIAOU_SRE_PROMETHEUS_CONNECT_TIMEOUT_MS:2000}
+      read-timeout-millis: ${XIAOU_SRE_PROMETHEUS_READ_TIMEOUT_MS:5000}
+      max-response-bytes: ${XIAOU_SRE_PROMETHEUS_MAX_RESPONSE_BYTES:512000}
+      max-results: ${XIAOU_SRE_PROMETHEUS_MAX_RESULTS:50}
+    loki:
+      # 默认关闭；接入 Alloy/Loki 并确认仅监控网络可访问后再开启。
+      enabled: ${XIAOU_SRE_LOKI_ENABLED:false}
+      endpoint: ${XIAOU_SRE_LOKI_ENDPOINT:http://127.0.0.1:3100}
+      connect-timeout-millis: ${XIAOU_SRE_LOKI_CONNECT_TIMEOUT_MS:2000}
+      read-timeout-millis: ${XIAOU_SRE_LOKI_READ_TIMEOUT_MS:5000}
+      max-response-bytes: ${XIAOU_SRE_LOKI_MAX_RESPONSE_BYTES:512000}
+      max-results: ${XIAOU_SRE_LOKI_MAX_RESULTS:50}
+      max-line-length: ${XIAOU_SRE_LOKI_MAX_LINE_LENGTH:2000}
+      lookback-minutes: ${XIAOU_SRE_LOKI_LOOKBACK_MINUTES:15}
+      max-range-minutes: ${XIAOU_SRE_LOKI_MAX_RANGE_MINUTES:60}
+
+  sensitive:
+    source:
+      connect-timeout-millis: ${XIAOU_SENSITIVE_SOURCE_CONNECT_TIMEOUT_MS:5000}
+      read-timeout-millis: ${XIAOU_SENSITIVE_SOURCE_READ_TIMEOUT_MS:15000}
+      max-response-bytes: ${XIAOU_SENSITIVE_SOURCE_MAX_RESPONSE_BYTES:2097152}
+      max-redirects: ${XIAOU_SENSITIVE_SOURCE_MAX_REDIRECTS:0}
+      allow-http: ${XIAOU_SENSITIVE_SOURCE_ALLOW_HTTP:true}
+
+# ==================== 社区模块配置 ====================
+community:
+  # 缓存配置
+  cache:
+    # 热门帖子缓存时间（秒），默认10分钟
+    hot-posts-ttl: 600
+    # 帖子详情缓存时间（秒），默认30分钟
+    post-detail-ttl: 1800
+    # 用户信息缓存时间（秒），默认1小时
+    user-info-ttl: 3600
+    # 标签列表缓存时间（秒），默认1天
+    tags-ttl: 86400
+  
+  # 热门帖子配置
+  hot:
+    # 热门帖子时间范围（小时），默认72小时（3天）
+    time-range: 72
+    # 最低热度分数，默认30
+    min-score: 30
+    # 热门帖子数量限制，默认10
+    limit: 10
+    # 定时任务执行间隔（分钟），默认10分钟
+    refresh-interval: 10
+  
+  # AI摘要配置
+  ai:
+    # 是否启用AI摘要功能
+    enabled: true
+    # 自动生成摘要的最小字数
+    min-content-length: 500
+    # 摘要缓存时间（秒），默认30天
+    summary-cache-ttl: 2592000
+
+# ==================== OJ 判题模块配置 ====================
+oj:
+  judge:
+    # go-judge 沙箱服务地址
+    go-judge-url: http://154.222.18.220:5050
+    # 最大编译时间 (ms)
+    max-compile-time: 10000
+    # 默认运行时间限制 (ms)
+    default-time-limit: 2000
+    # 默认内存限制 (MB)
+    default-memory-limit: 256

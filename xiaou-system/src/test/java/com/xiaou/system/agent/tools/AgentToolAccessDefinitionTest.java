@@ -9,7 +9,7 @@ import com.xiaou.system.agent.AgentToolCatalogService;
 import com.xiaou.system.agent.AgentToolDefinition;
 import com.xiaou.system.service.SysAgentAuditService;
 import com.xiaou.system.service.SysOperationLogService;
-import com.xiaou.system.service.SreIncidentRcaService;
+import com.xiaou.sre.service.rca.SreIncidentRcaService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;

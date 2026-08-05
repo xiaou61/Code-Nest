@@ -516,6 +516,7 @@ validate_stage() {
   test -f "$stage/admin/index.html"
   test -f "$stage/RELEASE"
   test -f "$stage/VERSION"
+  test -f "$stage/release-manifest.json"
   test -f "$stage/scripts/deploy-release.sh"
   test -f "$stage/scripts/db-migrate.py"
   test -f "$stage/scripts/release-smoke-test.py"

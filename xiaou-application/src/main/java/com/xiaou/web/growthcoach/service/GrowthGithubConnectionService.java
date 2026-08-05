@@ -1,6 +1,6 @@
 package com.xiaou.web.growthcoach.service;
 
-import com.xiaou.common.cache.RedisValueStore;
+import com.xiaou.common.cache.CacheStore;
 import com.xiaou.common.exception.BusinessException;
 import com.xiaou.web.growthcoach.config.GrowthCoachProperties;
 import com.xiaou.web.growthcoach.domain.GrowthGithubConnection;
@@ -42,7 +42,7 @@ public class GrowthGithubConnectionService {
     private final GrowthGithubConnectionMapper connectionMapper;
     private final GithubOAuthClient oauthClient;
     private final GithubOAuthTokenCipher tokenCipher;
-    private final RedisValueStore redisValueStore;
+    private final CacheStore cacheStore;
     private final GrowthCoachRateLimiter rateLimiter;
     private final GrowthCodeArtifactService growthCodeArtifactService;
 
@@ -82,7 +82,7 @@ public class GrowthGithubConnectionService {
         rateLimiter.checkGithubOAuthAuthorize(userId);
         String state = newState();
         try {
-            redisValueStore.put(stateKey(state), String.valueOf(userId), Duration.ofSeconds(stateTtlSeconds()));
+            cacheStore.put(stateKey(state), String.valueOf(userId), Duration.ofSeconds(stateTtlSeconds()));
         } catch (RuntimeException exception) {
             throw new BusinessException("授权状态服务暂不可用，请稍后重试");
         }
@@ -181,7 +181,7 @@ public class GrowthGithubConnectionService {
         }
         Optional<String> stateUser;
         try {
-            stateUser = redisValueStore.take(stateKey(state.trim()), String.class);
+            stateUser = cacheStore.take(stateKey(state.trim()), String.class);
         } catch (RuntimeException exception) {
             throw new BusinessException("授权状态服务暂不可用，请稍后重试");
         }

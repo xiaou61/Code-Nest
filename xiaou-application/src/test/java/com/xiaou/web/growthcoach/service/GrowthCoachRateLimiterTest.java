@@ -1,6 +1,6 @@
 package com.xiaou.web.growthcoach.service;
 
-import com.xiaou.common.cache.RedisValueStore;
+import com.xiaou.common.cache.CacheStore;
 import com.xiaou.common.exception.BusinessException;
 import com.xiaou.web.growthcoach.config.GrowthCoachProperties;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,7 +22,7 @@ import static org.mockito.Mockito.when;
 class GrowthCoachRateLimiterTest {
 
     @Mock
-    private RedisValueStore redisValueStore;
+    private CacheStore cacheStore;
 
     private GrowthCoachRateLimiter rateLimiter;
 
@@ -31,21 +31,21 @@ class GrowthCoachRateLimiterTest {
         GrowthCoachProperties properties = new GrowthCoachProperties();
         properties.getRateLimit().setPreviewRequestsPerMinute(2);
         properties.getRateLimit().setConfirmRequestsPerMinute(3);
-        rateLimiter = new GrowthCoachRateLimiter(redisValueStore, properties);
+        rateLimiter = new GrowthCoachRateLimiter(cacheStore, properties);
     }
 
     @Test
     void permitsPreviewWithinTheConfiguredWindow() {
-        when(redisValueStore.increment(anyString(), eq(1L), any(Duration.class))).thenReturn(2L);
+        when(cacheStore.increment(anyString(), eq(1L), any(Duration.class))).thenReturn(2L);
 
         rateLimiter.checkPreview(7L);
 
-        verify(redisValueStore).increment(anyString(), eq(1L), any(Duration.class));
+        verify(cacheStore).increment(anyString(), eq(1L), any(Duration.class));
     }
 
     @Test
     void rejectsPreviewWhenTheConfiguredWindowIsExhausted() {
-        when(redisValueStore.increment(anyString(), eq(1L), any(Duration.class))).thenReturn(3L);
+        when(cacheStore.increment(anyString(), eq(1L), any(Duration.class))).thenReturn(3L);
 
         assertThatThrownBy(() -> rateLimiter.checkPreview(7L))
                 .isInstanceOf(BusinessException.class)
@@ -54,7 +54,7 @@ class GrowthCoachRateLimiterTest {
 
     @Test
     void failsClosedWhenRequestProtectionIsUnavailable() {
-        when(redisValueStore.increment(anyString(), eq(1L), any(Duration.class)))
+        when(cacheStore.increment(anyString(), eq(1L), any(Duration.class)))
                 .thenThrow(new IllegalStateException("redis unavailable"));
 
         assertThatThrownBy(() -> rateLimiter.checkConfirm(7L))

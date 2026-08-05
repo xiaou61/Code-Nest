@@ -2,13 +2,14 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { readRouterSource } from './helpers/router-source.js'
 
 const projectRoot = resolve(import.meta.dirname, '..')
 const componentsSource = readFileSync(
   resolve(projectRoot, 'src/views/design-system/Components.vue'),
   'utf8'
 )
-const routerSource = readFileSync(resolve(projectRoot, 'src/router/index.js'), 'utf8')
+const routerSource = readRouterSource(projectRoot)
 
 function normalizePath(path) {
   const pathOnly = path.split(/[?#]/)[0]

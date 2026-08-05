@@ -1,11 +1,11 @@
 package com.xiaou.system.service.impl.support;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xiaou.common.cache.TextStateStore;
 import com.xiaou.common.config.AiProperties;
 import com.xiaou.system.dto.AiRegressionRunResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -30,16 +30,16 @@ public class AiRegressionRunStateRepository {
 
     private final ObjectMapper objectMapper;
     private final AiProperties aiProperties;
-    private final StringRedisTemplate stringRedisTemplate;
+    private final TextStateStore stateStore;
     private final AtomicReference<AiRegressionRunResponse> inMemoryState = new AtomicReference<>();
     private final AtomicReference<List<AiRegressionRunResponse>> inMemoryHistory = new AtomicReference<>(List.of());
 
     public AiRegressionRunStateRepository(ObjectMapper objectMapper,
                                           AiProperties aiProperties,
-                                          ObjectProvider<StringRedisTemplate> stringRedisTemplateProvider) {
+                                          ObjectProvider<TextStateStore> stateStoreProvider) {
         this.objectMapper = objectMapper;
         this.aiProperties = aiProperties;
-        this.stringRedisTemplate = stringRedisTemplateProvider.getIfAvailable();
+        this.stateStore = stateStoreProvider.getIfAvailable();
     }
 
     /**
@@ -54,7 +54,7 @@ public class AiRegressionRunStateRepository {
             return null;
         }
         try {
-            String json = stringRedisTemplate.opsForValue().get(resolveRedisKey());
+            String json = stateStore.find(resolveRedisKey()).orElse(null);
             if (!StringUtils.hasText(json)) {
                 return null;
             }
@@ -78,7 +78,7 @@ public class AiRegressionRunStateRepository {
             return;
         }
         try {
-            stringRedisTemplate.opsForValue().set(resolveRedisKey(), objectMapper.writeValueAsString(snapshot));
+            stateStore.put(resolveRedisKey(), objectMapper.writeValueAsString(snapshot));
         } catch (Exception e) {
             log.warn("保存最近一次 AI 回归结果失败，将继续保留内存状态: {}", e.getMessage());
         }
@@ -101,7 +101,7 @@ public class AiRegressionRunStateRepository {
             return memoryHistory;
         }
         try {
-            String json = stringRedisTemplate.opsForValue().get(resolveHistoryRedisKey());
+            String json = stateStore.find(resolveHistoryRedisKey()).orElse(null);
             if (!StringUtils.hasText(json)) {
                 AiRegressionRunResponse latest = loadLatest();
                 if (latest != null) {
@@ -120,7 +120,7 @@ public class AiRegressionRunStateRepository {
     }
 
     private boolean isRedisPersistenceAvailable() {
-        return stringRedisTemplate != null
+        return stateStore != null
                 && aiProperties.getMetrics() != null
                 && aiProperties.getMetrics().getPersistence() != null
                 && aiProperties.getMetrics().getPersistence().isEnabled();
@@ -165,7 +165,7 @@ public class AiRegressionRunStateRepository {
             return;
         }
         try {
-            stringRedisTemplate.opsForValue().set(resolveHistoryRedisKey(), objectMapper.writeValueAsString(history));
+            stateStore.put(resolveHistoryRedisKey(), objectMapper.writeValueAsString(history));
         } catch (Exception e) {
             log.warn("保存 AI 回归历史失败，将继续保留内存状态: {}", e.getMessage());
         }

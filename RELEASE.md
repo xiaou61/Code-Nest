@@ -1,5 +1,40 @@
 # 发布流程
 
+## v2.5.6
+
+`v2.5.6` 是纯架构治理版本，不增加产品功能，也不修改数据库结构。目标是让启动、基础设施、领域能力、跨模块读取、前后端契约和发布元数据各自只有一个清晰所有者。
+
+### Highlights
+
+- `xiaou-bootstrap` 成为唯一启动壳和可执行 JAR；`xiaou-application` 只负责跨领域应用编排。
+- `xiaou-common` 的实现按 core、web、security、cache、persistence 拆分，旧模块作为兼容聚合逐步退出依赖图。
+- Growth Coach、首页和学习驾驶舱通过端口与适配器读取领域数据；聚合调用统一走 `xiaou-resilience`。
+- SRE RCA/评测完整归位 `xiaou-sre`，通知持久化与发布能力完整归位 `xiaou-notification`。
+- 双前端共享 `@code-nest/api-contract`，后端统一业务码到 HTTP 状态映射，通知 DTO 不再暴露持久化实体。
+- 用户端六个、管理端六个路由切片替代超大入口路由文件，路径和路由名保持兼容。
+- `release/manifest.json` 统一 `v2.5.6`、schema `v2.5.3`、Docker 标签和制品路径，CI/CD 不再从分支名猜测发布版本。
+
+### Verification
+
+```bash
+python scripts/release_manifest.py validate
+python scripts/test_release_manifest.py -v
+python scripts/check-architecture.py
+mvn -B -pl xiaou-bootstrap -am test
+npm --prefix code-nest-api-contract test
+npm --prefix vue3-user-front run test:contracts
+npm --prefix vue3-admin-front run test:contracts
+npm --prefix vue3-user-front run build
+npm --prefix vue3-admin-front run build
+npm --prefix docs-site run build
+```
+
+### Migration
+
+- 无数据库迁移；`RELEASE.schema_version` 固定记录最新真实数据库基线 `v2.5.3`。
+- 部署仍默认不写数据库，`CODE_NEST_RUN_MIGRATIONS` 的行为不变。
+- 运维脚本和 systemd 继续使用 `/opt/code-nest/app/app.jar`，只改变仓库内构建制品来源。
+
 ## v2.5.5
 
 `v2.5.5` 是成长证据到能力结构的纵向切片版本：在既有 Growth Coach 证据链上提供可解释、可回溯的用户侧能力图谱。
@@ -248,14 +283,14 @@ v3.0.0
 - 工作区不包含无关改动。
 - PR 已完成 review。
 - 数据库脚本、接口文档、前端路由文档已同步。
-- 版本号已在 Maven、前端 package、README 或部署脚本中保持一致。
+- `python scripts/release_manifest.py validate` 已确认清单与所有版本投影一致。
 
 ### 后端验证
 
 至少执行：
 
 ```bash
-mvn -pl xiaou-application -am -DskipTests compile
+mvn -pl xiaou-bootstrap -am -DskipTests compile
 ```
 
 如发布只涉及单模块，可额外执行单模块编译：

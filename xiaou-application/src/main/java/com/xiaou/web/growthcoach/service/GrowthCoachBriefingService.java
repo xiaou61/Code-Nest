@@ -1,5 +1,7 @@
 package com.xiaou.web.growthcoach.service;
 
+import com.xiaou.resilience.ResilientExecutor;
+import com.xiaou.resilience.ResilientResult;
 import com.xiaou.web.growthcoach.dto.GrowthApplicationOutcomeResponse;
 import com.xiaou.web.growthcoach.dto.GrowthCareerNextActionResponse;
 import com.xiaou.web.growthcoach.dto.GrowthCoachBriefingResponse;
@@ -10,13 +12,13 @@ import com.xiaou.web.growthcoach.dto.GrowthJobMarketSignalResponse;
 import com.xiaou.web.growthcoach.dto.GrowthSkillInsightResponse;
 import com.xiaou.web.growthcoach.dto.GrowthWeeklyReviewResponse;
 import com.xiaou.web.growthcoach.config.GrowthCoachProperties;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -26,7 +28,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
 /**
@@ -35,7 +36,6 @@ import java.util.function.Supplier;
  * <p>该服务是用户侧的受控行动编排层，不调用管理员 Agent，也不写入数据库。
  * 计划变更仍必须回到既有 Preview -> Confirm 流程。</p>
  */
-@Slf4j
 @Service
 public class GrowthCoachBriefingService {
 
@@ -47,6 +47,7 @@ public class GrowthCoachBriefingService {
     private final GrowthSkillInsightService growthSkillInsightService;
     private final GrowthJobMarketSignalService growthJobMarketSignalService;
     private final GrowthCoachProperties properties;
+    private final ResilientExecutor resilientExecutor;
     private final Executor applicationIoExecutor;
     private final GrowthCoachMetricsRecorder metricsRecorder;
     private final ConcurrentHashMap<Long, CachedBriefing> briefingCache = new ConcurrentHashMap<>();
@@ -60,6 +61,7 @@ public class GrowthCoachBriefingService {
             GrowthSkillInsightService growthSkillInsightService,
             GrowthJobMarketSignalService growthJobMarketSignalService,
             GrowthCoachProperties properties,
+            ResilientExecutor resilientExecutor,
             @Qualifier("applicationIoExecutor") Executor applicationIoExecutor,
             GrowthCoachMetricsRecorder metricsRecorder
     ) {
@@ -71,6 +73,7 @@ public class GrowthCoachBriefingService {
         this.growthSkillInsightService = growthSkillInsightService;
         this.growthJobMarketSignalService = growthJobMarketSignalService;
         this.properties = properties;
+        this.resilientExecutor = resilientExecutor;
         this.applicationIoExecutor = applicationIoExecutor;
         this.metricsRecorder = metricsRecorder;
     }
@@ -87,19 +90,19 @@ public class GrowthCoachBriefingService {
             return cached.response();
         }
 
-        CompletableFuture<SourceResult<GrowthWeeklyReviewResponse>> weeklyFuture = loadAsync(
+        CompletableFuture<ResilientResult<GrowthWeeklyReviewResponse>> weeklyFuture = loadAsync(
                 "weekly_review", () -> growthWeeklyReviewService.getCurrentReview(userId));
-        CompletableFuture<SourceResult<GrowthApplicationOutcomeResponse>> applicationFuture = loadAsync(
+        CompletableFuture<ResilientResult<GrowthApplicationOutcomeResponse>> applicationFuture = loadAsync(
                 "application_outcomes", () -> growthApplicationOutcomeService.getForUser(userId));
-        CompletableFuture<SourceResult<GrowthCareerNextActionResponse>> careerFuture = loadAsync(
+        CompletableFuture<ResilientResult<GrowthCareerNextActionResponse>> careerFuture = loadAsync(
                 "career_next_action", () -> growthCareerNextActionService.getNextAction(userId));
-        CompletableFuture<SourceResult<GrowthJobBattleGapResponse>> gapFuture = loadAsync(
+        CompletableFuture<ResilientResult<GrowthJobBattleGapResponse>> gapFuture = loadAsync(
                 "job_battle_gap", () -> growthJobBattleGapService.getCurrentGap(userId));
-        CompletableFuture<SourceResult<List<GrowthSkillInsightResponse>>> skillsFuture = loadAsync(
+        CompletableFuture<ResilientResult<List<GrowthSkillInsightResponse>>> skillsFuture = loadAsync(
                 "skill_insights", () -> growthSkillInsightService.listForUser(userId));
-        CompletableFuture<SourceResult<GrowthJobMarketSignalResponse>> marketFuture = loadAsync(
+        CompletableFuture<ResilientResult<GrowthJobMarketSignalResponse>> marketFuture = loadAsync(
                 "job_market_signal", () -> growthJobMarketSignalService.getCurrentSignal(userId));
-        CompletableFuture<SourceResult<GrowthCoachTodayActionResponse>> todayFuture = loadAsync(
+        CompletableFuture<ResilientResult<GrowthCoachTodayActionResponse>> todayFuture = loadAsync(
                 "today_action", () -> growthCoachApplicationService.getTodayAction(userId));
 
         CompletableFuture.allOf(
@@ -107,13 +110,13 @@ public class GrowthCoachBriefingService {
                 skillsFuture, marketFuture, todayFuture
         ).join();
 
-        SourceResult<GrowthWeeklyReviewResponse> weeklyResult = weeklyFuture.join();
-        SourceResult<GrowthApplicationOutcomeResponse> applicationResult = applicationFuture.join();
-        SourceResult<GrowthCareerNextActionResponse> careerResult = careerFuture.join();
-        SourceResult<GrowthJobBattleGapResponse> gapResult = gapFuture.join();
-        SourceResult<List<GrowthSkillInsightResponse>> skillsResult = skillsFuture.join();
-        SourceResult<GrowthJobMarketSignalResponse> marketResult = marketFuture.join();
-        SourceResult<GrowthCoachTodayActionResponse> todayResult = todayFuture.join();
+        ResilientResult<GrowthWeeklyReviewResponse> weeklyResult = weeklyFuture.join();
+        ResilientResult<GrowthApplicationOutcomeResponse> applicationResult = applicationFuture.join();
+        ResilientResult<GrowthCareerNextActionResponse> careerResult = careerFuture.join();
+        ResilientResult<GrowthJobBattleGapResponse> gapResult = gapFuture.join();
+        ResilientResult<List<GrowthSkillInsightResponse>> skillsResult = skillsFuture.join();
+        ResilientResult<GrowthJobMarketSignalResponse> marketResult = marketFuture.join();
+        ResilientResult<GrowthCoachTodayActionResponse> todayResult = todayFuture.join();
 
         recordSourceStatus(response, "weekly_review", weeklyResult);
         recordSourceStatus(response, "application_outcomes", applicationResult);
@@ -370,40 +373,35 @@ public class GrowthCoachBriefingService {
         return references == null ? List.of() : references.stream().filter(item -> item != null).toList();
     }
 
-    private <T> CompletableFuture<SourceResult<T>> loadAsync(String source, Supplier<T> supplier) {
-        long started = System.nanoTime();
-        return CompletableFuture.supplyAsync(supplier, applicationIoExecutor)
-                .orTimeout(Math.max(properties.getBriefingTimeoutMillis(), 100), TimeUnit.MILLISECONDS)
-                .handle((value, throwable) -> {
-                    long duration = System.nanoTime() - started;
-                    String status;
-                    if (throwable == null) {
-                        status = value == null ? "empty" : "ok";
-                    } else if (throwable instanceof TimeoutException) {
-                        status = "timeout";
-                        log.warn("成长教练简报数据源超时，source={}", source);
-                    } else {
-                        status = "failed";
-                        log.warn("成长教练简报数据源失败，source={}, reason={}", source,
-                                throwable.getClass().getSimpleName());
-                    }
-                    metricsRecorder.recordBriefingSource(source, status, duration);
-                    return new SourceResult<>(value, status, duration);
+    private <T> CompletableFuture<ResilientResult<T>> loadAsync(String source, Supplier<T> supplier) {
+        return resilientExecutor.executeAsync(
+                        "growth-briefing." + source,
+                        supplier,
+                        Duration.ofMillis(Math.max(properties.getBriefingTimeoutMillis(), 100)),
+                        applicationIoExecutor
+                )
+                .thenApply(result -> {
+                    metricsRecorder.recordBriefingSource(source, status(result), result.durationNanos());
+                    return result;
                 });
     }
 
     private <T> void recordSourceStatus(
             GrowthCoachBriefingResponse response,
             String source,
-            SourceResult<T> result
+            ResilientResult<T> result
     ) {
         GrowthCoachBriefingResponse.SourceStatus status = new GrowthCoachBriefingResponse.SourceStatus();
-        status.setStatus(result.status());
-        status.setDurationMs(TimeUnit.NANOSECONDS.toMillis(result.durationNanos()));
+        status.setStatus(status(result));
+        status.setDurationMs(result.durationMillis());
         response.getSourceStatuses().put(source, status);
     }
 
-    private record SourceResult<T>(T value, String status, long durationNanos) {
+    private String status(ResilientResult<?> result) {
+        return switch (result.status()) {
+            case SUCCESS -> "ok";
+            default -> result.status().name().toLowerCase(Locale.ROOT);
+        };
     }
 
     private void cacheBriefing(Long userId, GrowthCoachBriefingResponse response) {

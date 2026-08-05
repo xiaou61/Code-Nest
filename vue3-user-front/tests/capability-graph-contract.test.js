@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { readRouterSource } from './helpers/router-source.js'
 
 const projectRoot = resolve(import.meta.dirname, '..')
 
@@ -49,7 +50,7 @@ test('capability graph exposes a read-only evidence-backed user contract', () =>
 })
 
 test('capability graph has a discoverable user route and navigation entry', () => {
-  const router = source('src', 'router', 'index.js')
+  const router = readRouterSource(projectRoot)
   const navigation = source('src', 'config', 'navigation.js')
   const view = source('src', 'views', 'growth-capabilities', 'Index.vue')
 

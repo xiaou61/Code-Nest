@@ -1,6 +1,6 @@
 # 响应体与错误码
 
-后端统一响应体位于 `xiaou-common/src/main/java/com/xiaou/common/core/domain/Result.java`，错误码定义位于 `ResultCode.java`，异常收敛位于 `GlobalExceptionHandler.java`。
+后端统一响应体位于 `xiaou-common-core/src/main/java/com/xiaou/common/core/domain/Result.java`，错误码定义位于 `ResultCode.java`；异常收敛和 HTTP 状态适配位于 `xiaou-common-web`。
 
 如果你已经看到失败表现，但不确定它对应的是"权限、参数、状态机、外部依赖"哪一层，继续看 [异常路径与失败态索引](/reference/failure-paths) 会更快。
 
@@ -133,10 +133,10 @@
 
 | 异常类型 | HTTP 状态 | 业务 code | 详细 message | 触发条件 |
 | --- | --- | --- | --- | --- |
-| `NotLoginException` | 200 | 701 或 702 | 根据子类型不同 | Sa-Token 登录态失效 |
-| `NotPermissionException` | 200 | 703 | "权限不足，无法访问" | `@SaCheckPermission` 校验失败 |
-| `NotRoleException` | 200 | 703 | "角色权限不足，无法访问" | `@SaCheckRole` 校验失败 |
-| `DisableServiceException` | 200 | 704 | "账号已被封禁，请联系管理员" | Sa-Token 服务封禁 |
+| `NotLoginException` | 401 | 701 或 702 | 根据子类型不同 | Sa-Token 登录态失效 |
+| `NotPermissionException` | 403 | 703 | "权限不足，无法访问" | `@SaCheckPermission` 校验失败 |
+| `NotRoleException` | 403 | 703 | "角色权限不足，无法访问" | `@SaCheckRole` 校验失败 |
+| `DisableServiceException` | 403 | 704 | "账号已被封禁，请联系管理员" | Sa-Token 服务封禁 |
 
 #### NotLoginException 子类型映射
 
@@ -153,7 +153,7 @@
 
 | 异常类型 | HTTP 状态 | 业务 code | 返回 message | 触发条件 |
 | --- | --- | --- | --- | --- |
-| `BusinessException` | 200 | 异常携带的 code（默认 600） | 异常携带的 message | 业务逻辑主动抛出 |
+| `BusinessException` | 由 `ResultHttpStatusMapper` 映射，默认 422 | 异常携带的 code（默认 600） | 异常携带的 message | 业务逻辑主动抛出 |
 
 ### 参数校验异常
 
@@ -226,10 +226,10 @@
 
 | 异常 | HTTP 状态 | 业务 code |
 | --- | --- | --- |
-| `BusinessException` | `200` | 异常内携带 code，默认 `600` |
-| `NotLoginException` | `200` | `701` 或 `702` |
-| `NotPermissionException`、`NotRoleException` | `200` | `703` |
-| `DisableServiceException` | `200` | `704` |
+| `BusinessException` | 默认 `422`，特殊业务码按语义映射 | 异常内携带 code，默认 `600` |
+| `NotLoginException` | `401` | `701` 或 `702` |
+| `NotPermissionException`、`NotRoleException` | `403` | `703` |
+| `DisableServiceException` | `403` | `704` |
 | 参数校验和绑定异常 | `400` | `400` 或 `601` |
 | 方法不支持 | `405` | `405` |
 | 媒体类型不支持 | `415` | `415` |
@@ -239,7 +239,7 @@
 
 ### 设计要点
 
-1. **Sa-Token 异常统一返回 HTTP 200**：所有 `NotLoginException`、`NotPermissionException`、`NotRoleException`、`DisableServiceException` 都返回 HTTP 200 + 业务状态码。这样前端只需在响应拦截器里处理 `code`，不需要同时处理 HTTP 状态码和业务状态码两套逻辑。
+1. **HTTP 与业务码各司其职**：HTTP 状态表达传输语义，业务码保留具体原因。前端由 `@code-nest/api-contract` 同时消费两者，不在页面中重复判断。
 2. **参数校验异常优先返回字段级 message**：`MethodArgumentNotValidException` 和 `BindException` 会取 `FieldError.getDefaultMessage()`，而不是笼统的"参数校验失败"。
 3. **未捕获异常不暴露堆栈**：`Exception` 兜底只返回"系统内部错误，请联系管理员"，堆栈信息只写在服务端日志里。
 
@@ -249,7 +249,8 @@
 
 | 处理模式 | 适用异常 | @ResponseStatus | 说明 |
 | --- | --- | --- | --- |
-| `HttpStatus.OK` (HTTP 200) + 业务 code | Sa-Token 异常族、BusinessException | `@ResponseStatus(HttpStatus.OK)` | 前端只看业务 code |
+| 401/403 + 认证授权业务码 | Sa-Token 异常族、701-704 | Handler + `ResultHttpStatusAdvice` | 客户端可按稳定分类处理 |
+| 422 或 code 对应状态 + 业务 code | `BusinessException`、Controller 返回的错误 `Result` | `ResultHttpStatusMapper` | Controller 无需各自设置状态 |
 | `HttpStatus.BAD_REQUEST` (HTTP 400) + 业务 code | 参数校验、绑定、类型转换 | `@ResponseStatus(HttpStatus.BAD_REQUEST)` | HTTP 状态和业务 code 双表达 |
 | HTTP 标准状态 + 业务 code | 方法不支持(405)、文件超限(413)、路由不存在(404) | 对应 HTTP 状态码 | 两套编码语义一致 |
 | `HttpStatus.INTERNAL_SERVER_ERROR` (HTTP 500) + code 500 | 未捕获 Exception | `@ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)` | 兜底保护 |
@@ -294,23 +295,25 @@ default       → code 701, message "登录状态已失效，请重新登录"
 
 ## 前端处理建议
 
-1. 响应拦截器先判断 `code === 200`。
-2. `701`、`702` 统一清理登录态并跳转登录页。
-3. `703` 显示权限不足，不应重复重试。
-4. `601` 优先展示后端返回的字段校验消息。
-5. 文件接口同时检查 HTTP 状态和业务 code。
+1. Axios 适配器统一调用 `unwrapApiResponse` / `classifyApiFailure`。
+2. `kind === 'authentication'` 才清理登录态；对应 701、702 或没有更具体业务码的 HTTP 401。
+3. `705 LOGIN_FAILED` 即使使用 HTTP 401，仍优先分类为普通业务失败，不触发会话过期流程。
+4. `kind === 'authorization'` 显示权限不足，不应重复重试。
+5. 页面只消费 `ApiError` 的 kind/code/message，不再复制 HTTP 与业务码分支。
 
 ## 源码导航
 
 | 想了解 | 读什么 |
 | --- | --- |
-| 统一响应包装 | `xiaou-common/src/main/java/com/xiaou/common/core/domain/Result.java` |
-| 响应码枚举 | `xiaou-common/src/main/java/com/xiaou/common/core/domain/ResultCode.java` |
-| 分页请求基类 | `xiaou-common/src/main/java/com/xiaou/common/core/domain/PageRequest.java` |
-| 分页响应包装 | `xiaou-common/src/main/java/com/xiaou/common/core/domain/PageResult.java` |
-| 业务异常 | `xiaou-common/src/main/java/com/xiaou/common/exception/BusinessException.java` |
-| 全局异常拦截 | `xiaou-common/src/main/java/com/xiaou/common/exception/GlobalExceptionHandler.java` |
-| AI 异常族 | `xiaou-common/src/main/java/com/xiaou/common/exception/ai/*.java` |
+| 统一响应包装 | `xiaou-common-core/src/main/java/com/xiaou/common/core/domain/Result.java` |
+| 响应码枚举 | `xiaou-common-core/src/main/java/com/xiaou/common/core/domain/ResultCode.java` |
+| 分页请求基类 | `xiaou-common-core/src/main/java/com/xiaou/common/core/domain/PageRequest.java` |
+| 分页响应包装 | `xiaou-common-core/src/main/java/com/xiaou/common/core/domain/PageResult.java` |
+| HTTP 状态映射 | `xiaou-common-web/src/main/java/com/xiaou/common/web/ResultHttpStatusMapper.java` |
+| 双前端错误分类 | `code-nest-api-contract/src/index.js` |
+| 业务异常 | `xiaou-common-core/src/main/java/com/xiaou/common/exception/BusinessException.java` |
+| 全局异常拦截 | `xiaou-common-web/src/main/java/com/xiaou/common/exception/GlobalExceptionHandler.java` |
+| AI 异常族 | `xiaou-common-core/src/main/java/com/xiaou/common/exception/ai/*.java` |
 
 
 ## 相关文档

@@ -20,6 +20,12 @@ call_log="$workspace/calls.log"
 stage="$workspace/stage"
 bundle="$workspace/code-nest-v2.5.1.tar.gz"
 
+if command -v python >/dev/null 2>&1; then
+  python_command="$(command -v python)"
+else
+  python_command="$(command -v python3)"
+fi
+
 mkdir -p "$app_dir" "$user_dir" "$admin_dir" "$monitoring_dir" \
   "$ops_root" "$systemd_dir" "$(dirname "$nginx_config")" \
   "$(dirname "$app_env_file")" "$mock_bin" "$stage/backend" "$stage/user" \
@@ -56,8 +62,9 @@ cat >"$mock_bin/chown" <<'EOF'
 #!/usr/bin/env bash
 exit 0
 EOF
+printf '#!/usr/bin/env bash\nexec %q "$@"\n' "$python_command" >"$mock_bin/python3"
 chmod +x "$mock_bin/systemctl" "$mock_bin/nginx" "$mock_bin/curl" \
-  "$mock_bin/sleep" "$mock_bin/chown"
+  "$mock_bin/sleep" "$mock_bin/chown" "$mock_bin/python3"
 
 printf 'old-jar\n' >"$app_dir/app.jar"
 printf 'old-version\n' >"$app_dir/RELEASE"
@@ -140,6 +147,7 @@ printf '%s\r\n' \
   'built_at=2026-07-28T12:00:00Z' \
   >"$stage/RELEASE"
 printf '2.5.1\n' >"$stage/VERSION"
+printf '{}\n' >"$stage/release-manifest.json"
 printf '# release fixture migration runner\n' >"$stage/scripts/db-migrate.py"
 printf '# release fixture smoke test\n' >"$stage/scripts/release-smoke-test.py"
 printf '%s\n' '-- release fixture migration' >"$stage/sql/v2.5.3/production_governance.sql"

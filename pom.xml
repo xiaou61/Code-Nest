@@ -9,12 +9,19 @@
     <version>${revision}</version>
     <packaging>pom</packaging>
     <modules>
+        <module>xiaou-common-core</module>
+        <module>xiaou-common-web</module>
+        <module>xiaou-common-security</module>
+        <module>xiaou-common-cache</module>
+        <module>xiaou-common-persistence</module>
         <module>xiaou-common</module>
+        <module>xiaou-resilience</module>
         <module>xiaou-system</module>
         <module>xiaou-sre</module>
         <module>xiaou-user-api</module>
         <module>xiaou-user</module>
         <module>xiaou-application</module>
+        <module>xiaou-bootstrap</module>
         <module>xiaou-interview</module>
         <module>xiaou-community</module>
         <module>xiaou-filestorage</module>
@@ -42,7 +49,7 @@
 
     <properties>
         <!-- 统一版本管理 -->
-        <revision>v2.5.5</revision>
+        <revision>v2.5.6</revision>
         
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>17</maven.compiler.source>
@@ -55,6 +62,13 @@
         <pagehelper.version>6.1</pagehelper.version>
         <langchain4j.version>1.13.0</langchain4j.version>
         <langgraph4j.version>1.8.13</langgraph4j.version>
+        <fastjson2.version>2.0.43</fastjson2.version>
+        <springdoc.version>2.8.6</springdoc.version>
+        <sa-token.version>1.44.0</sa-token.version>
+        <redisson.version>3.24.3</redisson.version>
+        <mybatis-spring-boot.version>3.0.3</mybatis-spring-boot.version>
+        <druid.version>1.2.20</druid.version>
+        <p6spy.version>3.9.1</p6spy.version>
 
         <!-- 插件版本 -->
         <maven-jar-plugin.version>3.2.2</maven-jar-plugin.version>

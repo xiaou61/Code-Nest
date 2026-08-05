@@ -9,6 +9,7 @@ import com.xiaou.web.growthcoach.evidence.GrowthEvidenceAdapter;
 import com.xiaou.web.growthcoach.evidence.GrowthEvidenceProjection;
 import com.xiaou.web.growthcoach.mapper.GrowthEvidenceMapper;
 import com.xiaou.web.growthcoach.mapper.GrowthEvidenceProjectionCursorMapper;
+import com.xiaou.web.growthcoach.port.GrowthEvidenceSourceCatalog;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,6 +44,8 @@ class GrowthEvidenceProjectorServiceTest {
     @Mock
     private GrowthEvidenceAdapter adapter;
     @Mock
+    private GrowthEvidenceSourceCatalog sourceCatalog;
+    @Mock
     private GrowthEvidenceProjectorService projectorService;
 
     private GrowthEvidenceProjectorService service;
@@ -50,10 +53,11 @@ class GrowthEvidenceProjectorServiceTest {
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.lenient().when(sourceCatalog.adapters()).thenReturn(List.of(adapter));
         service = new GrowthEvidenceProjectorService(
                 evidenceMapper,
                 cursorMapper,
-                List.of(adapter),
+                sourceCatalog,
                 new GrowthCoachProperties(),
                 new ObjectMapper().findAndRegisterModules()
         );
@@ -146,7 +150,7 @@ class GrowthEvidenceProjectorServiceTest {
         GrowthEvidenceProjectorService disabledService = new GrowthEvidenceProjectorService(
                 evidenceMapper,
                 cursorMapper,
-                List.of(adapter),
+                sourceCatalog,
                 properties,
                 new ObjectMapper().findAndRegisterModules()
         );

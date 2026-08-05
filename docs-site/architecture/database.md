@@ -291,7 +291,7 @@ sql/
 | `sql/MySql/code_nest_data.sql` | 初始化数据 |
 | `sql/v1.7.1/study_team.sql` | 学习小组增量脚本示例 |
 | `xiaou-common/.../config/MybatisPlusConfig.java` | MyBatis-Plus 配置 (分页/自动填充) |
-| `xiaou-application/.../application-dev.yml` | 数据源配置 (P6Spy 代理) |
+| `xiaou-bootstrap/.../application-dev.yml` | 数据源配置 (P6Spy 代理) |
 
 
 ## 相关文档

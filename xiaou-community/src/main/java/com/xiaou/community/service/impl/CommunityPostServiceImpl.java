@@ -6,7 +6,6 @@ import com.xiaou.common.exception.BusinessException;
 import com.xiaou.common.satoken.SaTokenUserUtil;
 import com.xiaou.common.satoken.StpUserUtil;
 import com.xiaou.common.utils.DateHelper;
-import com.xiaou.common.utils.NotificationUtil;
 import com.xiaou.common.utils.PageHelper;
 import com.xiaou.community.domain.CommunityCategory;
 import com.xiaou.community.domain.CommunityPost;
@@ -24,6 +23,8 @@ import com.xiaou.community.service.CommunityCacheService;
 import com.xiaou.community.service.CommunityCategoryService;
 import com.xiaou.community.service.CommunityPostService;
 import com.xiaou.community.service.CommunityUserStatusService;
+import com.xiaou.notification.api.NotificationCommand;
+import com.xiaou.notification.api.NotificationPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -51,6 +52,7 @@ public class CommunityPostServiceImpl implements CommunityPostService {
     private final CommunityPostTagMapper communityPostTagMapper;
     private final CommunityTagMapper communityTagMapper;
     private final CommunityCacheService communityCacheService;
+    private final NotificationPublisher notificationPublisher;
     
     @Override
     public PageResult<CommunityPost> getAdminPostList(AdminPostQueryRequest request) {
@@ -313,12 +315,12 @@ public class CommunityPostServiceImpl implements CommunityPostService {
         // 发送消息通知：通知帖子作者
         if (!currentUserId.equals(post.getAuthorId())) {
             try {
-                NotificationUtil.sendCommunityMessage(
+                notificationPublisher.publish(NotificationCommand.community(
                     post.getAuthorId(),
                     "您的帖子收到新点赞",
                     "用户 " + username + " 点赞了您的帖子《" + post.getTitle() + "》",
                     id.toString()
-                );
+                ));
             } catch (Exception e) {
                 log.warn("发送帖子点赞通知失败，用户ID: {}, 帖子ID: {}, 错误: {}", 
                         currentUserId, id, e.getMessage());
@@ -398,12 +400,12 @@ public class CommunityPostServiceImpl implements CommunityPostService {
         // 发送消息通知：通知帖子作者
         if (!currentUserId.equals(post.getAuthorId())) {
             try {
-                NotificationUtil.sendCommunityMessage(
+                notificationPublisher.publish(NotificationCommand.community(
                     post.getAuthorId(),
                     "您的帖子被收藏",
                     "用户 " + username + " 收藏了您的帖子《" + post.getTitle() + "》",
                     id.toString()
-                );
+                ));
             } catch (Exception e) {
                 log.warn("发送帖子收藏通知失败，用户ID: {}, 帖子ID: {}, 错误: {}", 
                         currentUserId, id, e.getMessage());
@@ -530,4 +532,4 @@ public class CommunityPostServiceImpl implements CommunityPostService {
         
         return response;
     }
-} 
+}

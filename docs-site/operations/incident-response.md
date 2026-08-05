@@ -114,7 +114,7 @@ server {
 ```bash
 # 方式一：重新运行 jar
 kill $(pgrep -f xiaou-application)
-java -jar xiaou-application/target/xiaou-application-*.jar &
+java -jar xiaou-bootstrap/target/xiaou-bootstrap-*.jar &
 
 # 方式二：Docker 重启
 docker compose -f docker/docker-compose.yml restart code-nest

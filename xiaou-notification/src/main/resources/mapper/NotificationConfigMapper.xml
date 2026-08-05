@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.notification.mapper.NotificationConfigMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="BaseResultMap" type="com.xiaou.notification.domain.NotificationConfig">
+        <id column="id" property="id" />
+        <result column="user_id" property="userId" />
+        <result column="type" property="type" />
+        <result column="is_enabled" property="isEnabled" />
+        <result column="created_time" property="createdTime" />
+        <result column="updated_time" property="updatedTime" />
+    </resultMap>
+
+    <!-- 基础字段 -->
+    <sql id="Base_Column_List">
+        id, user_id, type, is_enabled, created_time, updated_time
+    </sql>
+
+    <!-- 插入消息配置 -->
+    <insert id="insert" parameterType="com.xiaou.notification.domain.NotificationConfig" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO notification_config (
+            user_id, type, is_enabled
+        ) VALUES (
+            #{userId}, #{type}, #{isEnabled}
+        )
+    </insert>
+
+    <!-- 批量插入默认配置 -->
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO notification_config (
+            user_id, type, is_enabled
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.userId}, #{item.type}, #{item.isEnabled})
+        </foreach>
+    </insert>
+
+    <!-- 根据用户ID和类型查询配置 -->
+    <select id="selectByUserIdAndType" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM notification_config
+        WHERE user_id = #{userId} AND type = #{type}
+    </select>
+
+    <!-- 查询用户所有消息配置 -->
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM notification_config
+        WHERE user_id = #{userId}
+        ORDER BY type
+    </select>
+
+    <!-- 更新消息配置 -->
+    <update id="updateByUserIdAndType">
+        UPDATE notification_config
+        SET is_enabled = #{isEnabled}, updated_time = NOW()
+        WHERE user_id = #{userId} AND type = #{type}
+    </update>
+
+    <!-- 检查用户是否开启某类型消息接收 -->
+    <select id="isTypeEnabled" resultType="boolean">
+        SELECT COALESCE(
+            (SELECT is_enabled FROM notification_config
+             WHERE user_id = #{userId} AND type = #{type}),
+            true
+        ) AS enabled
+    </select>
+
+</mapper>

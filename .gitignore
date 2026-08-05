@@ -51,6 +51,7 @@ build/
 /.agents/
 /.worktrees/
 xiaou-application/src/main/resources/application-sec.yml
+xiaou-bootstrap/src/main/resources/application-sec.yml
 llamaindex-service/.venv/
 llamaindex-service/data/knowledge-base.json
 docker/ai/.env

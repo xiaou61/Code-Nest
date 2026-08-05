@@ -5,8 +5,6 @@ import com.xiaou.sre.domain.SreAlertEvent;
 import com.xiaou.sre.domain.SreIncident;
 import com.xiaou.sre.domain.SreIncidentAlertRelation;
 import com.xiaou.sre.domain.SreOutboxEvent;
-import com.xiaou.sre.dto.request.AlertmanagerAlert;
-import com.xiaou.sre.dto.request.AlertmanagerWebhookRequest;
 import com.xiaou.sre.dto.response.SreIngestionResult;
 import com.xiaou.sre.mapper.SreAlertEventMapper;
 import com.xiaou.sre.mapper.SreIncidentAlertRelationMapper;
@@ -15,6 +13,8 @@ import com.xiaou.sre.mapper.SreOutboxEventMapper;
 import com.xiaou.sre.metrics.SreMetricsRecorder;
 import com.xiaou.sre.service.SreAlertIngestionService;
 import com.xiaou.sre.service.SreValidationException;
+import com.xiaou.sre.service.model.SreAlertBatch;
+import com.xiaou.sre.service.model.SreAlertRecord;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,7 +40,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class SreAlertIngestionServiceImpl implements SreAlertIngestionService {
 
-    private static final String SOURCE = "alertmanager";
     private static final String FIRING = "FIRING";
     private static final String RESOLVED = "RESOLVED";
     private static final String INCIDENT_OPEN = "OPEN";
@@ -65,17 +64,17 @@ public class SreAlertIngestionServiceImpl implements SreAlertIngestionService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public SreIngestionResult ingest(AlertmanagerWebhookRequest request) {
+    public SreIngestionResult ingest(SreAlertBatch batch) {
         long startNanos = System.nanoTime();
-        int alertCount = request == null || request.getAlerts() == null ? 0 : request.getAlerts().size();
+        int alertCount = batch == null || batch.alerts() == null ? 0 : batch.alerts().size();
         String outcome = "failed";
         try {
-            validateRequest(request);
+            validateBatch(batch);
 
             SreIngestionResult result = new SreIngestionResult();
-            for (AlertmanagerAlert alert : request.getAlerts()) {
+            for (SreAlertRecord alert : batch.alerts()) {
                 result.incrementReceived();
-                processAlert(alert, result);
+                processAlert(batch.source(), alert, result);
             }
             int enqueued = result.getCreatedEvents() + result.getUpdatedEvents();
             incrementQueueMetric("outbox", "enqueued", enqueued);
@@ -131,14 +130,14 @@ public class SreAlertIngestionServiceImpl implements SreAlertIngestionService {
         }
     }
 
-    private void processAlert(AlertmanagerAlert alert, SreIngestionResult result) {
-        String status = normalizeStatus(alert.getStatus());
-        String startsAt = normalizeTimestamp(alert.getStartsAt(), "startsAt");
-        String endsAt = normalizeOptionalTimestamp(alert.getEndsAt(), "endsAt");
-        Map<String, String> labels = safeMap(alert.getLabels(), "labels");
-        Map<String, String> annotations = safeMap(alert.getAnnotations(), "annotations");
+    private void processAlert(String source, SreAlertRecord alert, SreIngestionResult result) {
+        String status = normalizeStatus(alert.status());
+        String startsAt = normalizeTimestamp(alert.startsAt(), "startsAt");
+        String endsAt = normalizeOptionalTimestamp(alert.endsAt(), "endsAt");
+        Map<String, String> labels = safeMap(alert.labels(), "labels");
+        Map<String, String> annotations = safeMap(alert.annotations(), "annotations");
 
-        String fingerprint = requireText(alert.getFingerprint(), "fingerprint");
+        String fingerprint = requireText(alert.fingerprint(), "fingerprint");
         if (fingerprint.length() > 128) {
             throw new SreValidationException("fingerprint 不能超过128个字符");
         }
@@ -149,11 +148,11 @@ public class SreAlertIngestionServiceImpl implements SreAlertIngestionService {
         String incidentKey = service + "|" + alertName;
         String labelsJson = toJson(labels, "labels");
         String annotationsJson = toJson(annotations, "annotations");
-        String rawPayload = toJson(alert, "alert");
+        String rawPayload = requirePayload(alert.rawPayload());
 
         SreAlertEvent existing = alertEventMapper.selectByFingerprintAndStartsAt(fingerprint, startsAt);
         if (existing == null) {
-            SreAlertEvent event = buildEvent(alert, fingerprint, alertName, status, severity, service,
+            SreAlertEvent event = buildEvent(source, alert, fingerprint, alertName, status, severity, service,
                     labelsJson, annotationsJson, startsAt, endsAt, rawPayload);
             alertEventMapper.insert(event);
             result.incrementCreatedEvents();
@@ -181,7 +180,7 @@ public class SreAlertIngestionServiceImpl implements SreAlertIngestionService {
         existing.setLabelsJson(labelsJson);
         existing.setAnnotationsJson(annotationsJson);
         existing.setEndsAt(endsAt);
-        existing.setGeneratorUrl(bounded(alert.getGeneratorUrl(), 1000));
+        existing.setGeneratorUrl(bounded(alert.generatorUrl(), 1000));
         existing.setRawPayload(rawPayload);
         alertEventMapper.updateStatusAndPayload(existing);
         result.incrementUpdatedEvents();
@@ -275,7 +274,8 @@ public class SreAlertIngestionServiceImpl implements SreAlertIngestionService {
         outboxEventMapper.insert(outboxEvent);
     }
 
-    private SreAlertEvent buildEvent(AlertmanagerAlert alert,
+    private SreAlertEvent buildEvent(String source,
+                                     SreAlertRecord alert,
                                      String fingerprint,
                                      String alertName,
                                      String status,
@@ -287,7 +287,7 @@ public class SreAlertIngestionServiceImpl implements SreAlertIngestionService {
                                      String endsAt,
                                      String rawPayload) {
         SreAlertEvent event = new SreAlertEvent();
-        event.setSource(SOURCE);
+        event.setSource(source);
         event.setFingerprint(fingerprint);
         event.setAlertName(alertName);
         event.setStatus(status);
@@ -297,21 +297,35 @@ public class SreAlertIngestionServiceImpl implements SreAlertIngestionService {
         event.setAnnotationsJson(annotationsJson);
         event.setStartsAt(startsAt);
         event.setEndsAt(endsAt);
-        event.setGeneratorUrl(bounded(alert.getGeneratorUrl(), 1000));
+        event.setGeneratorUrl(bounded(alert.generatorUrl(), 1000));
         event.setRawPayload(rawPayload);
         return event;
     }
 
-    private void validateRequest(AlertmanagerWebhookRequest request) {
-        if (request == null || request.getAlerts() == null || request.getAlerts().isEmpty()) {
+    private void validateBatch(SreAlertBatch batch) {
+        if (batch == null || batch.alerts() == null || batch.alerts().isEmpty()) {
             throw new SreValidationException("alerts 不能为空");
         }
-        if (request.getAlerts().size() > 100) {
+        String source = requireText(batch.source(), "source");
+        if (source.length() > 32) {
+            throw new SreValidationException("source 不能超过32个字符");
+        }
+        if (batch.alerts().size() > 100) {
             throw new SreValidationException("单次 webhook 告警数量不能超过100");
         }
-        if (request.getAlerts().stream().anyMatch(Objects::isNull)) {
+        if (batch.alerts().stream().anyMatch(Objects::isNull)) {
             throw new SreValidationException("alerts 不能包含空元素");
         }
+    }
+
+    private String requirePayload(String payload) {
+        if (!StringUtils.hasText(payload)) {
+            throw new SreValidationException("alert rawPayload 不能为空");
+        }
+        if (payload.length() > MAX_PAYLOAD_LENGTH) {
+            throw new SreValidationException("alert 内容过大");
+        }
+        return payload;
     }
 
     private Map<String, String> safeMap(Map<String, String> values, String field) {

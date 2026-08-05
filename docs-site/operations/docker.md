@@ -13,14 +13,14 @@
 FROM maven:3.9.11-eclipse-temurin-17 AS builder
 WORKDIR /build
 COPY . .
-RUN mvn -pl xiaou-application -am clean package -DskipTests
+RUN mvn -pl xiaou-bootstrap -am clean package -DskipTests
 
 # ---- 阶段2：JRE 运行 ----
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 ENV TZ=Asia/Shanghai
 ENV SPRING_PROFILES_ACTIVE=docker
-COPY --from=builder /build/xiaou-application/target/xiaou-application-*.jar /app/app.jar
+COPY --from=builder /build/xiaou-bootstrap/target/xiaou-bootstrap-*.jar /app/app.jar
 EXPOSE 9999
 ENTRYPOINT ["sh", "-c", "java ${JAVA_OPTS} -jar /app/app.jar"]
 ```
@@ -31,7 +31,7 @@ ENTRYPOINT ["sh", "-c", "java ${JAVA_OPTS} -jar /app/app.jar"]
 | --- | --- |
 | 构建基础镜像 | `maven:3.9.11-eclipse-temurin-17`，含 Maven + JDK 17 |
 | 运行基础镜像 | `eclipse-temurin:17-jre`，只有 JRE 17，不含 Maven 和源码 |
-| 构建命令 | `mvn -pl xiaou-application -am clean package -DskipTests`，和本地构建一致 |
+| 构建命令 | `mvn -pl xiaou-bootstrap -am clean package -DskipTests`，和本地构建一致 |
 | 激活 Profile | `SPRING_PROFILES_ACTIVE=docker`，所有配置从环境变量注入 |
 | JVM 参数 | 通过 `JAVA_OPTS` 传入，如 `-Xms512m -Xmx1024m` |
 | 暴露端口 | 9999 |

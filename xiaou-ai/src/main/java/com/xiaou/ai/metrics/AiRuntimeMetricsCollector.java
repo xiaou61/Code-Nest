@@ -2,11 +2,11 @@ package com.xiaou.ai.metrics;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xiaou.ai.prompt.AiPromptSpec;
+import com.xiaou.common.cache.TextStateStore;
 import com.xiaou.common.config.AiProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -44,7 +44,7 @@ public class AiRuntimeMetricsCollector {
     }
 
     @Autowired
-    void configureRedisPersistence(ObjectProvider<StringRedisTemplate> stringRedisTemplateProvider,
+    void configureRedisPersistence(ObjectProvider<TextStateStore> stateStoreProvider,
                                    ObjectMapper objectMapper,
                                    AiProperties aiProperties) {
         if (this.persistence != null) {
@@ -56,11 +56,11 @@ public class AiRuntimeMetricsCollector {
         if (!aiProperties.getMetrics().getPersistence().isEnabled()) {
             return;
         }
-        StringRedisTemplate stringRedisTemplate = stringRedisTemplateProvider.getIfAvailable();
-        if (stringRedisTemplate == null) {
+        TextStateStore stateStore = stateStoreProvider.getIfAvailable();
+        if (stateStore == null) {
             return;
         }
-        this.persistence = new RedisAiRuntimeMetricsPersistence(stringRedisTemplate, objectMapper, aiProperties);
+        this.persistence = new RedisAiRuntimeMetricsPersistence(stateStore, objectMapper, aiProperties);
         restoreFromPersistence();
     }
 

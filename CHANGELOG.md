@@ -6,6 +6,35 @@
 
 ## [Unreleased]
 
+## [v2.5.6] - 2026-08-05
+
+### Added
+
+- 新增 `xiaou-bootstrap` 独立启动壳、五个职责单一的 `xiaou-common-*` 基础模块和统一聚合韧性模块 `xiaou-resilience`。
+- 新增 `@code-nest/api-contract`，共享双前端响应解包、错误分类、分页与通知 DTO。
+- 新增 `release/manifest.json` 与 `scripts/release_manifest.py`，统一版本、数据库基线、Docker 标签和后端/前端/文档制品布局。
+- 新增架构门禁与发布清单契约测试，持续检查模块依赖、领域所有权、前端契约和版本投影。
+
+### Changed
+
+- `xiaou-application` 从启动聚合改为应用编排；运行配置、启动监听器和可执行 JAR 统一归入 `xiaou-bootstrap`。
+- Growth Coach、首页和学习驾驶舱的跨领域数据访问改为端口与持久化适配器，聚合查询统一使用有界韧性执行。
+- SRE RCA/评测从 `xiaou-system` 归入 `xiaou-sre`；通知实体、Mapper、异步配置和发布接口从公共模块归入 `xiaou-notification`。
+- 缓存调用统一依赖 `CacheStore` / `TextStateStore`，具体 Redis 客户端限制在缓存适配层或显式领域适配器中。
+- `Result` 错误统一映射语义化 HTTP 状态；认证为 401、权限/禁用为 403、普通业务拒绝为 422，同时保留 701-705 等业务码。
+- 用户端和管理端路由按业务域切片，入口文件分别缩减为组合注册层。
+- CI、生产工作流、本机构建、release bundle 和文档同步统一从发布清单读取元数据。
+- bundle 内清单使用无大小写冲突的 `release-manifest.json`，清单门禁拒绝 Windows/Linux 不一致的文件与目录路径组合。
+
+### Migration
+
+- 无数据库迁移和新增生产环境变量；数据库 schema 基线仍为 `v2.5.3`。
+- 后端制品路径从 `xiaou-application/target` 改为 `xiaou-bootstrap/target`。
+
+### Verification
+
+- 架构/发布清单门禁、后端模块测试、API contract、双前端契约与生产构建、文档构建及发布脚本契约。
+
 ## [v2.5.5] - 2026-08-04
 
 ### Added

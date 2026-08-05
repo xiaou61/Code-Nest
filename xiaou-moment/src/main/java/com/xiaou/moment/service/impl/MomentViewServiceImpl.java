@@ -1,6 +1,6 @@
 package com.xiaou.moment.service.impl;
 
-import com.xiaou.common.cache.RedisValueStore;
+import com.xiaou.common.cache.CacheStore;
 import com.xiaou.moment.mapper.MomentMapper;
 import com.xiaou.moment.service.MomentViewService;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +17,7 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class MomentViewServiceImpl implements MomentViewService {
     
-    private final RedisValueStore redisValueStore;
+    private final CacheStore cacheStore;
     private final MomentMapper momentMapper;
     
     /**
@@ -42,16 +42,16 @@ public class MomentViewServiceImpl implements MomentViewService {
         
         try {
             // 检查用户是否在5分钟内已经浏览过
-            if (redisValueStore.exists(userViewKey)) {
+            if (cacheStore.exists(userViewKey)) {
                 return;
             }
 
             // 增加浏览数
             String viewCountKey = VIEW_COUNT_KEY_PREFIX + momentId;
-            redisValueStore.increment(viewCountKey, 1);
+            cacheStore.increment(viewCountKey, 1);
             
             // 记录用户浏览，5分钟过期（转换为秒）
-            redisValueStore.put(userViewKey, "1", Duration.ofMinutes(USER_VIEW_EXPIRE_MINUTES));
+            cacheStore.put(userViewKey, "1", Duration.ofMinutes(USER_VIEW_EXPIRE_MINUTES));
             
             log.debug("记录动态浏览: momentId={}, userId={}", momentId, userId);
         } catch (Exception e) {
@@ -67,7 +67,7 @@ public class MomentViewServiceImpl implements MomentViewService {
         
         try {
             String viewCountKey = VIEW_COUNT_KEY_PREFIX + momentId;
-            var count = redisValueStore.counter(viewCountKey);
+            var count = cacheStore.counter(viewCountKey);
             return count.isPresent() ? Math.toIntExact(count.getAsLong()) : 0;
         } catch (Exception e) {
             log.error("获取动态浏览数失败: momentId={}, error={}", momentId, e.getMessage());
@@ -82,7 +82,7 @@ public class MomentViewServiceImpl implements MomentViewService {
         
         try {
             // 获取所有浏览数Key
-            Iterable<String> keys = redisValueStore.keys(VIEW_COUNT_KEY_PREFIX + "*");
+            Iterable<String> keys = cacheStore.keys(VIEW_COUNT_KEY_PREFIX + "*");
             if (keys == null) {
                 log.info("没有需要同步的浏览数据");
                 return;
@@ -96,7 +96,7 @@ public class MomentViewServiceImpl implements MomentViewService {
                     Long momentId = Long.parseLong(momentIdStr);
                     
                     // 获取Redis中的浏览数
-                    var count = redisValueStore.counter(key);
+                    var count = cacheStore.counter(key);
                     if (count.isEmpty()) {
                         continue;
                     }
@@ -112,7 +112,7 @@ public class MomentViewServiceImpl implements MomentViewService {
                     }
                     
                     // 同步成功后，清空Redis中的计数（保留Key，值设为0）
-                    redisValueStore.setCounter(key, 0);
+                    cacheStore.setCounter(key, 0);
                     
                     syncCount++;
                     log.debug("同步动态浏览数: momentId={}, count={}", momentId, viewCount);
@@ -127,4 +127,3 @@ public class MomentViewServiceImpl implements MomentViewService {
         }
     }
 }
-

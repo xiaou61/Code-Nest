@@ -1,6 +1,6 @@
 # 前端应用
 
-Code-Nest 有两个独立的 Vue 3 前端应用：用户端和管理端。两者共享相似的技术栈但独立部署，通过各自的 Vite 代理连接后端 API。
+Code-Nest 有两个独立部署的 Vue 3 前端应用：用户端和管理端。两者共享 `@code-nest/design-system` 和 `@code-nest/api-contract`，但保留各自的页面、认证状态与业务路由切片。
 
 ## 技术栈对比
 
@@ -49,7 +49,8 @@ vue3-user-front/
 │   │   ├── team.js          ← 学习小组
 │   │   └── user.js          ← 用户/认证
 │   ├── router/
-│   │   └── index.js         ← 路由配置
+│   │   ├── index.js         ← 路由组合、守卫和滚动行为
+│   │   └── routes/          ← core/learning/career/community/productivity/fallback
 │   ├── stores/              ← Pinia 状态管理
 │   ├── utils/
 │   │   └── request.js       ← Axios 实例 (Token 注入/拦截器)
@@ -83,14 +84,16 @@ vue3-user-front/
 
 ### Axios 封装
 
-`src/utils/request.js` 封装了 Axios 实例，核心功能：
+`src/utils/request.js` 封装 Axios 传输适配器，业务响应解包和错误分类来自共享的 `@code-nest/api-contract`：
 
 | 功能 | 实现 |
 |------|------|
 | Token 注入 | 请求拦截器从 localStorage 读取 Token，注入 `Authorization` Header |
-| 统一错误处理 | 响应拦截器处理 401/701/702 跳转登录、其他错误提示 |
+| 统一错误处理 | `unwrapApiResponse` 解包，`classifyApiFailure` 区分会话、权限、业务和系统失败 |
 | 基础 URL | `/api` 前缀，开发环境由 Vite 代理 |
 | 请求超时 | 默认 30 秒 |
+
+`701/702` 或对应 HTTP 401 才触发会话失效；`705 LOGIN_FAILED` 是一次登录尝试失败，不会清理已有会话。通知、分页和统计 DTO 也从共享契约导入，页面不再维护平行字段模型。
 
 ### Vite 代理配置
 
@@ -153,7 +156,8 @@ vue3-admin-front/
 ├── src/
 │   ├── api/                 ← API 请求封装
 │   ├── router/
-│   │   └── index.js         ← 路由配置
+│   │   ├── index.js         ← 路由组合、守卫和滚动行为
+│   │   └── routes/          ← core/learning/community/operations/system/fallback
 │   ├── stores/              ← Pinia 状态管理
 │   ├── utils/
 │   │   └── request.js       ← Axios 实例 (Admin Token)
@@ -319,13 +323,16 @@ views/{module}/
 |------|------|
 | `vue3-user-front/package.json` | 用户端依赖与脚本 |
 | `vue3-user-front/vite.config.js` | 用户端 Vite 配置 |
-| `vue3-user-front/src/router/index.js` | 用户端路由 |
+| `vue3-user-front/src/router/index.js` | 用户端路由组合与守卫 |
+| `vue3-user-front/src/router/routes/` | 用户端六个业务路由切片 |
 | `vue3-user-front/src/utils/request.js` | 用户端 Axios 封装 |
+| `code-nest-api-contract/src/` | 双前端共享响应、错误和 DTO 契约 |
 | `vue3-user-front/src/views/` | 用户端页面组件 |
 | `vue3-user-front/src/api/` | 用户端 API 服务 |
 | `vue3-admin-front/package.json` | 管理端依赖与脚本 |
 | `vue3-admin-front/vite.config.js` | 管理端 Vite 配置 |
-| `vue3-admin-front/src/router/index.js` | 管理端路由 |
+| `vue3-admin-front/src/router/index.js` | 管理端路由组合与守卫 |
+| `vue3-admin-front/src/router/routes/` | 管理端六个业务路由切片 |
 | `vue3-admin-front/src/utils/request.js` | 管理端 Axios 封装 |
 | `vue3-admin-front/src/views/` | 管理端页面组件 |
 

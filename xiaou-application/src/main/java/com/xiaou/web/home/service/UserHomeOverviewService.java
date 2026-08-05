@@ -1,8 +1,5 @@
 package com.xiaou.web.home.service;
 
-import com.xiaou.chat.domain.ChatRoom;
-import com.xiaou.chat.service.ChatOnlineUserService;
-import com.xiaou.chat.service.ChatRoomService;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.community.dto.CommunityPostResponse;
 import com.xiaou.community.service.CommunityHotPostService;
@@ -15,23 +12,25 @@ import com.xiaou.mockinterview.service.MockInterviewService;
 import com.xiaou.moment.dto.HotMomentRequest;
 import com.xiaou.moment.dto.MomentListResponse;
 import com.xiaou.moment.service.MomentService;
-import com.xiaou.oj.domain.OjProblem;
-import com.xiaou.oj.domain.OjProblemTag;
-import com.xiaou.oj.service.OjProblemService;
 import com.xiaou.plan.dto.PlanStatsResponse;
 import com.xiaou.plan.service.PlanService;
 import com.xiaou.points.dto.PointsBalanceResponse;
 import com.xiaou.points.service.PointsService;
+import com.xiaou.resilience.ResilientExecutor;
+import com.xiaou.resilience.ResilientResult;
 import com.xiaou.version.dto.VersionHistoryResponse;
 import com.xiaou.version.service.VersionHistoryService;
 import com.xiaou.web.growthcoach.dto.GrowthCoachBriefingResponse;
 import com.xiaou.web.growthcoach.service.GrowthCoachBriefingService;
+import com.xiaou.web.growthcoach.port.GrowthLearningResourcePort;
+import com.xiaou.web.growthcoach.port.GrowthLearningResourcePort.OjProblemData;
 import com.xiaou.web.home.dto.UserHomeOverviewResponse;
-import lombok.extern.slf4j.Slf4j;
+import com.xiaou.web.home.port.UserHomePresencePort;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -39,7 +38,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
@@ -47,7 +45,6 @@ import java.util.function.Supplier;
  *
  * 各个来源独立限时执行，任何一个下游不可用时只降级对应区域。
  */
-@Slf4j
 @Service
 public class UserHomeOverviewService {
 
@@ -58,68 +55,68 @@ public class UserHomeOverviewService {
 
     private final InterviewLearnRecordService interviewLearnRecordService;
     private final KnowledgeMapService knowledgeMapService;
-    private final ChatRoomService chatRoomService;
-    private final ChatOnlineUserService chatOnlineUserService;
+    private final UserHomePresencePort presencePort;
     private final CommunityHotPostService communityHotPostService;
     private final MomentService momentService;
-    private final OjProblemService ojProblemService;
+    private final GrowthLearningResourcePort learningResourcePort;
     private final MockInterviewService mockInterviewService;
     private final PlanService planService;
     private final PointsService pointsService;
     private final VersionHistoryService versionHistoryService;
     private final GrowthCoachBriefingService growthCoachBriefingService;
+    private final ResilientExecutor resilientExecutor;
     private final Executor applicationIoExecutor;
 
     public UserHomeOverviewService(
             InterviewLearnRecordService interviewLearnRecordService,
             KnowledgeMapService knowledgeMapService,
-            ChatRoomService chatRoomService,
-            ChatOnlineUserService chatOnlineUserService,
+            UserHomePresencePort presencePort,
             CommunityHotPostService communityHotPostService,
             MomentService momentService,
-            OjProblemService ojProblemService,
+            GrowthLearningResourcePort learningResourcePort,
             MockInterviewService mockInterviewService,
             PlanService planService,
             PointsService pointsService,
             VersionHistoryService versionHistoryService,
             GrowthCoachBriefingService growthCoachBriefingService,
+            ResilientExecutor resilientExecutor,
             @Qualifier("applicationIoExecutor") Executor applicationIoExecutor
     ) {
         this.interviewLearnRecordService = interviewLearnRecordService;
         this.knowledgeMapService = knowledgeMapService;
-        this.chatRoomService = chatRoomService;
-        this.chatOnlineUserService = chatOnlineUserService;
+        this.presencePort = presencePort;
         this.communityHotPostService = communityHotPostService;
         this.momentService = momentService;
-        this.ojProblemService = ojProblemService;
+        this.learningResourcePort = learningResourcePort;
         this.mockInterviewService = mockInterviewService;
         this.planService = planService;
         this.pointsService = pointsService;
         this.versionHistoryService = versionHistoryService;
         this.growthCoachBriefingService = growthCoachBriefingService;
+        this.resilientExecutor = resilientExecutor;
         this.applicationIoExecutor = applicationIoExecutor;
     }
 
     public UserHomeOverviewResponse getOverview(Long userId) {
-        CompletableFuture<SourceResult<Integer>> learnedFuture = loadAsync(
+        CompletableFuture<ResilientResult<Integer>> learnedFuture = loadAsync(
                 "learned", () -> interviewLearnRecordService.getTotalLearnedCount(userId));
-        CompletableFuture<SourceResult<Integer>> knowledgeFuture = loadAsync("knowledge", this::loadKnowledgeCount);
-        CompletableFuture<SourceResult<Integer>> onlineFuture = loadAsync("online", this::loadOnlineCount);
-        CompletableFuture<SourceResult<List<CommunityPostResponse>>> hotPostsFuture = loadAsync(
+        CompletableFuture<ResilientResult<Integer>> knowledgeFuture = loadAsync("knowledge", this::loadKnowledgeCount);
+        CompletableFuture<ResilientResult<Integer>> onlineFuture = loadAsync("online", this::loadOnlineCount);
+        CompletableFuture<ResilientResult<List<CommunityPostResponse>>> hotPostsFuture = loadAsync(
                 "hot-posts", () -> communityHotPostService.getHotPosts(HOME_FEED_LIMIT));
-        CompletableFuture<SourceResult<List<MomentListResponse>>> hotMomentsFuture = loadAsync(
+        CompletableFuture<ResilientResult<List<MomentListResponse>>> hotMomentsFuture = loadAsync(
                 "hot-moments", this::loadHotMoments);
-        CompletableFuture<SourceResult<OjProblem>> dailyProblemFuture = loadAsync(
-                "daily-problem", ojProblemService::getDailyProblem);
-        CompletableFuture<SourceResult<InterviewStatsResponse>> mockStatsFuture = loadAsync(
+        CompletableFuture<ResilientResult<OjProblemData>> dailyProblemFuture = loadAsync(
+                "daily-problem", learningResourcePort::dailyOjProblem);
+        CompletableFuture<ResilientResult<InterviewStatsResponse>> mockStatsFuture = loadAsync(
                 "mock-stats", () -> mockInterviewService.getStats(userId));
-        CompletableFuture<SourceResult<PlanStatsResponse>> planStatsFuture = loadAsync(
+        CompletableFuture<ResilientResult<PlanStatsResponse>> planStatsFuture = loadAsync(
                 "plan-stats", () -> planService.getStatsOverview(userId));
-        CompletableFuture<SourceResult<PointsBalanceResponse>> pointsFuture = loadAsync(
+        CompletableFuture<ResilientResult<PointsBalanceResponse>> pointsFuture = loadAsync(
                 "points", () -> pointsService.getPointsBalance(userId));
-        CompletableFuture<SourceResult<List<VersionHistoryResponse>>> versionsFuture = loadAsync(
+        CompletableFuture<ResilientResult<List<VersionHistoryResponse>>> versionsFuture = loadAsync(
                 "versions", () -> versionHistoryService.getLatestVersions(HOME_FEED_LIMIT));
-        CompletableFuture<SourceResult<GrowthCoachBriefingResponse>> todayActionFuture = loadAsync(
+        CompletableFuture<ResilientResult<GrowthCoachBriefingResponse>> todayActionFuture = loadAsync(
                 "today-action", () -> growthCoachBriefingService.getForUser(userId));
 
         CompletableFuture.allOf(
@@ -127,17 +124,17 @@ public class UserHomeOverviewService {
                 dailyProblemFuture, mockStatsFuture, planStatsFuture, pointsFuture, versionsFuture, todayActionFuture
         ).join();
 
-        SourceResult<Integer> learned = learnedFuture.join();
-        SourceResult<Integer> knowledge = knowledgeFuture.join();
-        SourceResult<Integer> online = onlineFuture.join();
-        SourceResult<List<CommunityPostResponse>> hotPosts = hotPostsFuture.join();
-        SourceResult<List<MomentListResponse>> hotMoments = hotMomentsFuture.join();
-        SourceResult<OjProblem> dailyProblem = dailyProblemFuture.join();
-        SourceResult<InterviewStatsResponse> mockStats = mockStatsFuture.join();
-        SourceResult<PlanStatsResponse> planStats = planStatsFuture.join();
-        SourceResult<PointsBalanceResponse> points = pointsFuture.join();
-        SourceResult<List<VersionHistoryResponse>> versions = versionsFuture.join();
-        SourceResult<GrowthCoachBriefingResponse> todayAction = todayActionFuture.join();
+        ResilientResult<Integer> learned = learnedFuture.join();
+        ResilientResult<Integer> knowledge = knowledgeFuture.join();
+        ResilientResult<Integer> online = onlineFuture.join();
+        ResilientResult<List<CommunityPostResponse>> hotPosts = hotPostsFuture.join();
+        ResilientResult<List<MomentListResponse>> hotMoments = hotMomentsFuture.join();
+        ResilientResult<OjProblemData> dailyProblem = dailyProblemFuture.join();
+        ResilientResult<InterviewStatsResponse> mockStats = mockStatsFuture.join();
+        ResilientResult<PlanStatsResponse> planStats = planStatsFuture.join();
+        ResilientResult<PointsBalanceResponse> points = pointsFuture.join();
+        ResilientResult<List<VersionHistoryResponse>> versions = versionsFuture.join();
+        ResilientResult<GrowthCoachBriefingResponse> todayAction = todayActionFuture.join();
 
         UserHomeOverviewResponse response = new UserHomeOverviewResponse();
         response.setGeneratedAt(LocalDateTime.now().format(DATETIME_FORMAT));
@@ -154,11 +151,11 @@ public class UserHomeOverviewService {
                 response.getGrowth().getPlan()
         ));
 
-        setSectionStatus(response, "hero", learned.available() || knowledge.available() || online.available() || planStats.available());
-        setSectionStatus(response, "hot", hotPosts.available() || hotMoments.available());
-        setSectionStatus(response, "growth", planStats.available() || mockStats.available() || points.available() || todayAction.available());
-        setSectionStatus(response, "challenge", dailyProblem.available() || mockStats.available());
-        setSectionStatus(response, "version", versions.available());
+        setSectionStatus(response, "hero", learned.hasValue() || knowledge.hasValue() || online.hasValue() || planStats.hasValue());
+        setSectionStatus(response, "hot", hotPosts.hasValue() || hotMoments.hasValue());
+        setSectionStatus(response, "growth", planStats.hasValue() || mockStats.hasValue() || points.hasValue() || todayAction.hasValue());
+        setSectionStatus(response, "challenge", dailyProblem.hasValue() || mockStats.hasValue());
+        setSectionStatus(response, "version", versions.hasValue());
         return response;
     }
 
@@ -171,11 +168,7 @@ public class UserHomeOverviewService {
     }
 
     private int loadOnlineCount() {
-        ChatRoom officialRoom = chatRoomService.getOfficialRoom();
-        if (officialRoom == null || officialRoom.getId() == null) {
-            return 0;
-        }
-        return toInt(chatOnlineUserService.getOnlineCount(officialRoom.getId()));
+        return presencePort.onlineUserCount();
     }
 
     private List<MomentListResponse> loadHotMoments() {
@@ -304,20 +297,20 @@ public class UserHomeOverviewService {
         return action;
     }
 
-    private UserHomeOverviewResponse.Challenge buildChallenge(OjProblem problem) {
+    private UserHomeOverviewResponse.Challenge buildChallenge(OjProblemData problem) {
         UserHomeOverviewResponse.Challenge challenge = new UserHomeOverviewResponse.Challenge();
         UserHomeOverviewResponse.DailyProblem item = new UserHomeOverviewResponse.DailyProblem();
         if (problem != null) {
-            item.setId(problem.getId());
-            item.setTitle(defaultText(problem.getTitle(), "今日挑战正在准备中"));
-            item.setDifficulty(defaultText(problem.getDifficulty(), "easy").toLowerCase());
-            item.setAcceptedCount(toInt(problem.getAcceptedCount()));
-            item.setSubmitCount(toInt(problem.getSubmitCount()));
-            item.setRoutePath(problem.getId() == null ? "/oj" : "/oj/problem/" + problem.getId());
+            item.setId(problem.id());
+            item.setTitle(defaultText(problem.title(), "今日挑战正在准备中"));
+            item.setDifficulty(defaultText(problem.difficulty(), "easy").toLowerCase());
+            item.setAcceptedCount(toInt(problem.acceptedCount()));
+            item.setSubmitCount(toInt(problem.submitCount()));
+            item.setRoutePath(problem.id() == null ? "/oj" : "/oj/problem/" + problem.id());
             List<String> tags = new ArrayList<>();
-            for (OjProblemTag tag : safeList(problem.getTags())) {
-                if (tag != null && tag.getName() != null && !tag.getName().isBlank()) {
-                    tags.add(tag.getName());
+            for (String tag : safeList(problem.tags())) {
+                if (tag != null && !tag.isBlank()) {
+                    tags.add(tag);
                 }
             }
             item.setTags(tags);
@@ -355,16 +348,13 @@ public class UserHomeOverviewService {
         response.getSections().put(name, status);
     }
 
-    private <T> CompletableFuture<SourceResult<T>> loadAsync(String source, Supplier<T> supplier) {
-        return CompletableFuture.supplyAsync(supplier, applicationIoExecutor)
-                .orTimeout(QUERY_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                .handle((value, throwable) -> {
-                    if (throwable != null) {
-                        log.warn("用户首页概览数据源不可用: {}", source);
-                        return new SourceResult<T>(null, false);
-                    }
-                    return new SourceResult<>(value, value != null);
-                });
+    private <T> CompletableFuture<ResilientResult<T>> loadAsync(String source, Supplier<T> supplier) {
+        return resilientExecutor.executeAsync(
+                "home." + source,
+                supplier,
+                Duration.ofSeconds(QUERY_TIMEOUT_SECONDS),
+                applicationIoExecutor
+        );
     }
 
     private int percent(int completed, int total) {
@@ -402,6 +392,4 @@ public class UserHomeOverviewService {
         return items == null ? Collections.emptyList() : items;
     }
 
-    private record SourceResult<T>(T value, boolean available) {
-    }
 }

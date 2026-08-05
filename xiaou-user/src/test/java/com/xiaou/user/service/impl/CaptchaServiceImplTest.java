@@ -4,7 +4,7 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import com.xiaou.common.cache.RedisValueStore;
+import com.xiaou.common.cache.CacheStore;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.slf4j.LoggerFactory;
@@ -22,15 +22,15 @@ class CaptchaServiceImplTest {
 
     @Test
     void generateCaptchaShouldNotLogPlainTextCaptchaCode() {
-        RedisValueStore redisValueStore = mock(RedisValueStore.class);
-        CaptchaServiceImpl service = new CaptchaServiceImpl(redisValueStore);
+        CacheStore cacheStore = mock(CacheStore.class);
+        CaptchaServiceImpl service = new CaptchaServiceImpl(cacheStore);
 
         ListAppender<ILoggingEvent> appender = attachListAppender();
         try {
             service.generateCaptcha();
 
             ArgumentCaptor<Object> captchaCaptor = ArgumentCaptor.forClass(Object.class);
-            org.mockito.Mockito.verify(redisValueStore).put(anyString(), captchaCaptor.capture(), any());
+            org.mockito.Mockito.verify(cacheStore).put(anyString(), captchaCaptor.capture(), any());
             String captchaCode = String.valueOf(captchaCaptor.getValue());
             String logs = renderedLogs(appender);
 
@@ -44,9 +44,9 @@ class CaptchaServiceImplTest {
 
     @Test
     void failedVerificationShouldNotLogInputOrStoredCaptchaCode() {
-        RedisValueStore redisValueStore = mock(RedisValueStore.class);
-        when(redisValueStore.find("user:captcha:captcha-key", String.class)).thenReturn(Optional.of("ABCD"));
-        CaptchaServiceImpl service = new CaptchaServiceImpl(redisValueStore);
+        CacheStore cacheStore = mock(CacheStore.class);
+        when(cacheStore.find("user:captcha:captcha-key", String.class)).thenReturn(Optional.of("ABCD"));
+        CaptchaServiceImpl service = new CaptchaServiceImpl(cacheStore);
 
         ListAppender<ILoggingEvent> appender = attachListAppender();
         try {

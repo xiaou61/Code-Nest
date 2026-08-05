@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 
 const projectRoot = resolve(import.meta.dirname, '..')
 const designSystemRoot = resolve(projectRoot, '..', 'code-nest-design-system')
+const apiContractRoot = resolve(projectRoot, '..', 'code-nest-api-contract')
 
 function readProjectSource(...segments) {
   return readFileSync(resolve(projectRoot, ...segments), 'utf8')
@@ -59,7 +60,7 @@ test('interview page should put question sets ahead of the learning heatmap', ()
 })
 
 test('home aggregate requests should suppress duplicate global failure messages', () => {
-  const requestOptionsSource = readProjectSource('src', 'utils', 'request-options.js')
+  const requestOptionsSource = readFileSync(resolve(apiContractRoot, 'src', 'index.js'), 'utf8')
   const requestSource = readProjectSource('src', 'utils', 'request.js')
   const homeDataSource = readProjectSource('src', 'utils', 'home-data.js')
 

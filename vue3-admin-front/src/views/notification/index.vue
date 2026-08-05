@@ -261,14 +261,14 @@
                 </CnToolbar>
               </template>
 
-              <template #type="{ row }">
-                <CnStatusTag :type="getTypeTone(row.type)" size="sm">
-                  {{ getTypeText(row.type) }}
+              <template #enabled="{ row }">
+                <CnStatusTag :type="row.isEnabled ? 'success' : 'neutral'" size="sm">
+                  {{ row.isEnabled ? '启用' : '停用' }}
                 </CnStatusTag>
               </template>
 
               <template #content="{ row }">
-                <span class="template-content-cell">{{ row.content || '-' }}</span>
+                <span class="template-content-cell">{{ row.contentTemplate || '-' }}</span>
               </template>
 
               <template #actions="{ row }">
@@ -305,24 +305,22 @@
         <el-form-item label="模板名称" prop="name">
           <el-input v-model="templateForm.name" placeholder="请输入模板名称" />
         </el-form-item>
-        <el-form-item label="消息类型" prop="type">
-          <el-select v-model="templateForm.type" placeholder="请选择消息类型" class="full-width-control">
-            <el-option label="个人消息" value="PERSONAL" />
-            <el-option label="系统公告" value="ANNOUNCEMENT" />
-            <el-option label="社区互动" value="COMMUNITY_INTERACTION" />
-            <el-option label="系统通知" value="SYSTEM" />
-          </el-select>
+        <el-form-item label="模板编码" prop="code">
+          <el-input v-model="templateForm.code" :disabled="isEditMode" placeholder="例如 WELCOME_MESSAGE" />
         </el-form-item>
-        <el-form-item label="标题模板" prop="title">
-          <el-input v-model="templateForm.title" placeholder="请输入标题模板" />
+        <el-form-item label="标题模板" prop="titleTemplate">
+          <el-input v-model="templateForm.titleTemplate" placeholder="请输入标题模板" />
         </el-form-item>
-        <el-form-item label="内容模板" prop="content">
+        <el-form-item label="内容模板" prop="contentTemplate">
           <el-input
-            v-model="templateForm.content"
+            v-model="templateForm.contentTemplate"
             type="textarea"
             :rows="6"
             placeholder="请输入内容模板"
           />
+        </el-form-item>
+        <el-form-item label="是否启用" prop="isEnabled">
+          <el-switch v-model="templateForm.isEnabled" />
         </el-form-item>
       </el-form>
 
@@ -343,6 +341,18 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Edit, Plus, Refresh } from '@element-plus/icons-vue'
+import { getApiErrorMessage as getErrorMessage } from '@code-nest/api-contract'
+import type {
+  ApiId,
+  NotificationPriority as MessagePriority,
+  NotificationRecord,
+  NotificationStatistics,
+  NotificationStatus as MessageStatus,
+  NotificationTemplateCommand,
+  NotificationTemplateRecord,
+  NotificationType,
+  PageResult
+} from '@code-nest/api-contract'
 import {
   batchSendMessage,
   createTemplate,
@@ -367,42 +377,6 @@ import {
 } from '@/design-system'
 import type { CnBreadcrumbItem, CnFilterField, CnPagination, CnTableColumn, CnTone } from '@/design-system'
 
-type NotificationType = 'PERSONAL' | 'ANNOUNCEMENT' | 'COMMUNITY_INTERACTION' | 'SYSTEM'
-type MessageStatus = 'UNREAD' | 'READ' | 'DELETED'
-type MessagePriority = 'LOW' | 'MEDIUM' | 'HIGH'
-
-interface StatisticsData {
-  todayTotal?: number
-  monthTotal?: number
-  unreadTotal?: number
-  announcementCount?: number
-  personalCount?: number
-  communityCount?: number
-  systemCount?: number
-}
-
-interface MessageRecord {
-  id: number
-  title?: string
-  content?: string
-  type?: NotificationType
-  status?: MessageStatus
-  priority?: MessagePriority
-  receiverName?: string
-  createTime?: string
-  [key: string]: unknown
-}
-
-interface TemplateRecord {
-  id: number
-  name: string
-  type: NotificationType
-  title: string
-  content: string
-  createTime?: string
-  [key: string]: unknown
-}
-
 interface AnnouncementForm {
   title: string
   content: string
@@ -416,12 +390,8 @@ interface BatchSendForm {
   type: Extract<NotificationType, 'PERSONAL' | 'SYSTEM'>
 }
 
-interface TemplateForm {
-  id: number | null
-  name: string
-  type: NotificationType
-  title: string
-  content: string
+interface TemplateForm extends NotificationTemplateCommand {
+  id: ApiId | null
 }
 
 const breadcrumbs: CnBreadcrumbItem[] = [{ label: '管理后台' }, { label: '系统管理' }, { label: '通知管理' }]
@@ -450,7 +420,7 @@ const statisticsForm = reactive<{
   type: '',
   dateRange: []
 })
-const statisticsData = ref<StatisticsData | null>(null)
+const statisticsData = ref<NotificationStatistics | null>(null)
 
 const announcementForm = reactive<AnnouncementForm>({
   title: '',
@@ -478,7 +448,7 @@ const messageSearchForm = reactive<{
   type: '',
   dateRange: []
 })
-const messageList = ref<MessageRecord[]>([])
+const messageList = ref<NotificationRecord[]>([])
 const messageLoading = ref(false)
 const messagePagination = reactive({
   pageNum: 1,
@@ -503,7 +473,7 @@ const batchSendRules: FormRules<BatchSendForm> = {
   content: [{ required: true, message: '请输入消息内容', trigger: 'blur' }]
 }
 
-const templateList = ref<TemplateRecord[]>([])
+const templateList = ref<NotificationTemplateRecord[]>([])
 const templateLoading = ref(false)
 const templateDialogVisible = ref(false)
 const templateDialogTitle = ref('')
@@ -512,16 +482,17 @@ const templateSaveLoading = ref(false)
 const templateFormRef = ref<FormInstance>()
 const templateForm = reactive<TemplateForm>({
   id: null,
+  code: '',
   name: '',
-  type: 'PERSONAL',
-  title: '',
-  content: ''
+  titleTemplate: '',
+  contentTemplate: '',
+  isEnabled: true
 })
 const templateRules: FormRules<TemplateForm> = {
+  code: [{ required: true, message: '请输入模板编码', trigger: 'blur' }],
   name: [{ required: true, message: '请输入模板名称', trigger: 'blur' }],
-  type: [{ required: true, message: '请选择消息类型', trigger: 'change' }],
-  title: [{ required: true, message: '请输入标题模板', trigger: 'blur' }],
-  content: [{ required: true, message: '请输入内容模板', trigger: 'blur' }]
+  titleTemplate: [{ required: true, message: '请输入标题模板', trigger: 'blur' }],
+  contentTemplate: [{ required: true, message: '请输入内容模板', trigger: 'blur' }]
 }
 
 const statisticsFilterFields: CnFilterField[] = [
@@ -554,24 +525,25 @@ const messageFilterFields: CnFilterField[] = [
   { prop: 'dateRange', label: '时间范围', type: 'daterange' }
 ]
 
-const messageTableColumns: CnTableColumn<MessageRecord>[] = [
+const messageTableColumns: CnTableColumn<NotificationRecord>[] = [
   { prop: 'id', label: 'ID', width: 80 },
   { prop: 'title', label: '标题', minWidth: 220, slot: 'title', showOverflowTooltip: true },
   { prop: 'type', label: '类型', width: 130, slot: 'type' },
   { prop: 'status', label: '状态', width: 100, slot: 'status' },
   { prop: 'priority', label: '优先级', width: 100, slot: 'priority' },
-  { prop: 'receiverName', label: '接收者', minWidth: 120, showOverflowTooltip: true },
-  { prop: 'createTime', label: '创建时间', width: 180 },
+  { prop: 'receiverId', label: '接收者ID', minWidth: 120, showOverflowTooltip: true },
+  { prop: 'createdTime', label: '创建时间', width: 180 },
   { label: '操作', width: 90, fixed: 'right', slot: 'actions' }
 ]
 
-const templateTableColumns: CnTableColumn<TemplateRecord>[] = [
+const templateTableColumns: CnTableColumn<NotificationTemplateRecord>[] = [
   { prop: 'id', label: 'ID', width: 80 },
+  { prop: 'code', label: '模板编码', minWidth: 150, showOverflowTooltip: true },
   { prop: 'name', label: '模板名称', minWidth: 140, showOverflowTooltip: true },
-  { prop: 'type', label: '类型', width: 130, slot: 'type' },
-  { prop: 'title', label: '标题模板', minWidth: 180, showOverflowTooltip: true },
-  { prop: 'content', label: '内容模板', minWidth: 240, slot: 'content', showOverflowTooltip: true },
-  { prop: 'createTime', label: '创建时间', width: 180 },
+  { prop: 'titleTemplate', label: '标题模板', minWidth: 180, showOverflowTooltip: true },
+  { prop: 'contentTemplate', label: '内容模板', minWidth: 240, slot: 'content', showOverflowTooltip: true },
+  { prop: 'isEnabled', label: '状态', width: 90, slot: 'enabled' },
+  { prop: 'createdTime', label: '创建时间', width: 180 },
   { label: '操作', width: 140, fixed: 'right', slot: 'actions' }
 ]
 
@@ -620,18 +592,6 @@ onMounted(() => {
   getTemplateList()
 })
 
-const unwrapApiData = (response: unknown): any => {
-  if (response && typeof response === 'object' && 'data' in response && 'code' in response) {
-    return (response as { data?: unknown }).data
-  }
-  return response
-}
-
-const getErrorMessage = (error: unknown) => {
-  if (error instanceof Error) return error.message
-  return String(error || '未知错误')
-}
-
 const getStatisticsData = async (showSuccess = false) => {
   try {
     statisticsLoading.value = true
@@ -645,7 +605,7 @@ const getStatisticsData = async (showSuccess = false) => {
       params.endTime = statisticsForm.dateRange[1]
     }
 
-    const response = await getStatistics(params)
+    const response = (await getStatistics(params)) as NotificationStatistics
     statisticsData.value = {
       todayTotal: 0,
       monthTotal: 0,
@@ -654,7 +614,7 @@ const getStatisticsData = async (showSuccess = false) => {
       personalCount: 0,
       communityCount: 0,
       systemCount: 0,
-      ...(unwrapApiData(response) || {})
+      ...response
     }
 
     if (showSuccess) {
@@ -728,12 +688,9 @@ const searchMessages = async () => {
       params.endTime = messageSearchForm.dateRange[1]
     }
 
-    const response = await getAllMessages(params)
-    const data = unwrapApiData(response) || {}
-    const records = data.records || data.list || []
-
-    messageList.value = Array.isArray(records) ? records : []
-    messagePagination.total = Number(data.total || messageList.value.length || 0)
+    const response = (await getAllMessages(params)) as PageResult<NotificationRecord>
+    messageList.value = response.records
+    messagePagination.total = response.total
   } catch (error) {
     ElMessage.error(`获取消息列表失败：${getErrorMessage(error)}`)
   } finally {
@@ -771,7 +728,7 @@ const handleMessagePageSizeChange = (size: number) => {
   searchMessages()
 }
 
-const deleteMessageById = async (id: number) => {
+const deleteMessageById = async (id: ApiId) => {
   try {
     await ElMessageBox.confirm('确定要删除这条消息吗？', '确认删除', {
       confirmButtonText: '确定',
@@ -828,10 +785,7 @@ const resetBatchSendForm = () => {
 const getTemplateList = async () => {
   try {
     templateLoading.value = true
-    const response = await getTemplates()
-    const data = unwrapApiData(response)
-    const records = Array.isArray(data) ? data : data?.records || data?.list || []
-    templateList.value = Array.isArray(records) ? records : []
+    templateList.value = (await getTemplates()) as NotificationTemplateRecord[]
   } catch (error) {
     ElMessage.error(`获取模板列表失败：${getErrorMessage(error)}`)
   } finally {
@@ -846,10 +800,17 @@ const showCreateTemplateDialog = () => {
   templateDialogVisible.value = true
 }
 
-const editTemplate = (template: TemplateRecord) => {
+const editTemplate = (template: NotificationTemplateRecord) => {
   isEditMode.value = true
   templateDialogTitle.value = '编辑模板'
-  Object.assign(templateForm, template)
+  Object.assign(templateForm, {
+    id: template.id,
+    code: template.code,
+    name: template.name,
+    titleTemplate: template.titleTemplate,
+    contentTemplate: template.contentTemplate,
+    isEnabled: template.isEnabled
+  })
   templateDialogVisible.value = true
 }
 
@@ -862,11 +823,19 @@ const saveTemplate = async () => {
   try {
     templateSaveLoading.value = true
 
+    const command: NotificationTemplateCommand = {
+      code: templateForm.code,
+      name: templateForm.name,
+      titleTemplate: templateForm.titleTemplate,
+      contentTemplate: templateForm.contentTemplate,
+      isEnabled: templateForm.isEnabled
+    }
+
     if (isEditMode.value && templateForm.id) {
-      await updateTemplate(templateForm.id, { ...templateForm })
+      await updateTemplate(templateForm.id, command)
       ElMessage.success('模板更新成功')
     } else {
-      await createTemplate({ ...templateForm })
+      await createTemplate(command)
       ElMessage.success('模板创建成功')
     }
 
@@ -879,7 +848,7 @@ const saveTemplate = async () => {
   }
 }
 
-const deleteTemplateById = async (id: number) => {
+const deleteTemplateById = async (id: ApiId) => {
   try {
     await ElMessageBox.confirm('确定要删除这个模板吗？', '确认删除', {
       confirmButtonText: '确定',
@@ -900,10 +869,11 @@ const resetTemplateForm = () => {
   templateFormRef.value?.resetFields()
   Object.assign(templateForm, {
     id: null,
+    code: '',
     name: '',
-    type: 'PERSONAL',
-    title: '',
-    content: ''
+    titleTemplate: '',
+    contentTemplate: '',
+    isEnabled: true
   })
 }
 

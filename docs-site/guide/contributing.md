@@ -29,7 +29,7 @@
 
 ```bash
 # 后端编译
-mvn -pl xiaou-application -am -DskipTests compile
+mvn -pl xiaou-bootstrap -am -DskipTests compile
 
 # 单模块编译示例
 mvn -pl xiaou-team -am -DskipTests compile

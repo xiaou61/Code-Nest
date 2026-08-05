@@ -86,7 +86,7 @@ Code-Nest 使用 Redis 做以下用途：
 
 ### 配置文件总览
 
-后端配置文件位于 `xiaou-application/src/main/resources/`：
+后端配置文件位于 `xiaou-bootstrap/src/main/resources/`：
 
 | 文件 | 用途 | 何时加载 |
 | --- | --- | --- |
@@ -195,7 +195,7 @@ export XIAOU_AI_CHAT_MODEL=gpt-4o
 
 ### 4. P6Spy SQL 日志（开发用）
 
-开发环境默认启用 P6Spy 打印完整 SQL，配置文件在 `xiaou-application/src/main/resources/spy.properties`。
+开发环境默认启用 P6Spy 打印完整 SQL，配置文件在 `xiaou-bootstrap/src/main/resources/spy.properties`。
 
 P6Spy 的作用：
 - 拦截所有 JDBC 调用，打印完整 SQL（含参数值）
@@ -245,10 +245,10 @@ spring:
 
 ```bash
 # 在项目根目录执行（-am 会自动构建依赖模块）
-mvn -pl xiaou-application -am clean package -DskipTests
+mvn -pl xiaou-bootstrap -am clean package -DskipTests
 
 # 运行（默认 dev profile）
-java -jar xiaou-application/target/xiaou-application-*.jar
+java -jar xiaou-bootstrap/target/xiaou-bootstrap-*.jar
 ```
 
 ### 方式二：IDE 启动
@@ -371,7 +371,7 @@ npm run dev
 ```
 1. MySQL     → 确保 code_nest 数据库已创建，表结构已导入
 2. Redis     → 确保 Redis 服务已启动（redis-cli ping → PONG）
-3. 后端      → mvn -pl xiaou-application -am spring-boot:run
+3. 后端      → mvn -pl xiaou-bootstrap -am spring-boot:run
 4. 用户端    → cd vue3-user-front && npm run dev    (port 3001)
 5. 管理端    → cd vue3-admin-front && npm run dev    (port 3000)
 6. 文档站    → cd docs-site && npm run dev           (port 5175)
@@ -433,9 +433,9 @@ npm run dev
 
 | 文件 | 说明 |
 | --- | --- |
-| `xiaou-application/src/main/resources/application.yml` | 主配置文件（Sa-Token、AI、监控、OJ） |
-| `xiaou-application/src/main/resources/application-dev.yml` | 开发环境配置（P6Spy、localhost） |
-| `xiaou-application/src/main/resources/application-docker.yml` | Docker 配置（环境变量注入） |
+| `xiaou-bootstrap/src/main/resources/application.yml` | 主配置文件（Sa-Token、AI、监控、OJ） |
+| `xiaou-bootstrap/src/main/resources/application-dev.yml` | 开发环境配置（P6Spy、localhost） |
+| `xiaou-bootstrap/src/main/resources/application-docker.yml` | Docker 配置（环境变量注入） |
 | `vue3-user-front/vite.config.js` | 用户端 Vite 配置（端口 3001、代理、代码分割） |
 | `vue3-admin-front/vite.config.js` | 管理端 Vite 配置（端口 3000、代理、代码分割） |
 | `vue3-user-front/src/utils/request.js` | 用户端 Axios 实例 |

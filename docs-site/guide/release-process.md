@@ -6,6 +6,17 @@
 
 ---
 
+## 发布清单
+
+`release/manifest.json` 是版本、数据库 schema 基线、Docker 标签和制品布局的单一事实源。不要分别手改 POM、package 或 `VERSION`；使用同步入口：
+
+```bash
+python scripts/release_manifest.py sync X.Y.Z
+python scripts/release_manifest.py validate
+```
+
+只有新增数据库迁移时才传 `--schema-version X.Y.Z`。`VERSION` 保留给旧部署工具读取，但它是清单投影，不是第二个事实源。
+
 ## 版本号
 
 版本号格式：`vMAJOR.MINOR.PATCH`
@@ -33,13 +44,13 @@
 - [ ] 工作区不包含无关改动
 - [ ] PR 已完成 review
 - [ ] 数据库脚本、接口文档、前端路由文档已同步
-- [ ] 版本号已在 Maven、前端 package、README 或部署脚本中保持一致
+- [ ] `python scripts/release_manifest.py validate` 已确认所有版本投影与制品路径一致
 
 ### 后端验证
 
 ```bash
 # 完整编译
-mvn -pl xiaou-application -am -DskipTests compile
+mvn -pl xiaou-bootstrap -am -DskipTests compile
 
 # 单模块编译（如发布只涉及单模块）
 mvn -pl xiaou-team -am -DskipTests compile
@@ -82,7 +93,7 @@ npm run build
 
 ```
 1. 从目标基线创建发布分支
-2. 完成代码、文档、SQL 和版本号调整
+2. 完成代码、文档和必要的 SQL，通过发布清单同步版本投影
 3. 执行必要的构建、测试和冒烟验证
 4. 更新 CHANGELOG.md
 5. 提交 Pull Request，并使用 PR 模板填写验证结果

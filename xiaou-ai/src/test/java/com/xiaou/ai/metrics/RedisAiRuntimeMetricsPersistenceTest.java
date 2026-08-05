@@ -1,13 +1,13 @@
 package com.xiaou.ai.metrics;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xiaou.common.cache.TextStateStore;
 import com.xiaou.common.config.AiProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -20,20 +20,17 @@ import static org.mockito.Mockito.when;
 
 class RedisAiRuntimeMetricsPersistenceTest {
 
-    private StringRedisTemplate stringRedisTemplate;
-    private ValueOperations<String, String> valueOperations;
+    private TextStateStore stateStore;
     private AiProperties aiProperties;
     private RedisAiRuntimeMetricsPersistence persistence;
 
     @BeforeEach
     void setUp() {
-        stringRedisTemplate = mock(StringRedisTemplate.class);
-        valueOperations = mock(ValueOperations.class);
-        when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
+        stateStore = mock(TextStateStore.class);
 
         aiProperties = new AiProperties();
         aiProperties.getMetrics().getPersistence().setRedisKey("test:ai:metrics");
-        persistence = new RedisAiRuntimeMetricsPersistence(stringRedisTemplate, new ObjectMapper(), aiProperties);
+        persistence = new RedisAiRuntimeMetricsPersistence(stateStore, new ObjectMapper(), aiProperties);
     }
 
     @Test
@@ -48,7 +45,7 @@ class RedisAiRuntimeMetricsPersistenceTest {
 
         persistence.save(state);
 
-        verify(valueOperations).set(eq("test:ai:metrics"), anyString());
+        verify(stateStore).put(eq("test:ai:metrics"), anyString());
     }
 
     @Test
@@ -65,7 +62,7 @@ class RedisAiRuntimeMetricsPersistenceTest {
                 .setTimestamp(System.currentTimeMillis()));
 
         String json = new ObjectMapper().writeValueAsString(state);
-        when(valueOperations.get("test:ai:metrics")).thenReturn(json);
+        when(stateStore.find("test:ai:metrics")).thenReturn(Optional.of(json));
 
         AiRuntimeMetricsStoreState loaded = persistence.load();
 
@@ -77,7 +74,7 @@ class RedisAiRuntimeMetricsPersistenceTest {
 
     @Test
     void shouldReturnNullWhenRedisStateMissing() {
-        when(valueOperations.get("test:ai:metrics")).thenReturn(null);
+        when(stateStore.find("test:ai:metrics")).thenReturn(Optional.empty());
 
         AiRuntimeMetricsStoreState loaded = persistence.load();
 
@@ -88,6 +85,6 @@ class RedisAiRuntimeMetricsPersistenceTest {
     void shouldClearMetricsStateFromRedis() {
         persistence.clear();
 
-        verify(stringRedisTemplate).delete("test:ai:metrics");
+        verify(stateStore).delete("test:ai:metrics");
     }
 }

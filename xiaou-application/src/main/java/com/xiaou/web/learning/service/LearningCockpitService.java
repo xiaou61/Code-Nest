@@ -13,19 +13,20 @@ import com.xiaou.oj.dto.OjStatisticsVO;
 import com.xiaou.oj.dto.RankingItem;
 import com.xiaou.oj.service.OjRankingService;
 import com.xiaou.oj.service.OjSubmissionService;
-import com.xiaou.plan.domain.LearningCockpitRankSnapshot;
-import com.xiaou.plan.mapper.LearningCockpitRankSnapshotMapper;
 import com.xiaou.plan.dto.PlanStatsResponse;
 import com.xiaou.plan.service.PlanService;
 import com.xiaou.points.dto.CheckinCalendarResponse;
 import com.xiaou.points.dto.PointsBalanceResponse;
 import com.xiaou.points.service.PointsService;
+import com.xiaou.resilience.ResilientExecutor;
 import com.xiaou.web.learning.dto.LearningCockpitOverviewResponse;
-import lombok.extern.slf4j.Slf4j;
+import com.xiaou.web.learning.port.LearningRankSnapshotPort;
+import com.xiaou.web.learning.port.LearningRankSnapshotPort.RankSnapshotData;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Year;
@@ -34,14 +35,12 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 /**
  * 学习成长驾驶舱聚合服务
  */
-@Slf4j
 @Service
 public class LearningCockpitService {
 
@@ -62,7 +61,8 @@ public class LearningCockpitService {
     private final OjSubmissionService ojSubmissionService;
     private final OjRankingService ojRankingService;
     private final CareerLoopService careerLoopService;
-    private final LearningCockpitRankSnapshotMapper rankSnapshotMapper;
+    private final LearningRankSnapshotPort rankSnapshotPort;
+    private final ResilientExecutor resilientExecutor;
     private final Executor applicationIoExecutor;
 
     public LearningCockpitService(
@@ -74,7 +74,8 @@ public class LearningCockpitService {
             OjSubmissionService ojSubmissionService,
             OjRankingService ojRankingService,
             CareerLoopService careerLoopService,
-            LearningCockpitRankSnapshotMapper rankSnapshotMapper,
+            LearningRankSnapshotPort rankSnapshotPort,
+            ResilientExecutor resilientExecutor,
             @Qualifier("applicationIoExecutor") Executor applicationIoExecutor
     ) {
         this.planService = planService;
@@ -85,7 +86,8 @@ public class LearningCockpitService {
         this.ojSubmissionService = ojSubmissionService;
         this.ojRankingService = ojRankingService;
         this.careerLoopService = careerLoopService;
-        this.rankSnapshotMapper = rankSnapshotMapper;
+        this.rankSnapshotPort = rankSnapshotPort;
+        this.resilientExecutor = resilientExecutor;
         this.applicationIoExecutor = applicationIoExecutor;
     }
 
@@ -235,12 +237,13 @@ public class LearningCockpitService {
     }
 
     private <T> CompletableFuture<T> loadAsync(String name, Supplier<T> supplier, T fallback) {
-        return CompletableFuture.supplyAsync(() -> safeCall(name, supplier, fallback), applicationIoExecutor)
-                .orTimeout(QUERY_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                .exceptionally(error -> {
-                    log.warn("学习驾驶舱聚合调用超时或失败: {}, reason={}", name, error.getMessage());
-                    return fallback;
-                });
+        return resilientExecutor.executeAsync(
+                        "learning-cockpit." + name,
+                        supplier,
+                        Duration.ofSeconds(QUERY_TIMEOUT_SECONDS),
+                        applicationIoExecutor
+                )
+                .thenApply(result -> result.valueOr(fallback));
     }
 
     private LearningCockpitOverviewResponse.GrowthScore buildGrowthScore(
@@ -634,26 +637,29 @@ public class LearningCockpitService {
         if (userId == null || weekStart == null || weekEnd == null || ranking == null) {
             return;
         }
-        LearningCockpitRankSnapshot snapshot = new LearningCockpitRankSnapshot();
-        snapshot.setUserId(userId);
-        snapshot.setWeekStart(weekStart);
-        snapshot.setWeekEnd(weekEnd);
-        snapshot.setWeeklyRank(ranking.getWeeklyRank());
-        snapshot.setAllRank(ranking.getAllRank());
-        snapshot.setWeeklyPopulation(ranking.getWeeklyPopulation());
-        snapshot.setAllPopulation(ranking.getAllPopulation());
-        safeCall("learning.rankSnapshot.upsert", () -> rankSnapshotMapper.upsert(snapshot), 0);
-
-        LearningCockpitRankSnapshot previous = safeCall(
-                "learning.rankSnapshot.prev",
-                () -> rankSnapshotMapper.selectLatestBeforeWeek(userId, weekStart),
-                null
+        RankSnapshotData snapshot = new RankSnapshotData(
+                userId,
+                weekStart,
+                weekEnd,
+                ranking.getWeeklyRank(),
+                ranking.getAllRank(),
+                ranking.getWeeklyPopulation(),
+                ranking.getAllPopulation()
         );
+        resilientExecutor.execute("learning-cockpit.learning.rankSnapshot.upsert", () -> {
+            rankSnapshotPort.upsert(snapshot);
+            return 1;
+        }).valueOr(0);
+
+        RankSnapshotData previous = resilientExecutor.execute(
+                "learning-cockpit.learning.rankSnapshot.prev",
+                () -> rankSnapshotPort.latestBeforeWeek(userId, weekStart)
+        ).valueOr(null);
         if (previous == null) {
             ranking.setTrendText("暂无上周基线，已从本周开始记录排名变化。");
         } else {
-            ranking.setLastWeekRank(previous.getWeeklyRank());
-            Integer lastWeekRank = previous.getWeeklyRank();
+            ranking.setLastWeekRank(previous.weeklyRank());
+            Integer lastWeekRank = previous.weeklyRank();
             Integer thisWeekRank = ranking.getWeeklyRank();
             if (lastWeekRank != null && thisWeekRank != null) {
                 int delta = lastWeekRank - thisWeekRank;
@@ -674,21 +680,20 @@ public class LearningCockpitService {
             }
         }
 
-        List<LearningCockpitRankSnapshot> recent = safeCall(
-                "learning.rankSnapshot.recent",
-                () -> rankSnapshotMapper.selectRecentByUser(userId, 6),
-                Collections.emptyList()
-        );
+        List<RankSnapshotData> recent = resilientExecutor.execute(
+                "learning-cockpit.learning.rankSnapshot.recent",
+                () -> rankSnapshotPort.recentByUser(userId, 6)
+        ).valueOr(Collections.emptyList());
         List<LearningCockpitOverviewResponse.RankTrendPoint> trend = new ArrayList<>();
         if (recent != null && !recent.isEmpty()) {
-            List<LearningCockpitRankSnapshot> ordered = recent.stream()
-                    .sorted(Comparator.comparing(LearningCockpitRankSnapshot::getWeekStart))
+            List<RankSnapshotData> ordered = recent.stream()
+                    .sorted(Comparator.comparing(RankSnapshotData::weekStart))
                     .toList();
-            for (LearningCockpitRankSnapshot item : ordered) {
+            for (RankSnapshotData item : ordered) {
                 LearningCockpitOverviewResponse.RankTrendPoint point = new LearningCockpitOverviewResponse.RankTrendPoint();
-                point.setWeekStart(item.getWeekStart() == null ? "" : item.getWeekStart().format(DATE_FORMAT));
-                point.setWeeklyRank(item.getWeeklyRank());
-                point.setAllRank(item.getAllRank());
+                point.setWeekStart(item.weekStart() == null ? "" : item.weekStart().format(DATE_FORMAT));
+                point.setWeeklyRank(item.weeklyRank());
+                point.setAllRank(item.allRank());
                 trend.add(point);
             }
         }
@@ -905,7 +910,10 @@ public class LearningCockpitService {
         boolean manualOverride = normalizedRole != null || normalizedHours != null;
 
         if ((normalizedRole == null || normalizedRole.isEmpty()) || normalizedHours == null) {
-            CareerLoopCurrentResponse current = safeCall("career-loop.current", () -> careerLoopService.getCurrent(userId), null);
+            CareerLoopCurrentResponse current = resilientExecutor.execute(
+                    "learning-cockpit.career-loop.current",
+                    () -> careerLoopService.getCurrent(userId)
+            ).valueOr(null);
             String loopRole = null;
             Integer loopWeeklyHours = null;
             if (current != null && current.getSession() != null) {
@@ -1111,11 +1119,10 @@ public class LearningCockpitService {
 
         Map<String, Set<Integer>> result = new HashMap<>();
         for (String yearMonth : yearMonths) {
-            CheckinCalendarResponse calendar = safeCall(
-                    "points.checkinCalendar." + yearMonth,
-                    () -> pointsService.getCheckinCalendar(userId, yearMonth),
-                    new CheckinCalendarResponse()
-            );
+            CheckinCalendarResponse calendar = resilientExecutor.execute(
+                    "learning-cockpit.points.checkinCalendar." + yearMonth,
+                    () -> pointsService.getCheckinCalendar(userId, yearMonth)
+            ).valueOr(new CheckinCalendarResponse());
             List<Integer> checkinDays = calendar == null ? null : calendar.getCheckinDays();
             result.put(yearMonth, checkinDays == null ? Collections.emptySet() : new HashSet<>(checkinDays));
         }
@@ -1166,16 +1173,6 @@ public class LearningCockpitService {
 
     private int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
-    }
-
-    private <T> T safeCall(String name, Supplier<T> supplier, T fallback) {
-        try {
-            T data = supplier.get();
-            return data == null ? fallback : data;
-        } catch (Exception ex) {
-            log.warn("学习驾驶舱聚合调用失败: {}", name, ex);
-            return fallback;
-        }
     }
 
     private record OverviewData(

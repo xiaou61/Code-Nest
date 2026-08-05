@@ -6,9 +6,10 @@ import com.xiaou.interview.service.InterviewMasteryService;
 import com.xiaou.mockinterview.service.CareerLoopService;
 import com.xiaou.oj.service.OjRankingService;
 import com.xiaou.oj.service.OjSubmissionService;
-import com.xiaou.plan.mapper.LearningCockpitRankSnapshotMapper;
 import com.xiaou.plan.service.PlanService;
 import com.xiaou.points.service.PointsService;
+import com.xiaou.resilience.ResilientExecutor;
+import com.xiaou.web.learning.port.LearningRankSnapshotPort;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,7 +48,7 @@ class LearningCockpitServiceTest {
     @Mock
     private CareerLoopService careerLoopService;
     @Mock
-    private LearningCockpitRankSnapshotMapper rankSnapshotMapper;
+    private LearningRankSnapshotPort rankSnapshotPort;
 
     private ExecutorService requestExecutor;
     private ExecutorService overviewExecutor;
@@ -89,7 +90,8 @@ class LearningCockpitServiceTest {
                 ojSubmissionService,
                 ojRankingService,
                 careerLoopService,
-                rankSnapshotMapper,
+                rankSnapshotPort,
+                new ResilientExecutor(),
                 overviewExecutor
         );
 

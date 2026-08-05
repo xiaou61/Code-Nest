@@ -5,13 +5,13 @@ import com.xiaou.common.annotation.RequireAdmin;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.core.domain.Result;
 import com.xiaou.common.core.domain.ResultCode;
-import com.xiaou.common.domain.Notification;
-import com.xiaou.common.domain.NotificationTemplate;
-import com.xiaou.common.utils.NotificationUtil;
 import com.xiaou.notification.dto.AnnouncementRequest;
 import com.xiaou.notification.dto.BatchSendRequest;
 import com.xiaou.notification.dto.NotificationQueryRequest;
+import com.xiaou.notification.dto.NotificationResponse;
 import com.xiaou.notification.dto.NotificationStatistics;
+import com.xiaou.notification.dto.NotificationTemplateRequest;
+import com.xiaou.notification.dto.NotificationTemplateResponse;
 import com.xiaou.notification.dto.StatisticsRequest;
 import com.xiaou.notification.service.NotificationAdminService;
 import lombok.RequiredArgsConstructor;
@@ -40,8 +40,9 @@ public class AdminNotificationController {
     @RequireAdmin
     public Result<Void> publishAnnouncement(@RequestBody @Validated AnnouncementRequest request) {
         log.info("管理员发布系统公告: {}", request);
-        NotificationUtil.sendAnnouncement(request.getTitle(), request.getContent(), request.getPriority());
-        return Result.success();
+        boolean success = notificationAdminService.publishAnnouncement(
+                request.getTitle(), request.getContent(), request.getPriority());
+        return success ? Result.success() : Result.error("公告发布失败");
     }
     
     /**
@@ -61,9 +62,10 @@ public class AdminNotificationController {
     @Log(module = "消息通知", type = Log.OperationType.SELECT, description = "查询所有消息列表")
     @PostMapping("/list")
     @RequireAdmin
-    public Result<PageResult<Notification>> getAllMessages(@RequestBody NotificationQueryRequest request) {
+    public Result<PageResult<NotificationResponse>> getAllMessages(@RequestBody NotificationQueryRequest request) {
         log.info("管理端查询消息列表: {}", request);
-        PageResult<Notification> result = notificationAdminService.getAllMessageList(request);
+        PageResult<NotificationResponse> result = NotificationResponse.page(
+                notificationAdminService.getAllMessageList(request));
         return Result.success(result);
     }
     
@@ -104,8 +106,10 @@ public class AdminNotificationController {
     @Log(module = "消息通知", type = Log.OperationType.SELECT, description = "查询消息模板列表")
     @GetMapping("/templates")
     @RequireAdmin
-    public Result<List<NotificationTemplate>> getTemplates() {
-        List<NotificationTemplate> templates = notificationAdminService.getAllTemplates();
+    public Result<List<NotificationTemplateResponse>> getTemplates() {
+        List<NotificationTemplateResponse> templates = notificationAdminService.getAllTemplates().stream()
+                .map(NotificationTemplateResponse::from)
+                .toList();
         return Result.success(templates);
     }
     
@@ -115,8 +119,8 @@ public class AdminNotificationController {
     @Log(module = "消息通知", type = Log.OperationType.INSERT, description = "创建消息模板")
     @PostMapping("/templates")
     @RequireAdmin
-    public Result<Void> createTemplate(@RequestBody @Validated NotificationTemplate template) {
-        boolean success = notificationAdminService.createTemplate(template);
+    public Result<Void> createTemplate(@RequestBody @Validated NotificationTemplateRequest request) {
+        boolean success = notificationAdminService.createTemplate(request.toDomain(null));
         if (success) {
             return Result.success();
         } else {
@@ -130,9 +134,9 @@ public class AdminNotificationController {
     @Log(module = "消息通知", type = Log.OperationType.UPDATE, description = "更新消息模板")
     @PutMapping("/templates/{id}")
     @RequireAdmin
-    public Result<Void> updateTemplate(@PathVariable Long id, @RequestBody @Validated NotificationTemplate template) {
-        template.setId(id);
-        boolean success = notificationAdminService.updateTemplate(template);
+    public Result<Void> updateTemplate(@PathVariable Long id,
+                                       @RequestBody @Validated NotificationTemplateRequest request) {
+        boolean success = notificationAdminService.updateTemplate(request.toDomain(id));
         if (success) {
             return Result.success();
         } else {

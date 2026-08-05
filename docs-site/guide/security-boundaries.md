@@ -162,7 +162,7 @@ HTTP 请求 → SaTokenConfig 路径拦截 → @RequireAdmin 切面 → StpAdmin
 `StpInterfaceImpl` 决定了 `checkRole` 和 `checkPermission` 的结果：
 
 ```java
-// xiaou-common/src/main/java/com/xiaou/common/satoken/StpInterfaceImpl.java
+// xiaou-common-security/src/main/java/com/xiaou/common/satoken/StpInterfaceImpl.java
 @Component
 public class StpInterfaceImpl implements StpInterface {
     @Override

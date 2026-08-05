@@ -4,13 +4,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xiaou.ai.dto.codereview.CodePenReviewResult;
 import com.xiaou.ai.service.AiCodeReviewService;
-import com.xiaou.codepen.domain.CodePen;
-import com.xiaou.codepen.mapper.CodePenMapper;
 import com.xiaou.common.exception.BusinessException;
 import com.xiaou.web.growthcoach.config.GrowthCoachProperties;
 import com.xiaou.web.growthcoach.domain.GrowthCodeReviewRecord;
 import com.xiaou.web.growthcoach.dto.GrowthCodeReviewResponse;
 import com.xiaou.web.growthcoach.mapper.GrowthCodeReviewRecordMapper;
+import com.xiaou.web.growthcoach.port.GrowthLearningResourcePort;
+import com.xiaou.web.growthcoach.port.GrowthLearningResourcePort.CodePenSourceData;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,7 +20,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -37,7 +36,7 @@ public class GrowthCodeReviewService {
 
     private static final String STATUS_COMPLETED = "COMPLETED";
 
-    private final CodePenMapper codePenMapper;
+    private final GrowthLearningResourcePort learningResourcePort;
     private final GrowthCodeReviewRecordMapper reviewRecordMapper;
     private final AiCodeReviewService aiCodeReviewService;
     private final GrowthCoachProperties properties;
@@ -48,7 +47,7 @@ public class GrowthCodeReviewService {
     public GrowthCodeReviewResponse review(Long userId, Long codePenId) {
         requireEnabled();
         rateLimiter.checkCodeReview(userId);
-        CodePen pen = requireOwnedPen(userId, codePenId);
+        CodePenSourceData pen = requireOwnedPen(userId, codePenId);
         String source = sourceContent(pen);
         ensureSourceSize(source);
         String sourceHash = sha256(source);
@@ -60,7 +59,7 @@ public class GrowthCodeReviewService {
         }
 
         CodePenReviewResult result = aiCodeReviewService.reviewCodePen(
-                safeText(pen.getTitle(), "未命名 CodePen"), pen.getHtmlCode(), pen.getCssCode(), pen.getJsCode());
+                safeText(pen.title(), "未命名 CodePen"), pen.html(), pen.css(), pen.javascript());
         if (result == null || result.isFallback()) {
             throw new BusinessException("AI 代码审查暂不可用，请稍后重试");
         }
@@ -86,7 +85,7 @@ public class GrowthCodeReviewService {
     }
 
     public GrowthCodeReviewResponse getLatest(Long userId, Long codePenId) {
-        CodePen pen = requireOwnedPen(userId, codePenId);
+        CodePenSourceData pen = requireOwnedPen(userId, codePenId);
         GrowthCodeReviewRecord record = reviewRecordMapper.selectLatestByUserAndPen(userId, codePenId);
         return record == null ? null : toResponse(record, sha256(sourceContent(pen)));
     }
@@ -99,17 +98,17 @@ public class GrowthCodeReviewService {
         refreshEvidence(userId);
     }
 
-    private CodePen requireOwnedPen(Long userId, Long codePenId) {
+    private CodePenSourceData requireOwnedPen(Long userId, Long codePenId) {
         if (userId == null || userId <= 0 || codePenId == null || codePenId <= 0) {
             throw new BusinessException("代码作品不存在");
         }
-        CodePen pen = codePenMapper.selectById(codePenId);
-        if (pen == null || !Objects.equals(userId, pen.getUserId()) || Integer.valueOf(3).equals(pen.getStatus())) {
+        CodePenSourceData pen = learningResourcePort.ownedCodePen(userId, codePenId);
+        if (pen == null) {
             throw new BusinessException("代码作品不存在");
         }
-        if (!StringUtils.hasText(pen.getHtmlCode())
-                && !StringUtils.hasText(pen.getCssCode())
-                && !StringUtils.hasText(pen.getJsCode())) {
+        if (!StringUtils.hasText(pen.html())
+                && !StringUtils.hasText(pen.css())
+                && !StringUtils.hasText(pen.javascript())) {
             throw new BusinessException("请先保存至少一种代码后再发起审查");
         }
         return pen;
@@ -122,10 +121,10 @@ public class GrowthCodeReviewService {
         }
     }
 
-    private String sourceContent(CodePen pen) {
-        return "HTML\n" + defaultText(pen.getHtmlCode())
-                + "\nCSS\n" + defaultText(pen.getCssCode())
-                + "\nJAVASCRIPT\n" + defaultText(pen.getJsCode());
+    private String sourceContent(CodePenSourceData pen) {
+        return "HTML\n" + defaultText(pen.html())
+                + "\nCSS\n" + defaultText(pen.css())
+                + "\nJAVASCRIPT\n" + defaultText(pen.javascript());
     }
 
     private void ensureSourceSize(String source) {
@@ -233,11 +232,11 @@ public class GrowthCodeReviewService {
                 .toList();
     }
 
-    private LocalDateTime sourceObservedAt(CodePen pen, LocalDateTime fallback) {
-        if (pen.getUpdateTime() == null) {
+    private LocalDateTime sourceObservedAt(CodePenSourceData pen, LocalDateTime fallback) {
+        if (pen.updatedAt() == null) {
             return fallback;
         }
-        return LocalDateTime.ofInstant(pen.getUpdateTime().toInstant(), ZoneId.systemDefault());
+        return pen.updatedAt();
     }
 
     private int clampScore(Integer value) {

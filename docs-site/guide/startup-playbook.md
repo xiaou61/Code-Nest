@@ -77,19 +77,19 @@ npm run build
 后端启动入口是：
 
 ```text
-xiaou-application/src/main/java/com/xiaou/CodeNestApplication.java
+xiaou-bootstrap/src/main/java/com/xiaou/bootstrap/CodeNestApplication.java
 ```
 
 常用启动命令：
 
 ```powershell
-mvn -pl xiaou-application -am spring-boot:run
+mvn -pl xiaou-bootstrap -am spring-boot:run
 ```
 
 如果 `spring-boot:run` 在当前环境不稳定，可以先构建，再运行 jar：
 
 ```powershell
-mvn -pl xiaou-application -am clean package -DskipTests
+mvn -pl xiaou-bootstrap -am clean package -DskipTests
 ```
 
 后端默认地址：

@@ -2,11 +2,6 @@
 set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-version_file="${CODE_NEST_VERSION_FILE:-$repo_root/VERSION}"
-if [[ -z "${CODE_NEST_RELEASE_VERSION:-}" && -f "$version_file" ]]; then
-  CODE_NEST_RELEASE_VERSION="v$(tr -d '[:space:]\r\n' < "$version_file")"
-fi
-release_version="${CODE_NEST_RELEASE_VERSION:-${GITHUB_REF_NAME:-manual}}"
 reload_nginx="${CODE_NEST_RELOAD_NGINX:-true}"
 node_home="${CODE_NEST_NODE_HOME:-/opt/code-nest/node-v24.15.0}"
 release_root="${CODE_NEST_RELEASE_ROOT:-/opt/code-nest/actions-runner/releases}"
@@ -32,6 +27,10 @@ require_cmd() {
 
 safe_name() {
   printf '%s' "$1" | sed 's/[^A-Za-z0-9._-]/-/g'
+}
+
+manifest_value() {
+  python3 "$repo_root/scripts/release_manifest.py" get "$1"
 }
 
 copy_tree() {
@@ -132,8 +131,37 @@ main() {
     log "refusing release build from dirty worktree; set CODE_NEST_ALLOW_DIRTY_BUILD=true only for local diagnostics"
     exit 65
   fi
-  python3 scripts/check-version-consistency.py
+  python3 scripts/release_manifest.py validate
   mkdir -p "$release_root"
+
+  local release_version
+  release_version="$(manifest_value releaseVersion)"
+  if [[ -n "${CODE_NEST_RELEASE_VERSION:-}" && "$CODE_NEST_RELEASE_VERSION" != "$release_version" ]]; then
+    log "release version mismatch: requested=$CODE_NEST_RELEASE_VERSION manifest=$release_version"
+    exit 64
+  fi
+  local maven_revision
+  maven_revision="$(manifest_value mavenRevision)"
+  local schema_version
+  schema_version="$(manifest_value database.schemaVersion)"
+  local version_file
+  version_file="$repo_root/$(manifest_value projections.versionFile)"
+  local backend_module
+  backend_module="$(manifest_value artifacts.backend.module)"
+  local backend_source_pattern
+  backend_source_pattern="$repo_root/$(manifest_value artifacts.backend.sourcePattern)"
+  local backend_bundle_path
+  backend_bundle_path="$(manifest_value artifacts.backend.bundlePath)"
+  local bundle_manifest_path
+  bundle_manifest_path="$(manifest_value bundle.manifestPath)"
+  local admin_workspace admin_source_directory admin_bundle_path
+  admin_workspace="$(manifest_value artifacts.admin.workspace)"
+  admin_source_directory="$(manifest_value artifacts.admin.sourceDirectory)"
+  admin_bundle_path="$(manifest_value artifacts.admin.bundlePath)"
+  local user_workspace user_source_directory user_bundle_path
+  user_workspace="$(manifest_value artifacts.user.workspace)"
+  user_source_directory="$(manifest_value artifacts.user.sourceDirectory)"
+  user_bundle_path="$(manifest_value artifacts.user.bundlePath)"
 
   local short_sha
   short_sha="$(git rev-parse --short HEAD)"
@@ -150,26 +178,34 @@ main() {
   trap 'rm -rf "$stage_dir"' EXIT
 
   log "build backend"
-  mvn -B -pl xiaou-application -am clean package -DskipTests -Drevision="v$(tr -d '[:space:]\r\n' < "$version_file")"
+  mvn -B -pl "$backend_module" -am clean package -DskipTests -Drevision="$maven_revision"
 
   log "install admin frontend dependencies"
-  install_frontend_dependencies vue3-admin-front
+  install_frontend_dependencies "$admin_workspace"
   log "build admin frontend"
-  npm run build --prefix vue3-admin-front
+  npm run build --prefix "$admin_workspace"
 
   log "install user frontend dependencies"
-  install_frontend_dependencies vue3-user-front
+  install_frontend_dependencies "$user_workspace"
   log "build user frontend"
-  npm run build --prefix vue3-user-front
+  npm run build --prefix "$user_workspace"
 
   log "assemble release bundle"
-  mkdir -p "$stage_dir/backend" "$stage_dir/admin" "$stage_dir/user" "$stage_dir/scripts"
-  cp xiaou-application/target/xiaou-application-*.jar "$stage_dir/backend/app.jar"
-  copy_tree vue3-admin-front/dist "$stage_dir/admin"
-  copy_tree vue3-user-front/dist "$stage_dir/user"
+  local -a backend_jars
+  mapfile -t backend_jars < <(compgen -G "$backend_source_pattern" || true)
+  if [[ "${#backend_jars[@]}" -ne 1 ]]; then
+    log "expected exactly one backend artifact for $backend_source_pattern, got ${#backend_jars[@]}"
+    exit 66
+  fi
+  mkdir -p "$(dirname "$stage_dir/$backend_bundle_path")" "$stage_dir/scripts"
+  cp "${backend_jars[0]}" "$stage_dir/$backend_bundle_path"
+  copy_tree "$repo_root/$admin_source_directory" "$stage_dir/$admin_bundle_path"
+  copy_tree "$repo_root/$user_source_directory" "$stage_dir/$user_bundle_path"
   assemble_operational_assets "$stage_dir"
   copy_release_file "$repo_root/scripts/db-migrate.py" "$stage_dir/scripts/db-migrate.py" 755
+  copy_release_file "$repo_root/scripts/release_manifest.py" "$stage_dir/scripts/release_manifest.py" 755
   copy_release_file "$repo_root/scripts/release-smoke-test.py" "$stage_dir/scripts/release-smoke-test.py" 755
+  copy_release_file "$repo_root/release/manifest.json" "$stage_dir/$bundle_manifest_path"
   copy_release_file "$version_file" "$stage_dir/VERSION"
   copy_tree "$repo_root/sql" "$stage_dir/sql"
   cat >"$stage_dir/RELEASE" <<EOF
@@ -177,11 +213,12 @@ version=$safe_version
 sha=$full_sha
 build_id=$build_id
 built_at=$(date -Iseconds)
-schema_version=$safe_version
+schema_version=$schema_version
 EOF
 
   rm -f "$bundle"
-  tar -czf "$bundle" -C "$stage_dir" backend admin user ops scripts sql VERSION RELEASE
+  tar -czf "$bundle" -C "$stage_dir" \
+    backend admin user ops scripts sql VERSION RELEASE "$bundle_manifest_path"
   python3 scripts/release-smoke-test.py "$bundle"
   log "release bundle ready: $bundle"
 

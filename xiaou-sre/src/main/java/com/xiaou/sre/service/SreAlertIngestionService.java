@@ -1,14 +1,14 @@
 package com.xiaou.sre.service;
 
-import com.xiaou.sre.dto.request.AlertmanagerWebhookRequest;
 import com.xiaou.sre.dto.response.SreIngestionResult;
+import com.xiaou.sre.service.model.SreAlertBatch;
 
 /**
- * Alertmanager 事件接收服务。
+ * Source-neutral alert ingestion interface.
  *
  * @author xiaou
  */
 public interface SreAlertIngestionService {
 
-    SreIngestionResult ingest(AlertmanagerWebhookRequest request);
+    SreIngestionResult ingest(SreAlertBatch batch);
 }

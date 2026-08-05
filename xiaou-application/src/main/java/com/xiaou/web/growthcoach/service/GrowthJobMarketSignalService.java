@@ -2,10 +2,10 @@ package com.xiaou.web.growthcoach.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.xiaou.mockinterview.domain.JobBattleMatchRecord;
 import com.xiaou.mockinterview.dto.response.JobBattleMatchEngineResult;
-import com.xiaou.mockinterview.mapper.JobBattleMatchRecordMapper;
 import com.xiaou.web.growthcoach.dto.GrowthJobMarketSignalResponse;
+import com.xiaou.web.growthcoach.port.GrowthCareerDataPort;
+import com.xiaou.web.growthcoach.port.GrowthCareerDataPort.JobBattleMatchData;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,7 +35,7 @@ public class GrowthJobMarketSignalService {
     private static final int MAX_TEXT_LENGTH = 80;
     private static final String MATCH_ENGINE_ROUTE = "/job-match-engine";
 
-    private final JobBattleMatchRecordMapper matchRecordMapper;
+    private final GrowthCareerDataPort careerDataPort;
     private final ObjectMapper objectMapper;
 
     public GrowthJobMarketSignalResponse getCurrentSignal(Long userId) {
@@ -45,14 +45,14 @@ public class GrowthJobMarketSignalService {
             return response;
         }
 
-        JobBattleMatchRecord record = matchRecordMapper.selectLatestByUserId(userId);
+        JobBattleMatchData record = careerDataPort.latestJobBattleMatch(userId);
         if (record == null) {
             response.setInsufficientReason("先录入至少 3 条真实 JD，才能形成岗位样本信号。");
             return response;
         }
 
-        response.setSourceAnalysisId(record.getId());
-        response.setSourceObservedAt(record.getCreateTime());
+        response.setSourceAnalysisId(record.id());
+        response.setSourceObservedAt(record.createdAt());
         JobBattleMatchEngineResult result = readResult(record);
         List<JobBattleMatchEngineResult.TargetScore> samples = nonFallbackSamples(result);
         response.setSampleCount(samples.size());
@@ -73,14 +73,14 @@ public class GrowthJobMarketSignalService {
         return response;
     }
 
-    private JobBattleMatchEngineResult readResult(JobBattleMatchRecord record) {
-        if (record == null || !StringUtils.hasText(record.getResultJson())) {
+    private JobBattleMatchEngineResult readResult(JobBattleMatchData record) {
+        if (record == null || !StringUtils.hasText(record.resultJson())) {
             return null;
         }
         try {
-            return objectMapper.readValue(record.getResultJson(), JobBattleMatchEngineResult.class);
+            return objectMapper.readValue(record.resultJson(), JobBattleMatchEngineResult.class);
         } catch (JsonProcessingException exception) {
-            log.warn("解析岗位样本信号失败，recordId={}", record.getId());
+            log.warn("解析岗位样本信号失败，recordId={}", record.id());
             return null;
         }
     }

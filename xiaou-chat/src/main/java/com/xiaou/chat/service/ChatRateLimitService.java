@@ -1,6 +1,6 @@
 package com.xiaou.chat.service;
 
-import com.xiaou.common.cache.RedisValueStore;
+import com.xiaou.common.cache.CacheStore;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +21,7 @@ public class ChatRateLimitService {
 
     private static final String KEY_PREFIX = "xiaou:chat:rate-limit:";
 
-    private final RedisValueStore redisValueStore;
+    private final CacheStore cacheStore;
 
     @Value("${xiaou.chat.rate-limit.enabled:true}")
     private boolean enabled;
@@ -54,7 +54,7 @@ public class ChatRateLimitService {
         String key = KEY_PREFIX + bucket + ":" + userId;
         long count;
         try {
-            count = redisValueStore.increment(key, 1, Duration.ofSeconds(windowSeconds));
+            count = cacheStore.increment(key, 1, Duration.ofSeconds(windowSeconds));
         } catch (RuntimeException error) {
             log.warn("聊天室限流缓存不可用，按可用性策略放行: bucket={}, userId={}", bucket, userId, error);
             return RateLimitResult.allowed(limit);

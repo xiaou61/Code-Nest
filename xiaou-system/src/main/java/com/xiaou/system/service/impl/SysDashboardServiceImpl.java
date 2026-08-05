@@ -5,6 +5,8 @@ import com.xiaou.chat.service.ChatRoomService;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.points.dto.AdminPointsStatisticsResponse;
 import com.xiaou.points.service.PointsService;
+import com.xiaou.resilience.ResilientExecutor;
+import com.xiaou.resilience.ResilientResult;
 import com.xiaou.system.dto.DashboardOverviewResponse;
 import com.xiaou.system.dto.LoginLogQueryRequest;
 import com.xiaou.system.dto.LoginLogResponse;
@@ -17,7 +19,6 @@ import com.xiaou.user.dto.UserInfoResponse;
 import com.xiaou.user.dto.UserQueryRequest;
 import com.xiaou.user.service.UserInfoService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -27,14 +28,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Supplier;
 
 /**
  * 仪表板服务实现
  *
  * @author xiaou
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SysDashboardServiceImpl implements SysDashboardService {
@@ -48,23 +47,30 @@ public class SysDashboardServiceImpl implements SysDashboardService {
     private final ChatOnlineUserService chatOnlineUserService;
     private final SysLoginLogService loginLogService;
     private final SysOperationLogService operationLogService;
+    private final ResilientExecutor resilientExecutor;
 
     @Override
     public DashboardOverviewResponse getOverview() {
-        TimedResult<Long> totalUsersTimed = timed(this::queryTotalUsers);
-        TimedResult<AdminPointsStatisticsResponse> pointsTimed = timed(pointsService::getAdminStatistics);
-        TimedResult<Integer> onlineUsersTimed = timed(this::queryOnlineUsers);
-        TimedResult<Long> todayLoginTimed = timed(this::queryTodayLoginCount);
-        TimedResult<Long> todayFailedOpsTimed = timed(this::queryTodayFailedOperationCount);
-        TimedResult<List<DashboardOverviewResponse.RecentOperationItem>> recentOpsTimed = timed(this::queryRecentOperations);
+        ResilientResult<Long> totalUsersTimed = resilientExecutor.execute(
+                "dashboard.total-users", this::queryTotalUsers);
+        ResilientResult<AdminPointsStatisticsResponse> pointsTimed = resilientExecutor.execute(
+                "dashboard.points", pointsService::getAdminStatistics);
+        ResilientResult<Integer> onlineUsersTimed = resilientExecutor.execute(
+                "dashboard.online-users", this::queryOnlineUsers);
+        ResilientResult<Long> todayLoginTimed = resilientExecutor.execute(
+                "dashboard.today-logins", this::queryTodayLoginCount);
+        ResilientResult<Long> todayFailedOpsTimed = resilientExecutor.execute(
+                "dashboard.failed-operations", this::queryTodayFailedOperationCount);
+        ResilientResult<List<DashboardOverviewResponse.RecentOperationItem>> recentOpsTimed =
+                resilientExecutor.execute("dashboard.recent-operations", this::queryRecentOperations);
 
         DashboardOverviewResponse response = new DashboardOverviewResponse();
-        response.setTotalUsers(totalUsersTimed.getValueOrDefault(0L));
-        response.setTodayLoginCount(todayLoginTimed.getValueOrDefault(0L));
-        response.setOnlineUserCount(onlineUsersTimed.getValueOrDefault(0));
-        response.setTodayFailedOperationCount(todayFailedOpsTimed.getValueOrDefault(0L));
+        response.setTotalUsers(totalUsersTimed.valueOr(0L));
+        response.setTodayLoginCount(todayLoginTimed.valueOr(0L));
+        response.setOnlineUserCount(onlineUsersTimed.valueOr(0));
+        response.setTodayFailedOperationCount(todayFailedOpsTimed.valueOr(0L));
 
-        AdminPointsStatisticsResponse pointsData = pointsTimed.getValue();
+        AdminPointsStatisticsResponse pointsData = pointsTimed.value();
         response.setTotalPointsIssued(pointsData != null && pointsData.getTotalPointsIssued() != null
                 ? pointsData.getTotalPointsIssued()
                 : 0L);
@@ -73,7 +79,7 @@ public class SysDashboardServiceImpl implements SysDashboardService {
                 : 0);
 
         response.setModuleHealthList(buildModuleHealth(totalUsersTimed, pointsTimed, onlineUsersTimed, todayLoginTimed, todayFailedOpsTimed));
-        response.setRecentOperations(recentOpsTimed.getValueOrDefault(Collections.emptyList()));
+        response.setRecentOperations(recentOpsTimed.valueOr(Collections.emptyList()));
         return response;
     }
 
@@ -146,11 +152,11 @@ public class SysDashboardServiceImpl implements SysDashboardService {
     }
 
     private List<DashboardOverviewResponse.ModuleHealthItem> buildModuleHealth(
-            TimedResult<Long> totalUsersTimed,
-            TimedResult<AdminPointsStatisticsResponse> pointsTimed,
-            TimedResult<Integer> onlineUsersTimed,
-            TimedResult<Long> todayLoginTimed,
-            TimedResult<Long> todayFailedOpsTimed
+            ResilientResult<Long> totalUsersTimed,
+            ResilientResult<AdminPointsStatisticsResponse> pointsTimed,
+            ResilientResult<Integer> onlineUsersTimed,
+            ResilientResult<Long> todayLoginTimed,
+            ResilientResult<Long> todayFailedOpsTimed
     ) {
         List<DashboardOverviewResponse.ModuleHealthItem> list = new ArrayList<>();
         list.add(buildHealthItem("用户服务", totalUsersTimed));
@@ -161,11 +167,12 @@ public class SysDashboardServiceImpl implements SysDashboardService {
         return list;
     }
 
-    private <T> DashboardOverviewResponse.ModuleHealthItem buildHealthItem(String name, TimedResult<T> timedResult) {
+    private <T> DashboardOverviewResponse.ModuleHealthItem buildHealthItem(
+            String name, ResilientResult<T> timedResult) {
         DashboardOverviewResponse.ModuleHealthItem item = new DashboardOverviewResponse.ModuleHealthItem();
         item.setName(name);
 
-        if (!timedResult.isSuccess()) {
+        if (!timedResult.succeeded()) {
             item.setLatency("--");
             item.setStatus("danger");
             item.setStatusText("异常");
@@ -173,8 +180,8 @@ public class SysDashboardServiceImpl implements SysDashboardService {
             return item;
         }
 
-        item.setLatency(timedResult.getCostMs() + "ms");
-        if (timedResult.getCostMs() > WARNING_THRESHOLD_MS) {
+        item.setLatency(timedResult.durationMillis() + "ms");
+        if (timedResult.durationMillis() > WARNING_THRESHOLD_MS) {
             item.setStatus("warning");
             item.setStatusText("较慢");
             item.setStatusType("warning");
@@ -193,45 +200,4 @@ public class SysDashboardServiceImpl implements SysDashboardService {
         return operationTime.format(TIME_FORMATTER);
     }
 
-    private <T> TimedResult<T> timed(Supplier<T> supplier) {
-        long start = System.currentTimeMillis();
-        try {
-            T value = supplier.get();
-            return new TimedResult<>(value, System.currentTimeMillis() - start, true);
-        } catch (Exception e) {
-            log.warn("仪表板子查询失败: {}", e.getMessage());
-            return new TimedResult<>(null, System.currentTimeMillis() - start, false);
-        }
-    }
-
-    private static class TimedResult<T> {
-        private final T value;
-        private final long costMs;
-        private final boolean success;
-
-        private TimedResult(T value, long costMs, boolean success) {
-            this.value = value;
-            this.costMs = costMs;
-            this.success = success;
-        }
-
-        private T getValue() {
-            return value;
-        }
-
-        private long getCostMs() {
-            return costMs;
-        }
-
-        private boolean isSuccess() {
-            return success;
-        }
-
-        private T getValueOrDefault(T defaultValue) {
-            if (!success || value == null) {
-                return defaultValue;
-            }
-            return value;
-        }
-    }
 }

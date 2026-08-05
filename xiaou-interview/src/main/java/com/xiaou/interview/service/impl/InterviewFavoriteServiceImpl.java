@@ -3,7 +3,6 @@ package com.xiaou.interview.service.impl;
 import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.exception.BusinessException;
 import com.xiaou.common.satoken.StpUserUtil;
-import com.xiaou.common.utils.NotificationUtil;
 import com.xiaou.common.utils.PageHelper;
 import com.xiaou.interview.domain.InterviewFavorite;
 import com.xiaou.interview.domain.InterviewQuestionSet;
@@ -11,6 +10,8 @@ import com.xiaou.interview.mapper.InterviewFavoriteMapper;
 import com.xiaou.interview.mapper.InterviewQuestionMapper;
 import com.xiaou.interview.mapper.InterviewQuestionSetMapper;
 import com.xiaou.interview.service.InterviewFavoriteService;
+import com.xiaou.notification.api.NotificationCommand;
+import com.xiaou.notification.api.NotificationPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ public class InterviewFavoriteServiceImpl implements InterviewFavoriteService {
     private final InterviewFavoriteMapper favoriteMapper;
     private final InterviewQuestionMapper questionMapper;
     private final InterviewQuestionSetMapper questionSetMapper;
+    private final NotificationPublisher notificationPublisher;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -67,12 +69,12 @@ public class InterviewFavoriteServiceImpl implements InterviewFavoriteService {
                     // 获取当前用户信息
                     String userName = "用户" + userId;
                     
-                    NotificationUtil.sendInterviewMessage(
+                    notificationPublisher.publish(NotificationCommand.interview(
                         questionSet.getCreatorId(),
                         "您的题单被收藏",
                         "用户 " + userName + " 收藏了您的题单《" + questionSet.getTitle() + "》",
                         targetId.toString()
-                    );
+                    ));
                 }
             } catch (Exception e) {
                 log.warn("发送题单收藏通知失败，userId: {}, targetId: {}, 错误: {}", 
@@ -176,4 +178,4 @@ public class InterviewFavoriteServiceImpl implements InterviewFavoriteService {
             throw new BusinessException("不支持的收藏类型");
         }
     }
-} 
+}

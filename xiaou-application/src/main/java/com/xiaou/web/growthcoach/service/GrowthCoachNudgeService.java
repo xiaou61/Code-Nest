@@ -1,11 +1,7 @@
 package com.xiaou.web.growthcoach.service;
 
-import com.xiaou.common.domain.Notification;
-import com.xiaou.common.enums.NotificationPriorityEnum;
-import com.xiaou.common.enums.NotificationSourceEnum;
-import com.xiaou.common.enums.NotificationStatusEnum;
-import com.xiaou.common.enums.NotificationTypeEnum;
-import com.xiaou.common.service.NotificationService;
+import com.xiaou.notification.api.NotificationCommand;
+import com.xiaou.notification.api.NotificationPublisher;
 import com.xiaou.web.growthcoach.domain.GrowthCoachNudge;
 import com.xiaou.web.growthcoach.dto.GrowthWeeklyReviewResponse;
 import com.xiaou.web.growthcoach.mapper.GrowthCoachNudgeMapper;
@@ -14,8 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 对确定性的本周节奏风险信号发送一次站内提醒。
@@ -32,7 +28,7 @@ public class GrowthCoachNudgeService {
     private static final String ROUTE_PATH = "/growth-autopilot";
 
     private final GrowthCoachNudgeMapper nudgeMapper;
-    private final NotificationService notificationService;
+    private final NotificationPublisher notificationPublisher;
 
     @Transactional(rollbackFor = Exception.class)
     public void dispatchWeeklyRisk(Long userId, GrowthWeeklyReviewResponse review) {
@@ -61,24 +57,20 @@ public class GrowthCoachNudgeService {
             throw new IllegalStateException("成长教练提醒记录创建失败");
         }
 
-        Notification notification = new Notification();
-        notification.setTitle(nudge.getTitle());
-        notification.setContent(nudge.getContent());
-        notification.setType(NotificationTypeEnum.SYSTEM.getCode());
-        notification.setPriority(NotificationPriorityEnum.MEDIUM.getCode());
-        notification.setSenderId(0L);
-        notification.setReceiverId(userId);
-        notification.setSourceModule(NotificationSourceEnum.GROWTH_COACH.getCode());
-        notification.setSourceId(String.valueOf(nudge.getId()));
-        notification.setStatus(NotificationStatusEnum.UNREAD.getCode());
-        notification.setCreatedTime(LocalDateTime.now());
-        notification.setUpdatedTime(LocalDateTime.now());
-
-        if (!notificationService.sendNotification(notification)) {
+        Optional<Long> notificationId = notificationPublisher.publish(NotificationCommand.toUser(
+                userId,
+                nudge.getTitle(),
+                nudge.getContent(),
+                "SYSTEM",
+                "MEDIUM",
+                "growth_coach",
+                String.valueOf(nudge.getId())
+        ));
+        if (notificationId.isEmpty()) {
             nudgeMapper.markFailed(nudge.getId(), userId);
             return;
         }
-        if (nudgeMapper.markSent(nudge.getId(), userId, notification.getId()) != 1) {
+        if (nudgeMapper.markSent(nudge.getId(), userId, notificationId.get()) != 1) {
             throw new IllegalStateException("成长教练提醒状态更新失败");
         }
     }

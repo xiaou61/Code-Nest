@@ -12,6 +12,7 @@
 
 | 版本 | 日期 | 主要变更 |
 |------|------|---------|
+| v2.5.6 | 2026-08-05 | 启动壳、基础模块、领域所有权、端口适配器、统一契约、路由切片和发布清单治理 |
 | v2.5.5 | 2026-08-04 | 成长证据驱动的能力图谱、证据引用、能力关系和只读补强建议 |
 | v2.5.4 | 2026-08-04 | master 整合 v2.5.1 生产 SRE 治理与 v2.5.3 发布/迁移/成长闭环能力，补齐低基数指标和统一发布包 |
 | v2.5.3 | 2026-08-04 | Growth Coach 性能与事件契约、SSRF 防护、AI 并发保护、checksum 迁移 ledger、可追溯 release bundle 与失败回滚 |
@@ -30,6 +31,26 @@
 | v2.1.1 | - | WebSocket 票据机制、CORS 配置化 |
 | v2.1.0 | - | AI 学习成长驾驶舱、AI Runtime 治理中心 |
 | v2.0.0 | - | AI 基础设施切换到 LangChain4j/LangGraph4j/LlamaIndex |
+
+---
+
+## v2.5.6 (2026-08-05)
+
+### Added
+
+- 新增 `xiaou-bootstrap`、五个 `xiaou-common-*` 基础模块、`xiaou-resilience` 和共享前端包 `@code-nest/api-contract`。
+- 新增架构门禁、发布清单同步器与隔离契约测试。
+
+### Changed
+
+- 应用编排与启动职责分离，SRE 和通知实现回归各自领域模块，跨领域读取改走端口与适配器。
+- 双前端统一响应/错误/通知契约，路由按业务域切片；后端错误同时提供语义化 HTTP 状态与稳定业务码。
+- CI/CD、release bundle、Docker 标签和文档基线统一读取 `release/manifest.json`。
+
+### Notes
+
+- 无数据库迁移；数据库 schema 基线仍为 `v2.5.3`。
+- 仓库内可执行 JAR 改由 `xiaou-bootstrap/target` 产出。
 
 ---
 

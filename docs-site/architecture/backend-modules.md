@@ -1,16 +1,20 @@
 # 后端模块详解
 
-Code-Nest 后端由 28 个 Maven 子模块组成，按职责分为**基础设施模块**、**业务模块**、**API 契约模块**和**启动聚合模块**四类。
+Code-Nest 后端由 36 个 Maven 子模块组成，按职责分为**基础设施模块**、**业务模块**、**API 契约模块**、**应用编排模块**和**启动模块**五类。
 
 ## 模块分类与依赖方向
 
 ```text
-xiaou-application (聚合启动)
+xiaou-bootstrap (启动与运行配置)
     │
+    ├── xiaou-application         ← 跨领域应用编排
     ├── 基础设施层
-    │   ├── xiaou-common          ← 全局工具、配置、异常、鉴权
-    │   ├── xiaou-user-api        ← 用户信息接口契约
-    │   └── xiaou-sensitive-api   ← 敏感词检测接口契约
+    │   ├── xiaou-common-core     ← 响应、异常、分页和纯工具
+    │   ├── xiaou-common-web      ← Web/HTTP 适配
+    │   ├── xiaou-common-security ← 鉴权与权限
+    │   ├── xiaou-common-cache    ← 缓存接口与 Redis 适配
+    │   ├── xiaou-common-persistence ← MyBatis/PageHelper
+    │   └── xiaou-resilience      ← 有界执行与降级结果
     │
     ├── 核心实现层
     │   ├── xiaou-user            ← 用户/认证 (实现 user-api)
@@ -42,27 +46,27 @@ xiaou-application (聚合启动)
 ```
 
 **依赖方向规则**：
-- 业务模块 → `xiaou-common`（必须）
+- 业务模块只依赖实际需要的 `xiaou-common-*` 基础模块；`xiaou-common` 只为尚未迁移的旧模块兼容
 - 业务模块 → `xiaou-user-api`（需用户信息时）
 - 业务模块 → `xiaou-sensitive-api`（需内容审查时）
-- **禁止**：业务模块 → 其他业务模块的实现（防循环依赖）
+- `xiaou-application` 的跨领域编排通过端口与适配器读取其他领域
+- **禁止**：业务逻辑直接导入其他领域 Mapper/Entity、通知实现或 Redis 客户端
 
 ## 模块详情
 
 ### 基础设施模块
 
-#### xiaou-common
+#### 公共基础模块
 
-全局公共模块，所有业务模块的基础依赖。
-
-| 包 | 职责 |
-|----|------|
-| `config/` | SaTokenConfig, RedisConfig, CorsConfig, MybatisPlusConfig, RestTemplateConfig, AiProperties, NotificationAsyncConfig, LocalFileResourceConfig |
-| `satoken/` | AdminAuthAspect (@RequireAdmin 切面) → 详见 [权限注解与角色边界索引](/reference/permission-boundaries) |
-| `exception/` | GlobalExceptionHandler, BusinessException, ResultCode → 详见 [响应与错误码](/reference/response-errors) |
-| `enums/` | StatusEnum, NotificationStatusEnum |
-| `domain/` | Result 统一响应体 → 详见 [响应与错误码](/reference/response-errors) |
-| `utils/` | 通用工具类 |
+| 模块 | 职责 | 关键接口或实现 |
+| --- | --- | --- |
+| `xiaou-common-core` | 无 Web/Redis/MyBatis 依赖的基础契约 | `Result`、`ResultCode`、`PageResult`、`BusinessException` |
+| `xiaou-common-web` | HTTP 入口和错误适配 | `GlobalExceptionHandler`、`ResultHttpStatusAdvice`、`ResultHttpStatusMapper` |
+| `xiaou-common-security` | 用户/管理员认证授权 | `StpUserUtil`、`StpAdminUtil`、`@RequireAdmin` |
+| `xiaou-common-cache` | 通用缓存接口与 Redis 实现 | `CacheStore`、`TextStateStore`、`RedisValueStore`、`RedisTextStateStore` |
+| `xiaou-common-persistence` | 数据访问基础配置 | `PageHelper`、`P6SpyLogger` |
+| `xiaou-resilience` | 多来源聚合的有界执行 | `ResilientExecutor`、`ResilientResult`、`ResilientStatus` |
+| `xiaou-common` | 迁移期兼容聚合 | 只聚合上述基础模块，不新增实现 |
 
 #### xiaou-user-api
 
@@ -102,9 +106,9 @@ com.xiaou.sensitive.api
 
 | 维度 | 说明 |
 |------|------|
-| API 前缀 | `/api/auth` (管理端认证), `/api/admin/dashboard` (仪表盘), `/api/log` (日志), `/api/admin/ai/config` (AI 配置管理), `/api/admin/sre/incidents` (RCA) |
-| Controller | AuthController (管理端认证), DashboardController, LogController, AiConfigController, SreRcaAdminController |
-| 核心功能 | 管理员登录、仪表盘统计、操作日志、AI 配置管理、只读 RCA 编排、恢复、反馈与样本导出 |
+| API 前缀 | `/api/auth` (管理端认证), `/api/admin/dashboard` (仪表盘), `/api/log` (日志), `/api/admin/ai/config` (AI 配置管理) |
+| Controller | AuthController (管理端认证), DashboardController, LogController, AiConfigController |
+| 核心功能 | 管理员登录、仪表盘统计、操作日志、AI 配置管理和 Agent 运行时 |
 | 关键表 | `system_log` |
 | @RequireAdmin 方法 | 29 个 (Log×8 + Dashboard×1 + AiConfig×20) |
 
@@ -113,8 +117,8 @@ com.xiaou.sensitive.api
 | 维度 | 说明 |
 |------|------|
 | API 前缀 | `/api/internal/sre/alertmanager/v1` (私网告警接入), `/api/admin/sre/incidents` (事故工作台) |
-| Controller | AlertmanagerWebhookController, SreIncidentAdminController |
-| 核心功能 | 告警幂等接入、事故聚合、事务 Outbox、白名单证据采集、调查运行、步骤和反馈修订持久化 |
+| Controller | AlertmanagerWebhookController、SreIncidentAdminController、SreRcaAdminController、SreRcaEvaluationAdminController |
+| 核心功能 | 告警幂等接入、事故聚合、事务 Outbox、白名单证据采集、只读 RCA、评测套件/队列和反馈闭环 |
 | 关键表 | `sre_alert_event`, `sre_incident`, `sre_outbox_event`, `sre_incident_evidence`, `sre_investigation_run`, `sre_investigation_step`, `sre_investigation_feedback` |
 | 安全边界 | 告警热路径不依赖 AI；模型只读已入库证据，不开放 Shell 或任意 PromQL/LogQL |
 
@@ -290,7 +294,7 @@ com.xiaou.{module}
 |------|--------|------|
 | xiaou-ai | `prompt/`, `schema/`, `rag/`, `graph/`, `runner/` | AI Prompt 编排/RAG/图执行 |
 | xiaou-chat | `config/`, `websocket/` | WebSocket 配置与处理 |
-| xiaou-common | `satoken/`, `exception/`, `enums/` | 全局鉴权/异常/枚举 |
+| 公共基础模块 | `web/`, `security/`, `cache/`, `persistence/` | 按技术职责拆分的共享能力 |
 | xiaou-oj | `enums/` | SubmissionStatus 等判题枚举 |
 
 ## API 前缀分配
@@ -324,7 +328,7 @@ com.xiaou.{module}
 
 ## 启动顺序
 
-所有模块由 `xiaou-application` 聚合为单 JAR，启动时 Spring Boot 自动扫描：
+`xiaou-bootstrap` 依赖 `xiaou-application` 和运行所需基础模块并产出单 JAR，启动时 Spring Boot 自动扫描：
 
 ```text
 CodeNestApplication.java (@SpringBootApplication)
@@ -344,12 +348,12 @@ CodeNestApplication.java (@SpringBootApplication)
 
 | 路径 | 说明 |
 |------|------|
-| `pom.xml` | 根 POM，定义 28 个子模块 |
-| `xiaou-application/pom.xml` | 聚合所有模块的依赖 |
-| `xiaou-application/.../CodeNestApplication.java` | Spring Boot 启动类 |
-| `xiaou-application/.../application.yml` | 主配置 (端口/MyBatis/Sa-Token) |
-| `xiaou-application/.../application-dev.yml` | 开发环境配置 (MySQL/Redis/AI) |
-| `xiaou-common/src/main/java/com/xiaou/common/` | 全局公共代码 |
+| `pom.xml` | 根 POM，定义 36 个子模块 |
+| `xiaou-bootstrap/pom.xml` | 可执行 JAR 与运行依赖组合 |
+| `xiaou-bootstrap/src/main/java/com/xiaou/bootstrap/CodeNestApplication.java` | Spring Boot 启动类 |
+| `xiaou-bootstrap/src/main/resources/application.yml` | 主配置 (端口/MyBatis/Sa-Token) |
+| `xiaou-application/pom.xml` | 跨领域应用编排所需业务依赖 |
+| `xiaou-common-*/src/main/java/com/xiaou/common/` | 按职责拆分的公共基础实现 |
 | `xiaou-user-api/src/main/java/com/xiaou/user/api/` | 用户信息接口契约 |
 | `xiaou-sensitive-api/src/main/java/com/xiaou/sensitive/api/` | 敏感词检测接口契约 → 详见 [敏感词风控](/modules/sensitive) |
 

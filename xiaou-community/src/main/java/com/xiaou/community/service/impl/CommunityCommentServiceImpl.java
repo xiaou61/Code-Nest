@@ -5,7 +5,6 @@ import com.xiaou.common.core.domain.PageResult;
 import com.xiaou.common.exception.BusinessException;
 import com.xiaou.common.satoken.SaTokenUserUtil;
 import com.xiaou.common.satoken.StpUserUtil;
-import com.xiaou.common.utils.NotificationUtil;
 import com.xiaou.common.utils.PageHelper;
 import com.xiaou.common.utils.SensitiveWordUtils;
 import com.xiaou.community.domain.CommunityComment;
@@ -22,6 +21,8 @@ import com.xiaou.community.mapper.CommunityCommentLikeMapper;
 import com.xiaou.community.mapper.CommunityPostMapper;
 import com.xiaou.community.service.CommunityCommentService;
 import com.xiaou.community.service.CommunityUserStatusService;
+import com.xiaou.notification.api.NotificationCommand;
+import com.xiaou.notification.api.NotificationPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,7 @@ public class CommunityCommentServiceImpl implements CommunityCommentService {
     private final CommunityCommentLikeMapper communityCommentLikeMapper;
     private final CommunityPostMapper communityPostMapper;
     private final CommunityUserStatusService communityUserStatusService;
+    private final NotificationPublisher notificationPublisher;
     
     @Override
     public PageResult<CommunityComment> getAdminCommentList(AdminCommentQueryRequest request) {
@@ -170,23 +172,23 @@ public class CommunityCommentServiceImpl implements CommunityCommentService {
                 // 对帖子的评论，通知帖子作者
                 CommunityPost post = communityPostMapper.selectById(postId);
                 if (post != null && !currentUserId.equals(post.getAuthorId())) {
-                    NotificationUtil.sendCommunityMessage(
+                    notificationPublisher.publish(NotificationCommand.community(
                         post.getAuthorId(),
                         "您的帖子收到新评论",
                         "用户 " + username + " 评论了您的帖子《" + post.getTitle() + "》",
                         postId.toString()
-                    );
+                    ));
                 }
             } else {
                 // 对评论的回复，通知被回复的评论作者
                 CommunityComment parentComment = communityCommentMapper.selectById(request.getParentId());
                 if (parentComment != null && !currentUserId.equals(parentComment.getAuthorId())) {
-                    NotificationUtil.sendCommunityMessage(
+                    notificationPublisher.publish(NotificationCommand.community(
                         parentComment.getAuthorId(),
                         "您的评论收到新回复",
                         "用户 " + username + " 回复了您的评论",
                         comment.getId().toString()
-                    );
+                    ));
                 }
             }
         } catch (Exception e) {
@@ -238,12 +240,12 @@ public class CommunityCommentServiceImpl implements CommunityCommentService {
         // 发送消息通知：通知评论作者
         if (!currentUserId.equals(comment.getAuthorId())) {
             try {
-                NotificationUtil.sendCommunityMessage(
+                notificationPublisher.publish(NotificationCommand.community(
                     comment.getAuthorId(),
                     "您的评论收到新点赞",
                     "用户 " + username + " 点赞了您的评论",
                     commentId.toString()
-                );
+                ));
             } catch (Exception e) {
                 log.warn("发送评论点赞通知失败，用户ID: {}, 评论ID: {}, 错误: {}", 
                         currentUserId, commentId, e.getMessage());
@@ -383,12 +385,12 @@ public class CommunityCommentServiceImpl implements CommunityCommentService {
         // 发送消息通知：通知被回复的用户
         if (!currentUserId.equals(request.getReplyToUserId())) {
             try {
-                NotificationUtil.sendCommunityMessage(
+                notificationPublisher.publish(NotificationCommand.community(
                     request.getReplyToUserId(),
                     "您的评论收到新回复",
                     "用户 " + username + " 回复了您：" + content,
                     parentComment.getPostId().toString()
-                );
+                ));
             } catch (Exception e) {
                 log.warn("发送评论回复通知失败，用户ID: {}, 评论ID: {}, 错误: {}", 
                         currentUserId, commentId, e.getMessage());
@@ -459,4 +461,4 @@ public class CommunityCommentServiceImpl implements CommunityCommentService {
         
         return response;
     }
-} 
+}

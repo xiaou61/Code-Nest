@@ -4,23 +4,14 @@
 from __future__ import annotations
 
 import argparse
-import io
+import json
 import re
 import tarfile
 from pathlib import Path, PurePosixPath
 
+from release_manifest import ReleaseManifest
 
-REQUIRED_FILES = {
-    "RELEASE",
-    "VERSION",
-    "backend/app.jar",
-    "user/index.html",
-    "admin/index.html",
-    "scripts/deploy-release.sh",
-    "scripts/db-migrate.py",
-    "scripts/release-smoke-test.py",
-    "sql/v2.5.3/production_governance.sql",
-}
+MANIFEST_MEMBER = "release-manifest.json"
 
 
 def main() -> int:
@@ -41,7 +32,17 @@ def main() -> int:
         ]
         if unsafe:
             raise SystemExit(f"unsafe archive paths: {unsafe[:3]}")
-        missing = sorted(REQUIRED_FILES - names)
+        if MANIFEST_MEMBER not in names:
+            raise SystemExit(f"release bundle missing: {MANIFEST_MEMBER}")
+        manifest_payload = json.loads(read_member(archive, MANIFEST_MEMBER))
+        manifest = ReleaseManifest(Path.cwd(), manifest_payload)
+        definition_errors = manifest.validate_definition()
+        if definition_errors:
+            raise SystemExit("invalid bundled release manifest: " + "; ".join(definition_errors))
+        if manifest.get("bundle.manifestPath") != MANIFEST_MEMBER:
+            raise SystemExit(f"bundle.manifestPath must be {MANIFEST_MEMBER}")
+        required_files = set(manifest_payload["bundle"]["requiredPaths"])
+        missing = sorted(required_files - names)
         if missing:
             raise SystemExit(f"release bundle missing: {', '.join(missing)}")
         release = read_member(archive, "RELEASE")
@@ -52,11 +53,13 @@ def main() -> int:
         for line in release.splitlines()
         if "=" in line
     )
-    expected = f"v{version}"
+    if version != manifest.version:
+        raise SystemExit(f"VERSION must be {manifest.version}")
+    expected = manifest.release_version
     if metadata.get("version") != expected:
         raise SystemExit(f"RELEASE version must be {expected}")
-    if metadata.get("schema_version") != expected:
-        raise SystemExit(f"RELEASE schema_version must be {expected}")
+    if metadata.get("schema_version") != manifest.schema_version:
+        raise SystemExit(f"RELEASE schema_version must be {manifest.schema_version}")
     if not metadata.get("sha") or (
         metadata["sha"] != "unknown" and not re.fullmatch(r"[0-9a-f]{40}", metadata["sha"])
     ):

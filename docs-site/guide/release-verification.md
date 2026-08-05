@@ -29,7 +29,7 @@ Code Nest 是多模块后端、两个 Vue 前端、独立文档站和多个可�
 | 只改 `docs-site/**` | `cd docs-site && npm run build`，再检查搜索和深层路由 |
 | 只改用户端页面 | `cd vue3-user-front && npm run build`，再手工打开对应路由 |
 | 只改管理端页面 | `cd vue3-admin-front && npm run build`，再手工打开对应路由 |
-| 改后端 Controller、Service、Mapper、配置 | `mvn -pl xiaou-application -am clean package -DskipTests`，再跑相关接口或页面 |
+| 改后端 Controller、Service、Mapper、配置 | `mvn -pl xiaou-bootstrap -am clean package -DskipTests`，再跑相关接口或页面 |
 | 改 AI Runtime、Prompt、Schema、Graph、RAG | AI 单元/回归测试 + 管理端 AI 配置页 + 必要时 RAG sidecar |
 | 改 OJ 判题 | 后端构建 + go-judge 健康 + 至少一次 `/oj/run` 或 `/oj/test` |
 | 改聊天 | 后端构建 + 用户端构建 + WebSocket ws-ticket 连接 + 消息发送和失败态 |
@@ -42,10 +42,10 @@ Code Nest 是多模块后端、两个 Vue 前端、独立文档站和多个可�
 后端聚合构建：
 
 ```powershell
-mvn -pl xiaou-application -am clean package -DskipTests
+mvn -pl xiaou-bootstrap -am clean package -DskipTests
 ```
 
-构建成功标志：控制台显示 `BUILD SUCCESS`，产物在 `xiaou-application/target/xiaou-application-*.jar`。
+构建成功标志：控制台显示 `BUILD SUCCESS`，产物在 `xiaou-bootstrap/target/xiaou-bootstrap-*.jar`。
 
 用户端构建：
 
@@ -312,7 +312,7 @@ mvn -pl xiaou-ai -am "-Dtest=AiSceneRegressionEvalTest" "-Dsurefire.failIfNoSpec
 | # | 检查项 | 验证方法 | 预期 |
 | --- | --- | --- | --- |
 | 1 | Git 状态干净 | `git status` | 只有本次变更 |
-| 2 | 后端构建通过 | `mvn -pl xiaou-application -am clean package -DskipTests` | `BUILD SUCCESS` |
+| 2 | 后端构建通过 | `mvn -pl xiaou-bootstrap -am clean package -DskipTests` | `BUILD SUCCESS` |
 | 3 | 用户端构建通过 | `cd vue3-user-front && npm run build` | `built in Xms` |
 | 4 | 管理端构建通过 | `cd vue3-admin-front && npm run build` | `built in Xms` |
 | 5 | 文档构建通过 | `cd docs-site && npm run build` | `built in Xms` |
@@ -364,7 +364,7 @@ mvn -pl xiaou-ai -am "-Dtest=AiSceneRegressionEvalTest" "-Dsurefire.failIfNoSpec
 | 改了什么 | 至少跑什么 |
 | --- | --- |
 | 只改文档 | `cd docs-site && npm run build` + 搜索 + 深层路由 |
-| 后端普通业务 | `mvn -pl xiaou-application -am clean package -DskipTests` + 相关接口 |
+| 后端普通业务 | `mvn -pl xiaou-bootstrap -am clean package -DskipTests` + 相关接口 |
 | AI Runtime | AI 回归命令 + 管理端场景调试 |
 | OJ | `mvn -pl xiaou-oj -am test` + go-judge 联调 |
 | 模拟面试/求职 | `mvn -pl xiaou-mock-interview -am test` + 页面流程 |

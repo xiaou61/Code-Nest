@@ -17,7 +17,7 @@ Code Nest 的生产监控基线由 Prometheus、Alertmanager、Grafana、Node Ex
 | `docker/monitoring/grafana/dashboards` | 自动 provision 的应用与 SRE Dashboard |
 | `scripts/verify-production-baseline.sh` | 生产健康、边界、权限、容量与配置漂移检查 |
 | `scripts/sre-alertmanager-e2e.py` | 固定合成告警的 firing/幂等/evidence/resolved 演练 |
-| `xiaou-application/src/main/resources/application.yml` | Actuator/Micrometer 配置 |
+| `xiaou-bootstrap/src/main/resources/application.yml` | Actuator/Micrometer 配置 |
 | `xiaou-ai/src/main/java/com/xiaou/ai/metrics` | AI Runtime 指标聚合 |
 | `/system/ai-governance` | AI 质量治理中心 |
 | `/system/ai-config` | AI 配置、回归、指标和 RAG 调试 |

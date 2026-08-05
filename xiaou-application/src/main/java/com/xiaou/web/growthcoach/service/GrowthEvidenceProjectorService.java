@@ -9,6 +9,7 @@ import com.xiaou.web.growthcoach.evidence.GrowthEvidenceAdapter;
 import com.xiaou.web.growthcoach.evidence.GrowthEvidenceProjection;
 import com.xiaou.web.growthcoach.mapper.GrowthEvidenceMapper;
 import com.xiaou.web.growthcoach.mapper.GrowthEvidenceProjectionCursorMapper;
+import com.xiaou.web.growthcoach.port.GrowthEvidenceSourceCatalog;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,7 +37,7 @@ public class GrowthEvidenceProjectorService {
 
     private final GrowthEvidenceMapper evidenceMapper;
     private final GrowthEvidenceProjectionCursorMapper cursorMapper;
-    private final List<GrowthEvidenceAdapter> adapters;
+    private final GrowthEvidenceSourceCatalog sourceCatalog;
     private final GrowthCoachProperties properties;
     private final ObjectMapper objectMapper;
 
@@ -45,7 +46,7 @@ public class GrowthEvidenceProjectorService {
         if (userId == null || userId <= 0 || !isProjectionEnabled()) {
             return;
         }
-        for (GrowthEvidenceAdapter adapter : adapters) {
+        for (GrowthEvidenceAdapter adapter : sourceCatalog.adapters()) {
             refreshAdapter(userId, adapter);
         }
     }
