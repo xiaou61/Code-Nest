@@ -1,15 +1,15 @@
 {
   "manifestSchema": 1,
-  "version": "2.5.6",
-  "releaseVersion": "v2.5.6",
-  "mavenRevision": "v2.5.6",
+  "version": "2.5.7",
+  "releaseVersion": "v2.5.7",
+  "mavenRevision": "v2.5.7",
   "database": {
     "schemaVersion": "v2.5.3",
     "requiredMigration": "sql/v2.5.3/production_governance.sql"
   },
   "docker": {
     "image": "code-nest",
-    "tag": "v2.5.6"
+    "tag": "v2.5.7"
   },
   "artifacts": {
     "backend": {
