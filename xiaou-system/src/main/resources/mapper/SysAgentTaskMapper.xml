@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.system.mapper.SysAgentTaskMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.system.domain.SysAgentTask">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="task_id" property="taskId" jdbcType="VARCHAR"/>
+        <result column="goal" property="goal" jdbcType="VARCHAR"/>
+        <result column="session_id" property="sessionId" jdbcType="VARCHAR"/>
+        <result column="workflow_context_json" property="workflowContextJson" jdbcType="LONGVARCHAR"/>
+        <result column="status" property="status" jdbcType="VARCHAR"/>
+        <result column="operator_id" property="operatorId" jdbcType="BIGINT"/>
+        <result column="operator_name" property="operatorName" jdbcType="VARCHAR"/>
+        <result column="max_steps" property="maxSteps" jdbcType="INTEGER"/>
+        <result column="completed_steps" property="completedSteps" jdbcType="INTEGER"/>
+        <result column="current_step_order" property="currentStepOrder" jdbcType="INTEGER"/>
+        <result column="pending_audit_id" property="pendingAuditId" jdbcType="VARCHAR"/>
+        <result column="terminal_code" property="terminalCode" jdbcType="VARCHAR"/>
+        <result column="terminal_reason" property="terminalReason" jdbcType="VARCHAR"/>
+        <result column="lease_owner" property="leaseOwner" jdbcType="VARCHAR"/>
+        <result column="claimed_at" property="claimedAt" jdbcType="TIMESTAMP"/>
+        <result column="heartbeat_at" property="heartbeatAt" jdbcType="TIMESTAMP"/>
+        <result column="cancelled_by" property="cancelledBy" jdbcType="BIGINT"/>
+        <result column="cancel_reason" property="cancelReason" jdbcType="VARCHAR"/>
+        <result column="cancelled_at" property="cancelledAt" jdbcType="TIMESTAMP"/>
+        <result column="completed_at" property="completedAt" jdbcType="TIMESTAMP"/>
+        <result column="created_time" property="createdTime" jdbcType="TIMESTAMP"/>
+        <result column="updated_time" property="updatedTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, task_id, goal, session_id, workflow_context_json, status, operator_id, operator_name,
+        max_steps, completed_steps, current_step_order, pending_audit_id,
+        terminal_code, terminal_reason, lease_owner, claimed_at, heartbeat_at,
+        cancelled_by, cancel_reason, cancelled_at, completed_at, created_time, updated_time
+    </sql>
+
+    <insert id="insert" parameterType="com.xiaou.system.domain.SysAgentTask"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_agent_task (
+            task_id, goal, session_id, workflow_context_json, status, operator_id, operator_name,
+            max_steps, completed_steps, current_step_order, pending_audit_id,
+            terminal_code, terminal_reason, lease_owner, claimed_at, heartbeat_at,
+            cancelled_by, cancel_reason, cancelled_at, completed_at, created_time, updated_time
+        ) VALUES (
+            #{taskId}, #{goal}, #{sessionId}, #{workflowContextJson}, #{status}, #{operatorId}, #{operatorName},
+            #{maxSteps}, #{completedSteps}, #{currentStepOrder}, #{pendingAuditId},
+            #{terminalCode}, #{terminalReason}, #{leaseOwner}, #{claimedAt}, #{heartbeatAt},
+            #{cancelledBy}, #{cancelReason}, #{cancelledAt}, #{completedAt}, #{createdTime}, #{updatedTime}
+        )
+    </insert>
+
+    <select id="selectByTaskId" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM sys_agent_task
+        WHERE task_id = #{taskId}
+        LIMIT 1
+    </select>
+
+    <select id="selectOwned" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM sys_agent_task
+        WHERE task_id = #{taskId}
+          AND operator_id = #{operatorId}
+        LIMIT 1
+    </select>
+
+    <select id="selectOwnedList" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM sys_agent_task
+        WHERE operator_id = #{operatorId}
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        ORDER BY created_time DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectClaimableIds" resultType="java.lang.String">
+        SELECT task_id
+        FROM sys_agent_task
+        WHERE status = 'QUEUED'
+        ORDER BY created_time ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectStaleRunningIds" resultType="java.lang.String">
+        SELECT task_id
+        FROM sys_agent_task
+        WHERE status = 'RUNNING'
+          AND COALESCE(heartbeat_at, claimed_at, updated_time) &lt;= #{staleBefore}
+        ORDER BY COALESCE(heartbeat_at, claimed_at, updated_time) ASC
+        LIMIT #{limit}
+    </select>
+
+    <update id="claim">
+        UPDATE sys_agent_task
+        SET status = 'RUNNING', lease_owner = #{leaseOwner}, claimed_at = #{claimedAt},
+            heartbeat_at = #{claimedAt}, updated_time = CURRENT_TIMESTAMP
+        WHERE task_id = #{taskId}
+          AND status = 'QUEUED'
+    </update>
+
+    <update id="heartbeat">
+        UPDATE sys_agent_task
+        SET heartbeat_at = #{heartbeatAt}, updated_time = CURRENT_TIMESTAMP
+        WHERE task_id = #{taskId}
+          AND status = 'RUNNING'
+          AND lease_owner = #{leaseOwner}
+    </update>
+
+    <update id="transition" parameterType="com.xiaou.system.domain.SysAgentTask">
+        UPDATE sys_agent_task
+        SET status = #{status},
+            workflow_context_json = #{workflowContextJson},
+            completed_steps = #{completedSteps},
+            current_step_order = #{currentStepOrder},
+            pending_audit_id = #{pendingAuditId},
+            terminal_code = #{terminalCode},
+            terminal_reason = #{terminalReason},
+            lease_owner = #{leaseOwner},
+            claimed_at = #{claimedAt},
+            heartbeat_at = #{heartbeatAt},
+            completed_at = #{completedAt},
+            updated_time = #{updatedTime}
+        WHERE task_id = #{taskId}
+          AND status = #{expectedStatus}
+        <if test="expectedLeaseOwner != null and expectedLeaseOwner != ''">
+          AND lease_owner = #{expectedLeaseOwner}
+        </if>
+    </update>
+
+    <update id="transitionStale">
+        UPDATE sys_agent_task
+        SET status = #{task.status},
+            workflow_context_json = #{task.workflowContextJson},
+            completed_steps = #{task.completedSteps},
+            current_step_order = #{task.currentStepOrder},
+            pending_audit_id = #{task.pendingAuditId},
+            terminal_code = #{task.terminalCode},
+            terminal_reason = #{task.terminalReason},
+            lease_owner = #{task.leaseOwner},
+            claimed_at = #{task.claimedAt},
+            heartbeat_at = #{task.heartbeatAt},
+            completed_at = #{task.completedAt},
+            updated_time = #{task.updatedTime}
+        WHERE task_id = #{task.taskId}
+          AND status = #{task.expectedStatus}
+          AND lease_owner = #{task.expectedLeaseOwner}
+          AND COALESCE(heartbeat_at, claimed_at, updated_time) &lt;= #{staleBefore}
+    </update>
+
+    <update id="cancelOwned">
+        UPDATE sys_agent_task
+        SET status = 'CANCELLED', cancelled_by = #{operatorId}, cancel_reason = #{reason},
+            cancelled_at = #{cancelledAt}, completed_at = #{cancelledAt},
+            terminal_code = 'CANCELLED_BY_OPERATOR', terminal_reason = #{reason},
+            lease_owner = NULL, heartbeat_at = #{cancelledAt}, updated_time = #{cancelledAt}
+        WHERE task_id = #{taskId}
+          AND operator_id = #{operatorId}
+          AND status IN ('QUEUED', 'RUNNING', 'WAITING_CONFIRMATION', 'WAITING_INPUT', 'PAUSED')
+    </update>
+
+    <select id="countByStatus" resultType="long">
+        SELECT COUNT(1)
+        FROM sys_agent_task
+        WHERE status = #{status}
+    </select>
+</mapper>

@@ -1,15 +1,15 @@
 {
   "manifestSchema": 1,
-  "version": "2.5.8",
-  "releaseVersion": "v2.5.8",
-  "mavenRevision": "v2.5.8",
+  "version": "2.5.10",
+  "releaseVersion": "v2.5.10",
+  "mavenRevision": "v2.5.10",
   "database": {
-    "schemaVersion": "v2.5.3",
-    "requiredMigration": "sql/v2.5.3/production_governance.sql"
+    "schemaVersion": "v2.5.10",
+    "requiredMigration": "sql/v2.5.10/admin_agent_workflow_control_plane.sql"
   },
   "docker": {
     "image": "code-nest",
-    "tag": "v2.5.8"
+    "tag": "v2.5.10"
   },
   "artifacts": {
     "backend": {
@@ -49,7 +49,8 @@
       "scripts/db-migrate.py",
       "scripts/release_manifest.py",
       "scripts/release-smoke-test.py",
-      "sql/v2.5.3/production_governance.sql"
+      "sql/v2.5.9/admin_agent_tasks.sql",
+      "sql/v2.5.10/admin_agent_workflow_control_plane.sql"
     ]
   },
   "projections": {

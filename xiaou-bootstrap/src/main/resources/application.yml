@@ -203,6 +203,17 @@ management:
         http.server.requests: 10ms, 50ms, 100ms, 200ms, 500ms, 1s, 2s, 5s
 
 xiaou:
+  admin-agent:
+    task:
+      # Apply sql/v2.5.9/admin_agent_tasks.sql before enabling this worker.
+      enabled: ${XIAOU_ADMIN_AGENT_TASK_ENABLED:false}
+      batch-size: ${XIAOU_ADMIN_AGENT_TASK_BATCH_SIZE:2}
+      max-steps: ${XIAOU_ADMIN_AGENT_TASK_MAX_STEPS:5}
+      lease-seconds: ${XIAOU_ADMIN_AGENT_TASK_LEASE_SECONDS:300}
+      fixed-delay-ms: ${XIAOU_ADMIN_AGENT_TASK_FIXED_DELAY_MS:2000}
+      initial-delay-ms: ${XIAOU_ADMIN_AGENT_TASK_INITIAL_DELAY_MS:10000}
+      max-result-json-chars: ${XIAOU_ADMIN_AGENT_TASK_MAX_RESULT_JSON_CHARS:50000}
+      max-summary-chars: ${XIAOU_ADMIN_AGENT_TASK_MAX_SUMMARY_CHARS:1000}
   ai:
     enabled: true
     provider: ${XIAOU_AI_PROVIDER:openai-compatible}

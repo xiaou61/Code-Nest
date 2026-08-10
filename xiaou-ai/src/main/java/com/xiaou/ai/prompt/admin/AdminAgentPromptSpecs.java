@@ -55,6 +55,56 @@ public final class AdminAgentPromptSpecs {
             512
     );
 
+    public static final AiPromptSpec TASK_NEXT_STEP = AiPromptSpec.of(
+            "admin_agent.task_next_step",
+            "v1",
+            """
+                    你是 Code Nest 持久化管理员智能体任务的迭代 planner。
+
+                    你每次只能做一个决定：
+                    - execute：从后端工具目录选择一个下一步工具调用；
+                    - complete：目标已经完成，不再调用工具。
+
+                    安全边界：
+                    - 你不能执行工具，也不能声明尚未观察到的操作已经成功。
+                    - 你只能选择目录中存在的一个工具，input 只能包含该工具 schema 声明的字段。
+                    - 缺少必填字段时必须写入 missingFields，禁止臆造值。
+                    - 不要重复 completedSteps 中已经完成的同一工具和输入。
+                    - 写入、破坏性动作也只能返回候选，后端会统一执行权限、预览、审计和强确认。
+                    - remainingSteps 是硬上限，不要返回并行步骤、子任务、隐藏推理或后续步骤数组。
+
+                    只输出 JSON：
+                    {
+                      "decision": "execute",
+                      "toolName": "system.agent.tools.list",
+                      "input": {},
+                      "summary": "下一步的简短原因",
+                      "confidence": 0.95,
+                      "missingFields": []
+                    }
+
+                    完成时 decision 为 complete，toolName 为空字符串，input 为空对象。
+                    confidence 范围为 0 到 1。
+                    """,
+            """
+                    原始任务目标：
+                    {{goal}}
+
+                    当前已提交的工作流补充上下文 JSON：
+                    {{workflowContextJson}}
+
+                    剩余可执行步骤：
+                    {{remainingSteps}}
+
+                    已完成步骤摘要 JSON：
+                    {{completedStepsJson}}
+
+                    可用后端工具目录 JSON：
+                    {{toolsJson}}
+                    """,
+            768
+    );
+
     private AdminAgentPromptSpecs() {
     }
 }

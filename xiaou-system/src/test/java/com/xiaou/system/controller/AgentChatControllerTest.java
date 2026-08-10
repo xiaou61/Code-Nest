@@ -9,6 +9,7 @@ import com.xiaou.ai.prompt.admin.AdminAgentPromptSpecs;
 import com.xiaou.ai.support.AiExecutionSupport;
 import com.xiaou.system.agent.AgentChatOrchestrator;
 import com.xiaou.system.agent.AgentOperator;
+import com.xiaou.system.agent.AgentOperatorResolver;
 import com.xiaou.system.agent.AgentPlanResolution;
 import com.xiaou.system.agent.AgentPolicyEngine;
 import com.xiaou.system.agent.AgentSessionContextStore;
@@ -92,7 +93,7 @@ class AgentChatControllerTest {
     void shouldResolveOperatorAndDelegateToOrchestrator() {
         AgentChatOrchestrator orchestrator = mock(AgentChatOrchestrator.class);
         SysAdminService adminService = mock(SysAdminService.class);
-        AgentChatController controller = new AgentChatController(orchestrator, adminService);
+        AgentChatController controller = new AgentChatController(orchestrator, new AgentOperatorResolver(adminService));
 
         SysAdmin admin = new SysAdmin();
         admin.setId(7L);
@@ -134,7 +135,7 @@ class AgentChatControllerTest {
     void shouldFallbackToAdminIdWhenOperatorNameCannotBeResolved() {
         AgentChatOrchestrator orchestrator = mock(AgentChatOrchestrator.class);
         SysAdminService adminService = mock(SysAdminService.class);
-        AgentChatController controller = new AgentChatController(orchestrator, adminService);
+        AgentChatController controller = new AgentChatController(orchestrator, new AgentOperatorResolver(adminService));
 
         when(adminService.getById(7L)).thenThrow(new IllegalStateException("admin service unavailable"));
         when(orchestrator.chat(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
@@ -156,7 +157,7 @@ class AgentChatControllerTest {
         AgentChatOrchestrator orchestrator = mock(AgentChatOrchestrator.class);
         SysAdminService adminService = mock(SysAdminService.class);
         MockMvc mockMvc = MockMvcBuilders
-                .standaloneSetup(new AgentChatController(orchestrator, adminService))
+                .standaloneSetup(new AgentChatController(orchestrator, new AgentOperatorResolver(adminService)))
                 .build();
         AgentChatRequest request = new AgentChatRequest();
         request.setSessionId("session-1");
@@ -211,7 +212,7 @@ class AgentChatControllerTest {
         when(adminService.getAdminPermissions(7L)).thenReturn(List.of("agent:release:blockers:read"));
 
         MockMvc mockMvc = MockMvcBuilders
-                .standaloneSetup(new AgentChatController(orchestrator, adminService))
+                .standaloneSetup(new AgentChatController(orchestrator, new AgentOperatorResolver(adminService)))
                 .build();
 
         try (MockedStatic<StpAdminUtil> stpAdminUtil = mockStatic(StpAdminUtil.class)) {

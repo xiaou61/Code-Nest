@@ -19,6 +19,17 @@ public final class AdminAgentStructuredOutputSpecs {
                     .requireStringArray("missingFields")
     );
 
+    public static final AiStructuredOutputSpec TASK_NEXT_STEP = AiStructuredOutputSpec.object(
+            AdminAgentPromptSpecs.TASK_NEXT_STEP,
+            validator -> validator
+                    .requireString("decision")
+                    .requireString("toolName")
+                    .requireObject("input")
+                    .requireString("summary")
+                    .requireNumberRange("confidence", 0D, 1D)
+                    .requireStringArray("missingFields")
+    );
+
     private AdminAgentStructuredOutputSpecs() {
     }
 }

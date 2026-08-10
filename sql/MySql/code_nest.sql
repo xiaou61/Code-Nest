@@ -2653,6 +2653,96 @@ CREATE TABLE `sys_agent_session_context`  (
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '管理员智能体会话上下文表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
+-- Table structure for sys_agent_task
+-- ----------------------------
+DROP TABLE IF EXISTS `sys_agent_task`;
+CREATE TABLE `sys_agent_task`  (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `task_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `goal` varchar(4000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `session_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `workflow_context_json` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'Bounded operator context for task planner',
+  `status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'QUEUED',
+  `operator_id` bigint NOT NULL,
+  `operator_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `max_steps` int NOT NULL DEFAULT 5,
+  `completed_steps` int NOT NULL DEFAULT 0,
+  `current_step_order` int NOT NULL DEFAULT 0,
+  `pending_audit_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `terminal_code` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `terminal_reason` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `lease_owner` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `claimed_at` datetime NULL DEFAULT NULL,
+  `heartbeat_at` datetime NULL DEFAULT NULL,
+  `cancelled_by` bigint NULL DEFAULT NULL,
+  `cancel_reason` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `cancelled_at` datetime NULL DEFAULT NULL,
+  `completed_at` datetime NULL DEFAULT NULL,
+  `created_time` datetime NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_time` datetime NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_agent_task_id`(`task_id` ASC) USING BTREE,
+  INDEX `idx_agent_task_owner_created`(`operator_id` ASC, `created_time` DESC) USING BTREE,
+  INDEX `idx_agent_task_status_created`(`status` ASC, `created_time` ASC) USING BTREE,
+  INDEX `idx_agent_task_recovery`(`status` ASC, `heartbeat_at` ASC) USING BTREE,
+  INDEX `idx_agent_task_pending_audit`(`pending_audit_id` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '管理员智能体持久化任务表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for sys_agent_task_step
+-- ----------------------------
+DROP TABLE IF EXISTS `sys_agent_task_step`;
+CREATE TABLE `sys_agent_task_step`  (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `task_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `step_order` int NOT NULL,
+  `tool_name` varchar(160) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `input_json` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `input_fingerprint` varchar(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `input_summary` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `planner_fallback` tinyint(1) NOT NULL DEFAULT 0,
+  `risk_level` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `risk_category` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PENDING',
+  `audit_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `confirmation_text` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `trace_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `result_summary` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `result_json` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `error_message` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `started_at` datetime NULL DEFAULT NULL,
+  `completed_at` datetime NULL DEFAULT NULL,
+  `created_time` datetime NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_time` datetime NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_agent_task_step_order`(`task_id` ASC, `step_order` ASC) USING BTREE,
+  UNIQUE INDEX `uk_agent_task_step_audit`(`audit_id` ASC) USING BTREE,
+  INDEX `idx_agent_task_step_status`(`task_id` ASC, `status` ASC) USING BTREE,
+  INDEX `idx_agent_task_step_fingerprint`(`task_id` ASC, `input_fingerprint` ASC) USING BTREE,
+  INDEX `idx_agent_task_step_updated`(`status` ASC, `updated_time` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '管理员智能体持久化任务步骤表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for sys_agent_task_event
+-- ----------------------------
+DROP TABLE IF EXISTS `sys_agent_task_event`;
+CREATE TABLE `sys_agent_task_event`  (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `task_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `event_type` varchar(80) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `step_order` int NULL DEFAULT NULL,
+  `actor_type` varchar(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `actor_id` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `from_status` varchar(32) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL,
+  `to_status` varchar(32) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL,
+  `detail_json` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  `created_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_agent_task_event_task_cursor` (`task_id` ASC, `id` ASC) USING BTREE,
+  INDEX `idx_agent_task_event_type_created` (`event_type` ASC, `created_time` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '管理员智能体工作流事件时间线' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
 -- Table structure for sys_permission
 -- ----------------------------
 DROP TABLE IF EXISTS `sys_permission`;

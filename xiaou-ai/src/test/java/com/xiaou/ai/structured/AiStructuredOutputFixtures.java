@@ -26,6 +26,10 @@ final class AiStructuredOutputFixtures {
                 """
                         {"toolName":"chat.userBan.unban","input":{"userId":88},"confidence":0.92,"missingFields":[]}
                         """);
+        fixtures.put("admin_agent.task_next_step:v1",
+                """
+                        {"decision":"EXECUTE","toolName":"system.health.read","input":{},"summary":"检查当前系统健康状态。","confidence":0.91,"missingFields":[]}
+                        """);
 
         fixtures.put("community.post_summary:v1",
                 """

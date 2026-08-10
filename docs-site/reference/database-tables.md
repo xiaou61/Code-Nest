@@ -6,11 +6,11 @@
 
 ## 表统计总览
 
-当前主库基线包含 161 张表，按业务域分布：
+当前主库基线实际包含 175 张表；下表按核心业务域列出主要表数量，跨域成长证据、发布治理等支撑表不重复计入：
 
 | 业务域 | 表数量 | 模块 | 表前缀 |
 | --- | --- | --- | --- |
-| 账号、权限与智能体审计 | 10 | xiaou-user, xiaou-system | `user_info`, `sys_*` |
+| 账号、权限与智能体审计 | 13 | xiaou-user, xiaou-system | `user_info`, `sys_*` |
 | 面试题库 | 8 | xiaou-interview | `interview_*` |
 | 模拟面试与求职 | 10 | xiaou-mock-interview | `mock_interview_*`, `career_loop_*`, `job_battle_*` |
 | 成长与计划 | 7 | xiaou-plan | `growth_autopilot_*`, `user_plan`, `plan_*`, `learning_cockpit_*` |
@@ -90,6 +90,9 @@
 | 操作日志 | `sys_operation_log` | module, operation, method, params, user_id | xiaou-system |
 | 智能体审计 | `sys_agent_audit` | audit_id, action_id, risk_category, status, operator_id | xiaou-system |
 | 智能体会话上下文 | `sys_agent_session_context` | session_id, turns_json, updated_time | xiaou-system |
+| 智能体持久任务 | `sys_agent_task` | task_id, operator_id, status, workflow_context_json, lease_token | xiaou-system |
+| 智能体任务步骤 | `sys_agent_task_step` | task_id, step_order, tool_name, status, trace_id, audit_id | xiaou-system |
+| 智能体任务事件 | `sys_agent_task_event` | task_id, event_type, actor_type, from_status, to_status | xiaou-system |
 
 ## 学习成长
 

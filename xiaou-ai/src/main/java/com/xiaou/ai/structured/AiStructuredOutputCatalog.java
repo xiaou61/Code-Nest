@@ -21,6 +21,7 @@ public final class AiStructuredOutputCatalog {
 
     private static final List<AiStructuredOutputSpec> SPECS = List.of(
             AdminAgentStructuredOutputSpecs.PLAN,
+            AdminAgentStructuredOutputSpecs.TASK_NEXT_STEP,
             CommunityStructuredOutputSpecs.POST_SUMMARY,
             CodeReviewStructuredOutputSpecs.CODEPEN_REVIEW,
             GrowthCoachStructuredOutputSpecs.PLAN_ADJUSTMENT_INTENT,

@@ -19,6 +19,12 @@ python scripts/db-migrate.py --baseline --baseline-to v2.5.2
 python scripts/db-migrate.py --apply
 ```
 
+For the `v2.5.10` release from a `v2.5.8` baseline, the runner applies
+`sql/v2.5.9/admin_agent_tasks.sql` before
+`sql/v2.5.10/admin_agent_workflow_control_plane.sql`. Keep the administrator
+agent task Worker disabled until both migrations and the task-event metrics are
+verified.
+
 Do not edit an applied SQL file. Add a new version directory instead. The
 runner stops on checksum drift or the first failed migration and records the
 failure. A failed row blocks future applies until an operator explicitly uses

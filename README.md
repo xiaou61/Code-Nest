@@ -1,6 +1,6 @@
 # Code Nest
 
-![Version](https://img.shields.io/badge/version-v2.5.8-blue.svg)
+![Version](https://img.shields.io/badge/version-v2.5.10-blue.svg)
 ![Java](https://img.shields.io/badge/java-17-orange.svg)
 ![Spring Boot](https://img.shields.io/badge/spring%20boot-3.4.4-brightgreen.svg)
 ![Vue](https://img.shields.io/badge/vue-3.x-4fc08d.svg)
@@ -9,6 +9,33 @@
 ## 📖 项目简介
 
 Code Nest 是一个面向开发者的成长型社区与知识运营平台，采用 Spring Boot 3.4.4 + Vue3 + Vite 的前后端分离架构，后台整合 Sa-Token 权限、Redisson 缓存、MySQL 题库/内容系统以及 Prometheus 监控指标，提供包含题库、面试辅导、学习资产转化引擎、知识图谱、博客、代码工坊、在线简历、IM 聊天、积分激励与抽奖等在内的多模块能力。
+
+## v2.5.10 Durable Agent Operations
+
+`v2.5.10` 把管理员持久任务从后端能力补齐为可操作、可追踪、可恢复的产品工作台，并强化多实例与长耗时执行下的租约正确性。
+
+- **任务工作台模式**：在原有对话旁提供持久任务入口，不清空当前会话；支持创建、状态筛选、最近任务和显式刷新。
+- **完整运行态**：展示生命周期、进度、持久步骤、结果、风险、trace/audit 标识和终态原因，移动端使用无裁切的步骤摘要。
+- **增量事件时间线**：按稳定 cursor 拉取、排序和去重，仅在工作台激活且任务未终止时轮询。
+- **受控人工干预**：按照后端状态机提供暂停、恢复、取消、结构化补充输入和精确强确认。
+- **租约可靠性**：任务领取使用唯一令牌，长周期自动续约，陈旧恢复使用原子 fencing，并隔离单任务恢复失败。
+- **安全兼容**：所有工具执行继续复用实时权限、policy、预览、审计和强确认；`/admin/agent/chat` 单工具契约保持不变。
+
+从 `v2.5.8` 升级时，依次应用 `sql/v2.5.9/admin_agent_tasks.sql` 与 `sql/v2.5.10/admin_agent_workflow_control_plane.sql`。Worker 默认关闭，完成迁移和指标验证后再单实例灰度开启。
+
+## v2.5.9 Admin Agent Workspace
+
+`v2.5.9` 将管理端智能体升级为全屏三栏工作台，并新增后端持久化、多步骤、可恢复的管理员任务运行时；原有 `/admin/agent/chat` 单工具契约保持兼容。
+
+- **多会话工作台**：支持会话搜索、新建/删除、浏览器端有界持久化以及 Markdown 导出。
+- **执行检查器**：集中展示计划、差异、结构化产物、下一步建议、风险、审计 ID 和耗时 trace。
+- **完整对话操作**：支持停止等待、重试、复制、强确认和取消；写入决策仍由后端 policy/audit 链路掌握。
+- **响应式与可访问性**：窄屏切换为侧边面板，图标按钮具备语义标签，动态回复通过 live region 播报。
+- **持久化多步骤任务**：`/admin/agent/tasks` 提供创建、列表、详情、强确认和取消接口，MySQL 保存任务与有序步骤，默认最多执行 5 步。
+- **统一安全链路**：每一步仍经过注册工具、实时角色/权限、policy、预览、强确认和审计；任务运行时不会直接调用工具实现。
+- **有界恢复与观测**：只读中断步骤可以从最近完成点重试；确认后终态不明的写步骤进入 `REQUIRES_REVIEW`，并输出队列深度、耗时、确认等待、取消和租约恢复指标。
+
+本版本新增 `sql/v2.5.9/admin_agent_tasks.sql`。任务 Worker 默认关闭，完成迁移并验证 Prometheus 指标后，通过 `XIAOU_ADMIN_AGENT_TASK_ENABLED=true` 在单实例灰度开启。
 
 ## v2.5.8 AI Reasoning Configuration
 
@@ -465,7 +492,7 @@ mvn clean package -DskipTests
 mvn -pl xiaou-bootstrap -am clean package -DskipTests
 
 # 或直接运行打包后的 jar
-java -jar xiaou-bootstrap/target/xiaou-bootstrap-v2.5.8.jar --spring.profiles.active=prod
+java -jar xiaou-bootstrap/target/xiaou-bootstrap-v2.5.10.jar --spring.profiles.active=prod
 ```
 
 - API 根地址：`http://localhost:9999/api`
@@ -633,7 +660,7 @@ management:
 
 ```bash
 # 构建镜像
-docker build -t code-nest:v2.5.8 -f docker/Dockerfile .
+docker build -t code-nest:v2.5.10 -f docker/Dockerfile .
 
 # 运行容器
 docker run -d \
@@ -641,7 +668,7 @@ docker run -d \
   -p 9999:9999 \
   -e SPRING_PROFILES_ACTIVE=prod \
   --env-file docker/env/example.env \
-  code-nest:v2.5.8
+  code-nest:v2.5.10
 ```
 
 如果要把 MySQL / Redis / Java 主服务 / `llamaindex-service` 一起编排起来，推荐使用：
@@ -712,6 +739,20 @@ server {
 ## 📝 更新日志
 
 仅列出最近版本，更多历史可查看 `git log`。
+
+### v2.5.10 Durable Agent Operations
+
+- **产品工作台**：任务创建、筛选、详情、步骤、终态和增量事件时间线形成完整监督闭环。
+- **人工控制**：暂停、恢复、取消、补充输入与强确认严格跟随后端状态机。
+- **执行可靠性**：唯一租约、周期续约、原子恢复 fencing 和单任务事务隔离降低重复推进风险。
+- **迁移边界**：依次执行 v2.5.9 与 v2.5.10 两段 SQL，schema 基线为 `v2.5.10`，Worker 保持默认关闭。
+
+### v2.5.9 Admin Agent Workspace
+
+- **一体化工作台**：全屏三栏布局统一会话、执行详情与结构化结果。
+- **会话生命周期**：提供有界本地历史、搜索、新建/删除、重试、复制和导出。
+- **安全边界**：前端仍只调用统一 chat 入口，写入动作继续由后端预览、强确认和审计。
+- **迁移边界**：新增 `sql/v2.5.9/admin_agent_tasks.sql`，schema 基线更新为 `v2.5.9`。
 
 ### v2.5.8 AI Reasoning Configuration
 

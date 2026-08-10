@@ -125,6 +125,55 @@ public class AgentChatOrchestrator {
         return response;
     }
 
+    /**
+     * Executes a pre-planned call only after resolving the named tool from the server registry.
+     * The registered tool still passes through the same policy, preview, confirmation, audit,
+     * metrics, tracing, and session path as a normal chat request.
+     */
+    public AgentChatResponse executeRegisteredCall(
+            AgentChatRequest request,
+            AgentOperator operator,
+            AgentToolCall requestedCall
+    ) {
+        AgentChatRequest safeRequest = request == null ? new AgentChatRequest() : request;
+        String sessionId = normalize(safeRequest.getSessionId());
+        Long currentOperatorId = operator == null ? null : operator.id();
+        AgentRuntimeTrace trace = AgentRuntimeTrace.start();
+        AgentSessionSnapshot sessionSnapshot = sessionContextStore.snapshot(sessionId, currentOperatorId);
+        AgentExecutionContext context = new AgentExecutionContext(
+                sessionId,
+                normalize(safeRequest.getMessage()),
+                operator,
+                trace,
+                sessionSnapshot
+        );
+        context.markTrace("request.received", "done", "execute registered tool call");
+        context.markTrace("session.loaded", "done",
+                "recentTurns=" + sessionSnapshot.getRecentTurns().size());
+
+        String requestedToolName = requestedCall == null ? "" : normalize(requestedCall.getToolName());
+        AgentChatResponse response = toolRegistry.find(requestedToolName)
+                .map(tool -> {
+                    AgentToolCall registeredCall = new AgentToolCall();
+                    registeredCall.setToolName(tool.definition().getName());
+                    registeredCall.setSummary(requestedCall.getSummary());
+                    registeredCall.setInput(requestedCall.getInput() == null
+                            ? new java.util.LinkedHashMap<>()
+                            : new java.util.LinkedHashMap<>(requestedCall.getInput()));
+                    return handleResolvedCall(
+                            safeRequest,
+                            context,
+                            new AgentResolvedToolCall(tool, registeredCall)
+                    );
+                })
+                .orElseGet(() -> toolNotFound(context, "任务计划指定的后端工具未注册，已拒绝执行。"));
+
+        sessionContextStore.record(safeRequest, response, currentOperatorId);
+        log.info("管理员智能体注册工具请求完成 traceId={}, status={}, toolName={}, operatorId={}",
+                response.getTraceId(), response.getStatus(), response.getToolName(), operatorId(context));
+        return response;
+    }
+
     private AgentChatResponse startNewAction(AgentChatRequest request, AgentExecutionContext context) {
         if (!StringUtils.hasText(context.message())) {
             return rejected(context, AgentChatErrorCode.EMPTY_MESSAGE, "你还没有输入要我处理的管理员请求。");

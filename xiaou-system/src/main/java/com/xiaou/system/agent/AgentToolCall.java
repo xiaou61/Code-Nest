@@ -11,7 +11,9 @@ import java.util.Map;
  * @author xiaou
  */
 @Data
-public class AgentToolCall {
+public class AgentToolCall implements java.io.Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private String toolName;
 

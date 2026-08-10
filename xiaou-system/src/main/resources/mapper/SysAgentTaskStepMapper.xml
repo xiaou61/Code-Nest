@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.system.mapper.SysAgentTaskStepMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.system.domain.SysAgentTaskStep">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="task_id" property="taskId" jdbcType="VARCHAR"/>
+        <result column="step_order" property="stepOrder" jdbcType="INTEGER"/>
+        <result column="tool_name" property="toolName" jdbcType="VARCHAR"/>
+        <result column="input_json" property="inputJson" jdbcType="LONGVARCHAR"/>
+        <result column="input_fingerprint" property="inputFingerprint" jdbcType="VARCHAR"/>
+        <result column="input_summary" property="inputSummary" jdbcType="VARCHAR"/>
+        <result column="planner_fallback" property="plannerFallback" jdbcType="BOOLEAN"/>
+        <result column="risk_level" property="riskLevel" jdbcType="VARCHAR"/>
+        <result column="risk_category" property="riskCategory" jdbcType="VARCHAR"/>
+        <result column="status" property="status" jdbcType="VARCHAR"/>
+        <result column="audit_id" property="auditId" jdbcType="VARCHAR"/>
+        <result column="confirmation_text" property="confirmationText" jdbcType="VARCHAR"/>
+        <result column="trace_id" property="traceId" jdbcType="VARCHAR"/>
+        <result column="result_summary" property="resultSummary" jdbcType="VARCHAR"/>
+        <result column="result_json" property="resultJson" jdbcType="LONGVARCHAR"/>
+        <result column="error_message" property="errorMessage" jdbcType="VARCHAR"/>
+        <result column="started_at" property="startedAt" jdbcType="TIMESTAMP"/>
+        <result column="completed_at" property="completedAt" jdbcType="TIMESTAMP"/>
+        <result column="created_time" property="createdTime" jdbcType="TIMESTAMP"/>
+        <result column="updated_time" property="updatedTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, task_id, step_order, tool_name, input_json, input_fingerprint, input_summary, planner_fallback,
+        risk_level, risk_category, status, audit_id, confirmation_text, trace_id,
+        result_summary, result_json, error_message, started_at, completed_at,
+        created_time, updated_time
+    </sql>
+
+    <insert id="insert" parameterType="com.xiaou.system.domain.SysAgentTaskStep"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_agent_task_step (
+            task_id, step_order, tool_name, input_json, input_fingerprint, input_summary, planner_fallback,
+            risk_level, risk_category, status, audit_id, confirmation_text, trace_id,
+            result_summary, result_json, error_message, started_at, completed_at,
+            created_time, updated_time
+        ) VALUES (
+            #{taskId}, #{stepOrder}, #{toolName}, #{inputJson}, #{inputFingerprint}, #{inputSummary}, #{plannerFallback},
+            #{riskLevel}, #{riskCategory}, #{status}, #{auditId}, #{confirmationText}, #{traceId},
+            #{resultSummary}, #{resultJson}, #{errorMessage}, #{startedAt}, #{completedAt},
+            #{createdTime}, #{updatedTime}
+        )
+    </insert>
+
+    <select id="selectByTaskAndOrder" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM sys_agent_task_step
+        WHERE task_id = #{taskId}
+          AND step_order = #{stepOrder}
+        LIMIT 1
+    </select>
+
+    <select id="selectLatest" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM sys_agent_task_step
+        WHERE task_id = #{taskId}
+        ORDER BY step_order DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectByAuditId" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM sys_agent_task_step
+        WHERE audit_id = #{auditId}
+        LIMIT 1
+    </select>
+
+    <select id="selectByTaskId" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM sys_agent_task_step
+        WHERE task_id = #{taskId}
+        ORDER BY step_order ASC
+    </select>
+
+    <update id="transition" parameterType="com.xiaou.system.domain.SysAgentTaskStep">
+        UPDATE sys_agent_task_step
+        SET status = #{status},
+            audit_id = #{auditId},
+            confirmation_text = #{confirmationText},
+            trace_id = #{traceId},
+            result_summary = #{resultSummary},
+            result_json = #{resultJson},
+            error_message = #{errorMessage},
+            started_at = #{startedAt},
+            completed_at = #{completedAt},
+            updated_time = #{updatedTime}
+        WHERE task_id = #{taskId}
+          AND step_order = #{stepOrder}
+          AND status = #{expectedStatus}
+    </update>
+
+    <update id="cancelUnstarted">
+        UPDATE sys_agent_task_step
+        SET status = 'CANCELLED', completed_at = CURRENT_TIMESTAMP, updated_time = CURRENT_TIMESTAMP
+        WHERE task_id = #{taskId}
+          AND status IN ('PENDING', 'WAITING_CONFIRMATION')
+    </update>
+
+    <select id="existsFingerprint" resultType="int">
+        SELECT COUNT(1)
+        FROM sys_agent_task_step
+        WHERE task_id = #{taskId}
+          AND input_fingerprint = #{fingerprint}
+          AND status IN ('RUNNING', 'WAITING_CONFIRMATION', 'CONFIRMING', 'COMPLETED')
+    </select>
+</mapper>

@@ -101,7 +101,7 @@ test('chat admin API should expose guarded active-ban current-state contract', (
 test('admin agent chat API should use the unified backend chat endpoint', () => {
   assert.match(
     agentChatApiSource,
-    /sendMessage\(data\) \{\s*return request\.post\('\/admin\/agent\/chat', data\)\s*\}/
+    /sendMessage\(data, config = \{\}\) \{\s*return request\.post\('\/admin\/agent\/chat', data, config\)\s*\}/
   )
   assert.match(agentChatControllerSource, /@RequestMapping\("\/admin\/agent"\)/)
   assert.match(agentChatControllerSource, /@PostMapping\("\/chat"\)/)

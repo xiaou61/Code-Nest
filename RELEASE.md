@@ -1,5 +1,91 @@
 # 发布流程
 
+## v2.5.10
+
+`v2.5.10` 完成管理员持久任务的产品工作台、工作流事件控制面和租约可靠性加固。该版本保留原有单工具聊天契约，并把长耗时任务的监督、人工干预和恢复边界纳入同一套后端状态机。
+
+### Highlights
+
+- 管理端全屏智能体新增“对话 / 持久任务”模式，切换模式不会丢失已有会话。
+- 任务工作台支持创建、状态筛选、列表/详情刷新、生命周期进度、持久步骤、trace/audit 信息和终态原因。
+- 游标事件时间线只在活跃的非终态任务上增量轮询，事件有界、排序稳定且不会重复展示。
+- `WAITING_INPUT`、`PAUSED`、恢复和取消操作均按任务所有者隔离，并在同一事务中记录不可变事件。
+- 每次领取使用唯一 lease token；规划和工具执行期间续约，旧 lease 的迟到结果无法推进任务。
+- 陈旧恢复以扫描 heartbeat cutoff 原子 fencing，并按任务独立事务执行，单个冲突或异常不会回滚同批成功恢复。
+- 写风险步骤继续复用实时权限、policy、预览、审计与完全匹配的强确认，不在浏览器执行或推断破坏性动作。
+
+### Verification
+
+```bash
+python scripts/release_manifest.py validate
+python scripts/test_release_manifest.py -v
+openspec validate --all --strict
+mvn -pl xiaou-system -am test
+npm --prefix vue3-admin-front run test:contracts
+npm --prefix vue3-admin-front run build
+npm --prefix vue3-user-front run test:contracts
+npm --prefix vue3-user-front run build
+npm --prefix docs-site run build
+```
+
+### Migration And Enablement
+
+1. 备份生产数据库，并在所有实例保持 `XIAOU_ADMIN_AGENT_TASK_ENABLED=false`。
+2. 从远端 `v2.5.8` 升级时，先执行 `sql/v2.5.9/admin_agent_tasks.sql`，再执行 `sql/v2.5.10/admin_agent_workflow_control_plane.sql`；推荐先运行 `python scripts/db-migrate.py --dry-run`，确认后再 `--apply`。
+3. 验证 `sys_agent_task`、`sys_agent_task_step`、`sys_agent_task_event` 以及 `workflow_context_json` 字段存在，确认原有 `/admin/agent/chat` 正常。
+4. 先以 Worker 关闭状态部署应用，观察任务 API、事件写入和 Micrometer 指标；随后仅在一个实例设置 `XIAOU_ADMIN_AGENT_TASK_ENABLED=true`。
+5. 验证 lease renewal、recovery conflict、任务失败、确认等待和人工复核指标稳定后，再逐实例灰度开启。
+
+生产 AI Base URL、API Key、模型与推理等级继续只由服务器环境文件提供。
+
+### Rollback
+
+- 首先在全部实例关闭任务 Worker 并重启，阻止领取新任务；保留任务、步骤、事件和审计记录供人工复核。
+- 回滚应用制品时不删除 v2.5.9/v2.5.10 新增表或字段，旧版本不会主动消费这些记录。
+- `REQUIRES_REVIEW`、已确认但终态不明的写步骤和 lease ownership 冲突必须人工核对，禁止通过重新排队重放。
+
+## v2.5.9
+
+`v2.5.9` 将管理端统一智能体升级为全屏工作台，并增加持久化、顺序执行、可确认/取消/恢复的管理员任务运行时。原有单工具聊天入口保持兼容。
+
+### Highlights
+
+- 全屏三栏布局：会话列表、主对话区、执行检查器在同一个界面中协同。
+- 会话有界持久化：最多 20 个会话、每个会话 100 条消息，支持搜索、重试、复制和 Markdown 导出。
+- 运维结果结构化：数组产物自动渲染为表格，计划、差异、trace、风险与审计信息分页展示。
+- 统一后端边界不变：前端仍只调用 `POST /admin/agent/chat`，不实现 planner、policy 或 audit 分支。
+- 新增 `/admin/agent/tasks` 创建、列表、详情、确认和取消接口；所有读取和状态变更按当前管理员 ID 隔离。
+- MySQL 是任务与步骤状态的唯一事实源；Worker 每次只推进一个图周期，默认最多 5 个顺序步骤且不并行执行。
+- 写风险步骤继续复用现有预览、强确认和审计链路；确认后结果不明的写操作只进入 `REQUIRES_REVIEW`，不会自动重放。
+- Micrometer 新增 `xiaou.agent.task.*` 队列深度、任务/步骤结果、端到端耗时、确认等待、取消、租约恢复和 Worker 指标。
+
+### Verification
+
+```bash
+python scripts/release_manifest.py validate
+openspec validate add-durable-admin-agent-tasks --strict
+mvn -pl xiaou-system -am test
+node --test vue3-admin-front/tests/admin-agent-workspace-state.test.js vue3-admin-front/tests/admin-agent-chat-ui.test.js
+npm --prefix vue3-admin-front run test:contracts
+npm --prefix vue3-admin-front run build
+```
+
+### Migration And Enablement
+
+1. 备份生产数据库，保持 `XIAOU_ADMIN_AGENT_TASK_ENABLED=false`。
+2. 先执行 `python scripts/db-migrate.py --dry-run`，再按发布流程执行 `python scripts/db-migrate.py --apply`；本版本新增 `sql/v2.5.9/admin_agent_tasks.sql`。
+3. 部署应用但暂不启用 Worker，验证 `sys_agent_task`、`sys_agent_task_step` 可读写，原有 `/admin/agent/chat` 行为不变。
+4. 通过 Prometheus 检查 `xiaou_agent_task_queue_depth`、`xiaou_agent_task_worker_runs_total` 和 `xiaou_agent_task_stale_recoveries_total`，随后仅在一个实例设置 `XIAOU_ADMIN_AGENT_TASK_ENABLED=true`。
+5. 确认队列、确认等待、失败和人工复核指标稳定后，再逐实例开启；租约默认 300 秒，应大于 AI 与工具调用超时。
+
+生产 AI Base URL、API Key、模型与推理等级继续只由服务器环境文件提供。
+
+### Rollback
+
+- 先在所有实例设置 `XIAOU_ADMIN_AGENT_TASK_ENABLED=false` 并重启，停止领取新任务；已落库任务和审计记录保留供复核。
+- 回滚应用制品时不删除两张任务表；旧版不读取它们。需要恢复时重新部署本版后继续处理安全可恢复的只读任务。
+- `REQUIRES_REVIEW` 或确认后终态不明的写步骤必须人工核对审计与外部系统，禁止通过重新排队来重放。
+
 ## v2.5.6
 
 `v2.5.6` 是纯架构治理版本，不增加产品功能，也不修改数据库结构。目标是让启动、基础设施、领域能力、跨模块读取、前后端契约和发布元数据各自只有一个清晰所有者。

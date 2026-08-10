@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xiaou.system.mapper.SysAgentTaskEventMapper">
+
+    <resultMap id="BaseResultMap" type="com.xiaou.system.domain.SysAgentTaskEvent">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="task_id" property="taskId" jdbcType="VARCHAR"/>
+        <result column="event_type" property="eventType" jdbcType="VARCHAR"/>
+        <result column="step_order" property="stepOrder" jdbcType="INTEGER"/>
+        <result column="actor_type" property="actorType" jdbcType="VARCHAR"/>
+        <result column="actor_id" property="actorId" jdbcType="VARCHAR"/>
+        <result column="from_status" property="fromStatus" jdbcType="VARCHAR"/>
+        <result column="to_status" property="toStatus" jdbcType="VARCHAR"/>
+        <result column="detail_json" property="detailJson" jdbcType="LONGVARCHAR"/>
+        <result column="created_time" property="createdTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.xiaou.system.domain.SysAgentTaskEvent"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_agent_task_event (
+            task_id, event_type, step_order, actor_type, actor_id,
+            from_status, to_status, detail_json, created_time
+        ) VALUES (
+            #{taskId}, #{eventType}, #{stepOrder}, #{actorType}, #{actorId},
+            #{fromStatus}, #{toStatus}, #{detailJson}, #{createdTime}
+        )
+    </insert>
+
+    <select id="selectOwnedAfter" resultMap="BaseResultMap">
+        SELECT event.id, event.task_id, event.event_type, event.step_order,
+               event.actor_type, event.actor_id, event.from_status, event.to_status,
+               event.detail_json, event.created_time
+        FROM sys_agent_task_event event
+        INNER JOIN sys_agent_task task ON task.task_id = event.task_id
+        WHERE event.task_id = #{taskId}
+          AND task.operator_id = #{operatorId}
+          AND event.id &gt; COALESCE(#{afterCursor}, 0)
+        ORDER BY event.id ASC
+        LIMIT #{limit}
+    </select>
+</mapper>

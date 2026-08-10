@@ -1,8 +1,8 @@
 import request from '@/utils/request'
 
 export const agentChatApi = {
-  sendMessage(data) {
-    return request.post('/admin/agent/chat', data)
+  sendMessage(data, config = {}) {
+    return request.post('/admin/agent/chat', data, config)
   }
 }
 
