@@ -26,4 +26,23 @@ class PageHelperTest {
         assertThat(result.getTotal()).isEqualTo(42);
         assertThat(result.getRecords()).containsExactly("A", "B");
     }
+
+    @Test
+    void shouldClearPagingContextBeforeConverterRuns() {
+        Page<String> page = new Page<>(1, 10);
+        page.setTotal(10);
+        page.addAll(List.of("a"));
+
+        PageResult<String> result = PageHelper.doPageAndConvert(
+                1,
+                10,
+                () -> page,
+                rows -> {
+                    assertThat(com.github.pagehelper.page.PageMethod.getLocalPage()).isNull();
+                    return rows;
+                }
+        );
+
+        assertThat(result.getTotal()).isEqualTo(10);
+    }
 }

@@ -120,7 +120,7 @@ public class PageHelper {
      * @param pageNum      页码（从1开始）
      * @param pageSize     每页大小
      * @param queryFunction 实际查询函数，应直接返回 MyBatis 分页结果
-     * @param converter     分页记录转换器
+     * @param converter     分页记录转换器，转换阶段已清理分页上下文，可安全执行其他查询
      * @param <T>           查询结果元素类型
      * @param <R>           返回结果元素类型
      * @return 分页结果
@@ -138,6 +138,7 @@ public class PageHelper {
 
             startPage(pageNum, pageSize);
             List<T> rows = queryFunction.get();
+            com.github.pagehelper.PageHelper.clearPage();
             PageInfo<T> pageInfo = new PageInfo<>(rows);
             List<R> records = converter.apply(pageInfo.getList());
 
