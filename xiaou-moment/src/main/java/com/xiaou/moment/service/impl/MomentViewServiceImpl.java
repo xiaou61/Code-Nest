@@ -106,10 +106,8 @@ public class MomentViewServiceImpl implements MomentViewService {
                         continue;
                     }
                     
-                    // 批量更新到数据库（使用增量更新）
-                    for (int i = 0; i < viewCount; i++) {
-                        momentMapper.incrementViewCount(momentId);
-                    }
+                    // 批量更新到数据库（一次累加，避免按次数循环 UPDATE）
+                    momentMapper.incrementViewCountByDelta(momentId, viewCount);
                     
                     // 同步成功后，清空Redis中的计数（保留Key，值设为0）
                     cacheStore.setCounter(key, 0);

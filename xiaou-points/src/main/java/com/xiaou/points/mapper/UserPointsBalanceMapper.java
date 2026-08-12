@@ -50,9 +50,15 @@ public interface UserPointsBalanceMapper {
     List<UserPointsBalance> selectTopUsers(@Param("limit") Integer limit);
     
     /**
-     * 查询积分余额列表（分页）
+     * 查询积分余额列表（分页，支持用户名/积分范围过滤和排序）
      */
-    List<UserPointsBalance> selectBalanceList();
+    List<UserPointsBalance> selectBalancePage(
+            @Param("userName") String userName,
+            @Param("minPoints") Integer minPoints,
+            @Param("maxPoints") Integer maxPoints,
+            @Param("orderBy") String orderBy,
+            @Param("orderDirection") String orderDirection
+    );
     
     /**
      * 统计总积分发放量

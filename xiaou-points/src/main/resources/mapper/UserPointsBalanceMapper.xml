@@ -76,10 +76,47 @@
     </select>
 
     <!-- 查询积分余额列表（分页） -->
-    <select id="selectBalanceList" resultMap="BaseResultMap">
-        SELECT <include refid="Base_Column_List"/>
-        FROM user_points_balance
-        ORDER BY total_points DESC, create_time DESC
+    <select id="selectBalancePage" resultMap="BaseResultMap">
+        SELECT b.id, b.user_id, b.total_points, b.create_time, b.update_time
+        FROM user_points_balance b
+        <if test="userName != null and userName != ''">
+            LEFT JOIN user_info u ON u.id = b.user_id
+        </if>
+        <where>
+            <if test="userName != null and userName != ''">
+                AND (u.real_name LIKE CONCAT('%', #{userName}, '%')
+                     OR u.nickname LIKE CONCAT('%', #{userName}, '%')
+                     OR u.username LIKE CONCAT('%', #{userName}, '%'))
+                AND u.status != 2
+            </if>
+            <if test="minPoints != null">
+                AND b.total_points &gt;= #{minPoints}
+            </if>
+            <if test="maxPoints != null">
+                AND b.total_points &lt;= #{maxPoints}
+            </if>
+        </where>
+        ORDER BY
+        <choose>
+            <when test="orderBy == 'create_time'">
+                b.create_time
+                <choose>
+                    <when test="orderDirection == 'desc'">DESC</when>
+                    <otherwise>ASC</otherwise>
+                </choose>
+            </when>
+            <when test="orderBy == 'points'">
+                b.total_points
+                <choose>
+                    <when test="orderDirection == 'desc'">DESC</when>
+                    <otherwise>ASC</otherwise>
+                </choose>
+            </when>
+            <otherwise>
+                b.total_points DESC
+            </otherwise>
+        </choose>
+        , b.create_time DESC
     </select>
 
     <!-- 统计总积分发放量 -->

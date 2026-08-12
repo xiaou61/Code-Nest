@@ -149,10 +149,12 @@ public class PointsServiceImpl implements PointsService {
     
     @Override
     public PageResult<PointsDetailResponse> getPointsDetailList(PointsDetailQueryRequest request) {
-        return PageHelper.doPage(request.getPageNum(), request.getPageSize(), () -> {
-            List<UserPointsDetail> details = pointsDetailMapper.selectDetailList(request);
-            return details.stream().map(this::convertToDetailResponse).collect(Collectors.toList());
-        });
+        return PageHelper.doPageAndConvert(
+                request.getPageNum(),
+                request.getPageSize(),
+                () -> pointsDetailMapper.selectDetailList(request),
+                details -> details.stream().map(this::convertToDetailResponse).collect(Collectors.toList())
+        );
     }
     
     @Override
@@ -306,10 +308,12 @@ public class PointsServiceImpl implements PointsService {
     
     @Override
     public PageResult<PointsDetailResponse> getAllPointsDetailList(PointsDetailQueryRequest request) {
-        return PageHelper.doPage(request.getPageNum(), request.getPageSize(), () -> {
-            List<UserPointsDetail> details = pointsDetailMapper.selectAllDetailList(request);
-            return details.stream().map(this::convertToDetailResponse).collect(Collectors.toList());
-        });
+        return PageHelper.doPageAndConvert(
+                request.getPageNum(),
+                request.getPageSize(),
+                () -> pointsDetailMapper.selectAllDetailList(request),
+                details -> details.stream().map(this::convertToDetailResponse).collect(Collectors.toList())
+        );
     }
     
     @Override
@@ -432,7 +436,10 @@ public class PointsServiceImpl implements PointsService {
      * 获取当前连续打卡天数
      */
     private int getCurrentContinuousDays(Long userId, LocalDate today) {
-        UserCheckinBitmap latest = checkinBitmapMapper.selectLatestByUserId(userId);
+        return getCurrentContinuousDays(checkinBitmapMapper.selectLatestByUserId(userId), today);
+    }
+
+    private int getCurrentContinuousDays(UserCheckinBitmap latest, LocalDate today) {
         if (latest == null || latest.getLastCheckinDate() == null) {
             return 0;
         }
@@ -444,6 +451,25 @@ public class PointsServiceImpl implements PointsService {
         }
         
         return 0; // 连续记录已中断
+    }
+
+    private Map<Long, UserCheckinBitmap> loadLatestCheckinMap(List<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        List<UserCheckinBitmap> records = checkinBitmapMapper.selectLatestByUserIds(userIds);
+        Map<Long, UserCheckinBitmap> latestByUser = new HashMap<>();
+        for (UserCheckinBitmap record : records) {
+            latestByUser.merge(
+                    record.getUserId(),
+                    record,
+                    (existing, replacement) -> existing.getYearMonth().compareTo(replacement.getYearMonth()) >= 0
+                            ? existing
+                            : replacement
+            );
+        }
+        return latestByUser;
     }
     
     /**
@@ -494,72 +520,53 @@ public class PointsServiceImpl implements PointsService {
     
     @Override
     public PageResult<UserPointsRankingResponse> getUserPointsList(UserPointsListRequest request) {
-        return PageHelper.doPage(request.getPageNum(), request.getPageSize(), () -> {
-            List<UserPointsBalance> balances = pointsBalanceMapper.selectBalanceList();
-            
-            // 根据请求条件过滤和排序
-            List<UserPointsBalance> filteredBalances = balances.stream()
-                    .filter(balance -> {
-                        // 用户名筛选
-                        if (StrUtil.isNotBlank(request.getUserName())) {
-                            String userName = getUserName(balance.getUserId());
-                            if (!userName.contains(request.getUserName())) {
-                                return false;
-                            }
-                        }
-                        
-                        // 积分范围筛选
-                        if (request.getMinPoints() != null && balance.getTotalPoints() < request.getMinPoints()) {
-                            return false;
-                        }
-                        if (request.getMaxPoints() != null && balance.getTotalPoints() > request.getMaxPoints()) {
-                            return false;
-                        }
-                        
-                        return true;
-                    })
-                    .sorted((a, b) -> {
-                        // 排序处理
-                        if ("points".equals(request.getOrderBy())) {
-                            int result = Integer.compare(a.getTotalPoints(), b.getTotalPoints());
-                            return "desc".equals(request.getOrderDirection()) ? -result : result;
-                        } else if ("create_time".equals(request.getOrderBy())) {
-                            int result = a.getCreateTime().compareTo(b.getCreateTime());
-                            return "desc".equals(request.getOrderDirection()) ? -result : result;
-                        }
-                        // 默认按积分降序
-                        return Integer.compare(b.getTotalPoints(), a.getTotalPoints());
-                    })
-                    .collect(Collectors.toList());
-            
-            // 转换为响应DTO并设置排名
-            List<UserPointsRankingResponse> responses = new ArrayList<>();
-            for (int i = 0; i < filteredBalances.size(); i++) {
-                UserPointsBalance balance = filteredBalances.get(i);
-                int continuousDays = getCurrentContinuousDays(balance.getUserId(), LocalDate.now());
-                
-                // 获取完整用户信息
-                SimpleUserInfo userInfo = getUserInfo(balance.getUserId());
-                String userName = userInfo != null ? userInfo.getDisplayName() : "用户" + balance.getUserId();
-                
-                UserPointsRankingResponse response = UserPointsRankingResponse.builder()
-                        .userId(balance.getUserId())
-                        .userName(userName)
-                        .nickName(userInfo != null ? userInfo.getNickname() : userName)
-                        .avatar(userInfo != null ? userInfo.getAvatar() : null)
-                        .totalPoints(balance.getTotalPoints())
-                        .balanceYuan(formatPointsToYuan(balance.getTotalPoints()))
-                        .continuousDays(continuousDays)
-                        .ranking(i + 1) // 设置排名（当前页面内的排名）
-                        .createTime(balance.getCreateTime())
-                        .updateTime(balance.getUpdateTime())
-                        .build();
-                
-                responses.add(response);
-            }
-            
-            return responses;
-        });
+        int pageNum = request.getPageNum() == null || request.getPageNum() < 1 ? 1 : request.getPageNum();
+        int pageSize = request.getPageSize() == null || request.getPageSize() < 1
+                ? 10
+                : Math.min(request.getPageSize(), 100);
+        return PageHelper.doPageAndConvert(
+                pageNum,
+                pageSize,
+                () -> pointsBalanceMapper.selectBalancePage(
+                        request.getUserName(),
+                        request.getMinPoints(),
+                        request.getMaxPoints(),
+                        request.getOrderBy(),
+                        request.getOrderDirection()
+                ),
+                balances -> {
+                    List<Long> userIds = balances.stream()
+                            .map(UserPointsBalance::getUserId)
+                            .collect(Collectors.toList());
+                    Map<Long, SimpleUserInfo> userInfoMap = userInfoApiService.getSimpleUserInfoBatch(userIds);
+                    Map<Long, UserCheckinBitmap> latestCheckinMap = loadLatestCheckinMap(userIds);
+                    LocalDate today = LocalDate.now();
+
+                    List<UserPointsRankingResponse> responses = new ArrayList<>();
+                    for (int i = 0; i < balances.size(); i++) {
+                        UserPointsBalance balance = balances.get(i);
+                        UserCheckinBitmap latest = latestCheckinMap.get(balance.getUserId());
+                        int continuousDays = getCurrentContinuousDays(latest, today);
+
+                        SimpleUserInfo userInfo = userInfoMap.get(balance.getUserId());
+                        String userName = userInfo != null ? userInfo.getDisplayName() : "用户" + balance.getUserId();
+
+                        responses.add(UserPointsRankingResponse.builder()
+                                .userId(balance.getUserId())
+                                .userName(userName)
+                                .nickName(userInfo != null ? userInfo.getNickname() : userName)
+                                .avatar(userInfo != null ? userInfo.getAvatar() : null)
+                                .totalPoints(balance.getTotalPoints())
+                                .balanceYuan(formatPointsToYuan(balance.getTotalPoints()))
+                                .continuousDays(continuousDays)
+                                .ranking((pageNum - 1) * pageSize + i + 1)
+                                .createTime(balance.getCreateTime())
+                                .updateTime(balance.getUpdateTime())
+                                .build());
+                    }
+                    return responses;
+                }
+        );
     }
     
     @Override

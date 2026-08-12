@@ -108,6 +108,11 @@ public interface MomentMapper {
      * 增加浏览数
      */
     int incrementViewCount(Long momentId);
+
+    /**
+     * 按增量增加浏览数，避免按次数循环 UPDATE。
+     */
+    int incrementViewCountByDelta(@Param("momentId") Long momentId, @Param("delta") int delta);
     
     /**
      * 增加收藏数

@@ -196,6 +196,10 @@
         UPDATE moments SET view_count = view_count + 1 WHERE id = #{momentId}
     </update>
 
+    <update id="incrementViewCountByDelta">
+        UPDATE moments SET view_count = view_count + #{delta} WHERE id = #{momentId}
+    </update>
+
     <!-- 增加收藏数 -->
     <update id="incrementFavoriteCount">
         UPDATE moments SET favorite_count = favorite_count + 1 WHERE id = #{momentId}

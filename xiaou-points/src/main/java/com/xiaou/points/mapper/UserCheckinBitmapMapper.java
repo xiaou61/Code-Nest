@@ -42,6 +42,11 @@ public interface UserCheckinBitmapMapper {
      * 查询用户最近的位图记录
      */
     UserCheckinBitmap selectLatestByUserId(@Param("userId") Long userId);
+
+    /**
+     * 批量查询多个用户最近的位图记录
+     */
+    List<UserCheckinBitmap> selectLatestByUserIds(@Param("userIds") List<Long> userIds);
     
     /**
      * 查询用户所有位图记录

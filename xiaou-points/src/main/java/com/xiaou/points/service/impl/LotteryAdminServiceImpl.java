@@ -266,10 +266,12 @@ public class LotteryAdminServiceImpl implements LotteryAdminService {
     
     @Override
     public PageResult<LotteryDrawResponse> getAllDrawRecords(LotteryRecordQueryRequest request) {
-        return PageHelper.doPage(request.getPage(), request.getSize(), () -> {
-            List<LotteryDrawRecord> records = drawRecordMapper.selectAll(request);
-            return convertToDrawResponses(records);
-        });
+        return PageHelper.doPageAndConvert(
+                request.getPage(),
+                request.getSize(),
+                () -> drawRecordMapper.selectAll(request),
+                this::convertToDrawResponses
+        );
     }
     
     @Override
@@ -286,15 +288,14 @@ public class LotteryAdminServiceImpl implements LotteryAdminService {
     
     @Override
     public PageResult<AdjustHistoryResponse> getAdjustHistory(Long prizeId, Integer page, Integer size) {
-        return PageHelper.doPage(page, size, () -> {
-            List<LotteryAdjustHistory> histories;
-            if (prizeId != null) {
-                histories = adjustHistoryMapper.selectByPrizeId(prizeId);
-            } else {
-                histories = adjustHistoryMapper.selectAll();
-            }
-            return convertToAdjustHistoryResponses(histories);
-        });
+        return PageHelper.doPageAndConvert(
+                page,
+                size,
+                () -> prizeId != null
+                        ? adjustHistoryMapper.selectByPrizeId(prizeId)
+                        : adjustHistoryMapper.selectAll(),
+                this::convertToAdjustHistoryResponses
+        );
     }
     
     @Override

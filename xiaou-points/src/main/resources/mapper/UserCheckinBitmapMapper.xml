@@ -68,6 +68,22 @@
         LIMIT 1
     </select>
 
+    <select id="selectLatestByUserIds" resultMap="BaseResultMap">
+        SELECT b.id, b.user_id, b.`year_month`, b.checkin_bitmap, b.continuous_days,
+               b.last_checkin_date, b.total_checkin_days, b.create_time, b.update_time
+        FROM user_checkin_bitmap b
+        INNER JOIN (
+            SELECT user_id, MAX(`year_month`) AS latest_year_month
+            FROM user_checkin_bitmap
+            WHERE user_id IN
+            <foreach collection="userIds" item="userId" open="(" separator="," close=")">
+                #{userId}
+            </foreach>
+            GROUP BY user_id
+        ) latest ON latest.user_id = b.user_id AND latest.latest_year_month = b.`year_month`
+        ORDER BY b.user_id ASC
+    </select>
+
     <!-- 查询用户所有位图记录 -->
     <select id="selectByUserId" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>

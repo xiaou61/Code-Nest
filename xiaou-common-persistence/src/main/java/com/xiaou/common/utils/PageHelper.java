@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static com.github.pagehelper.page.PageMethod.startPage;
@@ -109,6 +110,47 @@ public class PageHelper {
             return PageResult.of(pageNum, pageSize, 0L, Collections.emptyList());
         } finally {
             // 清理分页参数，避免影响后续查询
+            com.github.pagehelper.PageHelper.clearPage();
+        }
+    }
+
+    /**
+     * 分页查询并在分页信息确定后再转换记录，避免转换后丢失 total。
+     *
+     * @param pageNum      页码（从1开始）
+     * @param pageSize     每页大小
+     * @param queryFunction 实际查询函数，应直接返回 MyBatis 分页结果
+     * @param converter     分页记录转换器
+     * @param <T>           查询结果元素类型
+     * @param <R>           返回结果元素类型
+     * @return 分页结果
+     */
+    public static <T, R> PageResult<R> doPageAndConvert(
+            Integer pageNum,
+            Integer pageSize,
+            Supplier<List<T>> queryFunction,
+            Function<List<T>, List<R>> converter
+    ) {
+        try {
+            pageNum = pageNum == null || pageNum < 1 ? 1 : pageNum;
+            pageSize = pageSize == null || pageSize < 1 ? 10 : pageSize;
+            pageSize = Math.min(pageSize, 100);
+
+            startPage(pageNum, pageSize);
+            List<T> rows = queryFunction.get();
+            PageInfo<T> pageInfo = new PageInfo<>(rows);
+            List<R> records = converter.apply(pageInfo.getList());
+
+            return PageResult.of(
+                    pageInfo.getPageNum(),
+                    pageInfo.getPageSize(),
+                    pageInfo.getTotal(),
+                    records
+            );
+        } catch (Exception e) {
+            log.error("分页转换查询失败", e);
+            return PageResult.of(pageNum, pageSize, 0L, Collections.emptyList());
+        } finally {
             com.github.pagehelper.PageHelper.clearPage();
         }
     }

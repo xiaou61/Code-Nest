@@ -92,15 +92,15 @@ public class MomentServiceImpl implements MomentService {
     
     @Override
     public PageResult<MomentListResponse> getMomentList(UserMomentListRequest request) {
-        return PageHelper.doPage(request.getPageNum(), request.getPageSize(), () -> {
-            Map<String, Object> params = new HashMap<>();
-            List<Moment> moments = momentMapper.selectList(params);
-            
-            // 记录浏览数
-            recordMomentViews(moments);
-            
-            return convertToMomentListResponseBatch(moments);
-        });
+        return PageHelper.doPageAndConvert(
+                request.getPageNum(),
+                request.getPageSize(),
+                () -> momentMapper.selectList(new HashMap<>()),
+                moments -> {
+                    recordMomentViews(moments);
+                    return convertToMomentListResponseBatch(moments);
+                }
+        );
     }
     
     @Override
@@ -274,31 +274,14 @@ public class MomentServiceImpl implements MomentService {
     
     @Override
     public PageResult<AdminMomentListResponse> getAdminMomentList(AdminMomentListRequest request) {
-        return PageHelper.doPage(request.getPageNum(), request.getPageSize(), () -> {
-            Map<String, Object> params = new HashMap<>();
-            if (StrUtil.isNotBlank(request.getUserNickname())) {
-                params.put("userNickname", request.getUserNickname());
-            }
-            if (request.getStatus() != null) {
-                params.put("status", request.getStatus());
-            }
-            if (StrUtil.isNotBlank(request.getStartDate())) {
-                params.put("startDate", request.getStartDate());
-            }
-            if (StrUtil.isNotBlank(request.getEndDate())) {
-                params.put("endDate", request.getEndDate());
-            }
-            if (request.getHasSensitiveWord() != null) {
-                // 敏感词功能暂未实现，这里预留参数
-                params.put("hasSensitiveWord", request.getHasSensitiveWord());
-            }
-            
-            List<Moment> moments = momentMapper.selectList(params);
-            
-            return moments.stream()
-                    .map(this::convertToAdminMomentListResponse)
-                    .collect(Collectors.toList());
-        });
+        return PageHelper.doPageAndConvert(
+                request.getPageNum(),
+                request.getPageSize(),
+                () -> momentMapper.selectList(buildAdminMomentQuery(request)),
+                moments -> moments.stream()
+                        .map(this::convertToAdminMomentListResponse)
+                        .collect(Collectors.toList())
+        );
     }
     
     @Override
@@ -444,33 +427,57 @@ public class MomentServiceImpl implements MomentService {
     
     @Override
     public PageResult<AdminCommentListResponse> getAdminCommentList(AdminCommentListRequest request) {
-        return PageHelper.doPage(request.getPageNum(), request.getPageSize(), () -> {
-            Map<String, Object> params = new HashMap<>();
-            if (request.getMomentId() != null) {
-                params.put("momentId", request.getMomentId());
-            }
-            if (StrUtil.isNotBlank(request.getUserNickname())) {
-                params.put("userNickname", request.getUserNickname());
-            }
-            if (StrUtil.isNotBlank(request.getContentKeyword())) {
-                params.put("contentKeyword", "%" + request.getContentKeyword() + "%");
-            }
-            if (request.getStatus() != null) {
-                params.put("status", request.getStatus());
-            }
-            if (StrUtil.isNotBlank(request.getStartDate())) {
-                params.put("startDate", request.getStartDate());
-            }
-            if (StrUtil.isNotBlank(request.getEndDate())) {
-                params.put("endDate", request.getEndDate());
-            }
-            
-            List<MomentComment> comments = momentCommentMapper.selectList(params);
-            
-            return comments.stream()
-                    .map(this::convertToAdminCommentListResponse)
-                    .collect(Collectors.toList());
-        });
+        return PageHelper.doPageAndConvert(
+                request.getPageNum(),
+                request.getPageSize(),
+                () -> momentCommentMapper.selectList(buildAdminCommentQuery(request)),
+                comments -> comments.stream()
+                        .map(this::convertToAdminCommentListResponse)
+                        .collect(Collectors.toList())
+        );
+    }
+
+    private Map<String, Object> buildAdminMomentQuery(AdminMomentListRequest request) {
+        Map<String, Object> params = new HashMap<>();
+        if (StrUtil.isNotBlank(request.getUserNickname())) {
+            params.put("userNickname", request.getUserNickname());
+        }
+        if (request.getStatus() != null) {
+            params.put("status", request.getStatus());
+        }
+        if (StrUtil.isNotBlank(request.getStartDate())) {
+            params.put("startDate", request.getStartDate());
+        }
+        if (StrUtil.isNotBlank(request.getEndDate())) {
+            params.put("endDate", request.getEndDate());
+        }
+        if (request.getHasSensitiveWord() != null) {
+            params.put("hasSensitiveWord", request.getHasSensitiveWord());
+        }
+        return params;
+    }
+
+    private Map<String, Object> buildAdminCommentQuery(AdminCommentListRequest request) {
+        Map<String, Object> params = new HashMap<>();
+        if (request.getMomentId() != null) {
+            params.put("momentId", request.getMomentId());
+        }
+        if (StrUtil.isNotBlank(request.getUserNickname())) {
+            params.put("userNickname", request.getUserNickname());
+        }
+        if (StrUtil.isNotBlank(request.getContentKeyword())) {
+            params.put("contentKeyword", "%" + request.getContentKeyword() + "%");
+        }
+        if (request.getStatus() != null) {
+            params.put("status", request.getStatus());
+        }
+        if (StrUtil.isNotBlank(request.getStartDate())) {
+            params.put("startDate", request.getStartDate());
+        }
+        if (StrUtil.isNotBlank(request.getEndDate())) {
+            params.put("endDate", request.getEndDate());
+        }
+        return params;
     }
     
     @Override
@@ -496,21 +503,22 @@ public class MomentServiceImpl implements MomentService {
             throw new BusinessException("动态不存在");
         }
         
-        return PageHelper.doPage(request.getPageNum(), request.getPageSize(), () -> {
-            List<MomentComment> comments = momentCommentMapper.selectByMomentId(request.getMomentId(), null);
-            
-            // 批量查询用户信息，避免N+1问题
-            List<Long> userIds = comments.stream()
-                    .map(MomentComment::getUserId)
-                    .distinct()
-                    .collect(Collectors.toList());
-            Map<Long, SimpleUserInfo> userInfoMap = userInfoApiService.getSimpleUserInfoBatch(userIds);
-            Long currentUserId = StpUserUtil.getLoginIdAsLong();
-            
-            return comments.stream()
-                    .map(comment -> convertToCommentResponseWithUserInfo(comment, userInfoMap, currentUserId))
-                    .collect(Collectors.toList());
-        });
+        return PageHelper.doPageAndConvert(
+                request.getPageNum(),
+                request.getPageSize(),
+                () -> momentCommentMapper.selectByMomentId(request.getMomentId(), null),
+                comments -> {
+                    List<Long> userIds = comments.stream()
+                            .map(MomentComment::getUserId)
+                            .distinct()
+                            .collect(Collectors.toList());
+                    Map<Long, SimpleUserInfo> userInfoMap = userInfoApiService.getSimpleUserInfoBatch(userIds);
+                    Long currentUserId = StpUserUtil.getLoginIdAsLong();
+                    return comments.stream()
+                            .map(comment -> convertToCommentResponseWithUserInfo(comment, userInfoMap, currentUserId))
+                            .collect(Collectors.toList());
+                }
+        );
     }
     
     @Override
@@ -642,28 +650,28 @@ public class MomentServiceImpl implements MomentService {
     
     @Override
     public PageResult<MomentListResponse> searchMoments(MomentSearchRequest request) {
-        return PageHelper.doPage(request.getPageNum(), request.getPageSize(), () -> {
-            // PageHelper会自动处理分页，Mapper方法不需要offset和limit参数
-            List<Moment> moments = momentMapper.searchMoments(request.getKeyword());
-            
-            // 记录浏览数
-            recordMomentViews(moments);
-            
-            return convertToMomentListResponseBatch(moments);
-        });
+        return PageHelper.doPageAndConvert(
+                request.getPageNum(),
+                request.getPageSize(),
+                () -> momentMapper.searchMoments(request.getKeyword()),
+                moments -> {
+                    recordMomentViews(moments);
+                    return convertToMomentListResponseBatch(moments);
+                }
+        );
     }
     
     @Override
     public PageResult<MomentListResponse> getUserMomentList(Long userId, Integer pageNum, Integer pageSize) {
-        return PageHelper.doPage(pageNum, pageSize, () -> {
-            // PageHelper会自动处理分页
-            List<Moment> moments = momentMapper.selectByUserId(userId);
-            
-            // 记录浏览数
-            recordMomentViews(moments);
-            
-            return convertToMomentListResponseBatch(moments);
-        });
+        return PageHelper.doPageAndConvert(
+                pageNum,
+                pageSize,
+                () -> momentMapper.selectByUserId(userId),
+                moments -> {
+                    recordMomentViews(moments);
+                    return convertToMomentListResponseBatch(moments);
+                }
+        );
     }
     
     @Override
@@ -753,22 +761,19 @@ public class MomentServiceImpl implements MomentService {
             throw new BusinessException("请先登录");
         }
         
-        return PageHelper.doPage(pageNum, pageSize, () -> {
-            // 获取收藏的动态ID列表（PageHelper会自动分页）
-            List<Long> momentIds = momentFavoriteMapper.selectFavoriteMomentIdsByUserId(currentUserId);
-            
-            if (CollUtil.isEmpty(momentIds)) {
-                return Collections.emptyList();
-            }
-            
-            // 批量查询动态详情
-            List<Moment> moments = momentMapper.selectByIds(momentIds);
-            
-            // 记录浏览数
-            recordMomentViews(moments);
-            
-            return convertToMomentListResponseBatch(moments);
-        });
+        return PageHelper.doPageAndConvert(
+                pageNum,
+                pageSize,
+                () -> momentFavoriteMapper.selectFavoriteMomentIdsByUserId(currentUserId),
+                momentIds -> {
+                    if (CollUtil.isEmpty(momentIds)) {
+                        return Collections.emptyList();
+                    }
+                    List<Moment> moments = momentMapper.selectByIds(momentIds);
+                    recordMomentViews(moments);
+                    return convertToMomentListResponseBatch(moments);
+                }
+        );
     }
     
     /**
