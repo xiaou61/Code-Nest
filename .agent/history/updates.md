@@ -41,3 +41,13 @@ schema_version: 1
 - 验证：远端 HEAD=ad8b60373de40bfa60cfd047a85a6129ec6e3580
 - 本地提交：ad8b60373de40bfa60cfd047a85a6129ec6e3580
 - 远端推送：已验证；远端 HEAD=ad8b60373de40bfa60cfd047a85a6129ec6e3580
+
+## 2026-09-10 11:40:28 +0800 · maintenance · 固化全部模块设计为 .agent/specs 稳定规格
+
+- 类型：implementation
+- 变更：新增 .agent/specs/ 下 9 份稳定规格：architecture(200行)、system-and-access(215)、ai-services(175)、content-community(180)、learning-and-interview(217)、online-judge-and-tools(198)、engagement-and-collab(223)、operations-sre(191)、frontend(138)。覆盖全部 36 个后端 Maven 模块、2 套 Vue3 前端、code-nest-api-contract、code-nest-design-system、llamaindex-service、docker/go-judge 与部署运维资产。同步填充 .agent/INDEX.md 模块索引表（40 行，含每模块测试文件数与规格归属）。
+- 决策：按 references/specs.md「每个有意义的领域或契约一份文件」，采用 9 份按域划分而非 36 份单模块文件；每份规格均由独立分析单元基于真实源码产出（实际读取 24-50 个文件），读不到的一律显式标注"未确认"而非推测；对 4 处仓库中已公开的联调默认口令做脱敏，改为指向来源文件，避免口令字面值进入工件。
+- 依据：references/specs.md、references/workflow.md；仓库真实源码；.agent/rules/always.md
+- 验证：独立复核 4 项高影响结论全部属实（llamaindex-service 的 .py 中 llama_index 零引用而 requirements.txt 列出该依赖；StpInterfaceImpl 硬编码 roles.add("admin") / permissions.add("admin")；application-prod.yml 仅 1 行注释；application-sec.yml 不在仓库）。覆盖率核验 36/36 后端模块均被规格覆盖。密钥扫描（PRIVATE KEY / gho_ / ghp_ / sk- / AKIA / xox / JWT 形态）零命中，脱敏后复核无残留口令字面值。project-lifecycle validate 退出码 0，结果"通过：未发现结构、引用或证据问题"。
+- 本地提交：待创建：本轮随后提交
+- 远端推送：未执行：随后推送 origin/master

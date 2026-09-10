@@ -23,10 +23,65 @@ status: active
 
 只登记已经从仓库确认的模块和路径；发现新模块或路径发生实质变化时更新对应行。
 
+共 36 个后端 Maven 模块、2 套前端应用、1 个 Python AI 服务，以及部署运维资产。测试列统计该模块 `src/test/`（前端与 Python 为 `tests/`）下的文件数；「无」表示不存在测试目录，不代表没有其他形式的验证。
+
+### 后端：架构与公共平台层
+
 | 模块 | 源码或配置 | 测试 | 稳定规格 | 相关工作项 |
 | --- | --- | --- | --- | --- |
+| `xiaou-bootstrap` | `xiaou-bootstrap/` | `src/test/`（1） | `.agent/specs/architecture.md` | — |
+| `xiaou-application` | `xiaou-application/` | `src/test/`（22） | `.agent/specs/architecture.md` | — |
+| `xiaou-common` | `xiaou-common/` | 无 | `.agent/specs/architecture.md` | — |
+| `xiaou-common-core` | `xiaou-common-core/` | 无 | `.agent/specs/architecture.md` | — |
+| `xiaou-common-web` | `xiaou-common-web/` | `src/test/`（1） | `.agent/specs/architecture.md` | — |
+| `xiaou-common-security` | `xiaou-common-security/` | 无 | `.agent/specs/architecture.md` | — |
+| `xiaou-common-cache` | `xiaou-common-cache/` | `src/test/`（2） | `.agent/specs/architecture.md` | — |
+| `xiaou-common-persistence` | `xiaou-common-persistence/` | 无 | `.agent/specs/architecture.md` | — |
+| `xiaou-resilience` | `xiaou-resilience/` | `src/test/`（1） | `.agent/specs/architecture.md` | — |
+| `xiaou-user-api` | `xiaou-user-api/` | 无 | `.agent/specs/architecture.md` | — |
+| `xiaou-sensitive-api` | `xiaou-sensitive-api/` | 无 | `.agent/specs/architecture.md` | — |
 
-当前尚未登记项目模块。
+### 后端：业务模块
+
+| 模块 | 源码或配置 | 测试 | 稳定规格 | 相关工作项 |
+| --- | --- | --- | --- | --- |
+| `xiaou-system` | `xiaou-system/` | `src/test/`（52） | `.agent/specs/system-and-access.md` | — |
+| `xiaou-user` | `xiaou-user/` | `src/test/`（1） | `.agent/specs/system-and-access.md` | — |
+| `xiaou-ai` | `xiaou-ai/` | `src/test/`（50） | `.agent/specs/ai-services.md` | — |
+| `xiaou-community` | `xiaou-community/` | `src/test/`（2） | `.agent/specs/content-community.md` | — |
+| `xiaou-moment` | `xiaou-moment/` | `src/test/`（1） | `.agent/specs/content-community.md` | — |
+| `xiaou-blog` | `xiaou-blog/` | 无 | `.agent/specs/content-community.md` | — |
+| `xiaou-codepen` | `xiaou-codepen/` | 无 | `.agent/specs/content-community.md` | — |
+| `xiaou-chat` | `xiaou-chat/` | `src/test/`（2） | `.agent/specs/content-community.md` | — |
+| `xiaou-notification` | `xiaou-notification/` | `src/test/`（2） | `.agent/specs/content-community.md` | — |
+| `xiaou-interview` | `xiaou-interview/` | 无 | `.agent/specs/learning-and-interview.md` | — |
+| `xiaou-mock-interview` | `xiaou-mock-interview/` | `src/test/`（5） | `.agent/specs/learning-and-interview.md` | — |
+| `xiaou-flashcard` | `xiaou-flashcard/` | 无 | `.agent/specs/learning-and-interview.md` | — |
+| `xiaou-learning-asset` | `xiaou-learning-asset/` | `src/test/`（4） | `.agent/specs/learning-and-interview.md` | — |
+| `xiaou-resume` | `xiaou-resume/` | 无 | `.agent/specs/learning-and-interview.md` | — |
+| `xiaou-plan` | `xiaou-plan/` | `src/test/`（3） | `.agent/specs/learning-and-interview.md` | — |
+| `xiaou-oj` | `xiaou-oj/`；Mapper XML 特例在 `src/main/java/com/xiaou/oj/mapper/` | `src/test/`（7） | `.agent/specs/online-judge-and-tools.md` | — |
+| `xiaou-sql-optimizer` | `xiaou-sql-optimizer/` | `src/test/`（1） | `.agent/specs/online-judge-and-tools.md` | — |
+| `xiaou-knowledge` | `xiaou-knowledge/` | 无 | `.agent/specs/online-judge-and-tools.md` | — |
+| `xiaou-version` | `xiaou-version/` | 无 | `.agent/specs/online-judge-and-tools.md` | — |
+| `xiaou-moyu` | `xiaou-moyu/` | `src/test/`（1） | `.agent/specs/online-judge-and-tools.md` | — |
+| `xiaou-points` | `xiaou-points/` | `src/test/`（2） | `.agent/specs/engagement-and-collab.md` | — |
+| `xiaou-team` | `xiaou-team/` | 无 | `.agent/specs/engagement-and-collab.md` | — |
+| `xiaou-filestorage` | `xiaou-filestorage/` | `src/test/`（3） | `.agent/specs/engagement-and-collab.md` | — |
+| `xiaou-sensitive` | `xiaou-sensitive/` | `src/test/`（2） | `.agent/specs/engagement-and-collab.md` | — |
+| `xiaou-sre` | `xiaou-sre/` | `src/test/`（36） | `.agent/specs/operations-sre.md` | — |
+
+### 前端、AI 服务与运维资产
+
+| 对象 | 源码或配置 | 测试 | 稳定规格 | 相关工作项 |
+| --- | --- | --- | --- | --- |
+| `vue3-admin-front`（管理端，端口 3000） | `vue3-admin-front/` | `tests/`（11） | `.agent/specs/frontend.md` | — |
+| `vue3-user-front`（用户端，端口 3001） | `vue3-user-front/` | `tests/`（19） | `.agent/specs/frontend.md` | — |
+| `code-nest-api-contract` | `code-nest-api-contract/` | `tests/` | `.agent/specs/frontend.md` | — |
+| `code-nest-design-system` | `code-nest-design-system/` | 无 | `.agent/specs/frontend.md` | — |
+| `llamaindex-service` | `llamaindex-service/` | `tests/` | `.agent/specs/ai-services.md` | — |
+| 部署与运维资产 | `deploy/`、`docker/`、`scripts/` | `scripts/*.test.sh`、`scripts/test_*.py` | `.agent/specs/operations-sre.md` | — |
+| 数据库脚本 | `sql/MySql/`（基线）、`sql/vX.Y.Z/`（增量） | — | `.agent/specs/architecture.md` | — |
 
 ## HTML 理解材料
 
