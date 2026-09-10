@@ -51,3 +51,13 @@ schema_version: 1
 - 验证：独立复核 4 项高影响结论全部属实（llamaindex-service 的 .py 中 llama_index 零引用而 requirements.txt 列出该依赖；StpInterfaceImpl 硬编码 roles.add("admin") / permissions.add("admin")；application-prod.yml 仅 1 行注释；application-sec.yml 不在仓库）。覆盖率核验 36/36 后端模块均被规格覆盖。密钥扫描（PRIVATE KEY / gho_ / ghp_ / sk- / AKIA / xox / JWT 形态）零命中，脱敏后复核无残留口令字面值。project-lifecycle validate 退出码 0，结果"通过：未发现结构、引用或证据问题"。
 - 本地提交：待创建：本轮随后提交
 - 远端推送：未执行：随后推送 origin/master
+
+## 2026-09-10 13:46:39 +0800 · maintenance · 修订项目常驻规范：路由鉴权按源码实测，缺口转为风险台账
+
+- 类型：decision
+- 变更：重写 .agent/rules/always.md（schema_version 2）。路由分区表改为按 108 个 Controller 的 @RequestMapping 实测重建：框架级拦截确认只有 /auth、/admin、/user 三组加 /captcha 与 swagger 两组放行；其余 36 个 Controller 中 8 个靠 @RequireAdmin 切面、1 个靠 SRE webhook 过滤器、2 个有意公开、其余无框架保护。补全 ResultCode 全集（400/401/403/404/405/408/409/415/429/500/503、600-604、701-705、801-805）与前端错误码语义分工。版本同步清单补入 code-nest-api-contract 与 code-nest-design-system。把 xiaou-application 承载 growthcoach/home/learning 记为既成事实并明确不作为新代码先例。新增「已知风险与待修复」章节共 8 条。
+- 决策：采用用户确认的方向 A：修订文档以记录真实约定，并把鉴权缺口标注为已知风险而非合法设计，不修改任何源代码。原「业务逻辑不得塞进 xiaou-application」拆为「新业务域建独立模块」+「既成事实不作先例」，以同时满足事实准确与约束有效，避免用规范追认缺陷。
+- 依据：.agent/specs/ 9 份稳定规格；xiaou-common-security/src/main/java/com/xiaou/common/config/SaTokenConfig.java 源码；108 个 Controller 的 @RequestMapping 实测结果；ResultCode.java 全集
+- 验证：status --json 返回 rules.ready=true、configured=true、confirmation_required=false、warnings 为空；project-lifecycle validate F:\Code-Nest 退出码 0，结果「通过：未发现结构、引用或证据问题」。路由前缀与拦截范围均由源码扫描得出，非引用规格转述。
+- 本地提交：待创建：本轮随后提交
+- 远端推送：未执行：随后推送 origin/master
