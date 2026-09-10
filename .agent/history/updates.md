@@ -21,3 +21,13 @@ schema_version: 1
 - 验证：init 退出码 0；status --json 返回 initialized=true、state=idle、next_work_id=WORK-001、rules.present=false（符合预期）；git 未跟踪条目 2 条（.agent/、AGENTS.md），attribution=unclassified。
 - 本地提交：待用户授权/未提交：初始化产物尚未纳入版本控制
 - 远端推送：未执行
+
+## 2026-09-10 11:15:35 +0800 · maintenance · 写入项目常驻规范并确认版本控制归属
+
+- 类型：decision
+- 变更：创建 .agent/rules/always.md（status: active、configured: true），记录已核实的项目事实、真实路径、启动与验证命令、接口与返回体约定、落点与生成物边界、版本同步要求、工具链代理边界；确认 .agent/ 与 AGENTS.md 纳入版本控制。
+- 决策：依据仓库代码逐条核实 SKILL.md 声明，采用修正后的 -pl xiaou-bootstrap 命令替代失效的 -pl xiaou-application；.agent/ 与 AGENTS.md 由用户确认纳入版本控制并推送远端；不修改仓库 .gitignore（其中 /.agents/ 规则不影响 .agent/）。
+- 依据：.agent/rules/always.md；仓库 SKILL.md；pom.xml；xiaou-bootstrap/pom.xml；xiaou-bootstrap/src/main/resources/application.yml；vue3-admin-front/vite.config.js；vue3-user-front/vite.config.js
+- 验证：project-lifecycle validate F:\Code-Nest 退出码 0，结果“通过：未发现结构、引用或证据问题”；status --json 返回 rules.ready=true、configured=true、confirmation_required=false、warnings 为空，next_action 已从“确认规范”推进为“描述一个新需求”。
+- 本地提交：6cc7620
+- 远端推送：未执行：本轮随后推送至 origin/master
