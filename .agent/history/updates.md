@@ -272,3 +272,13 @@ schema_version: 1
 - 验证：git push 输出 6f19cc5..f2b4ad3 master -> master；git ls-remote origin refs/heads/master 返回 f2b4ad3ed597be2080b115f8cd783aef1bfdc932；敏感串扫描无命中。project-lifecycle.ps1 validate 待本轮记录后复核。
 - 本地提交：f2b4ad3
 - 远端推送：origin/master（6f19cc5..f2b4ad3）
+
+## 2026-10-09 10:51:22 +0800 · WORK-001 · 完成 TASK-002：Web 基础设施
+
+- 类型：implementation
+- 变更：新增 paideia-web 模块：TraceIdFilter（追踪标识，非法上游值丢弃、请求结束清理 MDC）、ApiResponseBodyAdvice（统一包装，跳过 actuator 与 String 返回值）、GlobalExceptionHandler（业务异常按错误码映射状态、校验失败 400、未捕获异常 500 不泄堆栈）、CorsProperties 与 WebCorsConfiguration（允许来源来自配置，默认空）。父 POM 登记新模块与依赖管理，app 模块加入依赖与 CORS 配置键。测试 9 个（TraceIdFilterTest 4、WebPipelineTest 5）。platform 由开放模块改为普通闭包模块。
+- 决策：platform 撤销 @ApplicationModule(type = OPEN)：其对外契约本就在包根，开放只放行外部访问内部、白丢一条边界检查；改回闭包后 web 访问 platform.internal 会被 Modulith 拦截（已实测）。Boot 4 把测试切片拆成独立 artifact（@WebMvcTest 位于 spring-boot-webmvc-test 的 org.springframework.boot.webmvc.test.autoconfigure），模块内切片测试需在同包放 @SpringBootApplication 作为启动配置——用 @SpringBootConfiguration 会因缺少组件扫描导致全部 404。
+- 依据：tasks.md 的 TASK-002；design.md 的组件与职责、测试策略；用户授权「一直继续 task 直到最后的 work 做完」
+- 验证：mvn -B clean verify：BUILD SUCCESS（paideia-platform 7、paideia-web 9、paideia-app 1）。AC-004 的 Modulith 层补验：向 platform 添加 internal 子包并被 web 引用后，ModularityTest 报 Module 'web' depends on non-exposed type io.github.xiaou61.platform.internal.PlatformInternal within module 'platform' 且构建失败；还原后 mvn -B clean verify 恢复 SUCCESS。另修正一次构建失败：TASK-001 手动启动的应用进程未真正退出，锁住 jar 导致 spring-boot:repackage 改名失败，终止该进程后恢复。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行

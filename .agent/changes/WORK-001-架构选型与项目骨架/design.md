@@ -26,7 +26,7 @@ approver_role: CTO
 
 ```
 backend/                                   聚合父 POM（packaging=pom）
-  paideia-platform/                        通用契约（开放模块）
+  paideia-platform/                        通用契约（普通闭包模块）
   paideia-web/                             Web 基础设施
   paideia-persistence/                     数据访问基础设施
   paideia-security/                        认证授权基础设施
@@ -47,7 +47,7 @@ deploy/                                    docker-compose.yml、.env.example
 
 | 模块 | 包 | 职责 | 依赖 |
 | --- | --- | --- | --- |
-| `paideia-platform` | `io.github.xiaou61.platform` | `ApiResponse<T>`、`ErrorCode`、`PageQuery`、`PageResult<T>`、`BizException` 基类、时间与 ID 类型约定。标注 `@ApplicationModule(type = OPEN)` | 无 |
+| `paideia-platform` | `io.github.xiaou61.platform` | `ApiResponse<T>`、`ErrorCode`、`PageQuery`、`PageResult<T>`、`BizException` 基类、时间与 ID 类型约定。**普通（闭包）模块**：对外契约全部位于包根，子包视为内部实现 | 无 |
 | `paideia-web` | `io.github.xiaou61.web` | 全局异常处理、统一响应包装、参数校验装配、请求上下文与追踪标识（MDC）、CORS 配置 | `paideia-platform` |
 | `paideia-persistence` | `io.github.xiaou61.persistence` | MyBatis 装配、MySQL 分页组件、审计字段填充、TypeHandler 注册点、事务边界约定 | `paideia-platform` |
 | `paideia-security` | `io.github.xiaou61.security` | `AuthPort`（认证端口）、`JwtTokenService`（JWT 实现）、`CurrentUser` 上下文、权限校验注解、Spring Security 装配 | `paideia-platform` |
@@ -62,7 +62,7 @@ deploy/                                    docker-compose.yml、.env.example
 1. **Maven 层（编译期）**：模块间依赖必须在 `pom.xml` 声明。未声明即编译不过，循环依赖无法声明。这是模块**依赖方向**的硬边界。
 2. **Modulith 层（构建期）**：`ApplicationModules.of(PaideiaApplication.class).verify()` 放在测试中，检查循环依赖与**跨模块访问内部实现包**。Maven 的 artifact 会导出全部包，所以"不该被外部使用的 `internal` 子包"只能靠这一层拦。
 
-`paideia-platform` 是开放模块：允许其他模块访问其内部，代价是它容易变成垃圾桶。纪律是只有被三个以上模块真实使用的基础机制才能进入。
+**关于 `paideia-platform` 的模块类型（实施期修正）**：设计初稿把它标为开放模块（`@ApplicationModule(type = OPEN)`），实施时撤销了这个标注。它的对外契约本来就全部位于包根，开放只会放行外部对 `platform.internal` 的访问、白白丢掉一条边界检查。改回普通闭包模块后，`web` 访问 `platform.internal` 会让构建失败——这一条已实测（见 tasks.md 的 TASK-001 结果）。**纪律**：只有确实需要外部访问内部实现的基础机制才考虑开放；新增共享机制前先确认它属于基础设施而非用例。
 
 ### 前端包（计划）
 
@@ -164,6 +164,12 @@ deploy/                                    docker-compose.yml、.env.example
 | 前端 API 打桩 | **MSW 3.0.2** | 在网络层拦截，同一套 handler 同时用于测试与本地开发，比 mock 模块更真实也更耐用 |
 | 端到端 | **Playwright 1.64.0** | 自动等待、web-first 断言、trace viewer 抑制不稳定；CI 用 sharding 扩展开 |
 | 桌面端到端 | WebdriverIO + `tauri-driver` | 需要构建机具备 Rust 与 MSVC |
+
+实施期确认的三处 Boot 4 细节，与设计初稿不同，按实际执行：
+
+- **测试切片的坐标与包名变了**：`@WebMvcTest` 现在位于 `spring-boot-webmvc-test` 模块的 `org.springframework.boot.webmvc.test.autoconfigure` 包，不再是 `spring-boot-test-autoconfigure` 下的 `...autoconfigure.web.servlet`。每个技术模块的测试切片各自独立成 artifact，按需引入。
+- **模块内的切片测试需要自己的启动配置**：`@WebMvcTest` 要在测试所在包向上找到配置类，而 `@SpringBootApplication` 在 `paideia-app`、该模块又不能依赖它（会成环）。做法是在测试源码里放一个同包的 `@SpringBootApplication` 类。**必须用 `@SpringBootApplication` 而不是 `@SpringBootConfiguration`**——后者不含组件扫描，会导致所有控制器都注册不上、请求一律 404（这一版踩过）。也不要用 `@ContextConfiguration` 显式指定配置类，那会关掉切片自己的组件过滤。
+- **`MockMvcTester` 用 `MockMvcTester.create(mockMvc)` 从切片提供的 `MockMvc` 构建**，比依赖自动配置更稳；它的断言入口是 `assertThat(mvc.get().uri(...))`（请求构建器实现了 `AssertProvider`）。
 
 ### 速度手段（按收益排序）
 

@@ -32,7 +32,7 @@ approver_role: CTO
 ### TASK-001 | done | 后端 Maven 多模块工程与模块边界强制
 
 - 完成：2026-10-09
-- 结果：`mvn -B verify` BUILD SUCCESS（paideia-platform 7 个测试、paideia-app 的 ModularityTest 通过）；`GET /actuator/health` 返回 200 与 status UP；向 paideia-platform 注入对 paideia-app 的依赖后 `mvn compile` 因 cyclic reference 失败，还原后恢复成功
+- 结果：`mvn -B verify` BUILD SUCCESS（paideia-platform 7 个测试、paideia-app 的 ModularityTest 通过）；`GET /actuator/health` 返回 200 与 status UP；向 paideia-platform 注入对 paideia-app 的依赖后 `mvn compile` 因 cyclic reference 失败，还原后恢复成功；TASK-002 引入第二个模块后补验了 Modulith 层：`web` 访问 `platform.internal` 使 ModularityTest 报 "depends on non-exposed type" 并失败，还原后恢复
 - 对应：`REQ-005`、`AC-002`、`AC-004`
 - 依赖：无
 - 修改（计划）：`backend/pom.xml`、`backend/paideia-platform/pom.xml`、`backend/paideia-platform/src/main/java/io/github/xiaou61/platform/**`、`backend/paideia-app/pom.xml`、`backend/paideia-app/src/main/java/io/github/xiaou61/PaideiaApplication.java`、`backend/paideia-app/src/test/java/io/github/xiaou61/ModularityTest.java`
@@ -45,18 +45,14 @@ approver_role: CTO
   5. 人为在 `paideia-platform` 中反向引用 `paideia-app` 的类型（或删除 pom 中已声明的依赖），确认构建失败，记录输出后回退。
 - 验证：`cd backend && mvn -q verify` 通过；人为制造非法跨模块依赖时 `mvn -q verify` 失败（附记录）
 
-### TASK-002 | pending | Web 基础设施：统一响应、全局异常、请求上下文
+### TASK-002 | done | Web 基础设施：统一响应、全局异常、请求上下文
 
+- 完成：2026-10-09
+- 结果：`mvn -B verify` BUILD SUCCESS（paideia-web 9 个测试：TraceIdFilterTest 4 个、WebPipelineTest 5 个）；覆盖正常包装、业务异常映射 404、校验失败映射 400、未捕获异常兜底 500、已包装响应不二次包装、追踪标识沿用与非法值丢弃、请求结束清理 MDC
 - 对应：`REQ-004`、`AC-002`
 - 依赖：TASK-001
-- 修改（计划）：`backend/paideia-web/**`、`backend/paideia-app/pom.xml`
-- 测试（计划）：`backend/paideia-web/src/test/java/io/github/xiaou61/web/**`
-- 步骤：
-  1. 建 `paideia-web` 模块并在 `paideia-app` 中依赖它。
-  2. 全局异常处理器：把 `BizException`、参数校验错误、未捕获异常映射为 `ApiResponse` 与对应 HTTP 状态，未捕获异常带 `traceId`。
-  3. 请求上下文：入口过滤器生成追踪标识，写入 MDC 与响应体的 `traceId`。
-  4. CORS 配置从配置项读取允许来源（骨架期留空并给出配置键名）。
-- 验证：`cd backend && mvn -q test`；其中异常映射与响应包装的单测通过
+- 修改（实际）：`backend/pom.xml`（登记新模块与依赖管理）、`backend/paideia-web/**`、`backend/paideia-app/pom.xml`、`backend/paideia-app/src/main/resources/application.yml`
+- 测试（实际）：`backend/paideia-web/src/test/java/io/github/xiaou61/web/{TraceIdFilterTest,WebPipelineTest,ProbeController,WebSliceTestApplication}.java`
 
 ### TASK-003 | pending | 前端 workspace 与主体 SPA 骨架
 

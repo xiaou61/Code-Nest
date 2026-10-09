@@ -20,6 +20,7 @@
 
   <modules>
     <module>paideia-platform</module>
+    <module>paideia-web</module>
     <module>paideia-app</module>
   </modules>
 
@@ -40,6 +41,11 @@
       <dependency>
         <groupId>io.github.xiaou61</groupId>
         <artifactId>paideia-platform</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.github.xiaou61</groupId>
+        <artifactId>paideia-web</artifactId>
         <version>${project.version}</version>
       </dependency>
     </dependencies>

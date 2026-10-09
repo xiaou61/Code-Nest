@@ -10,18 +10,14 @@
     <version>0.0.1-SNAPSHOT</version>
   </parent>
 
-  <artifactId>paideia-app</artifactId>
-  <name>paideia-app</name>
-  <description>Spring Boot 启动模块：主类、配置装配、模块边界校验</description>
+  <artifactId>paideia-web</artifactId>
+  <name>paideia-web</name>
+  <description>Web 基础设施：统一响应包装、全局异常映射、请求追踪标识、CORS</description>
 
   <dependencies>
     <dependency>
       <groupId>io.github.xiaou61</groupId>
       <artifactId>paideia-platform</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.github.xiaou61</groupId>
-      <artifactId>paideia-web</artifactId>
     </dependency>
 
     <dependency>
@@ -30,7 +26,7 @@
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-actuator</artifactId>
+      <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
 
     <dependency>
@@ -38,20 +34,12 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
-    <!-- ApplicationModules.verify() 在 spring-modulith-core，只在测试期需要 -->
+    <!-- Boot 4 把测试切片拆到独立模块：@WebMvcTest 现在位于
+         org.springframework.boot.webmvc.test.autoconfigure -->
     <dependency>
-      <groupId>org.springframework.modulith</groupId>
-      <artifactId>spring-modulith-core</artifactId>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-webmvc-test</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-maven-plugin</artifactId>
-      </plugin>
-    </plugins>
-  </build>
 </project>

@@ -2,6 +2,13 @@ spring:
   application:
     name: paideia
 
+paideia:
+  web:
+    cors:
+      # 默认不放行任何跨域来源。需要时在此加入前端与桌面壳的来源；
+      # 桌面壳来源不是 http(s) 域，必须显式列出，否则 exe 会因跨域调不通后端。
+      allowed-origins: []
+
 management:
   endpoints:
     web:
