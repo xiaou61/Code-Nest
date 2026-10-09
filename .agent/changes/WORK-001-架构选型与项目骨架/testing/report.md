@@ -4,6 +4,7 @@ work_id: WORK-001
 work: 架构选型与项目骨架
 status: passed
 evidence: required
+verified_commit: 77b8290
 created: 2026-10-09
 accepted_by: xiaou61
 accepted_at: 2026-10-09 13:43:08 +0800

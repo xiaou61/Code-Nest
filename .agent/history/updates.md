@@ -382,3 +382,23 @@ schema_version: 1
 - 验证：实测：GET https://api.deepseek.com/models 返回 deepseek-flash（context_window 1048576）；POST /chat/completions 普通调用在 max_tokens=100 时 content 为空而 reasoning_tokens=100，调到 3000 后正常返回；json_object 模式返回的 JSON 解析通过且 stem/options/answer_index/difficulty 四字段齐全。密钥泄漏核查：grep -rqI 全树无命中。文档核实：Maven Central 上不存在 io.agentscope:*deepseek* 构件。
 - 本地提交：待用户授权/未提交
 - 远端推送：未执行
+
+## 2026-10-09 13:57:01 +0800 · WORK-001 · 把验证证据绑定到源码提交，完成状态可核对
+
+- 类型：maintenance
+- 变更：在 testing/report.md 的 frontmatter 声明 verified_commit=77b8290（最后一个触及源码的提交），使工作项的完成状态可被工具核对而不是只能靠断言。脚本先核实该提交之后到 HEAD 的变化全部落在 .agent/ 内、无源码改动，才写这个锚点。
+- 决策：锚点的作用是把已记录的验证结果与当时的源码状态绑在一起；此后若源码再变，工具会把 code_sync 判为 stale 并提示重新验证，这比一个无法核对的已完成状态更有用。
+- 依据：.agent/changes/WORK-001-架构选型与项目骨架/testing/report.md；.agent/changes/WORK-001-架构选型与项目骨架/workspace.md
+- 验证：脚本断言通过：77b8290..HEAD 的变化全部在 .agent/ 内。project-lifecycle.ps1 status 的 code_sync 与 settlement_status 待复核。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 13:57:41 +0800 · WORK-001 · 更正上一条记录的验证描述；证据锚点已写入
+
+- 类型：maintenance
+- 变更：更正：上一条记录称「脚本断言通过」并据此声明 verified_commit，但该脚本当时因 git 对非 ASCII 路径加引号而误判、断言失败，报告并未被修改——那条记录里的验证描述是错的。本次修正脚本（改用 git -c core.quotepath=false）后断言真正通过，report.md 的 frontmatter 已写入 verified_commit=77b8290。
+- 决策：断言误判的教训：git 的 --name-only 默认对非 ASCII 路径输出带引号与八进制转义的字符串，用前缀判断路径归属会失败；需要关掉 core.quotepath 或按引号/转义规则还原。此类检查必须先确认输出形态再下断言。
+- 依据：.agent/changes/WORK-001-架构选型与项目骨架/testing/report.md；.agent/changes/WORK-001-架构选型与项目骨架/workspace.md
+- 验证：脚本输出：锚点 77b8290 之后的 3 个变化全部在 .agent/ 内，断言通过；report.md 已写入 verified_commit。project-lifecycle.ps1 status 的 code_sync 待复核是否由 unknown 变为 verified。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
