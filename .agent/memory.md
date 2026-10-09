@@ -41,7 +41,7 @@
 
 ## MEM-004 | active | operation
 
-- 摘要：本机到 GitHub 的连接不稳，涉及 GitHub 的构建都要走镜像。桌面端打包**必须同时设置两个变量**：`ELECTRON_MIRROR`（Electron 运行时）与 `ELECTRON_BUILDER_BINARIES_MIRROR`（NSIS/签名辅助二进制）——只设后者仍会去 GitHub 拉运行时并超时。pnpm 侧另有 `allowBuilds` 放行依赖的构建脚本（不是旧版的 `onlyBuiltDependencies`）。
+- 摘要：本机到 GitHub 的连接不稳，涉及 GitHub 的构建都要走镜像。桌面端打包**必须同时设置两个变量**：`ELECTRON_MIRROR`（Electron 运行时）与 `ELECTRON_BUILDER_BINARIES_MIRROR`（NSIS/签名辅助二进制）——只设后者仍会去 GitHub 拉运行时并超时。pnpm 侧另有 `allowBuilds` 放行依赖的构建脚本（不是旧版的 `onlyBuiltDependencies`）。 另外 **git 必须显式走本机 Clash 代理**：mixed-port 为 `7897`（TUN 关闭，只有主动走代理的程序才用得上），未配置时代码直连 github.com，表现为推送**时通时不通**。已用 `git config --global http.https://github.com/.proxy` 与 `https.https://github.com/.proxy` 固化到 github.com 这一个域；代理端口若变更需同步更新。
 - 标签：`build` `electron` `pnpm` `network`
 - 范围：`frontend/**`
 - 依据：`.agent/rules/always.md` 的构建命令段；`.agent/changes/WORK-001-架构选型与项目骨架/testing/logs/desktop-packaged.txt`

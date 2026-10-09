@@ -402,3 +402,13 @@ schema_version: 1
 - 验证：脚本输出：锚点 77b8290 之后的 3 个变化全部在 .agent/ 内，断言通过；report.md 已写入 verified_commit。project-lifecycle.ps1 status 的 code_sync 待复核是否由 unknown 变为 verified。
 - 本地提交：待用户授权/未提交
 - 远端推送：未执行
+
+## 2026-10-09 14:04:11 +0800 · WORK-001 · 固化本机 git 代理配置（推送失败的真因）
+
+- 类型：maintenance
+- 变更：查明推送时通时不通的真因：git 没有任何代理配置、环境里也没有代理变量，一直在直连 github.com；本机 Clash 的 mixed-port 是 7897 且 TUN 关闭，只有主动走代理的程序才用得上。已用 git config --global http.https://github.com/.proxy 与 https.https://github.com/.proxy 把 git 固定到该代理（仅对 github.com 生效），普通 git push 与 ls-remote 随即成功。MEM-004 与 always.md 的构建命令段各补一条环境说明。
+- 决策：只对 github.com 域配置代理，不设全局 http.proxy，避免影响内网与其他主机的访问。修正此前一个错误的判断：我一度把推送失败归因为网络抖动并反复重试，实际是配置缺失；反复重试不会成功，应先查代理配置。
+- 依据：.agent/memory.md（MEM-004）；.agent/rules/always.md 的构建与检查命令段
+- 验证：配置前：git config --get-regexp proxy 无输出，env 无代理变量；Clash 控制接口显示 mode=rule、mixed-port=7897、tun.enable=false。配置后：git push rc=0（Everything up-to-date）、git ls-remote rc=0 且返回 278fc3a，与本地 HEAD 一致。确认提交 278fc3a 已推送（1b99d34..278fc3a）。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行

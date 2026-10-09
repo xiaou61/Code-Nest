@@ -67,6 +67,7 @@ Paideia 是「千人千面的 AI 个性化学习平台」。目标不是把同�
     `ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/" ELECTRON_BUILDER_BINARIES_MIRROR="https://npmmirror.com/mirrors/electron-builder-binaries" pnpm -w build:desktop`
     只设 `ELECTRON_BUILDER_BINARIES_MIRROR` 不够：Electron 运行时走的是 `ELECTRON_MIRROR`。
   - 新增源码后如创建了新的跨文件引用，需重建 `.codegraph` 索引再依赖调用关系结论。
+  - **本机网络**：git 访问 github.com 必须走本机 Clash 代理（mixed-port `7897`，TUN 关闭）。未配置时代码直连 GitHub，表现为推送时通时不通；已用 `git config --global http.https://github.com/.proxy` 固化。推送失败时先确认代理端口是否变化，不要反复重试。
 - **本地开发直连自有服务器上的 MySQL 实例**（2026-10-09 用户决定），不用本地容器起实例；连接信息放被忽略的本地配置文件，不进仓库。
 - 涉及学习者个人数据的功能，必须先明确数据隔离、留存与隐私要求，再进入设计（待决定项见 WORK-001 需求文档）。
 - 本地提交需用户明确授权；`git push`、远端分支、tag、部署必须单独授权。
