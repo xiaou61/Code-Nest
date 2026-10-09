@@ -5,6 +5,8 @@ work: 架构选型与项目骨架
 status: passed
 evidence: required
 created: 2026-10-09
+accepted_by: xiaou61
+accepted_at: 2026-10-09 13:43:08 +0800
 ---
 
 # 架构选型与项目骨架验证报告

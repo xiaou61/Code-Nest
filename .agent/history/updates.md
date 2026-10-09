@@ -352,3 +352,33 @@ schema_version: 1
 - 验证：project-lifecycle.ps1 validate：通过（仅剩两条非阻断警告）。status：8 个任务全部 done、0 阻塞。memory.md 的条目格式与 5 条编号已按规范自检（MEM-001..MEM-005，含标签、范围、依据、记录与复核日期）。
 - 本地提交：待用户授权/未提交
 - 远端推送：未执行
+
+## 2026-10-09 13:43:08 +0800 · WORK-001 · 登记业务验收 .agent/changes/WORK-001-架构选型与项目骨架/testing/report.md
+
+- 类型：decision
+- 变更：登记 .agent/changes/WORK-001-架构选型与项目骨架/testing/report.md 的业务验收
+- 决策：审批人 xiaou61；accepted_by / accepted_at 由命令入口盖章，不由模型写入
+- 依据：.agent/changes/WORK-001-架构选型与项目骨架/testing/report.md
+- 验证：回读 frontmatter：accepted_by / accepted_at=2026-10-09 13:43:08 +0800
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 13:44:02 +0800 · WORK-001 · D-09 裁决为 AgentScope；WORK-001 登记业务验收并完成
+
+- 类型：decision
+- 变更：D-09 定为只用 AgentScope Java（不叠加 Spring AI），写入 always.md 的已裁决技术选型与登记表；requirements.md 的 D-09 由待裁决同步为已裁决（仅状态同步，未改目标/需求/验收/范围，原签署有效）。用一次性工程完成 Boot 4.1.1 兼容尖刺：spring-boot-starter-parent 4.1.1 + agentscope-spring-boot-starter 2.0.4，上下文启动成功、BUILD SUCCESS、SpringBootVersion=4.1.1。WORK-001 的验证报告登记业务验收（xiaou61，2026-10-09 13:43:08），该工作项完成。新建 WORK-002「AI 接入与编排」需求草案。
+- 决策：选 AgentScope 的理由：v1 需要的四件事它都是一等能力（对话流式、工具调用、结构化输出含自动回退、token 用量），沙箱与人工审批是后续可能用到的独有能力；不叠加 Spring AI 是为避免两处模型配置。风险已如实记录：v2.0.4 发布仅一天、893 个未关 issue、无第三方生产案例，且成本记账/限流/提示词版本/可抓取指标四项必须自建。Boot 4.1.x 兼容性原本无证据，尖刺已把它从假设变为事实。
+- 依据：.agent/rules/always.md（D-09 条目与已裁决清单）；.agent/references/technology-options.md（D-09 标记已裁决）；.agent/changes/WORK-002-AI接入与编排/requirements.md
+- 验证：尖刺：mvn -B test BUILD SUCCESS，@SpringBootTest 上下文启动，名称含 agentscope 的 Bean 2 个，SpringBootVersion=4.1.1（工程为一次性产物未入库，步骤记在 WORK-002 需求文档）。WORK-001 验证报告状态 passed 且已登记 accepted_by=xiaou61。project-lifecycle.ps1 validate 待本轮记录后复核。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 13:53:30 +0800 · WORK-001 · 补记模型供应商 DeepSeek 与实测接入事实
+
+- 类型：decision
+- 变更：用户决定模型用 DeepSeek 的 deepseek-flash（DeepSeek-V4.1-Flash，1M 上下文）。新增 .agent/references/agentscope-and-deepseek-2026-10.md，记录实测与文档核实的事实：模型 id 与能力、思考模式默认开启且推理 token 计入 max_tokens、json_object 模式实测可用、AgentScope 无 DeepSeek 专用 starter（由 OpenAI 扩展承载）、DeepSeek 的结构化输出走强制工具调用回退、以及工具调用与结构化输出不能在同一次调用里并用。always.md 记录模型供应商与 API 密钥的存放边界（仅本机凭据管理器，经 DEEPSEEK_API_KEY 注入）。按用户要求删除了抢跑创建的 WORK-002。
+- 决策：DeepSeek 的三条实测结论会影响后续 AI 模块的设计：max_tokens 必须给足推理开销并校验内容非空（否则静默拿到空结果）；结构化输出在 DeepSeek 上走框架的强制工具调用回退路径；工具调用与结构化输出必须拆成两次调用，或把决策留在确定性代码里。密钥未写入任何被跟踪文件，提交前已全树核查无命中。
+- 依据：.agent/references/agentscope-and-deepseek-2026-10.md；.agent/rules/always.md；.agent/references/technology-options.md
+- 验证：实测：GET https://api.deepseek.com/models 返回 deepseek-flash（context_window 1048576）；POST /chat/completions 普通调用在 max_tokens=100 时 content 为空而 reasoning_tokens=100，调到 3000 后正常返回；json_object 模式返回的 JSON 解析通过且 stem/options/answer_index/difficulty 四字段齐全。密钥泄漏核查：grep -rqI 全树无命中。文档核实：Maven Central 上不存在 io.agentscope:*deepseek* 构件。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行

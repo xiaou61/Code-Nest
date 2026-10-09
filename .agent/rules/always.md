@@ -21,6 +21,8 @@ Paideia 是「千人千面的 AI 个性化学习平台」。目标不是把同�
   - 数据库：**仅 MySQL，不做多数据库适配**（2026-10-09 用户决定：完全放开，可使用 MySQL 专有语法与特性：upsert、JSON 列与算子、`SKIP LOCKED`、全文检索、自增主键等）。**若将来要换库，等于重写数据访问层，这是已知并接受的代价。**
   - 前端：React 最新稳定版（当前 19.3，无 React 20；React Compiler 1.0 已稳定）。
   - 桌面壳：**Electron**（2026-10-09 由 Tauri 改为 Electron，理由见 D-12）。
+  - AI 接入与编排：**AgentScope Java**（2026-10-09 用户决定）。**不使用 Spring AI / LangChain4j**。对应的模块计划是 `ai`（模型接入与编排），尚未创建。
+  - AI 模型供应商：**DeepSeek**，模型 id **`deepseek-flash`**（DeepSeek-V4.1-Flash，1M 上下文，2026-09-10 发布）。API 密钥只存本机 Windows 凭据管理器（`paideia-deepseek`），通过环境变量 `DEEPSEEK_API_KEY` 注入，**绝不进入仓库或任何被跟踪文件**。
   - 不得使用 JDK 预览特性（结构化并发在 JDK 25 仍是预览）。
 - **不做多租户**（2026-10-09 用户决定）：单一部署形态，不引入租户隔离维度。学习者之间的数据隔离仍需保证，但按普通授权问题处理，不引入租户架构。
 - **本期不做向量化检索**（2026-10-09 用户决定）：不引入向量库、不实现语义检索与 RAG；架构上必须为其保留接入位置。内容检索本期用 MySQL 全文检索承担。若将来引入向量检索，注意 MySQL 社区版/企业版无法原生做向量距离排序。
@@ -46,6 +48,12 @@ Paideia 是「千人千面的 AI 个性化学习平台」。目标不是把同�
   - D-10 认证机制：**自签 JWT**；必须收在单一模块的端口之后，以保持可扩展。
   - D-11 前端框架与渲染模式：**Vite + React Router SPA**。
   - D-12 桌面壳技术：**Electron**；桌面版与 Web 同期交付。
+  - D-09 AI 接入与编排：**AgentScope Java**，唯一框架，不叠加 Spring AI。
+    - **2026-10-09 裁决理由**：v1 需要的四件事它都是一等能力——对话与流式、工具调用、结构化输出（`agent.call(msg, SomeClass.class)` + `getStructuredData(...)`，provider 不支持原生 json_schema 时自动回退为强制工具调用）、以及每次调用的 token 用量（`Msg.getUsage()`）。沙箱执行与人工审批是它独有、且后续可能用到的能力。不叠加 Spring AI 是为了避免两处模型配置。
+    - **必须自己补的四项，写进 `ai` 模块的任务清单，不要指望框架给**：① 用量与成本记账（累计 `ChatUsage`，框架无累加器）② 模型调用限流（文档里的 rate-limit middleware 是示例代码，不是框架类）③ 提示词模板与版本管理（框架只有 `sysPrompt(String)`）④ 可抓取的指标（框架只提供 OpenTelemetry 追踪，没有 Micrometer/Prometheus）。
+    - **兼容性已由尖刺验证（2026-10-09）**：临时工程用 `spring-boot-starter-parent 4.1.1` + `io.agentscope:agentscope-spring-boot-starter:2.0.4`，`@SpringBootTest` 上下文启动成功（`BUILD SUCCESS`，名称含 agentscope 的 Bean 2 个，`SpringBootVersion=4.1.1`）。仓库 pin 4.0.3/4.0.4 只是没有把升级 PR 合入，实测在 4.1.1 上可加载。尖刺工程是一次性的，步骤与结果记在 `.agent/references/agentscope-and-deepseek-2026-10.md`。
+    - **DeepSeek 接入事实已实测（2026-10-09）**，详见 `.agent/references/agentscope-and-deepseek-2026-10.md`。三条要点：（1）DeepSeek 默认开启思考且推理 token 计入 `max_tokens`，给少了会拿到「成功但 content 为空」的响应，必须校验内容非空；（2）AgentScope 没有 DeepSeek 专用 starter（该构件在 Maven Central 上不存在），DeepSeek 由 OpenAI 扩展承载；（3）在 DeepSeek 上工具调用与结构化输出不能在同一次调用里并用（会跳过工具调用），「调工具 + 返回结构化结果」必须拆成两次调用，或把决策留在确定性代码里。
+    - **保留薄端口**：`ChatModelBase` 是抽象类，`Msg`/`ChatResponse`/`ChatUsage`/`AgentEvent`/`ReActAgent.Builder` 会渗透进调用点；业务代码不得直接依赖这些类型，必须收在 `ai` 模块的端口之后，否则将来换运行时的成本是"逐处改调用点"。
     - **2026-10-09 变更理由**：原选择 Tauri 是为不打包 Chromium、产物更小，但 Tauri 在 Windows 上要求 Rust 工具链与 MSVC C++ 生成工具，本开发机两者都没有（WebView2 运行时倒是已有）。Electron 只依赖 Node（本机已有），换过来后桌面端立刻可按现有环境构建。代价是安装包与内存占用显著变大，这是明知并接受的取舍。将来若需要更小产物可回到 Tauri，届时需先装 Rust + MSVC。
   - D-13 前端数据层：服务端状态用 **TanStack Query**；客户端临时状态方案暂缓。
   - D-14 消息与异步：**引入 RabbitMQ**（配合 outbox 中继，见上文实现约束）。
@@ -97,7 +105,7 @@ Paideia 是「千人千面的 AI 个性化学习平台」。目标不是把同�
 | 分页方案 | D-06 | 已定：MySQL 分页组件 |
 | 多数据库适配 | D-07 | 已定：不做适配，完全放开 MySQL |
 | 迁移工具 | D-08 | 已定：Flyway |
-| AI 接入与编排 | D-09 | 待定：用户要求单独讨论 |
+| AI 接入与编排 | D-09 | 已定：AgentScope Java（唯一框架，不叠加 Spring AI）；Boot 4.1.x 兼容性待尖刺验证 |
 | 认证机制 | D-10 | 已定：自签 JWT（收在端口后保持可扩展） |
 | 前端框架与渲染 | D-11 | 已定：Vite + React Router SPA |
 | 桌面壳与交付时机 | D-12 | 已定：Electron，与 Web 同期交付（原 Tauri，2026-10-09 因缺 Rust/MSVC 改为 Electron） |

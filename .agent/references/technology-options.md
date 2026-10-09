@@ -151,8 +151,8 @@ updated: 2026-10-09
 | 自行封装模型客户端 | 依赖最少，完全可控 | 需自己处理流式、重试、工具调用协议、用量记账、多供应商差异 |
 
 **影响面**：AI 相关全部实现方式；与「将来是否接入向量检索」相关。
-**事实**：AgentScope 与 Spring AI **不在同一层且接口不互通**——AgentScope 有自己的 `Model` 类型，无法注入 Spring AI 的 `ChatModel`；但两者可在同一个 Boot 4 应用中共存（自动配置互不冲突）。
-**状态**：待用户决定。
+**事实**：AgentScope 与 Spring AI **不在同一层且接口不互通**——AgentScope 有自己的 `ChatModelBase`，无法注入 Spring AI 的 `ChatModel`；但两者可在同一个 Boot 4 应用中共存（自动配置互不冲突）。
+**状态**：**已裁决（2026-10-09）——只用 AgentScope Java，不叠加 Spring AI。** 理由与必须自行补齐的四项能力见 `.agent/rules/always.md` 的 D-09 条目。 模型供应商定为 **DeepSeek**（`deepseek-flash`），接入细节见 `.agent/references/agentscope-and-deepseek-2026-10.md`。
 
 ### D-10 认证方式
 
