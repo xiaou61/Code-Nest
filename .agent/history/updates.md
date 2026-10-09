@@ -302,3 +302,13 @@ schema_version: 1
 - 验证：带凭据运行 mvn -B clean verify：BUILD SUCCESS，五个模块全绿；PaginationIntegrationTest 4 个用例在真实 MySQL（服务器 paideia_test，经 127.0.0.1:3307 SSH 隧道）通过——分页页大小与总数正确、翻页不重不漏、越界页返回空、归属过滤只返回本用户行且不带过滤的对照查询返回全部 5 行、超限页大小收敛到上限。不带凭据运行同一模块：跳过且构建保持 SUCCESS，stderr 有明确提示。
 - 本地提交：待用户授权/未提交
 - 远端推送：未执行
+
+## 2026-10-09 11:21:33 +0800 · WORK-001 · 完成 TASK-005：认证与授权
+
+- 类型：implementation
+- 变更：新增 paideia-security 模块：AuthPort 端口、JwtAuthService（HS256，JOSE 能力来自 oauth2-resource-server）、AuthProperties、CurrentUser、无状态资源服务装配、仅 dev/local 可见的签发端点与 /api/v1/me。paideia-app 新增授权隔离端到端测试与测试 profile；持久层构建 test-jar 共享测试夹具。前端首页新增「当前身份」面板与浏览器侧受保护接口被拒的 e2e 用例。修复 ApiResponseBodyAdvice 使已包装响应的 traceId 不再为 null。本地配置移到 backend/config 以免被打进 jar。
+- 决策：四处实施期决定：(1) 未配置签名密钥时生成一次性随机密钥并告警而非拒绝启动——应用现需数据源才能起来，再加前置条件会让骨架跑不动，且随机密钥无法跨重启利用；(2) 本地配置放 backend/config/application-local.yml（被忽略），不能放资源目录否则产物带口令；(3) 测试夹具经 test-jar 复用避免两份漂移；(4) 测试密钥明文标注仅测试用。另发现并修复一个真实缺陷：控制器自建 ApiResponse 的响应 traceId 恒为 null。
+- 依据：tasks.md 的 TASK-005；design.md 的安全与权限、测试策略；.agent/rules/always.md
+- 验证：mvn -B verify（带 PAIDEIA_TEST_DB_PASSWORD）：BUILD SUCCESS，五个模块全绿，共 35 个测试。JwtAuthServiceTest 8 个、AuthorizationIsolationTest 6 个（真实 MySQL：无令牌 401、伪造令牌 401、各自只看到自己的行、指定他人归属 403、不泄堆栈）。真实 HTTP 手验：local profile 启动 4.2 秒，健康检查 UP，无令牌 401，签发令牌后 /api/v1/me 返回 learner-a。前端 pnpm -r typecheck 通过；pnpm test:e2e 3 个用例通过。提交前敏感串扫描无命中。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行

@@ -1,7 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
-/** 后端产物。运行 e2e 前需要先在 backend 目录执行 `mvn -B -DskipTests package`。 */
-const BACKEND_JAR = '../../../backend/paideia-app/target/paideia-app-0.0.1-SNAPSHOT.jar'
+/** 后端工作目录与产物。运行 e2e 前需要先在 backend 目录执行 `mvn -B -DskipTests package`。 */
+const BACKEND_DIR = '../../../backend'
+const BACKEND_JAR = 'paideia-app/target/paideia-app-0.0.1-SNAPSHOT.jar'
 
 export default defineConfig({
   testDir: './e2e',
@@ -22,7 +23,14 @@ export default defineConfig({
    */
   webServer: [
     {
-      command: `java -jar ${BACKEND_JAR}`,
+      /**
+       * 用 local profile 启动后端：应用现在必须有数据源才能起来，
+       * 而数据源连接信息在被 gitignore 的 backend/config/application-local.yml 里（指向本机 3307 隧道）。
+       * 因此 e2e 的前置条件是那条 SSH 隧道是通的。
+       */
+      command: `java -jar ${BACKEND_JAR} --spring.profiles.active=local`,
+      // 必须在 backend 目录启动：Spring Boot 从工作目录读 ./config/ 下的本地配置
+      cwd: BACKEND_DIR,
       url: 'http://127.0.0.1:8080/actuator/health',
       reuseExistingServer: true,
       timeout: 120_000,

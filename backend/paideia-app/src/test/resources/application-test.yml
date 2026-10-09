@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    # 默认指向本机 3307 的 SSH 隧道（服务器上的 paideia_test）。凭据只从环境变量读取。
+    url: ${PAIDEIA_TEST_DB_URL:jdbc:mysql://127.0.0.1:3307/paideia_test?useSSL=false&allowPublicKeyRetrieval=true&connectionTimeZone=UTC&characterEncoding=utf8}
+    username: ${PAIDEIA_TEST_DB_USER:paideia}
+    password: ${PAIDEIA_TEST_DB_PASSWORD:}
+  flyway:
+    # 生产迁移 + 来自 paideia-persistence test-jar 的测试夹具表
+    locations: classpath:db/migration,classpath:db/testdata
+
+paideia:
+  auth:
+    # 测试专用密钥。只用于测试；任何真实环境都必须通过 PAIDEIA_AUTH_SECRET 提供自己的密钥。
+    secret: test-only-secret-do-not-reuse-in-any-real-environment-0123456789
+    issuer: paideia-test
+    token-ttl: 30m

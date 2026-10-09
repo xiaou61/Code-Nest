@@ -27,6 +27,10 @@
       <groupId>io.github.xiaou61</groupId>
       <artifactId>paideia-persistence</artifactId>
     </dependency>
+    <dependency>
+      <groupId>io.github.xiaou61</groupId>
+      <artifactId>paideia-security</artifactId>
+    </dependency>
 
     <!-- schema 迁移。数据源只在 local/test profile 提供，默认 profile 下 Flyway 自动装配被跳过 -->
     <dependency>
@@ -57,6 +61,20 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Boot 4 把测试切片拆到独立模块：@WebMvcTest / @AutoConfigureMockMvc 都在这里 -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-webmvc-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- 复用持久层的测试夹具（示例表迁移与示例 mapper），不重复写第二份 -->
+    <dependency>
+      <groupId>io.github.xiaou61</groupId>
+      <artifactId>paideia-persistence</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <!-- ApplicationModules.verify() 在 spring-modulith-core，只在测试期需要 -->

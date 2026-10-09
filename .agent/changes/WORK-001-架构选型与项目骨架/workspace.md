@@ -1,29 +1,36 @@
 ---
-base_commit: 5211593
+base_commit: 7e83ba4
 ---
 
 # WORK-001 工作区归因
 
-基准提交为 `5211593`（TASK-002）。本表登记该提交之后、本次提交之前的工作区改动。
+基准提交为 `7e83ba4`（TASK-004）。本表登记该提交之后、本次提交之前的工作区改动。
 
 ## 工作区归因
 
 | 路径 | 归属 | 说明 |
 | --- | --- | --- |
-| frontend/ | current_work | TASK-003：整个前端工作区 |
-| backend/paideia-persistence/ | current_work | TASK-004：新增持久层模块（pom、包说明、MyBatis 约定、测试与测试迁移） |
-| backend/pom.xml | current_work | TASK-004：登记 paideia-persistence 模块与依赖管理 |
-| backend/paideia-app/pom.xml | current_work | TASK-004：加入持久层、Flyway 与 MySQL 驱动依赖 |
-| backend/paideia-app/src/main/resources/db/migration/.gitkeep | current_work | TASK-004：建立生产迁移目录及命名约定说明 |
-| backend/paideia-platform/src/main/java/io/github/xiaou61/platform/PageQuery.java | current_work | TASK-004：新增 `limit()` |
-| .gitignore | current_work | 增加测试产物忽略项 |
-| .agent/changes/WORK-001-架构选型与项目骨架/tasks.md | current_work | TASK-003、TASK-004 状态与验证结果 |
-| .agent/changes/WORK-001-架构选型与项目骨架/design.md | current_work | TASK-003、TASK-004 实施期确认与修正（分页不做拦截器、审计走列默认值） |
+| backend/paideia-security/ | current_work | TASK-005：新增认证授权模块（AuthPort、JwtAuthService、AuthProperties、CurrentUser、SecurityConfiguration、AuthController、MeController、包说明与单测） |
+| backend/paideia-app/src/test/ | current_work | TASK-005：授权隔离端到端测试、测试夹具控制器、测试 profile 配置 |
+| backend/pom.xml | current_work | TASK-005：登记 paideia-security 模块与依赖管理 |
+| backend/paideia-app/pom.xml | current_work | TASK-005：加入安全模块、测试切片模块与持久层 test-jar |
+| backend/paideia-persistence/pom.xml | current_work | TASK-005：构建 test-jar 以共享测试夹具 |
+| backend/paideia-persistence/src/test/java/io/github/xiaou61/persistence/ExampleItemMapper.java | current_work | TASK-005：加 `@Mapper` 使其可被应用自动扫描 |
+| backend/paideia-web/src/main/java/io/github/xiaou61/web/ApiResponseBodyAdvice.java | current_work | TASK-005：修复已包装响应的 traceId 恒为 null 的缺陷 |
+| backend/paideia-web/src/test/java/io/github/xiaou61/web/WebPipelineTest.java | current_work | TASK-005：为上述修复加防回归断言 |
+| frontend/apps/app/src/pages/HomePage.tsx | current_work | TASK-005：新增「当前身份」面板，走真实受保护接口 |
+| frontend/apps/app/e2e/home.spec.ts | current_work | TASK-005：新增受保护接口在浏览器中被拒的用例 |
+| frontend/apps/app/playwright.config.ts | current_work | TASK-005：后端改以 local profile 与 backend 工作目录启动 |
+| .agent/changes/WORK-001-架构选型与项目骨架/tasks.md | current_work | TASK-005 状态与验证结果 |
+| .agent/changes/WORK-001-架构选型与项目骨架/design.md | current_work | TASK-005 实施期确认（实现类名、密钥缺失行为、本地配置位置、放行规则、test-jar、traceId 修复） |
 | .agent/history/updates.md | current_work | 追加更新记录 |
+
+## 未纳入版本控制
+
+`backend/config/application-local.yml`（含数据库口令与本地签名密钥，被 `.gitignore` 忽略）、`backend/paideia-app/target/`、`frontend/**/node_modules/`、`frontend/apps/app/dist/`、`test-results/`。
 
 ## 备注
 
-- 未提交前验证（带 `PAIDEIA_TEST_DB_PASSWORD`）：`mvn -B clean verify` BUILD SUCCESS，含真实 MySQL 上的分页与归属过滤集成测试 4 个用例。
-- 未纳入版本控制：`node_modules/`、`dist/`、`target/`、`test-results/`。
-- 测试库经 `127.0.0.1:3307` 的 SSH 隧道连到服务器上的 `paideia_test`；隧道为本地进程，不属于仓库内容。
+- 提交前验证（带 `PAIDEIA_TEST_DB_PASSWORD`）：`mvn -B verify` BUILD SUCCESS（platform 7、web 9、persistence 4、security 8、app 7 个测试）；`pnpm -r typecheck` 通过；`pnpm test:e2e` 3 个用例通过。
+- 后端启动现需数据源，本地以 `--spring.profiles.active=local` 运行；e2e 亦依赖 3307 隧道。
 - 并发写入提醒：`.agent/` 下另有会话在写入；修改共享工件前先重新读取。

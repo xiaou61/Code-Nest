@@ -70,12 +70,14 @@ class WebPipelineTest {
     }
 
     @Test
-    @DisplayName("已包装的响应不会被二次包装")
-    void doesNotDoubleWrap() {
+    @DisplayName("控制器自己构造的响应不被二次包装，但同样会被补上追踪标识")
+    void doesNotDoubleWrapButFillsTraceId() {
         assertThat(mvc.get().uri("/probe/wrapped"))
                 .matches(status().isOk())
                 .bodyText()
                 .contains("\"value\":\"inner\"")
-                .doesNotContain("\"data\":{\"code\"");
+                .doesNotContain("\"data\":{\"code\"")
+                // 曾经这里恒为 null：早期实现直接跳过已包装的响应，导致这类接口拿不到 traceId
+                .doesNotContain("\"traceId\":null");
     }
 }

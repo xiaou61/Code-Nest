@@ -10,11 +10,21 @@ interface HealthResponse {
   groups?: string[]
 }
 
+interface SubjectResponse {
+  subject: string
+}
+
 export function HomePage() {
   const platform = usePlatform()
   const health = useQuery({
     queryKey: ['backend-health'],
     queryFn: () => api.request<HealthResponse>('/actuator/health'),
+  })
+  // 受保护接口：当前还没有登录流程，因此正常情况下这里会拿到 401。
+  // 这正是要展示的事实——该接口确实受保护，不是浏览器拿到就能读。
+  const identity = useQuery({
+    queryKey: ['backend-identity'],
+    queryFn: () => api.requestEnvelope<SubjectResponse>('/api/v1/me').then((data) => data.subject),
   })
 
   return (
@@ -71,6 +81,21 @@ export function HomePage() {
         >
           重新查询
         </button>
+      </Panel>
+
+      <Panel title="当前身份 · GET /api/v1/me（受保护接口）">
+        {identity.isPending && <p data-testid="identity-state">查询中…</p>}
+        {identity.isSuccess && (
+          <p style={{ margin: 0 }} data-testid="identity-state">
+            已认证：<strong data-testid="identity-subject">{identity.data}</strong>
+          </p>
+        )}
+        {identity.isError && (
+          <p style={{ margin: 0 }} data-testid="identity-state">
+            <span data-testid="identity-subject">未登录</span>
+            <span style={{ color: '#57606a' }}>（{(identity.error as Error).message}）</span>
+          </p>
+        )}
       </Panel>
     </main>
   )

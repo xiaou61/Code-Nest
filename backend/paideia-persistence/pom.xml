@@ -65,4 +65,22 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <build>
+    <plugins>
+      <!-- 把测试夹具（示例表迁移、示例实体与 mapper）打成 test-jar，供 paideia-app 的隔离测试复用，
+           避免同一张夹具表在两个模块里各写一份、日后漂移 -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>test-jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

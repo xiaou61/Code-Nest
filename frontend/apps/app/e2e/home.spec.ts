@@ -18,3 +18,13 @@ test('每个请求都带上后端返回的追踪标识', async ({ page }) => {
   expect(response.status()).toBe(200)
   expect(response.headers()['x-trace-id']).toBeTruthy()
 })
+
+test('受保护接口在浏览器里确实被保护', async ({ page }) => {
+  await page.goto('/')
+
+  // 没有登录流程就没有令牌，受保护接口必须拒绝——这证明它不是"浏览器能拿到就能读"
+  await expect(page.getByTestId('identity-subject')).toHaveText('未登录')
+
+  const response = await page.request.get('/api/v1/me')
+  expect(response.status()).toBe(401)
+})

@@ -77,18 +77,21 @@ approver_role: CTO
 - 测试（实际）：`backend/paideia-persistence/src/test/java/io/github/xiaou61/persistence/PaginationIntegrationTest.java`
 - 运行前提：需要 `PAIDEIA_TEST_DB_PASSWORD`（及其余可选读数）与 `127.0.0.1:3307` 的 SSH 隧道
 
-### TASK-005 | pending | 认证与授权：JWT、AuthPort、越权拒绝
+### TASK-005 | done | 认证与授权：JWT、AuthPort、越权拒绝
 
+- 完成：2026-10-09
+- 结果：`mvn -B verify`（带凭据）BUILD SUCCESS；JwtAuthServiceTest 8 个用例通过（签发校验往返、篡改载荷被拒、异密钥签发被拒、过期被拒、格式非法被拒、弱密钥在构造期失败、缺密钥可被识别、默认值生效）；AuthorizationIsolationTest 6 个用例在真实 MySQL 上通过（无令牌 401、主体取自令牌、伪造令牌 401、两个令牌各自只看到自己的行、指定他人归属 403、失败响应不泄堆栈）；真实 HTTP 手验：健康 UP、无令牌 401、签发令牌后 `/api/v1/me` 返回 `learner-a`
+- 实施期决定：
+  1. **未配置密钥时生成一次性随机密钥并告警**，而不是拒绝启动。原因是应用现在必须有数据源才能起来，再多一个启动前置条件会让骨架开箱跑不动；随机密钥无法跨重启利用，风险显著低于写死的默认密钥。配置了密钥则校验长度（≥32 字符）
+  2. **本地配置放 `backend/config/application-local.yml`**（被 gitignore），不放 `src/main/resources`——放在资源目录会被打进 jar，产物里就带着数据库口令
+  3. **修复了一个真实缺陷**：`ApiResponseBodyAdvice` 原先直接跳过已包装的响应，导致控制器自己构造 `ApiResponse` 的接口 `traceId` 恒为 null。现在会补上标识，并加了断言防回归
+  4. **测试夹具经 test-jar 复用**：`paideia-persistence` 构建 test-jar，`paideia-app` 的隔离测试直接复用同一份示例表迁移与 mapper，避免两处各写一份日后漂移
+  5. 测试用密钥写在 `src/test/resources/application-test.yml`，带明文标注"仅测试，任何真实环境不得复用"
 - 对应：`REQ-006`、`AC-006`
 - 依赖：TASK-002、TASK-004
-- 修改（计划）：`backend/paideia-security/**`、`backend/paideia-app/src/main/java/**`
-- 测试（计划）：`backend/paideia-security/src/test/java/io/github/xiaou61/security/**`
-- 步骤：
-  1. 建 `paideia-security`：`AuthPort`（签发、校验、当前主体）、`JwtTokenService`（HS256，密钥来自配置，长度不低于 32 字节）、`CurrentUser` 上下文。
-  2. Spring Security 装配为无状态资源服务：关闭 CSRF、不建会话、JWT 过滤器解析令牌。
-  3. 暴露 `POST /api/v1/auth/token`（仅开发 profile）与 `GET /api/v1/me`；身份只取自令牌，接口不接受客户端传入的用户标识。
-  4. 写授权隔离测试：用测试作用域示例表，断言用户 A 的令牌读不到用户 B 的行；并断言无令牌为 401、越权为 403。
-- 验证：`cd backend && mvn -q test`；隔离与 401/403 测试通过
+- 修改（实际）：`backend/pom.xml`、`backend/paideia-security/**`、`backend/paideia-app/pom.xml`、`backend/paideia-app/src/test/**`、`backend/paideia-web/src/main/java/io/github/xiaou61/web/ApiResponseBodyAdvice.java`、`frontend/apps/app/src/pages/HomePage.tsx`、`frontend/apps/app/e2e/home.spec.ts`、`frontend/apps/app/playwright.config.ts`
+- 测试（实际）：`backend/paideia-security/src/test/java/io/github/xiaou61/security/JwtAuthServiceTest.java`、`backend/paideia-app/src/test/java/io/github/xiaou61/AuthorizationIsolationTest.java`、`frontend/apps/app/e2e/home.spec.ts`
+- 运行前提：后端启动需要数据源，本地用 `--spring.profiles.active=local`（读被忽略的 `backend/config/application-local.yml`），因此 e2e 也依赖 3307 隧道
 
 ### TASK-006 | pending | Tauri 桌面壳与平台适配器双实现
 

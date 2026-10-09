@@ -29,10 +29,16 @@ public class ApiResponseBodyAdvice implements ResponseBodyAdvice<Object> {
     public Object beforeBodyWrite(Object body, MethodParameter returnType, MediaType selectedContentType,
             Class<? extends HttpMessageConverter<?>> selectedConverterType,
             ServerHttpRequest request, ServerHttpResponse response) {
-        if (body instanceof ApiResponse<?> || body instanceof String || isActuator(request)) {
+        if (isActuator(request) || body instanceof String) {
             return body;
         }
-        return ApiResponse.ok(body).withTraceId(traceIdOf(request));
+        String traceId = traceIdOf(request);
+        if (body instanceof ApiResponse<?> apiResponse) {
+            // 控制器自己构造的响应也要补上追踪标识，否则这些接口的响应里 traceId 恒为 null，
+            // 用户报错时拿不到可以对齐日志的标识
+            return apiResponse.withTraceId(traceId);
+        }
+        return ApiResponse.ok(body).withTraceId(traceId);
     }
 
     private boolean isActuator(ServerHttpRequest request) {

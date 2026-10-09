@@ -151,6 +151,15 @@ deploy/                                    docker-compose.yml、.env.example
 - **凭据边界**：连接信息一律来自环境变量或被忽略的本地配置文件；仓库内只放 `.env.example` 占位。数据库端口对公网开放是用户已确认的取舍，不再收紧。
 - **身份来源单一**：接口不接受客户端传入的用户标识，所有归属判断取自令牌。
 
+**实施期确认（TASK-005 实际落地）**：
+
+- 实现类名是 `JwtAuthService`（不是初稿写的 `JwtTokenService`），JOSE 能力来自 `spring-boot-starter-oauth2-resource-server`，不手写 JWT。资源服务器的过滤器与 `AuthPort` 共用同一个解码器，避免"签发一套规则、校验另一套"。
+- **密钥缺失时的行为**：生成一次性随机密钥并 WARN，而不是拒绝启动。应用现在必须有数据源才能起来，再加一个启动前置条件会让骨架开箱跑不动；随机密钥无法被跨重启利用，风险显著低于写死的默认密钥。配置了密钥则校验长度不低于 32 字符。
+- **本地配置的位置**：`backend/config/application-local.yml`，被 `.gitignore` 忽略。**不能放在 `src/main/resources`**——资源目录会被打进 jar，产物里就带着数据库口令。运行本地实例时工作目录必须是 `backend/`，Spring Boot 才读得到 `./config/`。
+- **放行规则**：健康检查、`/error`、以及仅 dev/local profile 存在的 `POST /api/v1/auth/token`；其余（含 Actuator 其他端点）一律要求已认证。
+- 测试夹具经 `paideia-persistence` 的 **test-jar** 共享给 `paideia-app` 的隔离测试，避免同一张夹具表在两处各写一份。
+- 顺带修掉一个真实缺陷：`ApiResponseBodyAdvice` 原先跳过已包装的响应，使控制器自己构造 `ApiResponse` 的接口 `traceId` 恒为 `null`；现在会补上标识，并有断言防回归。
+
 ## 可观测性
 
 - Actuator 暴露 `health`、`info`、`metrics`；Micrometer 默认指标随 Boot 提供。
