@@ -342,3 +342,13 @@ schema_version: 1
 - 验证：project-lifecycle.ps1 validate：通过（仅剩两条非阻断警告：design.md 超过 20000 字节、核心 Markdown 7 个超过软阈值 6）。status：8 个任务全部 done，0 阻塞，阶段进入完成沉淀。安装包与打包应用运行证据见 testing/logs/desktop-packaged.txt。
 - 本地提交：待用户授权/未提交
 - 远端推送：未执行
+
+## 2026-10-09 12:57:27 +0800 · WORK-001 · 完成沉淀：沉淀长期记忆与平台契约
+
+- 类型：maintenance
+- 变更：新增 .agent/specs/platform-contracts.md（HTTP 与错误契约、分页约定、认证与授权、模块边界规则、前端平台能力、CORS 双开关），供后续业务工作项直接依赖。.agent/memory.md 写入 5 条长期记忆：Boot 4 测试切片坐标与包名、模块内切片测试需要同包 @SpringBootApplication、CORS 的两处开关与安全链 .cors()、本机镜像要求（ELECTRON_MIRROR 与 ELECTRON_BUILDER_BINARIES_MIRROR 必须同时设、pnpm allowBuilds）、持久层显式分页约定。
+- 决策：把稳定契约从 WORK-001 的设计文档提升到 .agent/specs/：业务功能落地时不应去翻某个已完成工作项的设计文档才能知道响应结构、错误码与分页约定。构建命令留在 .agent/rules/always.md 不重复，避免两处不同步。未归档该工作项——归档会改动路径引用，用户未要求审计归档时不做。
+- 依据：.agent/specs/platform-contracts.md；.agent/memory.md；design.md 与 testing/report.md
+- 验证：project-lifecycle.ps1 validate：通过（仅剩两条非阻断警告）。status：8 个任务全部 done、0 阻塞。memory.md 的条目格式与 5 条编号已按规范自检（MEM-001..MEM-005，含标签、范围、依据、记录与复核日期）。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行

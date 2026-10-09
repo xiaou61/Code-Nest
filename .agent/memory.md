@@ -9,4 +9,51 @@
 
 ## 记忆条目
 
-当前暂无长期记忆。
+## MEM-001 | active | lesson
+
+- 摘要：Boot 4 把测试切片拆成了独立 artifact，包名也变了。`@WebMvcTest` / `@AutoConfigureMockMvc` 在 `spring-boot-webmvc-test` 的 `org.springframework.boot.webmvc.test.autoconfigure`，不再是 `spring-boot-test-autoconfigure` 下的 `...autoconfigure.web.servlet`；按技术各自成 artifact，按需引入。
+- 标签：`spring-boot-4` `testing` `webmvc`
+- 范围：`backend/**` 的测试
+- 依据：`.agent/changes/WORK-001-架构选型与项目骨架/design.md`（测试策略的实施期确认）；实测 `spring-boot-webmvc-test-4.1.1.jar` 内的类路径
+- 记录：2026-10-09
+- 复核：2026-10-09
+- 失效条件：升级到把切片合并回单一 artifact 的 Boot 版本。
+
+## MEM-002 | active | lesson
+
+- 摘要：模块内的 `@WebMvcTest` 需要一份**同包**的启动配置类，且必须用 `@SpringBootApplication` 而不是 `@SpringBootConfiguration`——后者不含组件扫描，表现为所有控制器都注册不上、请求一律 404。也不要用 `@ContextConfiguration` 显式指定配置类，那会关掉切片自己的组件过滤。
+- 标签：`spring-boot-4` `testing` `webmvc` `modulith`
+- 范围：`backend/paideia-*/src/test/**`
+- 依据：`.agent/changes/WORK-001-架构选型与项目骨架/design.md`（测试策略的实施期确认）；`backend/paideia-web/src/test/java/io/github/xiaou61/web/WebSliceTestApplication.java`
+- 记录：2026-10-09
+- 复核：2026-10-09
+- 失效条件：模块不再需要切片测试，或转而全部使用 `@SpringBootTest`。
+
+## MEM-003 | active | lesson
+
+- 摘要：CORS 在这个项目里有**两处开关，都要配**：`paideia.web.cors.allowed-origins` 只管 `/api/**`（走 `WebMvcConfigurer`）；Actuator 端点由它自己的 HandlerMapping 处理，只认 `management.endpoints.web.cors.allowed-origins`。另外安全链必须显式 `.cors()`，否则预检 OPTIONS 会先被 `anyRequest().authenticated()` 挡成 401，表现为"同源可用、跨域全挂"。
+- 标签：`cors` `spring-security` `actuator` `web`
+- 范围：`backend/paideia-web/`、`backend/paideia-security/`
+- 依据：`backend/paideia-app/src/test/java/io/github/xiaou61/AuthorizationIsolationTest.java` 的三个 CORS 用例
+- 记录：2026-10-09
+- 复核：2026-10-09
+- 失效条件：改为在网关统一处理 CORS，或 Actuator 不再由独立 HandlerMapping 承载。
+
+## MEM-004 | active | operation
+
+- 摘要：本机到 GitHub 的连接不稳，涉及 GitHub 的构建都要走镜像。桌面端打包**必须同时设置两个变量**：`ELECTRON_MIRROR`（Electron 运行时）与 `ELECTRON_BUILDER_BINARIES_MIRROR`（NSIS/签名辅助二进制）——只设后者仍会去 GitHub 拉运行时并超时。pnpm 侧另有 `allowBuilds` 放行依赖的构建脚本（不是旧版的 `onlyBuiltDependencies`）。
+- 标签：`build` `electron` `pnpm` `network`
+- 范围：`frontend/**`
+- 依据：`.agent/rules/always.md` 的构建命令段；`.agent/changes/WORK-001-架构选型与项目骨架/testing/logs/desktop-packaged.txt`
+- 记录：2026-10-09
+- 复核：2026-10-09
+
+## MEM-005 | active | convention
+
+- 摘要：持久层分页是**约定式显式分页**，不做 SQL 改写拦截器：`PageQuery` 给出 `limit()`/`offset()`，mapper 自己写 `LIMIT #{limit} OFFSET #{offset}`，总数由独立的 count 语句提供。不要引入 PageHelper 或自研 SQL 改写拦截器——线程本地状态污染与 COUNT 改写错误是那类方案的固有代价，而显式写法只多两行 SQL。
+- 标签：`mybatis` `pagination` `persistence`
+- 范围：`backend/paideia-persistence/`、所有 mapper
+- 依据：`backend/paideia-persistence/src/main/java/io/github/xiaou61/persistence/package-info.java`
+- 记录：2026-10-09
+- 复核：2026-10-09
+- 失效条件：出现大量分页查询且手写成本明显不可接受时，重评是否引入受控的抽象。
