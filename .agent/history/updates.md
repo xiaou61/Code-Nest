@@ -182,3 +182,53 @@ schema_version: 1
 - 验证：git grep HEAD 查 36.212 与口令：无命中；git log master：仅 85bb656 与 025631f 两条，旧历史不在 master 祖先中；git ls-remote origin：HEAD 与 refs/heads/master 均为 025631f。未运行构建或代码验证：尚未创建任何源码。
 - 本地提交：025631f
 - 远端推送：origin/master（85bb656..025631f）
+
+## 2026-10-09 10:15:02 +0800 · WORK-001 · 清理远端遗留引用；起草详细设计与实施任务
+
+- 类型：implementation
+- 变更：经用户授权删除远端 9 个 refs/remotes/origin/* 遗留引用（旧项目的分支尖端）；确认仓库归用户本人所有（本地身份 lzf 与历史作者一致）。提交并推送 6f19cc5（归因基准更新与推送记录）。新增 design.md（系统上下文、模块职责、边界强制两层、接口契约、持久化与分页组件、失败处理、安全与权限、可观测性、测试策略、需求追踪）与 tasks.md（TASK-001..TASK-008，含依赖、计划路径、可执行步骤、可复现验证命令）。
+- 决策：远端仅剩 refs/heads/master（6f19cc5）；50 条 refs/pull/* 由 GitHub 生成无法由用户删除，旧对象仍可经 PR 引用与 23 个 fork 取得，已如实记录。设计与任务严格限定在架构与技术底座，不含任何业务模块。授权隔离的验证采用仅存在于测试作用域的示例表，生产 schema 不含该表。
+- 依据：.agent/changes/WORK-001-架构选型与项目骨架/design.md；.agent/changes/WORK-001-架构选型与项目骨架/tasks.md；.agent/changes/WORK-001-架构选型与项目骨架/workspace.md；.agent/references/technology-options.md
+- 验证：git push：025631f..6f19cc5 成功，远端 refs/heads/master 已核对为 6f19cc5，工作区干净。git ls-remote：refs/remotes/origin/* 计数为 0。project-lifecycle.ps1 validate / checkpoint 待本轮记录后复核。未运行构建或代码验证：尚未创建任何源码。
+- 本地提交：6f19cc5
+- 远端推送：origin/master（025631f..6f19cc5）
+
+## 2026-10-09 10:23:44 +0800 · WORK-001 · 清理服务器上的 Code-Nest 部署
+
+- 类型：maintenance
+- 变更：经用户明确指示，在自有服务器 codenest-online 上停止并删除 Code-Nest 部署：终止监听 127.0.0.1:9999 的 Java 进程，删除 /opt/codenest-app（666M）与 /opt/codenest-sql（300K）。删除前打包备份至 /root/backups/codenest-predelete.tar.gz（618MB，28 个条目，已校验可读）。服务器访问使用本机 quick-server 技能存于 Windows 凭据管理器的凭据，未使用聊天中提供的明文口令。
+- 决策：删除依据：该实例为本地开发环境（启动参数 --spring.profiles.active=dev，仅监听 127.0.0.1，无反向代理，80/443 未监听），外部不可达，不存在受影响的实际用户；用户要求 Paideia 与 Code-Nest 彻底分离。数据库 code_nest 尚未删除：本机凭据库无 MySQL 凭据，待用户提供后另行处理。Redis 为空，无需清理。
+- 依据：服务器勘察输出（ss -lntp、systemctl list-units、/opt 与 /root 目录列表）；用户指示「给我完全删掉」
+- 验证：删除后核对：/opt 仅剩 jdk17 与 jdk25；find / -maxdepth 4 -iname '*codenest*'（排除备份目录）无结果；9999 端口无监听；无 crontab；redis-cli dbsize = 0；备份包 tar tzf 列出 28 个条目。未运行构建或代码验证：仓库仍无源码。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 10:24:37 +0800 · WORK-001 · 核实测试框架选型；记录服务器环境事实
+
+- 类型：decision
+- 变更：design.md 的测试策略改为带版本的工具清单（JUnit 6.1.3、AssertJ 3.27.7、Mockito 5.24.0 + @MockitoBean、ArchUnit 1.5.1、@MybatisTest 与 MockMvcTester、Testcontainers 2.0.5、Instancio 6.1.0、Vitest 5.0.3、MSW 3.0.2、Playwright 1.64.0），新增速度手段排序与「不要用 H2 替代 MySQL」的明确禁令。always.md 新增「服务器环境」章节（JDK 25 未接线、MySQL 只监听本机、无 Docker/RabbitMQ/Nginx、无 systemd 单元）并修正数据库端口的描述为实际状态。
+- 决策：测试数据库默认指向服务器上的独立测试库 paideia_test（本机当前无 Docker，无需引入容器）；将来装好 Docker 可切 Testcontainers 换隔离，只改配置。授权隔离仍用测试作用域示例表。JUnit 6 已 GA 且要求 Java 17+，本项目基线为 JDK 25，可直接采用。
+- 依据：.agent/changes/WORK-001-架构选型与项目骨架/design.md；.agent/rules/always.md；官方 release 元数据与文档（见本轮调研结论）
+- 验证：服务器复核：/opt 仅剩 jdk17 与 jdk25；MySQL 数据目录中仍存在 code_nest（待有凭据后删除）；redis-cli dbsize = 0。工件校验：project-lifecycle.ps1 validate 待复核。未运行构建或代码验证：仓库仍无源码。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 10:27:18 +0800 · WORK-001 · 签署 .agent/changes/WORK-001-架构选型与项目骨架/design.md
+
+- 类型：decision
+- 变更：.agent/changes/WORK-001-架构选型与项目骨架/design.md 由 xiaou61 签署为 approved
+- 决策：审批人 xiaou61（CTO）；approved_by / approved_at 由命令入口盖章，不由模型写入
+- 依据：.agent/changes/WORK-001-架构选型与项目骨架/design.md
+- 验证：回读 frontmatter：approved_by / approved_at=2026-10-09 10:27:18 +0800
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 10:27:19 +0800 · WORK-001 · 签署 .agent/changes/WORK-001-架构选型与项目骨架/tasks.md
+
+- 类型：decision
+- 变更：.agent/changes/WORK-001-架构选型与项目骨架/tasks.md 由 xiaou61 签署为 approved
+- 决策：审批人 xiaou61（CTO）；approved_by / approved_at 由命令入口盖章，不由模型写入
+- 依据：.agent/changes/WORK-001-架构选型与项目骨架/tasks.md
+- 验证：回读 frontmatter：approved_by / approved_at=2026-10-09 10:27:19 +0800
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
