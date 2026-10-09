@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Paideia · 千人千面的 AI 个性化学习平台</title>
+    <meta name="description" content="Paideia 让每个学习者拥有自适应的学习路径、内容与反馈，而不是把同一套课程发给所有人。" />
+  </head>
+  <body>
+    <!--
+      这是一个独立的公开页 surface：与登录后的应用分开构建。
+      预渲染把 React 组件的输出直接写进 HTML，因此爬虫不需要执行 JavaScript 就能读到内容。
+    -->
+    <div id="root"><!--prerender-outlet--></div>
+    <script type="module" src="/src/entry-client.tsx"></script>
+  </body>
+</html>

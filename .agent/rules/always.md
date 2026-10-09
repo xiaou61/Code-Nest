@@ -49,7 +49,14 @@ Paideia 是「千人千面的 AI 个性化学习平台」。目标不是把同�
     - **2026-10-09 变更理由**：原选择 Tauri 是为不打包 Chromium、产物更小，但 Tauri 在 Windows 上要求 Rust 工具链与 MSVC C++ 生成工具，本开发机两者都没有（WebView2 运行时倒是已有）。Electron 只依赖 Node（本机已有），换过来后桌面端立刻可按现有环境构建。代价是安装包与内存占用显著变大，这是明知并接受的取舍。将来若需要更小产物可回到 Tauri，届时需先装 Rust + MSVC。
   - D-13 前端数据层：服务端状态用 **TanStack Query**；客户端临时状态方案暂缓。
   - D-14 消息与异步：**引入 RabbitMQ**（配合 outbox 中继，见上文实现约束）。
-- 仓库结构：**单仓多模块**。后端 Maven 多模块，**每个模块一个 Maven 模块**（`groupId` 为 `io.github.xiaou61`，基础包名同为 `io.github.xiaou61`，artifact 命名 `paideia-<module>`）；非法跨模块依赖必须表现为编译错误。前端 pnpm workspace 同仓。构建与检查命令：待代码落地后补充。
+- 仓库结构：**单仓多模块**。后端 Maven 多模块，**每个模块一个 Maven 模块**（`groupId` 为 `io.github.xiaou61`，基础包名同为 `io.github.xiaou61`，artifact 命名 `paideia-<module>`）；非法跨模块依赖必须表现为编译错误。前端 pnpm workspace 同仓。**构建与检查命令（2026-10-09 实测）**：
+  - 后端全量构建与测试：`cd backend && mvn -B verify`。其中集成测试需要 `PAIDEIA_TEST_DB_PASSWORD` 与到服务器 MySQL 的 `127.0.0.1:3307` SSH 隧道；未配置时相关用例跳过并在 stderr 明确提示，构建不因此失败。
+  - 后端本地运行：`cd backend && java -jar paideia-app/target/paideia-app-0.0.1-SNAPSHOT.jar --spring.profiles.active=local`。**工作目录必须是 `backend/`**，配置从 `./config/application-local.yml` 读取（被忽略，含口令）。
+  - 前端类型检查：`cd frontend && pnpm -r typecheck`；单测：`pnpm -r test`。
+  - Web 端到端：`cd frontend && pnpm test:e2e`（需先 `mvn -B -DskipTests package` 产出后端 jar，且隧道可用）。
+  - 公开页构建：`cd frontend && pnpm --filter @paideia/public build`。
+  - 桌面端：`cd frontend && pnpm -w build:desktop`（安装包一步需能访问 GitHub 拉取 electron-builder 的二进制）。
+  - 新增源码后如创建了新的跨文件引用，需重建 `.codegraph` 索引再依赖调用关系结论。
 - **本地开发直连自有服务器上的 MySQL 实例**（2026-10-09 用户决定），不用本地容器起实例；连接信息放被忽略的本地配置文件，不进仓库。
 - 涉及学习者个人数据的功能，必须先明确数据隔离、留存与隐私要求，再进入设计（待决定项见 WORK-001 需求文档）。
 - 本地提交需用户明确授权；`git push`、远端分支、tag、部署必须单独授权。

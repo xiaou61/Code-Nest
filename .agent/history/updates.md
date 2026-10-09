@@ -322,3 +322,13 @@ schema_version: 1
 - 验证：后端 mvn -B verify：BUILD SUCCESS，38 个测试全绿（新增 3 个 CORS 用例：白名单来源在 /actuator/health 上获得 ACAO、未列入来源被拒 403、安全链处理预检且 401 响应也带 ACAO）。前端 pnpm -r typecheck 5 个包通过；pnpm -r test 8 个用例通过（含 2 个共享包边界检查）；pnpm -w build:desktop 前半段通过。桌面端运行验证：http://127.0.0.1:5310/ 返回 200，health 请求计数 1.0→2.0，electron 进程 4 个。未完成：Windows 安装包（网络）。未运行：apps/desktop 的 Playwright Electron 用例（环境不允许 spawn cmd.exe）。
 - 本地提交：待用户授权/未提交
 - 远端推送：未执行
+
+## 2026-10-09 12:12:04 +0800 · WORK-001 · 完成 TASK-007 与 TASK-008；WORK-001 因安装包受阻而未完成
+
+- 类型：implementation
+- 变更：TASK-007：新增 apps/public 公开页 surface，用两遍构建（客户端 + SSR）加 renderToString 注入实现预渲染，复用 packages/ui；验证预渲染注入 699 字符正文，且两个 surface 产物互不混入（双向检索对照）。TASK-008：新增 testing/plan.md 与 testing/report.md（状态 partial，结构化证据矩阵每个 AC 一行），四个证据日志落盘；always.md 的构建命令由占位替换为实测命令并写明前置条件；INDEX.md 登记后端 6 项与前端 8 项模块。
+- 决策：WORK-001 不标记为完成：AC-007 的 Windows 安装包未产出，electron-builder 需从 GitHub 拉取 NSIS 与签名辅助二进制，本机对 github.com:443 持续超时（已尝试三次：默认、npmmirror 镜像、--dir 模式），TASK-006 记为 blocked。验证报告如实写为 partial，未把未完成的项算作通过；AC-007 的证据矩阵按事实拆成运行时（passed）与安装包（failed）两行。
+- 依据：tasks.md 的 TASK-006/007/008；testing/plan.md 与 testing/report.md；design.md
+- 验证：后端 mvn -B verify（带 PAIDEIA_TEST_DB_PASSWORD）：BUILD SUCCESS，5 个模块 38 个测试全绿。前端 pnpm -r typecheck 6 个包通过；pnpm -r test 8 个用例通过；pnpm test:e2e 3 个用例通过；公开页构建产出含 699 字符正文的静态 HTML。运行时：启动 4.332 秒、健康 UP、无令牌 401、带令牌返回 learner-a 且带 traceId、CORS 白名单来源获 ACAO 而未列入来源 403、桌面端渲染服务 200 且后端请求计数 4.0→5.0。未完成：Windows 安装包。未运行：apps/desktop 的 Playwright Electron 用例（环境不允许 spawn cmd.exe）。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行

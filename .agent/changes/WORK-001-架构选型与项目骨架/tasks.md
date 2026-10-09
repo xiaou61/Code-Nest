@@ -112,7 +112,12 @@ approver_role: CTO
 - 修改（实际）：`frontend/packages/platform-desktop/**`、`frontend/apps/desktop/**`、`frontend/apps/app/**`、`frontend/package.json`、`frontend/pnpm-workspace.yaml`、`.gitignore`、`backend/paideia-web/src/main/java/io/github/xiaou61/web/WebCorsConfiguration.java`、`backend/paideia-security/src/main/java/io/github/xiaou61/security/SecurityConfiguration.java`、`backend/paideia-app/src/test/**`
 - 测试（实际）：`frontend/packages/core/src/workspace-boundaries.test.ts`（共享包不得引用桌面壳 API，2 个用例）、`frontend/apps/desktop/e2e/desktop.spec.ts`（未在本机运行）、`backend/paideia-app/src/test/java/io/github/xiaou61/AuthorizationIsolationTest.java` 中的 3 个 CORS 用例
 
-### TASK-007 | pending | 公开页与 SEO 接入路径验证
+### TASK-007 | done | 公开页与 SEO 接入路径验证
+
+- 完成：2026-10-09
+- 结果：`pnpm --filter @paideia/public build` 通过，两遍构建（客户端 + SSR）后 `renderToString` 的 699 个字符正文被注入 `dist/index.html`，无 JavaScript 也能读到内容；surface 隔离双向对照通过——桌面端产物不含公开页文案（`grep` 退出码 1），公开页产物不含主体应用文案
+- 实施期决定：用「客户端构建 + SSR 构建 + 注入」三小步实现预渲染，而不是引入预渲染插件——需要的只是 `renderToString` 一次调用。SSR 构建必须把工作区包设为 `ssr.noExternal`，否则 Node 无法直接加载导出 TypeScript 源码的包
+- 对应：`REQ-008`、`AC-008`
 
 - 对应：`REQ-008`、`AC-008`
 - 依赖：TASK-003
@@ -124,7 +129,11 @@ approver_role: CTO
 - 验证：`cd frontend && pnpm --filter public build` 产出含内容的静态 HTML（非空壳）；`pnpm -w build:desktop` 产物中不含公开页
 - 备注：本期只验证路径可行，不实现完整 SEO
 
-### TASK-008 | pending | 验证报告与交付说明
+### TASK-008 | done | 验证报告与交付说明
+
+- 完成：2026-10-09
+- 结果：新增 `testing/plan.md`（测试范围、环境前置、验收矩阵、已知缺口）与 `testing/report.md`（状态 `partial`，带结构化证据矩阵，每个 AC 一行命令/退出码/结果/证据位置）；证据落盘在 `testing/logs/` 四个文件；`.agent/rules/always.md` 的构建命令已由占位替换为实测命令；`.agent/INDEX.md` 已登记后端 6 项与前端 8 项模块
+- 报告状态为 `partial` 的原因：AC-007 的安装包一项未完成（网络），桌面端 Playwright 用例在本机未运行（环境不允许 spawn `cmd.exe`）
 
 - 对应：`AC-001`..`AC-008`
 - 依赖：TASK-001..TASK-007

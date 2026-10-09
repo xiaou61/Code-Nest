@@ -27,7 +27,20 @@ status: active
 | 模块 | 源码或配置 | 测试 | 稳定规格 | 相关工作项 |
 | --- | --- | --- | --- | --- |
 
-当前尚未登记项目模块。
+| 后端聚合工程 | `backend/pom.xml` | — | — | WORK-001 |
+| 通用契约 `paideia-platform` | `backend/paideia-platform/` | `src/test/java/io/github/xiaou61/platform/PlatformContractTest.java` | — | WORK-001 |
+| Web 基础设施 `paideia-web` | `backend/paideia-web/` | `src/test/java/io/github/xiaou61/web/` | — | WORK-001 |
+| 数据访问 `paideia-persistence` | `backend/paideia-persistence/` | `src/test/java/io/github/xiaou61/persistence/` | — | WORK-001 |
+| 认证授权 `paideia-security` | `backend/paideia-security/` | `src/test/java/io/github/xiaou61/security/` | — | WORK-001 |
+| 启动模块 `paideia-app` | `backend/paideia-app/` | `src/test/java/io/github/xiaou61/`（含授权隔离与模块边界校验） | — | WORK-001 |
+| 前端工作区 | `frontend/pnpm-workspace.yaml`、`frontend/package.json` | — | — | WORK-001 |
+| 展示组件 `@paideia/ui` | `frontend/packages/ui/` | — | — | WORK-001 |
+| 端口与 API 客户端 `@paideia/core` | `frontend/packages/core/` | `src/api.test.ts`、`src/workspace-boundaries.test.ts` | — | WORK-001 |
+| Web 平台适配 `@paideia/platform-web` | `frontend/packages/platform-web/` | — | — | WORK-001 |
+| 桌面平台适配 `@paideia/platform-desktop` | `frontend/packages/platform-desktop/` | — | — | WORK-001 |
+| 主体 SPA `@paideia/app` | `frontend/apps/app/` | `e2e/home.spec.ts` | — | WORK-001 |
+| 桌面壳 `@paideia/desktop` | `frontend/apps/desktop/`（Electron 主进程与 preload 在 `electron/`） | `e2e/desktop.spec.ts`（本机环境未运行） | — | WORK-001 |
+| 公开页 `@paideia/public` | `frontend/apps/public/` | — | — | WORK-001 |
 
 ## HTML 理解材料
 
