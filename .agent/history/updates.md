@@ -232,3 +232,33 @@ schema_version: 1
 - 验证：回读 frontmatter：approved_by / approved_at=2026-10-09 10:27:19 +0800
 - 本地提交：待用户授权/未提交
 - 远端推送：未执行
+
+## 2026-10-09 10:32:47 +0800 · WORK-001 · 重置服务器 MySQL 密码并建立 Paideia 数据库；开始 TASK-001
+
+- 类型：implementation
+- 变更：经用户授权在自有服务器 codenest-online 上重置 MySQL root 密码（原密码不可得）；删除 code_nest 数据库；创建 paideia 与 paideia_test（utf8mb4 / utf8mb4_0900_ai_ci）及专用账号 paideia（授权 localhost 与 127.0.0.1，仅限这两个库）。root 客户端配置写入 /root/.my.cnf（权限 600）。两个密码存入 Windows 凭据管理器（codenest-online-mysql、codenest-online-mysql-app），未写入任何文件、命令参数或仓库。设计、任务经 xiaou61（CTO）签署批准并推送（55e8bc4）。
+- 决策：重置采用 skip-grant-tables 离线流程（MySQL 停机约 10 秒；Code-Nest 已删除，无其他服务依赖该实例）。应用使用专用非 root 账号而非 root，符合设计中的建议。账号同时授权 localhost 与 127.0.0.1，以便本地开发经 SSH 隧道连接时能通过账号匹配。
+- 依据：设计文档的持久化与迁移、安全与权限两节；tasks.md 的 TASK-004/TASK-005；用户授权
+- 验证：脚本输出：password-set-ok；MySQL 重启后 systemctl is-active 为 active；SHOW DATABASES 仅剩 information_schema、mysql、paideia、paideia_test、performance_schema、sys（code_nest 已不存在）；mysql.user 中 paideia@localhost 与 paideia@127.0.0.1 均为 caching_sha2_password；应用账号冒烟测试 SELECT DATABASE() 返回 paideia、USER() 返回 paideia@localhost。凭据管理器三项状态均为 configured。project-lifecycle.ps1 validate 通过。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 10:35:01 +0800 · maintenance · 建立代码审查约定：按范围、按需触发、报告归档 .agent/reviews/
+
+- 类型：decision
+- 变更：always.md 新增三条常驻约定（审查按 ref 区间执行、不逐 commit 重跑；报告写入 `.agent/reviews/<YYYY-MM-DD>-<base7>..<head7>.md` 并随仓库提交；按需触发，不设 post-commit 钩子、不接 CI）。INDEX.md 登记新归档位置 `.agent/reviews/`，并在「查看一次变更」表补一行。
+- 决策：用户对 Agent 提出的方案裁决三项——报告**进 Git**（原建议的 gitignore 方案作废）、**按范围**审而非逐 commit、**不搞自动化**（本对话即专用审查入口，用户发起时执行；需要时用户可提供 API key）。核实 `ocr` v1.12.13 本机**已配置完成**（provider tokenrhythm、模型 deepseek-flash），其配置目录位于本机用户目录、不在仓库内，故通常无需再取 key；报告只记录范围与结论，不得回显 provider/api_key。
+- 依据：用户 2026-10-09 会话决定；`.agent/rules/always.md`；`.agent/INDEX.md`；`ocr llm test` 与 `ocr review --commit HEAD --preview` 实测输出
+- 验证：`ocr llm test` 连通性与 tool-call round trip 通过；`ocr review --commit HEAD --preview` 显示 HEAD 的 5 个改动文件全部因 `unsupported_ext` 被排除，据此确认 ocr 默认不审 md、且当前仓库无可审内容；扫描仓库内无 ocr 配置或残留文件。**未运行完整审查**：仓库仍无源码，运行审查为空转。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 10:37:18 +0800 · WORK-001 · 完成 TASK-001：后端多模块工程与模块边界强制
+
+- 类型：implementation
+- 变更：创建 backend Maven 多模块工程：父 POM 继承 spring-boot-starter-parent 4.1.1、JDK 25、导入 spring-modulith-bom 2.1.1；paideia-platform 提供 ApiResponse、ErrorCode、BizException、PageQuery、PageResult 并标注 @ApplicationModule(type = OPEN)；paideia-app 提供主类 PaideiaApplication、application.yml、ModularityTest。tasks.md 中 TASK-001 状态改为 done 并附验证结果。工作区归因新增 backend 下 13 个文件。
+- 决策：paideia-platform 作为纯契约库只引入 JUnit 与 AssertJ，不引入整套 Boot 测试栈；spring-modulith-core 仅置于测试作用域。主类放基础包根以满足 Modulith 以直接子包为模块的约定。发现 INDEX.md 与 always.md 被另一会话并发写入（ocr 代码审查规则），予以保留并归因为 user_existing，未回退。
+- 依据：tasks.md 的 TASK-001；design.md 的组件与职责、测试策略；用户授权「直接开始吧」
+- 验证：mvn -B verify：BUILD SUCCESS（paideia-platform Tests run 7、paideia-app ModularityTest 1）；compiler 3.15.0、surefire 3.5.6、spring-boot-maven-plugin 4.1.1。AC-002：java -jar 启动后 GET /actuator/health 返回 HTTP 200、status UP，启动耗时 3.093s，Tomcat 监听 8080。AC-004：向 paideia-platform 注入对 paideia-app 的依赖后 mvn compile 报 cyclic reference 并失败；还原后 mvn compile 成功（EXIT=0）。未验证：Modulith 层『跨模块访问内部包』的检查需要至少两个模块，当前只有 platform 一个模块，待 TASK-002 引入 paideia-web 后补验。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行

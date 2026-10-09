@@ -29,12 +29,14 @@ approver_role: CTO
 
 ## 任务
 
-### TASK-001 | pending | 后端 Maven 多模块工程与模块边界强制
+### TASK-001 | done | 后端 Maven 多模块工程与模块边界强制
 
+- 完成：2026-10-09
+- 结果：`mvn -B verify` BUILD SUCCESS（paideia-platform 7 个测试、paideia-app 的 ModularityTest 通过）；`GET /actuator/health` 返回 200 与 status UP；向 paideia-platform 注入对 paideia-app 的依赖后 `mvn compile` 因 cyclic reference 失败，还原后恢复成功
 - 对应：`REQ-005`、`AC-002`、`AC-004`
 - 依赖：无
 - 修改（计划）：`backend/pom.xml`、`backend/paideia-platform/pom.xml`、`backend/paideia-platform/src/main/java/io/github/xiaou61/platform/**`、`backend/paideia-app/pom.xml`、`backend/paideia-app/src/main/java/io/github/xiaou61/PaideiaApplication.java`、`backend/paideia-app/src/test/java/io/github/xiaou61/ModularityTest.java`
-- 测试（计划）：`backend/paideia-app/src/test/java/io/github/xiaou61/ModularityTest.java`
+- 测试（计划）：`backend/paideia-platform/src/test/java/io/github/xiaou61/platform/PlatformContractTest.java`、`backend/paideia-app/src/test/java/io/github/xiaou61/ModularityTest.java`
 - 步骤：
   1. 建聚合父 POM：JDK 25、Boot 4.1.1 依赖管理、模块清单。
   2. 建 `paideia-platform`：`ApiResponse<T>`、`ErrorCode`、`PageQuery`、`PageResult<T>`、`BizException`，并标注 `@ApplicationModule(type = OPEN)`。

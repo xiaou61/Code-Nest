@@ -16,6 +16,7 @@ status: active
 | 需求与变更依据 | `.agent/changes/WORK-编号-中文名/` |
 | 决策说明与共享资料 | `.agent/notes/`、`.agent/references/` |
 | 长期记忆 | `.agent/memory.md` |
+| 代码审查报告 | `.agent/reviews/` |
 | 项目理解型 HTML | `.agent/html/` |
 | 更新历史与 Git 历史视图 | `.agent/history/updates.md`、`.agent/history/core-components.md` |
 
@@ -44,3 +45,4 @@ status: active
 | 当前未提交文件属于谁 | `workspace.md` 与 `git diff` |
 | 如何证明改对 | `testing/plan.md`、`testing/report.md` |
 | 交付后项目应保持什么行为 | `.agent/specs/` |
+| 这批改动审出什么问题 | `.agent/reviews/`（按 ref 区间归档） |
