@@ -332,3 +332,13 @@ schema_version: 1
 - 验证：后端 mvn -B verify（带 PAIDEIA_TEST_DB_PASSWORD）：BUILD SUCCESS，5 个模块 38 个测试全绿。前端 pnpm -r typecheck 6 个包通过；pnpm -r test 8 个用例通过；pnpm test:e2e 3 个用例通过；公开页构建产出含 699 字符正文的静态 HTML。运行时：启动 4.332 秒、健康 UP、无令牌 401、带令牌返回 learner-a 且带 traceId、CORS 白名单来源获 ACAO 而未列入来源 403、桌面端渲染服务 200 且后端请求计数 4.0→5.0。未完成：Windows 安装包。未运行：apps/desktop 的 Playwright Electron 用例（环境不允许 spawn cmd.exe）。
 - 本地提交：待用户授权/未提交
 - 远端推送：未执行
+
+## 2026-10-09 12:55:24 +0800 · WORK-001 · 补完 AC-007：安装包产出并验证打包应用；WORK-001 全部任务完成
+
+- 类型：verification
+- 变更：找到打包被阻塞的真正原因并解决：electron-builder 只设 ELECTRON_BUILDER_BINARIES_MIRROR 不够，它还会去 GitHub 拉 Electron 运行时，必须同时设 ELECTRON_MIRROR。据此产出 Paideia Setup 0.0.1.exe（111,510,247 字节），并用打包后的应用完成运行时验证（渲染服务 200、后端请求计数 1.0→2.0、进程 4 个、CORS 放行头）。TASK-006 由 blocked 改为 done；验证报告状态由 partial 改为 passed，AC-007 拆为运行时与安装包两行且均为 passed，并删除此前遗留的 failed 陈旧行；always.md 记录双镜像要求。
+- 决策：残留一行 failed 的陈旧证据行导致结构化证据被判不完整，已删除——删的是过时记录，不是把未通过的项改成通过。仍有一项如实记为未运行：apps/desktop 的 Playwright Electron 用例，因为本机不允许 node spawn cmd.exe；该验收标准的运行时结论由打包应用的真实启动与后端指标增量给出，不是由代码检视推断。
+- 依据：tasks.md 的 TASK-006；testing/plan.md、testing/report.md 与其证据日志；.agent/rules/always.md
+- 验证：project-lifecycle.ps1 validate：通过（仅剩两条非阻断警告：design.md 超过 20000 字节、核心 Markdown 7 个超过软阈值 6）。status：8 个任务全部 done，0 阻塞，阶段进入完成沉淀。安装包与打包应用运行证据见 testing/logs/desktop-packaged.txt。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行

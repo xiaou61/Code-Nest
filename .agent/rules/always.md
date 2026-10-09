@@ -55,7 +55,9 @@ Paideia 是「千人千面的 AI 个性化学习平台」。目标不是把同�
   - 前端类型检查：`cd frontend && pnpm -r typecheck`；单测：`pnpm -r test`。
   - Web 端到端：`cd frontend && pnpm test:e2e`（需先 `mvn -B -DskipTests package` 产出后端 jar，且隧道可用）。
   - 公开页构建：`cd frontend && pnpm --filter @paideia/public build`。
-  - 桌面端：`cd frontend && pnpm -w build:desktop`（安装包一步需能访问 GitHub 拉取 electron-builder 的二进制）。
+  - 桌面端：`cd frontend && pnpm -w build:desktop`。**必须同时设置两个镜像**，否则 electron-builder 会去 GitHub 拉二进制并超时（本网络下实测）：
+    `ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/" ELECTRON_BUILDER_BINARIES_MIRROR="https://npmmirror.com/mirrors/electron-builder-binaries" pnpm -w build:desktop`
+    只设 `ELECTRON_BUILDER_BINARIES_MIRROR` 不够：Electron 运行时走的是 `ELECTRON_MIRROR`。
   - 新增源码后如创建了新的跨文件引用，需重建 `.codegraph` 索引再依赖调用关系结论。
 - **本地开发直连自有服务器上的 MySQL 实例**（2026-10-09 用户决定），不用本地容器起实例；连接信息放被忽略的本地配置文件，不进仓库。
 - 涉及学习者个人数据的功能，必须先明确数据隔离、留存与隐私要求，再进入设计（待决定项见 WORK-001 需求文档）。

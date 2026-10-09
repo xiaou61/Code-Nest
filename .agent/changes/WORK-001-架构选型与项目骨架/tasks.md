@@ -93,14 +93,16 @@ approver_role: CTO
 - 测试（实际）：`backend/paideia-security/src/test/java/io/github/xiaou61/security/JwtAuthServiceTest.java`、`backend/paideia-app/src/test/java/io/github/xiaou61/AuthorizationIsolationTest.java`、`frontend/apps/app/e2e/home.spec.ts`
 - 运行前提：后端启动需要数据源，本地用 `--spring.profiles.active=local`（读被忽略的 `backend/config/application-local.yml`），因此 e2e 也依赖 3307 隧道
 
-### TASK-006 | blocked | Electron 桌面壳与平台适配器双实现
+### TASK-006 | done | Electron 桌面壳与平台适配器双实现
 
-- 状态说明：**代码与运行时验证已完成，安装包构建被网络挡住**。`electron-builder` 需要从 GitHub 拉取 NSIS 与签名辅助二进制，本机当前对 github.com 的连接持续超时（git push 同期也不稳定），换 npmmirror 镜像未绕过。恢复网络后需重跑一次打包。
-- 完成：2026-10-09（安装包一项未完成）
+- 结果补充（安装包已产出）：`Paideia Setup 0.0.1.exe` 111,510,247 字节。**关键坑**：只设 `ELECTRON_BUILDER_BINARIES_MIRROR` 不够，`electron-builder` 还会去 GitHub 拉 Electron 运行时；必须同时设 `ELECTRON_MIRROR`。完整命令：
+  `cd frontend && ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/" ELECTRON_BUILDER_BINARIES_MIRROR="https://npmmirror.com/mirrors/electron-builder-binaries" pnpm --filter @paideia/desktop exec electron-builder`
+- 打包产物运行时验证：启动 `release/win-unpacked/Paideia.exe` 后，渲染静态服务返回 200，后端 `/actuator/health` 请求计数由 1.0 增至 2.0，Paideia 进程 4 个，CORS 白名单来源获得放行头
+- 完成：2026-10-09
 - 结果：
   - 已完成：`packages/platform-desktop`（读 preload 注入的桥，不 import Electron）；`apps/desktop`（Electron 主进程用**自带本地静态服务**提供渲染进程，故页面来源是真实 http 来源 `http://127.0.0.1:5310`，不必放行语义含糊的 `null` 来源；preload 经 contextBridge 只暴露缓存能力）；组合根按构建模式选择平台实现；`pnpm -w build:desktop` 的前半段（SPA desktop 模式构建 + 渲染产物就位）通过；静态检查通过
   - 运行时已验证：启动桌面应用后，`http://127.0.0.1:5310/` 返回 HTTP 200，后端 `/actuator/health` 的请求计数由 1.0 增至 2.0——说明桌面端确实渲染并成功调用了后端
-  - **未完成**：未产出 Windows 安装包（网络阻塞）
+  - 已产出 Windows 安装包，并用打包后的应用完成运行时验证（见上方结果补充）
   - **未运行**：`apps/desktop` 的 Playwright Electron 用例未在本机跑通——本环境里 node 无法 spawn `cmd.exe`（实测 `error=ENOENT`，而该文件存在），Playwright 在 Windows 上正是经 cmd.exe 启动 Electron。该用例保留，在正常 shell 或 CI 中应可运行
 - 实施期变更：
   1. **桌面壳由 Tauri 改为 Electron**（用户于 2026-10-09 决定）：Tauri 要求 Rust + MSVC，本机都没有；Electron 只需 Node。代价是产物与内存变大
