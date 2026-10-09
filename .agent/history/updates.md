@@ -172,3 +172,13 @@ schema_version: 1
 - 验证：推送前扫描：grep -rnI 全树查 IP 与口令，无命中；凭据形态正则扫描无命中。gh auth status：已登录 xiaou61，含 repo 权限。project-lifecycle.ps1 validate：通过。未运行构建或代码验证：尚未创建任何源码。
 - 本地提交：待用户授权/未提交
 - 远端推送：未执行
+
+## 2026-10-09 10:10:38 +0800 · WORK-001 · 本地提交并推送 025631f；核对远端发现遗留引用
+
+- 类型：maintenance
+- 变更：本轮工件（提案、需求签署、规范激活、技术选项登记表、.gitignore、AGENTS.md、工作区归因、更新历史）提交为 025631f 并推送至 origin/master，master 已设置上游跟踪。推送前对全树与 HEAD 提交内容分别执行敏感串扫描，均无命中。
+- 决策：推送前核对远端结构，发现该 GitHub 仓库并非空仓库：远端存在 9 个 refs/remotes/origin/* 形式的遗留引用（bug/2025-09-05、bug/2025-09-07、bug/loginfix、community-testv1、community-testv2、feature/question、refactor/pagination-plugin、dev、master）以及 refs/pull/4..71 的 PR 引用，最早提交作者为「李子凡」、日期 2025-09-05，应属本仓库此前承载的另一个项目。这些引用未被本次推送触碰，但仍在公开仓库上可拉取。删除远端引用属不可逆操作，未执行，等待用户授权或决定是否为 Paideia 另建仓库。
+- 依据：.agent/changes/WORK-001-架构选型与项目骨架/workspace.md；git ls-remote origin；gh api repos/xiaou61/Paideia
+- 验证：git grep HEAD 查 36.212 与口令：无命中；git log master：仅 85bb656 与 025631f 两条，旧历史不在 master 祖先中；git ls-remote origin：HEAD 与 refs/heads/master 均为 025631f。未运行构建或代码验证：尚未创建任何源码。
+- 本地提交：025631f
+- 远端推送：origin/master（85bb656..025631f）
