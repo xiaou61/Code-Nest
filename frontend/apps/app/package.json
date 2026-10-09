@@ -1,0 +1,30 @@
+{
+  "name": "@paideia/app",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@paideia/core": "workspace:*",
+    "@paideia/platform-web": "workspace:*",
+    "@paideia/ui": "workspace:*",
+    "@tanstack/react-query": "5.104.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-router": "8.4.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "@types/node": "26.6.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "vite": "8.3.4"
+  }
+}

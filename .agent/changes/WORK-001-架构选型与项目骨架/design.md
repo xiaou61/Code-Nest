@@ -78,6 +78,16 @@ deploy/                                    docker-compose.yml、.env.example
 
 `Platform` 端口本期只定义骨架期真正需要的方法（本地缓存读写、运行环境标识）；文件读写、深链、自动更新等能力等出现实际需求时再加，避免定义一堆没人实现的方法。
 
+**实施期确认（TASK-003 实际落地）**：
+
+- **路由用 Hash 路由**（`createHashRouter`）。桌面壳从自定义协议加载页面，基于浏览器历史的路径路由在那种来源下会失效；Hash 路由让同一套路由同时服务两端，不必维护两份配置。
+- **开发期用 Vite 代理**转发 `/api` 与 `/actuator` 到后端，因此开发期不需要跨域配置。桌面壳没有代理，其来源（非 `http(s)` 域）必须显式加入后端 CORS 允许列表，否则会出现"Web 能用、exe 报跨域"。
+- 端口实际形态：`kind` 与 `cache` 两项，与上面的最小集合一致。`packages/core` 不依赖 React，是纯 TypeScript。
+- 令牌读取收在 `createApiClient` 的 `getToken` 上；TASK-005 接认证时只改这一处。
+- 前端包直接导出 TypeScript 源码（无独立构建步骤），只有 `apps/app` 有构建产物。
+- pnpm 12 默认启用供应链策略（含最小发布年龄门槛），安装较新版本时它会在 `pnpm-workspace.yaml` 追加 `minimumReleaseAgeExclude`，属预期行为。
+- e2e 由 Playwright 同时拉起后端与前端（后者缺一不可：只起前端会拿到代理错误，验证不了"页面展示的是接口真实数据"）。
+
 ## 请求或事件流程
 
 ### 受保护请求

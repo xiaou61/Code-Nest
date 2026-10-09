@@ -1,0 +1,17 @@
+{
+  "name": "paideia-frontend",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.10.1",
+  "scripts": {
+    "dev": "pnpm --filter @paideia/app dev",
+    "build": "pnpm --filter @paideia/app build",
+    "preview": "pnpm --filter @paideia/app preview",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "test:e2e": "pnpm --filter @paideia/app test:e2e"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}

@@ -54,18 +54,15 @@ approver_role: CTO
 - 修改（实际）：`backend/pom.xml`（登记新模块与依赖管理）、`backend/paideia-web/**`、`backend/paideia-app/pom.xml`、`backend/paideia-app/src/main/resources/application.yml`
 - 测试（实际）：`backend/paideia-web/src/test/java/io/github/xiaou61/web/{TraceIdFilterTest,WebPipelineTest,ProbeController,WebSliceTestApplication}.java`
 
-### TASK-003 | pending | 前端 workspace 与主体 SPA 骨架
+### TASK-003 | done | 前端 workspace 与主体 SPA 骨架
 
+- 完成：2026-10-09
+- 结果：`pnpm -r typecheck` 四个包全部通过；`pnpm -r test` 通过（core 6 个用例）；`pnpm build` 产出 `dist/index.html` 与 `./assets/index-*.js`（相对路径，桌面壳所需）；`pnpm test:e2e` 2 个用例通过——Playwright 自行拉起后端与前端，断言页面 `platform-kind` 为 `web`、`health-status` 为 `UP`、原始响应体含后端字段，并校验响应带 `X-Trace-Id`
+- 实施期决定：路由用 `createHashRouter`（桌面壳从自定义协议加载页面，基于历史的路径路由会失效）；开发期用 Vite 的 `/api`、`/actuator` 代理避免跨域，桌面壳没有代理，届时须把其来源加入后端 CORS 允许列表；令牌读取在 `createApiClient` 的 `getToken` 处预留为返回 null，TASK-005 只改这一处
 - 对应：`REQ-004`、`AC-003`
 - 依赖：TASK-002
-- 修改（计划）：`frontend/package.json`、`frontend/pnpm-workspace.yaml`、`frontend/packages/ui/**`、`frontend/packages/core/**`、`frontend/packages/platform-web/**`、`frontend/apps/app/**`
-- 测试（计划）：`frontend/packages/core/src/**/*.test.ts`
-- 步骤：
-  1. 初始化 pnpm workspace 与根脚本；Vite 配置 `base: './'`。
-  2. `packages/core`：定义 `Platform` 端口（本期只需运行环境标识与本地缓存读写）与 API 客户端。
-  3. `packages/platform-web`：实现 `Platform` 端口的浏览器版本。
-  4. `apps/app`：React Router SPA 骨架，一个页面调用后端接口并渲染真实返回数据（联调目标为 `GET /api/v1/me`，在 TASK-005 之前可先用健康检查端点）。
-- 验证：`cd frontend && pnpm install && pnpm -w build` 通过；`pnpm --filter app dev` 启动后页面展示的是接口真实返回数据（附截图或控制台记录）
+- 修改（实际）：`frontend/package.json`、`frontend/pnpm-workspace.yaml`、`frontend/tsconfig.base.json`、`frontend/packages/{ui,core,platform-web}/**`、`frontend/apps/app/**`
+- 测试（实际）：`frontend/packages/core/src/api.test.ts`、`frontend/apps/app/e2e/home.spec.ts`
 
 ### TASK-004 | pending | 持久层底座：Flyway、MyBatis 装配与 MySQL 分页组件
 

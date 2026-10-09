@@ -282,3 +282,13 @@ schema_version: 1
 - 验证：mvn -B clean verify：BUILD SUCCESS（paideia-platform 7、paideia-web 9、paideia-app 1）。AC-004 的 Modulith 层补验：向 platform 添加 internal 子包并被 web 引用后，ModularityTest 报 Module 'web' depends on non-exposed type io.github.xiaou61.platform.internal.PlatformInternal within module 'platform' 且构建失败；还原后 mvn -B clean verify 恢复 SUCCESS。另修正一次构建失败：TASK-001 手动启动的应用进程未真正退出，锁住 jar 导致 spring-boot:repackage 改名失败，终止该进程后恢复。
 - 本地提交：待用户授权/未提交
 - 远端推送：未执行
+
+## 2026-10-09 10:59:31 +0800 · WORK-001 · 完成 TASK-003：前端 workspace 与主体 SPA
+
+- 类型：implementation
+- 变更：建立 frontend pnpm 工作区：packages/ui（展示容器）、packages/core（Platform 端口、统一错误契约与 API 客户端，纯 TS 无 React 依赖）、packages/platform-web（Platform 的浏览器实现，localStorage 不可用时退回内存）、apps/app（Vite + React Router SPA，首页展示后端真实健康状态）。加入 Vite 代理、相对基址、Playwright e2e（同时拉起后端与前端）。根 .gitignore 增加测试产物忽略项。
+- 决策：路由改用 createHashRouter：桌面壳从自定义协议加载页面，基于历史的路径路由在那种来源下失效，Hash 路由让两端共用一套配置。开发期用 Vite 代理避免跨域；桌面壳无代理，届时须把其来源加入后端 CORS 允许列表。前端包直接导出 TS 源码、无独立构建，只有 apps/app 有构建产物。TypeScript 采用当前版本 7.0.2。
+- 依据：tasks.md 的 TASK-003；design.md 的前端包与测试策略；用户授权「一直继续 task 直到最后的 work 做完」
+- 验证：pnpm -r typecheck：4 个包全部通过；pnpm -r test：core 6 个用例通过；pnpm build：产出 dist/index.html 与相对路径 assets（桌面壳所需）；pnpm test:e2e：2 个用例通过（页面展示后端真实 status=UP 与原始 JSON、响应带 X-Trace-Id）。提交前敏感串扫描无命中。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行

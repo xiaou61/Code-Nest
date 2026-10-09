@@ -42,6 +42,12 @@ logs/
 *.pid
 *.hprof
 
+# ---- 测试产物 ----
+test-results/
+playwright-report/
+blob-report/
+coverage/
+
 # ---- IDE 与操作系统 ----
 .idea/
 .vscode/
