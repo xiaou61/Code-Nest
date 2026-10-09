@@ -16,9 +16,9 @@ approver_role: CTO
 ## 系统上下文
 
 - **后端**：Spring Boot 4.1.1 / JDK 25，Maven 多模块，MySQL 为唯一数据库，Flyway 管 schema，手写 MyBatis 为数据访问方式。
-- **前端**：Vite + React Router SPA，一份代码同时构建 Web 产物与 Tauri 桌面安装包；桌面端与 Web 同期交付。
+- **前端**：Vite + React Router SPA，一份代码同时构建 Web 产物与 Electron 桌面安装包；桌面端与 Web 同期交付。
 - **中间件**：自托管在自有服务器。本期只需 MySQL；RabbitMQ 等 `events` 模块建立时接入。
-- **外部接口**：模型供应商（D-09 未裁决，本期不接入）、桌面壳所需的系统 WebView2 与 Rust/MSVC 构建工具链。
+- **外部接口**：模型供应商（D-09 未裁决，本期不接入）。桌面壳为 Electron，不需要额外工具链（Node 即可）；若回到 Tauri 才需要 Rust + MSVC + WebView2。
 
 ## 组件与职责
 
@@ -39,7 +39,7 @@ frontend/
   packages/platform-desktop/               平台能力的桌面实现
   apps/app/                                主体 SPA（Web 与桌面共用产物）
   apps/public/                             公开页与 SEO surface
-  apps/desktop/                            Tauri 壳
+  apps/desktop/                            Electron 壳
 deploy/                                    docker-compose.yml、.env.example
 ```
 
@@ -69,19 +69,19 @@ deploy/                                    docker-compose.yml、.env.example
 | 包 | 职责 | 硬约束 |
 | --- | --- | --- |
 | `packages/ui` | 纯展示组件、设计令牌 | 不得引用任何平台 API |
-| `packages/core` | 领域状态装配、API 客户端、`Platform` 与 `Auth` 端口定义 | 不得引用 `@tauri-apps/*` |
+| `packages/core` | 领域状态装配、API 客户端、`Platform` 与 `Auth` 端口定义 | 不得引用 `electron` 或 `@tauri-apps/*`（有自动化检查） |
 | `packages/platform-web` | `Platform` 端口的浏览器实现 | — |
-| `packages/platform-desktop` | `Platform` 端口的 Tauri 实现 | — |
+| `packages/platform-desktop` | `Platform` 端口的 Electron 实现（读 preload 注入的桥，不 import Electron） | — |
 | `apps/app` | 主体 SPA，消费 `core` 与由宿主注入的 `Platform` 实现 | 资源路径必须相对（Vite `base: './'`） |
 | `apps/public` | 预渲染的公开页，与 `app` 共享 `ui`/`core` | 不进入桌面构建 |
-| `apps/desktop` | Tauri 壳，加载 `apps/app` 的构建产物 | — |
+| `apps/desktop` | Electron 壳：主进程用自带本地静态服务提供 `apps/app` 的构建产物 | — |
 
 `Platform` 端口本期只定义骨架期真正需要的方法（本地缓存读写、运行环境标识）；文件读写、深链、自动更新等能力等出现实际需求时再加，避免定义一堆没人实现的方法。
 
 **实施期确认（TASK-003 实际落地）**：
 
-- **路由用 Hash 路由**（`createHashRouter`）。桌面壳从自定义协议加载页面，基于浏览器历史的路径路由在那种来源下会失效；Hash 路由让同一套路由同时服务两端，不必维护两份配置。
-- **开发期用 Vite 代理**转发 `/api` 与 `/actuator` 到后端，因此开发期不需要跨域配置。桌面壳没有代理，其来源（非 `http(s)` 域）必须显式加入后端 CORS 允许列表，否则会出现"Web 能用、exe 报跨域"。
+- **路由用 Hash 路由**（`createHashRouter`）。这样无论宿主把它放在什么来源下（Web 的 http、桌面壳的本地静态服务）都不需要额外配置；换成基于浏览器历史的路由就要为两端各配一次回落。
+- **开发期用 Vite 代理**转发 `/api` 与 `/actuator` 到后端，因此开发期不需要跨域配置。桌面壳没有代理，其来源 `http://127.0.0.1:5310` 必须显式加入后端 CORS 允许列表，否则会出现"Web 能用、exe 报跨域"。**注意两处都要配**：`paideia.web.cors.allowed-origins` 管 `/api/**`，而 Actuator 端点由它自己的 HandlerMapping 处理，只认 `management.endpoints.web.cors.allowed-origins`。
 - 端口实际形态：`kind` 与 `cache` 两项，与上面的最小集合一致。`packages/core` 不依赖 React，是纯 TypeScript。
 - 令牌读取收在 `createApiClient` 的 `getToken` 上；TASK-005 接认证时只改这一处。
 - 前端包直接导出 TypeScript 源码（无独立构建步骤），只有 `apps/app` 有构建产物。
@@ -147,7 +147,7 @@ deploy/                                    docker-compose.yml、.env.example
 - **令牌**：自签 JWT（HS256），签名密钥只从环境变量或被忽略的本地配置读取，长度校验不低于 32 字节。`iat`、`exp` 必填。
 - **无状态**：`SessionCreationPolicy.STATELESS`，不启用 cookie 会话，因此关闭 CSRF；这也使同一套认证在桌面壳中可用。
 - **可扩展点**：业务代码只依赖 `AuthPort`；换 OIDC 等机制时替换该端口的实现与解码器配置，不改业务代码。
-- **CORS**：只允许配置中显式列出的来源。桌面壳的来源不是 `http(s)` 域，必须作为允许来源显式配置，否则桌面端调不通——这是该处最容易漏掉的一步。
+- **CORS**：只允许配置中显式列出的来源；未列入的来源会被直接拒为 403（不是返回 200 少一个放行头）。桌面壳来源 `http://127.0.0.1:5310` 必须显式配置。安全链必须加 `.cors()`，否则预检 OPTIONS 会先被 `anyRequest().authenticated()` 挡成 401，表现为"同源可以、跨域全挂"。
 - **凭据边界**：连接信息一律来自环境变量或被忽略的本地配置文件；仓库内只放 `.env.example` 占位。数据库端口对公网开放是用户已确认的取舍，不再收紧。
 - **身份来源单一**：接口不接受客户端传入的用户标识，所有归属判断取自令牌。
 
@@ -187,7 +187,7 @@ deploy/                                    docker-compose.yml、.env.example
 | 前端组件 | **Vitest 5.0.3** + Testing Library 16.3.3 + user-event 14.6.7 | 默认 jsdom；需要真实布局或焦点行为时按需启用 Browser Mode（稳定性官方未明确标注） |
 | 前端 API 打桩 | **MSW 3.0.2** | 在网络层拦截，同一套 handler 同时用于测试与本地开发，比 mock 模块更真实也更耐用 |
 | 端到端 | **Playwright 1.64.0** | 自动等待、web-first 断言、trace viewer 抑制不稳定；CI 用 sharding 扩展开 |
-| 桌面端到端 | WebdriverIO + `tauri-driver` | 需要构建机具备 Rust 与 MSVC |
+| 桌面端到端 | Playwright 的 Electron 支持（`_electron.launch`） | 从源码启动，不依赖安装包；需要能 spawn `cmd.exe` 的环境 |
 
 实施期确认的三处 Boot 4 细节，与设计初稿不同，按实际执行：
 
@@ -217,7 +217,7 @@ deploy/                                    docker-compose.yml、.env.example
 
 ### 未经验证的项
 
-桌面壳的端到端测试需要装有 Rust 与 MSVC 的机器；若本机缺失，在验证报告中如实记录为未运行，不写成通过。
+桌面端的 Playwright Electron 用例需要能 spawn `cmd.exe` 的环境（Playwright 在 Windows 上经 cmd.exe 启动 Electron）。本机开发环境不允许该 spawn，因此该用例保留但记为未运行；安装包构建还需要能访问 GitHub 以拉取 NSIS 与签名辅助二进制。
 
 ## 需求追踪
 

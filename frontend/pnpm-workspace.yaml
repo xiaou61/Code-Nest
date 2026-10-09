@@ -1,5 +1,13 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# pnpm 12 默认不执行依赖的构建脚本。下面这些必须放行，否则装不完整：
+# - electron：postinstall 负责下载 Electron 二进制，不放行则应用根本起不来
+# - electron-winstaller：打包 Windows 安装包所需的辅助工具
+# - esbuild：Vite 的转译器，需要它的原生二进制
 minimumReleaseAgeExclude:
   - vite@8.3.4
+
+allowBuilds:
+  electron-winstaller: true

@@ -14,3 +14,16 @@ paideia:
     secret: test-only-secret-do-not-reuse-in-any-real-environment-0123456789
     issuer: paideia-test
     token-ttl: 30m
+  web:
+    cors:
+      # 测试里显式列出一个来源，用来验证白名单确实生效（桌面壳的固定渲染来源）
+      allowed-origins:
+        - http://127.0.0.1:5310
+
+# Actuator 端点有自己的一套 CORS 配置，与上面那份不是同一个开关，两处都要配
+management:
+  endpoints:
+    web:
+      cors:
+        allowed-origins:
+          - http://127.0.0.1:5310

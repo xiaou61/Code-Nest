@@ -1,6 +1,7 @@
 package io.github.xiaou61;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.github.xiaou61.persistence.ExampleItemMapper;
@@ -113,5 +114,43 @@ class AuthorizationIsolationTest {
                 .bodyText()
                 .doesNotContain("BizException")
                 .doesNotContain("\tat ");
+    }
+
+    private static final String DESKTOP_ORIGIN = "http://127.0.0.1:5310";
+
+    @Test
+    @DisplayName("健康检查对白名单来源放行跨域；这一条最容易漏，因为该路径不在 /api/** 下")
+    void corsAllowsDesktopOriginOnHealth() {
+        assertThat(mvc.get().uri("/actuator/health").header("Origin", DESKTOP_ORIGIN))
+                .matches(status().isOk())
+                .matches(header().string("Access-Control-Allow-Origin", DESKTOP_ORIGIN));
+    }
+
+    @Test
+    @DisplayName("未列入白名单的来源被直接拒为 403，而不是返回 200 少一个放行头")
+    void corsRejectsUnknownOrigin() {
+        assertThat(mvc.get().uri("/actuator/health").header("Origin", "http://evil.example.com"))
+                .matches(status().isForbidden())
+                .matches(header().doesNotExist("Access-Control-Allow-Origin"));
+
+        assertThat(mvc.get().uri("/api/v1/me").header("Origin", "http://evil.example.com"))
+                .matches(status().isForbidden())
+                .matches(header().doesNotExist("Access-Control-Allow-Origin"));
+    }
+
+    @Test
+    @DisplayName("安全链接管了 CORS：被拒的请求也带放行头，预检不被认证要求挡住")
+    void securityChainHandlesCors() {
+        // 无令牌 -> 401，但仍要带 CORS 头，否则浏览器看到的是一个没有原因的失败
+        assertThat(mvc.get().uri("/api/v1/me").header("Origin", DESKTOP_ORIGIN))
+                .matches(status().isUnauthorized())
+                .matches(header().string("Access-Control-Allow-Origin", DESKTOP_ORIGIN));
+
+        // 预检必须放行，否则跨域调用根本发不出去
+        assertThat(mvc.options().uri("/api/v1/me")
+                .header("Origin", DESKTOP_ORIGIN)
+                .header("Access-Control-Request-Method", "GET"))
+                .matches(status().isOk())
+                .matches(header().string("Access-Control-Allow-Origin", DESKTOP_ORIGIN));
     }
 }

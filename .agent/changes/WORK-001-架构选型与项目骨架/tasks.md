@@ -93,19 +93,24 @@ approver_role: CTO
 - 测试（实际）：`backend/paideia-security/src/test/java/io/github/xiaou61/security/JwtAuthServiceTest.java`、`backend/paideia-app/src/test/java/io/github/xiaou61/AuthorizationIsolationTest.java`、`frontend/apps/app/e2e/home.spec.ts`
 - 运行前提：后端启动需要数据源，本地用 `--spring.profiles.active=local`（读被忽略的 `backend/config/application-local.yml`），因此 e2e 也依赖 3307 隧道
 
-### TASK-006 | pending | Tauri 桌面壳与平台适配器双实现
+### TASK-006 | blocked | Electron 桌面壳与平台适配器双实现
 
+- 状态说明：**代码与运行时验证已完成，安装包构建被网络挡住**。`electron-builder` 需要从 GitHub 拉取 NSIS 与签名辅助二进制，本机当前对 github.com 的连接持续超时（git push 同期也不稳定），换 npmmirror 镜像未绕过。恢复网络后需重跑一次打包。
+- 完成：2026-10-09（安装包一项未完成）
+- 结果：
+  - 已完成：`packages/platform-desktop`（读 preload 注入的桥，不 import Electron）；`apps/desktop`（Electron 主进程用**自带本地静态服务**提供渲染进程，故页面来源是真实 http 来源 `http://127.0.0.1:5310`，不必放行语义含糊的 `null` 来源；preload 经 contextBridge 只暴露缓存能力）；组合根按构建模式选择平台实现；`pnpm -w build:desktop` 的前半段（SPA desktop 模式构建 + 渲染产物就位）通过；静态检查通过
+  - 运行时已验证：启动桌面应用后，`http://127.0.0.1:5310/` 返回 HTTP 200，后端 `/actuator/health` 的请求计数由 1.0 增至 2.0——说明桌面端确实渲染并成功调用了后端
+  - **未完成**：未产出 Windows 安装包（网络阻塞）
+  - **未运行**：`apps/desktop` 的 Playwright Electron 用例未在本机跑通——本环境里 node 无法 spawn `cmd.exe`（实测 `error=ENOENT`，而该文件存在），Playwright 在 Windows 上正是经 cmd.exe 启动 Electron。该用例保留，在正常 shell 或 CI 中应可运行
+- 实施期变更：
+  1. **桌面壳由 Tauri 改为 Electron**（用户于 2026-10-09 决定）：Tauri 要求 Rust + MSVC，本机都没有；Electron 只需 Node。代价是产物与内存变大
+  2. 组合根静态引入两种平台实现：`platform-desktop` 不 import Electron，打进 Web 产物无害且不会被调用
+  3. 新增 `.env.desktop`（只含后端地址，无凭据）并在 `.gitignore` 中显式放行——它必须进仓库，否则桌面构建拿不到后端绝对地址
+  4. **顺带修掉一个真实缺陷**：CORS 只映射了 `/api/**`，而前端还会调 `/actuator/health`；且 Actuator 端点由自己的 HandlerMapping 处理，**不吃** `WebMvcConfigurer` 的 CORS 注册，必须另配 `management.endpoints.web.cors.*`。同时给安全链加上 `.cors()`，否则预检会被认证要求挡成 401
 - 对应：`REQ-007`、`AC-007`
 - 依赖：TASK-003
-- 修改（计划）：`frontend/packages/platform-desktop/**`、`frontend/apps/desktop/**`、`frontend/package.json`
-- 测试（计划）：`frontend/apps/desktop/**` 启动验证脚本
-- 步骤：
-  1. 建 `packages/platform-desktop`：实现 `Platform` 端口的 Tauri 版本。
-  2. 建 `apps/desktop`：Tauri 工程，加载 `apps/app` 构建产物。
-  3. 配置 CORS 允许来源，使桌面壳能调用后端（桌面壳来源不是 `http(s)` 域，必须显式加入允许列表）。
-  4. 加静态检查：`packages/ui`、`packages/core` 不得引用 `@tauri-apps/*`。
-- 验证：`cd frontend && pnpm -w build:desktop` 产出 Windows 安装包；桌面版启动后成功调用后端接口；静态检查通过
-- 备注：需要构建机具备 Rust 工具链与 MSVC C++ 生成工具；缺失则在验证报告中记为未运行并说明原因
+- 修改（实际）：`frontend/packages/platform-desktop/**`、`frontend/apps/desktop/**`、`frontend/apps/app/**`、`frontend/package.json`、`frontend/pnpm-workspace.yaml`、`.gitignore`、`backend/paideia-web/src/main/java/io/github/xiaou61/web/WebCorsConfiguration.java`、`backend/paideia-security/src/main/java/io/github/xiaou61/security/SecurityConfiguration.java`、`backend/paideia-app/src/test/**`
+- 测试（实际）：`frontend/packages/core/src/workspace-boundaries.test.ts`（共享包不得引用桌面壳 API，2 个用例）、`frontend/apps/desktop/e2e/desktop.spec.ts`（未在本机运行）、`backend/paideia-app/src/test/java/io/github/xiaou61/AuthorizationIsolationTest.java` 中的 3 个 CORS 用例
 
 ### TASK-007 | pending | 公开页与 SEO 接入路径验证
 

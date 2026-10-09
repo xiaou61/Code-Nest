@@ -62,6 +62,9 @@ public class SecurityConfiguration {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // 必须显式接管 CORS：否则预检 OPTIONS 会先被下面的 anyRequest().authenticated() 挡成 401，
+                // 表现为"浏览器直接调通、跨域调用全挂"。规则本身来自 paideia-web 的 WebMvcConfigurer。
+                .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(requests -> requests

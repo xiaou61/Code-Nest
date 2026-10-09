@@ -1,0 +1,39 @@
+{
+  "name": "@paideia/desktop",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Paideia 桌面端外壳（Electron），与 Web 端共用同一份 SPA 产物",
+  "author": "xiaou61",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "prepare-renderer": "node scripts/prepare-renderer.mjs",
+    "build": "pnpm --filter @paideia/app build:desktop && pnpm run prepare-renderer && electron-builder",
+    "start": "pnpm run prepare-renderer && electron .",
+    "test:e2e": "pnpm --filter @paideia/app build:desktop && pnpm run prepare-renderer && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "io.github.xiaou61.paideia",
+    "productName": "Paideia",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "renderer/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

@@ -6,12 +6,14 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:desktop": "vite build --mode desktop",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json",
     "test:e2e": "playwright test"
   },
   "dependencies": {
     "@paideia/core": "workspace:*",
+    "@paideia/platform-desktop": "workspace:*",
     "@paideia/platform-web": "workspace:*",
     "@paideia/ui": "workspace:*",
     "@tanstack/react-query": "5.104.1",

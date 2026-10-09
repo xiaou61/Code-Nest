@@ -3,6 +3,8 @@
 .env
 .env.*
 !.env.example
+# 桌面端构建变量：只含后端地址，不含任何凭据，需要提交
+!frontend/apps/app/.env.desktop
 *.local
 *.local.*
 !.env.example
@@ -35,6 +37,9 @@ dist-ssr/
 .cache/
 src-tauri/target/
 src-tauri/gen/
+# 桌面端：renderer 是 SPA 产物的拷贝，release 是安装包输出
+frontend/apps/desktop/renderer/
+frontend/apps/desktop/release/
 
 # ---- 运行期数据 ----
 *.log

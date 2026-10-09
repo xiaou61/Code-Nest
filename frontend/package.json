@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "pnpm --filter @paideia/app dev",
     "build": "pnpm --filter @paideia/app build",
+    "build:desktop": "pnpm --filter @paideia/desktop build",
     "preview": "pnpm --filter @paideia/app preview",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",

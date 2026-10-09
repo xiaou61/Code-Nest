@@ -312,3 +312,13 @@ schema_version: 1
 - 验证：mvn -B verify（带 PAIDEIA_TEST_DB_PASSWORD）：BUILD SUCCESS，五个模块全绿，共 35 个测试。JwtAuthServiceTest 8 个、AuthorizationIsolationTest 6 个（真实 MySQL：无令牌 401、伪造令牌 401、各自只看到自己的行、指定他人归属 403、不泄堆栈）。真实 HTTP 手验：local profile 启动 4.2 秒，健康检查 UP，无令牌 401，签发令牌后 /api/v1/me 返回 learner-a。前端 pnpm -r typecheck 通过；pnpm test:e2e 3 个用例通过。提交前敏感串扫描无命中。
 - 本地提交：待用户授权/未提交
 - 远端推送：未执行
+
+## 2026-10-09 11:55:13 +0800 · WORK-001 · TASK-006：桌面壳改为 Electron 并完成运行时验证（安装包被网络阻塞）
+
+- 类型：implementation
+- 变更：按用户决定把桌面壳由 Tauri 改为 Electron（Tauri 需 Rust + MSVC，本机均无；Electron 只需 Node）。新增 packages/platform-desktop（读 preload 桥，不 import Electron）与 apps/desktop（主进程自带本地静态服务提供渲染进程，来源固定为 http://127.0.0.1:5310；preload 经 contextBridge 只暴露缓存）。组合根按构建模式选平台实现；新增 .env.desktop 与 pnpm allowBuilds 配置。新增共享包边界检查（禁止 core/ui 引用 electron 或 @tauri-apps）与桌面端 Playwright 用例。修复两处 CORS 缺陷。
+- 决策：安装包未产出：electron-builder 需从 GitHub 拉 NSIS 与签名辅助二进制，本机对 github.com 持续超时，npmmirror 镜像未绕过；TASK-006 记为 blocked 而非完成。桌面端 Playwright 用例在本机无法运行——该环境不允许 node spawn cmd.exe（实测 ENOENT，文件存在），如实记为未运行。改用指标增量与静态服务探测完成运行时验证：启动桌面应用后渲染服务返回 200，后端 /actuator/health 请求计数由 1.0 增至 2.0。
+- 依据：tasks.md 的 TASK-006；design.md 的前端包与测试策略；用户决定改用 Electron
+- 验证：后端 mvn -B verify：BUILD SUCCESS，38 个测试全绿（新增 3 个 CORS 用例：白名单来源在 /actuator/health 上获得 ACAO、未列入来源被拒 403、安全链处理预检且 401 响应也带 ACAO）。前端 pnpm -r typecheck 5 个包通过；pnpm -r test 8 个用例通过（含 2 个共享包边界检查）；pnpm -w build:desktop 前半段通过。桌面端运行验证：http://127.0.0.1:5310/ 返回 200，health 请求计数 1.0→2.0，electron 进程 4 个。未完成：Windows 安装包（网络）。未运行：apps/desktop 的 Playwright Electron 用例（环境不允许 spawn cmd.exe）。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行

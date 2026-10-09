@@ -27,10 +27,16 @@ public class WebCorsConfiguration implements WebMvcConfigurer {
         if (properties.allowedOrigins().isEmpty()) {
             return;
         }
+        String[] origins = properties.allowedOrigins().toArray(String[]::new);
+
         registry.addMapping("/api/**")
-                .allowedOrigins(properties.allowedOrigins().toArray(String[]::new))
+                .allowedOrigins(origins)
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .maxAge(3600);
+
+        // 注意：Actuator 的端点由它自己的 HandlerMapping 处理，这里的注册对它们无效。
+        // 健康检查的跨域必须用 Boot 的 management.endpoints.web.cors.* 配置，
+        // 两处都要配，否则前端能调 /api 却调不通 /actuator/health。
     }
 }
