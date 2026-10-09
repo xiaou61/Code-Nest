@@ -1,4 +1,6 @@
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { themeInitPlugin } from '@paideia/ui/vite'
 import { defineConfig } from 'vite'
 
 const BACKEND = 'http://127.0.0.1:8080'
@@ -9,7 +11,7 @@ export default defineConfig({
    * 这个值不能改成 '/'。
    */
   base: './',
-  plugins: [react()],
+  plugins: [react(), tailwindcss(), themeInitPlugin()],
   server: {
     port: 5173,
     // 开发期由 Vite 代理转发到后端，省去跨域配置。

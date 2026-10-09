@@ -7,9 +7,13 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
   },
   "dependencies": {
     "@paideia/core": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "5.0.3"
   }
 }

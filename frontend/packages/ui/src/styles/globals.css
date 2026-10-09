@@ -1,0 +1,261 @@
+@import 'tailwindcss' source(none);
+/* 对话框/菜单/提示的进出场动画工具类（animate-in、fade-in-0、zoom-in-95、slide-in-from-*）
+   不属 Tailwind 核心，是这套组件源码里引用的，缺了它动画会静默不发生。 */
+@import 'tw-animate-css';
+
+/*
+ * 设计系统的唯一样式入口。四个前端应用（apps/app、apps/admin、apps/public、apps/ui-kit）
+ * 都引入这一个文件，令牌与玻璃层的定义只在这里。
+ *
+ * 为什么是 source(none) 加显式 @source：
+ * Tailwind 扫描源码时排除 node_modules，而 pnpm 把 workspace 包软链在 node_modules 下，
+ * 自动探测会跳过它 —— packages/ui 里的类名会静默丢失（组件在 ui 包里正常、在应用里没样式）。
+ * 所以必须关掉自动探测、把每个含类名的源码目录按物理路径登记，且不能写包名。
+ * 路径相对于本文件：本文件在 packages/ui/src/styles/ 下。
+ */
+@source '../**/*.{ts,tsx}';
+@source '../../../../apps/app/src';
+@source '../../../../apps/admin/src';
+@source '../../../../apps/public/src';
+@source '../../../../apps/ui-kit/src';
+
+/* 主题用类名切换（首屏由 themeInitPlugin 注入的脚本在绘制前落到 <html> 上）。 */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * 取值依据：Vercel 的 Geist 设计系统（vercel.com/geist）。它的组件包 @vercel/geistcn 没有发布到
+ * 公开 npm，但令牌本身是他们站点编译产物里的公开事实，这里取的是实测值，不是凭观感调的：
+ *
+ *   用途        浅色                  深色
+ *   页面底色    hsl(0 0% 100%) 纯白   hsl(0 0% 4%)
+ *   正文        hsl(0 0% 9%)           hsl(0 0% 93%)
+ *   次级文本    hsl(0 0% 30%)          hsl(0 0% 63%)
+ *   默认边框    hsl(0 0% 92%)          hsl(0 0% 18%)
+ *   组件底      hsl(0 0% 95%)          hsl(0 0% 10%)
+ *
+ * 与上一版的差别不是"换了个好看的配色"，而是方向变了：底色由浅灰改纯白、卡面由半透明玻璃
+ * 改为不透明 + 1px 细线、圆角由 12px 收到 6px。层次靠字号、留白与那条极细的线建立，
+ * 而不是靠色阶堆叠——这是这套观感的骨架。
+ */
+:root {
+  --background: hsl(0 0% 100%);
+  --foreground: hsl(0 0% 9%);
+  --card: hsl(0 0% 100%);
+  --card-solid: hsl(0 0% 100%);
+  --card-foreground: hsl(0 0% 9%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(0 0% 9%);
+  --primary: hsl(0 0% 9%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(0 0% 95%);
+  --secondary-foreground: hsl(0 0% 9%);
+  --muted: hsl(0 0% 95%);
+  --muted-foreground: hsl(0 0% 30%);
+  --accent: hsl(0 0% 95%);
+  --accent-foreground: hsl(0 0% 9%);
+  --destructive: hsl(0 72% 40%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --border: hsl(0 0% 92%);
+  /* 输入控件的线比普通分隔线略重一点，否则表单看起来"没有边界" */
+  --input: hsl(0 0% 88%);
+  /* 焦点环要单独满足 3:1（WCAG 1.4.11），所以它比边框重得多 */
+  --ring: hsl(0 0% 9% / 60%);
+  --overlay: hsl(0 0% 0% / 32%);
+  /* 可选玻璃层的填充。默认卡面不用它，见文件末尾 .glass 的说明。 */
+  --glass: hsl(0 0% 100% / 70%);
+  --glass-blur: 12px;
+  --radius: 0.375rem;
+  /* 阴影一律是"1px 实线 + 多层低透明黑"，不是单层 box-shadow */
+  --card-shadow:
+    0 1px 1px hsl(0 0% 0% / 2%), 0 2px 4px -1px hsl(0 0% 0% / 3%), 0 8px 16px -4px hsl(0 0% 0% / 4%);
+  --popover-shadow:
+    0 1px 1px hsl(0 0% 0% / 2%), 0 8px 16px -4px hsl(0 0% 0% / 6%),
+    0 24px 32px -8px hsl(0 0% 0% / 8%);
+}
+
+.dark {
+  --background: hsl(0 0% 4%);
+  --foreground: hsl(0 0% 93%);
+  --card: hsl(0 0% 7%);
+  --card-solid: hsl(0 0% 7%);
+  --card-foreground: hsl(0 0% 93%);
+  --popover: hsl(0 0% 9%);
+  --popover-foreground: hsl(0 0% 93%);
+  --primary: hsl(0 0% 93%);
+  --primary-foreground: hsl(0 0% 4%);
+  --secondary: hsl(0 0% 10%);
+  --secondary-foreground: hsl(0 0% 93%);
+  --muted: hsl(0 0% 10%);
+  --muted-foreground: hsl(0 0% 63%);
+  --accent: hsl(0 0% 13%);
+  --accent-foreground: hsl(0 0% 93%);
+  --destructive: hsl(0 85% 72%);
+  --destructive-foreground: hsl(0 0% 4%);
+  --border: hsl(0 0% 18%);
+  --input: hsl(0 0% 24%);
+  --ring: hsl(0 0% 93% / 60%);
+  --overlay: hsl(0 0% 0% / 60%);
+  --glass: hsl(0 0% 9% / 70%);
+  --card-shadow: 0 1px 1px hsl(0 0% 0% / 30%), 0 8px 16px -4px hsl(0 0% 0% / 40%);
+  --popover-shadow: 0 1px 1px hsl(0 0% 0% / 40%), 0 16px 32px -8px hsl(0 0% 0% / 60%);
+}
+
+/*
+ * inline 让工具类直接引用上面的变量而不是把值内联进每个类，
+ * 这是主题能在运行时切换的前提（否则 .dark 里的值永远不会生效）。
+ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-solid: var(--card-solid);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-overlay: var(--overlay);
+
+  --shadow-card: var(--card-shadow);
+  --shadow-popover: var(--popover-shadow);
+
+  /*
+   * 圆角按 Geist 的 materials 规范映射：base/small = 6px，menu/modal/large = 12px。
+   * 组件源码里按钮与输入框用 rounded-lg、对话框用 rounded-xl、徽章用胶囊，
+   * 这样映射后它们正好落在 6px 与 12px 两档上，不必去改每个组件的类名。
+   */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 6px;
+  --radius-xl: 12px;
+
+  /*
+   * 标题阶梯。Geist 的标题是 semibold + 负字距，且字距随字号收紧（32px 约 -0.04em）。
+   * 负字距是这种观感的关键：没有它，大字号在中英混排下会显得松散。
+   * 正文与标签继续用 Tailwind 的 xs/sm/base（12/14/16px），与 Geist 的 copy/label 一致。
+   */
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.4;
+  --text-lg--letter-spacing: -0.02em;
+  --text-xl: 1.5rem;
+  --text-xl--line-height: 1.3;
+  --text-xl--letter-spacing: -0.03em;
+  --text-2xl: 2rem;
+  --text-2xl--line-height: 1.15;
+  --text-2xl--letter-spacing: -0.04em;
+  --text-3xl: 2.5rem;
+  --text-3xl--line-height: 1.1;
+  --text-3xl--letter-spacing: -0.05em;
+
+  /*
+   * 界面只有中文，因此不引 webfont（Geist Sans 没有中文字形；CJK webfont 整包约 74MB，
+   * 必须子集化才有意义）。字体回退是逐字符进行的，所以拉丁字体在前、CJK 在后。
+   * 代价是"字距收紧"的质感只落在拉丁字母与数字上。末尾的泛型 sans-serif 不能删。
+   */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans CJK SC',
+    'Source Han Sans SC', 'WenQuanYi Micro Hei', sans-serif;
+  --font-mono:
+    'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Microsoft YaHei UI', monospace;
+}
+
+@layer base {
+  /* Tailwind v4 的 border 默认色是 currentColor，不指定会让边框跟着文字颜色走。 */
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  /*
+   * 页面底色是平的：这是这套观感的前提（纯白/近黑 + 一条细线建立层次）。
+   * 上一版在这里放过一层径向高光，为的是给玻璃层"有东西可糊"；那个方向已废弃，
+   * 见文件末尾 .glass 的说明。
+   */
+  body {
+    min-height: 100vh;
+    margin: 0;
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 标题默认收紧字距 + 加粗：这是观感的一部分，不靠每处手写 */
+  h1,
+  h2,
+  h3 {
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /*
+   * 可选玻璃层，**默认不使用**。
+   *
+   * Vercel 官方的对外设计规范（vercel.com/design.md）把 "glass effects" 列进 Hard reject，
+   * 因此默认卡面是不透明 + 1px 细线。这个类保留给确实有内容可透的场景（例如浮在图片或滚动
+   * 列表之上的顶栏），并且它的降级形态是完整的：默认给不透明底，只有确认支持 backdrop-filter
+   * 才换成半透明 + 模糊，因此不支持的环境下依然可读（对应 AC-008）。
+   *
+   * 用它时注意两点：不要把它嵌在带 opacity < 1 或 filter 的容器里（那会新建 backdrop root，
+   * 模糊静默失效）；不要给长列表的每一项都加模糊，代价随模糊面积增长。
+   */
+  .glass {
+    background-color: var(--card-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+  }
+
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .glass {
+      background-color: var(--glass);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+      backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+    }
+  }
+
+  /*
+   * prefers-reduced-transparency 目前不是 Baseline，所以它只是增强、不是唯一降级手段；
+   * 真正的保证是上面那个默认的不透明底。
+   */
+  @media (prefers-reduced-transparency: reduce) {
+    .glass {
+      background-color: var(--card-solid);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+}

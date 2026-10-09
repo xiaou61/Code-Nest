@@ -1,4 +1,13 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src"]
+  "compilerOptions": {
+    // 只给 shadcn CLI 用：它按 components.json 的 aliases 决定文件落点，
+    // 没有这层映射就会把 "@/components" 当成一个字面目录名建出来。
+    // 生成后本包内部一律改用相对导入 —— 应用构建时由 Vite 编译本包源码，
+    // 而 Vite 不读这里的 tsconfig，@/ 别名在应用里根本解析不了。
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src", "vitest.config.ts"]
 }

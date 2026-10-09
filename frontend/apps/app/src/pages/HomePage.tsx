@@ -1,4 +1,18 @@
-import { Panel } from '@paideia/ui'
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  AppShell,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  PageHeader,
+  Spinner,
+} from '@paideia/ui'
 import { useQuery } from '@tanstack/react-query'
 
 import { api } from '../api'
@@ -28,75 +42,100 @@ export function HomePage() {
   })
 
   return (
-    <main
-      style={{
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-        maxWidth: 720,
-        margin: '0 auto',
-        padding: 24,
-      }}
-    >
-      <h1 style={{ fontSize: 20, marginBottom: 4 }}>Paideia 骨架</h1>
-      <p style={{ color: '#57606a', fontSize: 13, marginTop: 0 }}>
-        本页展示的是后端接口的真实返回，不是硬编码数据。
-      </p>
+    <AppShell title="Paideia" subtitle="骨架">
+      <PageHeader
+        title="Paideia 骨架"
+        description="本页展示的是后端接口的真实返回，不是硬编码数据。"
+      />
 
-      <Panel title="运行环境">
-        <dl style={{ margin: 0, fontSize: 13, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 4 }}>
-          <dt>平台</dt>
-          <dd style={{ margin: 0 }} data-testid="platform-kind">
-            {platform.kind}
-          </dd>
-          <dt>后端基址</dt>
-          <dd style={{ margin: 0 }} data-testid="api-base">
-            {API_BASE_URL === '' ? '同源（开发期由 Vite 代理转发）' : API_BASE_URL}
-          </dd>
-        </dl>
-      </Panel>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>运行环境</CardTitle>
+            <CardDescription>平台能力来自 Platform 端口，界面代码不认识宿主。</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+              <dt className="text-muted-foreground">平台</dt>
+              <dd className="m-0">
+                <Badge variant="secondary" data-testid="platform-kind">
+                  {platform.kind}
+                </Badge>
+              </dd>
+              <dt className="text-muted-foreground">后端基址</dt>
+              <dd className="m-0 font-mono text-xs" data-testid="api-base">
+                {API_BASE_URL === '' ? '同源（开发期由 Vite 代理转发）' : API_BASE_URL}
+              </dd>
+            </dl>
+          </CardContent>
+        </Card>
 
-      <Panel title="后端健康检查 · GET /actuator/health">
-        {health.isPending && <p data-testid="health-state">查询中…</p>}
-        {health.isError && (
-          <p data-testid="health-state" style={{ color: '#cf222e', margin: 0 }}>
-            请求失败：{(health.error as Error).message}
-          </p>
-        )}
-        {health.isSuccess && (
-          <>
-            <p style={{ margin: '0 0 8px' }} data-testid="health-state">
-              状态：<strong data-testid="health-status">{health.data.status}</strong>
-            </p>
-            <pre
-              data-testid="health-raw"
-              style={{ background: '#f6f8fa', padding: 12, fontSize: 12, overflowX: 'auto', margin: 0 }}
-            >
-              {JSON.stringify(health.data, null, 2)}
-            </pre>
-          </>
-        )}
-        <button
-          type="button"
-          onClick={() => void health.refetch()}
-          style={{ marginTop: 12, fontSize: 13, padding: '4px 10px' }}
-        >
-          重新查询
-        </button>
-      </Panel>
+        <Card>
+          <CardHeader>
+            <CardTitle>后端健康检查 · GET /actuator/health</CardTitle>
+            <CardDescription>这个端点是公开的，不需要令牌。</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {health.isPending && (
+              <p className="text-muted-foreground flex items-center gap-2 text-sm" data-testid="health-state">
+                <Spinner />
+                查询中…
+              </p>
+            )}
+            {health.isError && (
+              <Alert variant="destructive" data-testid="health-state">
+                <AlertTitle>请求失败</AlertTitle>
+                <AlertDescription>{(health.error as Error).message}</AlertDescription>
+              </Alert>
+            )}
+            {health.isSuccess && (
+              <>
+                <p className="m-0 text-sm" data-testid="health-state">
+                  状态：
+                  <strong data-testid="health-status">{health.data.status}</strong>
+                </p>
+                <pre
+                  data-testid="health-raw"
+                  className="bg-muted text-muted-foreground overflow-x-auto rounded-md p-3 font-mono text-xs"
+                >
+                  {JSON.stringify(health.data, null, 2)}
+                </pre>
+              </>
+            )}
+            <Button variant="outline" size="sm" onClick={() => void health.refetch()}>
+              重新查询
+            </Button>
+          </CardContent>
+        </Card>
 
-      <Panel title="当前身份 · GET /api/v1/me（受保护接口）">
-        {identity.isPending && <p data-testid="identity-state">查询中…</p>}
-        {identity.isSuccess && (
-          <p style={{ margin: 0 }} data-testid="identity-state">
-            已认证：<strong data-testid="identity-subject">{identity.data}</strong>
-          </p>
-        )}
-        {identity.isError && (
-          <p style={{ margin: 0 }} data-testid="identity-state">
-            <span data-testid="identity-subject">未登录</span>
-            <span style={{ color: '#57606a' }}>（{(identity.error as Error).message}）</span>
-          </p>
-        )}
-      </Panel>
-    </main>
+        <Card>
+          <CardHeader>
+            <CardTitle>当前身份 · GET /api/v1/me</CardTitle>
+            <CardDescription>
+              受保护接口。身份只从请求令牌解析，不接受客户端传入的用户标识。
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {identity.isPending && (
+              <p className="text-muted-foreground flex items-center gap-2 text-sm" data-testid="identity-state">
+                <Spinner />
+                查询中…
+              </p>
+            )}
+            {identity.isSuccess && (
+              <p className="m-0 text-sm" data-testid="identity-state">
+                已认证：<strong data-testid="identity-subject">{identity.data}</strong>
+              </p>
+            )}
+            {identity.isError && (
+              <p className="m-0 text-sm" data-testid="identity-state">
+                <span data-testid="identity-subject">未登录</span>
+                <span className="text-muted-foreground">（{(identity.error as Error).message}）</span>
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </AppShell>
   )
 }

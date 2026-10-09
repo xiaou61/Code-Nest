@@ -77,6 +77,27 @@ Paideia 是「千人千面的 AI 个性化学习平台」。目标不是把同�
 - **审查按需触发，不装自动化**（2026-10-09 用户决定）：不设置 `post-commit` 钩子、不由 CI 触发，避免每个 commit 都消耗模型额度；由用户发起。ocr 默认只审代码文件（`.md` 等按 `unsupported_ext` 跳过），纯文档改动不产生报告。
 - 元规则：若项目代码出现与本节同等长期有效的规则变更，更新本文件而不是只写进单个工作项。
 
+## 前端结构：四个面与设计系统（2026-10-09 由 WORK-002 确立）
+
+前端是 pnpm workspace 单仓多包，**四个应用面**各司其职，共享 `packages/` 下的包：
+
+| 面 | 路径 | 产物去向 | 说明 |
+| --- | --- | --- | --- |
+| 学习者端 `@paideia/app` | `frontend/apps/app/` | Web **与**桌面安装包 | 同时出两种产物，端口 5173 |
+| 管理端 `@paideia/admin` | `frontend/apps/admin/` | 仅 Web | 只对管理员开放，端口 5174 |
+| 公开页 `@paideia/public` | `frontend/apps/public/` | 预渲染静态页 | SEO surface，不引 `core` 的 API 客户端、不用 `AppShell` |
+| 组件展览 `@paideia/ui-kit` | `frontend/apps/ui-kit/` | 仅开发与内审 | 不进任何产品产物，端口 5175 |
+
+- **管理端与组件展览不是 `apps/app` 的依赖**，因此"不进桌面安装包"是构造上的事实，不依赖打包器消除死代码。桌面壳只消费 `apps/app` 的产物。
+- **设计系统取 Vercel Geist 的实测令牌**：浅色底纯白、正文 `hsl(0 0% 9%)`、默认边框 `hsl(0 0% 92%)`、组件底 `hsl(0 0% 95%)`；深色对应 `4%`/`93%`/`18%`/`10%`。圆角 6px（菜单/模态 12px）。层次靠字号、留白与 1px 细线建立，**不靠色阶堆叠**。
+- **玻璃拟态默认不用**。Vercel 官方的对外设计规范把 glass effects 列入 Hard reject；`.glass` 只保留为可选工具类，用于确实有内容可透的场景（如浮在图片上的顶栏），其 `@supports` 降级形态必须保持完整。
+- **颜色只有一个来源**：`frontend/packages/ui/src/styles/globals.css`。应用与共享包不得出现硬编码颜色字面量（含文档文案里的），由 `packages/ui/src/tokens.test.ts` 强制。
+- **Tailwind v4 的扫描路径必须显式登记**：`@import "tailwindcss" source(none)` + `@source` 写物理源码路径（`packages/...`、`apps/...`），**不能写包名**——pnpm 把 workspace 包软链在 `node_modules` 下，会被 v4 的自动探测排除，跨包类名会静默丢失。新增应用时必须同步在 `globals.css` 里补一行 `@source`。
+- **对比度由 `packages/ui/src/theme/contrast.test.ts` 守住**：正文与次要文本在页面底、卡面与玻璃层上均须 ≥4.5:1（按合成后颜色算），焦点指示 ≥3:1。静止边框低于 3:1 是刻意的（Geist 亦然），不要再提这条为缺陷。
+- **`packages/ui` 是纯展示层**：不得引用 `@paideia/core`、`platform-web/desktop`、`react-router` 或桌面壳 API，由 `packages/core/src/workspace-boundaries.test.ts` 强制。检查同时认 `from`、纯副作用 `import 'x'` 与动态 `import('x')` 三种写法。
+- **角色逻辑只有一处**：`packages/core/src/session.ts` 的 `createSessionReader` / `canAccessAdmin`。业务组件不得自己比较角色字符串。客户端解析令牌载荷**不校验签名**，只用于界面分流，**不是授权边界**——后端必须自己拦越权；也不得加任何"以管理员身份预览"的调试开关。
+- 四个应用共用同一份编译后的 CSS（`@source` 登记在一处换来"不会漏"），因此各应用 CSS 体积不是按需裁剪的。
+
 ## 服务器环境（2026-10-09 勘察）
 
 访问方式：本机 `quick-server` 技能的别名 `codenest-online`（地址与凭据见该技能配置与 Windows 凭据管理器）。**凭据不得写入任何文件、命令参数或仓库。**

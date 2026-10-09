@@ -1,9 +1,11 @@
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { themeInitPlugin } from '@paideia/ui/vite'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
   base: './',
-  plugins: [react()],
+  plugins: [react(), tailwindcss(), themeInitPlugin()],
   ssr: {
     /**
      * 工作区内的包直接导出 TypeScript 源码，被当成外部依赖时 Node 无法直接加载。

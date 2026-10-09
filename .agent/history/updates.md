@@ -412,3 +412,117 @@ schema_version: 1
 - 验证：配置前：git config --get-regexp proxy 无输出，env 无代理变量；Clash 控制接口显示 mode=rule、mixed-port=7897、tun.enable=false。配置后：git push rc=0（Everything up-to-date）、git ls-remote rc=0 且返回 278fc3a，与本地 HEAD 一致。确认提交 278fc3a 已推送（1b99d34..278fc3a）。
 - 本地提交：待用户授权/未提交
 - 远端推送：未执行
+
+## 2026-10-09 14:23:12 +0800 · WORK-002 · 建立前端组件化与管理端拆分的需求工件
+
+- 类型：decision
+- 变更：新建工作项 WORK-002「前端组件化与管理端拆分」，起草 `.agent/changes/WORK-002-前端组件化与管理端拆分/requirements.md`（`mode: strict`、`workflow: full`、`depends_on: [WORK-001]`），并新建同目录 `workspace.md` 做工作区归因（`base_commit` 9430cab）。**未改动任何源码**；工作项停在需求批准门槛，`requirements.md` 仍为 `draft`。
+- 决策：用户 2026-10-09 裁决五项——① 组件库走 shadcn/ui（源码进仓库）+ Tailwind CSS v4，不用 Mantine/AntD 这类现成外观型组件库；② 管理端独立成 `apps/admin`，不采用"单 app 内 `/admin/*` 路由级分面"；③ 做浅色 + 深色双主题；④ 界面本期只做中文；⑤ 角色只有管理员与学习者两种。Agent 在已批准边界内做的实现选择（已写入 requirements 的「实现选择」）：中文字面走系统字体栈、不引 webfont；主题偏好复用已有的 `Platform.cache` 端口而不直接碰 `localStorage`；图标库用 Lucide；主题默认跟随系统；复合业务组件先留在各自 app，重复第三次再上提到 `packages/ui`。另一项事实纠正：WORK-001 把"角色模型"留在待决定项，本次由用户裁决为两种角色，管理端因此获得独立前端入口。
+- 依据：`.agent/changes/WORK-002-前端组件化与管理端拆分/requirements.md`；`.agent/rules/always.md`（已裁决技术栈与常驻约束）；WORK-001 的 `design.md`（前端包职责与硬约束）与 `requirements.md`（「数据与隐私待决定项」第 1 条，角色模型原文）。
+- 验证：`project-lifecycle.ps1 status` 返回 `next_work_id=WORK-002`、WORK-001 `phase=completed`。联网核实（2026-10-09）：shadcn CLI 包 `shadcn` 当前 4.21.4；其默认基座自 2026-07 起为 Base UI（**1.8.0 是当前版本号，不是"成为默认"那次变更的版本**），Radix 未被弃用；Tailwind CSS 4.3.3，v4 为 CSS-first（`@import "tailwindcss"` + `@theme`），`@source` 路径相对于写它的 CSS 文件且**必须写物理源码路径**（pnpm 把 workspace 包软链进 `node_modules`，会被 v4 的自动探测排除）；`backdrop-filter` 的 backdrop root 陷阱（父级 `opacity < 1` 或 `filter` 会让模糊失效）与 `prefers-reduced-transparency` 非 Baseline；CJK webfont（`@fontsource/noto-sans-sc`）整包约 74.5 MB。**未运行任何前端检查**——本工作项目前无源码改动。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 14:27:29 +0800 · WORK-002 · 签署 .agent/changes/WORK-002-前端组件化与管理端拆分/requirements.md
+
+- 类型：decision
+- 变更：.agent/changes/WORK-002-前端组件化与管理端拆分/requirements.md 由 xiaou61 签署为 approved
+- 决策：审批人 xiaou61（CTO）；approved_by / approved_at 由命令入口盖章，不由模型写入
+- 依据：.agent/changes/WORK-002-前端组件化与管理端拆分/requirements.md
+- 验证：回读 frontmatter：approved_by / approved_at=2026-10-09 14:27:29 +0800
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 14:34:02 +0800 · WORK-002 · 起草方案、设计与任务计划
+
+- 类型：decision
+- 变更：新建 `proposal.md`、`design.md`、`tasks.md`（三件均为 `draft`，按用户 2026-10-09 的选择合并为一次审阅）。**仍未改动任何源码。** 设计要点：单一 CSS 入口 `packages/ui/src/styles/globals.css`（`source(none)` + 显式 `@source` 物理路径）；`themeInitPlugin` 注入首屏脚本消除主题闪烁；`ThemeProvider` 的存储从参数注入（结构化匹配 core 的 `KeyValueCache`，因此 ui 不依赖 core）；shadcn/ui 以 Base UI 为基座落地 21 个基元，并以 DEV 专用 `#/ui-kit` 预览页作为它们的消费者与对比度核验场所；新增 `apps/admin` 与 `packages/core/src/session.ts` 的 `createSessionReader`/`canAccessAdmin`（失败即拒绝）；修正 `packages/platform-desktop` 的同步读缺陷（主进程经启动参数传缓存快照，preload 暴露，镜像由快照初始化）。任务拆为 TASK-001..TASK-011。
+- 决策：① 组件数量偏多，但每个都有真实消费者（预览页），避免"写一堆没人用的组件"；② 主题持久化坚持走既有的 `Platform.cache` 端口而非直读 `localStorage`，代价是多改桌面端三处——理由是端口需要有第一个真实消费者来完成验证；③ `prefers-reduced-transparency` 非 Baseline，玻璃降级以 `@supports` + 不透明底为准，媒体查询只作增强；④ 客户端 JWT 解析不校验签名，只用于界面分流，文档与注释都写明它不是授权边界，且不提供任何开发者提权开关。
+- 依据：`.agent/changes/WORK-002-前端组件化与管理端拆分/{requirements.md,proposal.md,design.md,tasks.md}`；`.agent/rules/always.md`；WORK-001 的 `design.md`（前端包硬约束）与 `testing/report.md`（桌面 e2e 本机不可运行的既有记录）。
+- 验证：本轮只写 Markdown 工件，**未运行任何构建或测试**。设计所依据的仓库事实为逐文件读取所得：`packages/platform-desktop/src/index.ts` 的同步镜像只由 `set` 写入、启动时不填充（缺陷确认）；`apps/desktop/electron/preload.cjs` 在 `sandbox: true` 下只能 `require('electron')`，故快照必须经启动参数传入；`apps/desktop/scripts/prepare-renderer.mjs` 只从 `../../app/dist` 拷贝（这是"管理端不进桌面产物"的依据）；`apps/public/scripts/prerender.mjs` 只注入 markup，样式由 Vite 正常产出。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 14:43:40 +0800 · WORK-002 · 组件展览页改为独立应用 apps/ui-kit
+
+- 类型：decision
+- 变更：用户 2026-10-09 裁决组件展览页形态为**独立应用 `apps/ui-kit`**（而非先前的"`apps/app` 内开发期路由"）。据此改了三件工件：`proposal.md`（推荐方案 4 改为独立应用并说明理由、范围与仓库影响补 `apps/ui-kit`、备选方案增加被否决的门控方案、交付拆分措辞）、`design.md`（系统上下文改为四个应用面、路径树新增 `apps/ui-kit`、新增「组件展览应用」小节写明页面内容与三条约束、测试策略与实施顺序相应调整）、`tasks.md`（TASK-005 重写为"组件展览应用与设计系统核验"，含在 `globals.css` 补 `@source` 一行、AC-005 检索范围加上 ui-kit、TASK-011 与完成条件同步）。
+- 决策：展览页独立成应用的理由是"**不进任何产品产物**"成为构造上的事实，而不是依赖构建工具真的把死代码消除掉；同时它能在真实构建产物里被打开核对。代价：多 6 个小文件（package.json、vite.config.ts、tsconfig.json、index.html、main.tsx、UiKitPage.tsx），且它**不能**在 Electron 里查看——在桌面壳中核对玻璃效果这一点，独立应用与开发期路由同样做不到，只有"常驻产品路由"能做到，该方案已被用户否决，此限制已如实写入提案的备选方案说明。展览页三条约束：不依赖后端、不做自动发现组件的注册表、不需要路由。
+- 依据：`.agent/changes/WORK-002-前端组件化与管理端拆分/{proposal.md,design.md,tasks.md}`；`.agent/rules/always.md`
+- 验证：本轮仍只改 Markdown 工件，**未运行任何构建或测试**；`project-lifecycle.ps1 validate` 存在一条已知的结构性 error（"方案尚未确认，但已经存在下游工件"），是"三件合并一次审阅"的中间态，已写入 proposal 的「门槛合并说明」，三件按序签署后消失。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 14:45:34 +0800 · WORK-002 · 签署 .agent/changes/WORK-002-前端组件化与管理端拆分/proposal.md
+
+- 类型：decision
+- 变更：.agent/changes/WORK-002-前端组件化与管理端拆分/proposal.md 由 xiaou61 签署为 approved
+- 决策：审批人 xiaou61（CTO）；approved_by / approved_at 由命令入口盖章，不由模型写入
+- 依据：.agent/changes/WORK-002-前端组件化与管理端拆分/proposal.md
+- 验证：回读 frontmatter：approved_by / approved_at=2026-10-09 14:45:34 +0800
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 14:45:35 +0800 · WORK-002 · 签署 .agent/changes/WORK-002-前端组件化与管理端拆分/design.md
+
+- 类型：decision
+- 变更：.agent/changes/WORK-002-前端组件化与管理端拆分/design.md 由 xiaou61 签署为 approved
+- 决策：审批人 xiaou61（CTO）；approved_by / approved_at 由命令入口盖章，不由模型写入
+- 依据：.agent/changes/WORK-002-前端组件化与管理端拆分/design.md
+- 验证：回读 frontmatter：approved_by / approved_at=2026-10-09 14:45:35 +0800
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 14:45:36 +0800 · WORK-002 · 签署 .agent/changes/WORK-002-前端组件化与管理端拆分/tasks.md
+
+- 类型：decision
+- 变更：.agent/changes/WORK-002-前端组件化与管理端拆分/tasks.md 由 xiaou61 签署为 approved
+- 决策：审批人 xiaou61（CTO）；approved_by / approved_at 由命令入口盖章，不由模型写入
+- 依据：.agent/changes/WORK-002-前端组件化与管理端拆分/tasks.md
+- 验证：回读 frontmatter：approved_by / approved_at=2026-10-09 14:45:36 +0800
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 15:32:23 +0800 · WORK-002 · 实施 TASK-001..005：设计系统底座与组件展览页
+
+- 类型：implementation
+- 变更：**首次改动源码。** ① 样式管线：Tailwind v4（`source(none)` + 显式 `@source` 登记四个源码目录）接入 `apps/app`、`apps/public`、`apps/ui-kit`；令牌层落在 `packages/ui/src/styles/globals.css`（浅深双套 `:root`/`.dark`、`@theme inline` 映射、`.glass` 三段式降级、CJK 系统字体栈）。② 主题：`ThemeProvider`/`useTheme`/`ThemeToggle` 与 `themeInitPlugin`（`transformIndexHtml` 注入首屏脚本，依次读桌面快照、`localStorage`、系统偏好）；`packages/ui` 新增 `./styles.css` 与 `./vite` 导出。③ 组件：用 shadcn CLI（`--base base`，Base UI 基座）生成 19 个基元到 `packages/ui/src/components`，另写 `AppShell`/`Section`，全部经 `src/index.ts` 导出。④ 新增展览应用 `apps/ui-kit`（端口 5175，单页渲染全部组件与变体，覆盖层由按钮触发）。⑤ 新增两条静态检查：`tokens.test.ts`（令牌单一来源）、`contrast.test.ts`（WCAG 对比度，按玻璃层合成后颜色算），并为展览页加 Playwright 5 条 e2e。⑥ 根 `package.json` 加 `dev:ui-kit`、`test:e2e:ui-kit`。
+- 决策：① 用注册表自带的 `cn` 包替代计划的 `clsx` + `tailwind-merge`（少一个依赖，且不必改写生成代码的导入）；② 移除 CLI 引入的 `next-themes`，`sonner` 改用项目自己的 `useTheme`；③ 新增 `--overlay` 令牌，把生成代码里的 `bg-black/10` 收进令牌；④ 深色 `muted-foreground` 由 0.72 提到 0.78——实测它在玻璃层合成色上只有 **4.21:1**，低于 AA 的 4.5:1；⑤ `vite-plugin.ts` 的相对导入必须带 `.ts` 扩展名，并因此打开 `allowImportingTsExtensions`（vite 配置加载器把工作区包交给 Node 加载，Node 不补全无扩展名导入）；⑥ 展览页验证由"人工核验"升级为 Playwright 自动化。
+- 依据：`.agent/changes/WORK-002-前端组件化与管理端拆分/{design.md,tasks.md}`；`.agent/rules/always.md`
+- 验证：`pnpm -r typecheck` 全绿（9 个工程）；`pnpm -r test` 通过（core 8 条、ui 14 条）；三个应用构建通过；`pnpm --filter @paideia/ui-kit test:e2e` 5 条通过。产物 CSS 里可检索到 `.glass`、`.dark`、`bg-popover` 与 ui-kit 独有类名，证明 `@source` 登记正确；`dist/index.html` 的首屏脚本位于 `<head>` 内且早于模块脚本。两条静态检查都做了"故意违反必须失败"的复核（对比度实测 4.21:1 失败；`#ff00ff` 探针失败），并自检已复原。证据见 `testing/logs/`，报告见 `testing/report.md`（`status: partial`）。
+  - **e2e 抓到并修掉一个真 bug**：Base UI 版的 `DropdownMenuLabel` 必须嵌在 `DropdownMenuGroup` 内，直接放在 Content 下会在展开时抛 "MenuGroupContext is missing"，并把子树整块崩掉。
+  - **未运行**：`apps/app` 与 `apps/desktop` 的 e2e（需后端 jar 与 3307 隧道；桌面端另有本机 spawn 限制）；AC-004..AC-007 依赖尚未实施的 TASK-006..TASK-009。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 15:37:48 +0800 · WORK-002 · 展览页观感截图与交付前状态核对
+
+- 类型：verification
+- 变更：用 Playwright 截取展览页三张观感证据（浅色整页、深色整页、深色含对话框）到 `testing/evidence/`，并写入 `testing/plan.md` 与 `testing/report.md`（`status: partial`）。未改源码。
+- 决策：观感是自动化断言覆盖不到的部分，因此留可复查的截图而不是"目视通过"这句话。目视发现一处不足：**浅色主题下玻璃层与普通卡片的差异偏弱**——页面背景是浅灰、径向高光很淡，玻璃没有足够内容可透。这是配色取值问题（`--backdrop-glow` 与 `--card`），不是实现缺陷，留到 TASK-011 或后续一并调。
+- 依据：`.agent/changes/WORK-002-前端组件化与管理端拆分/testing/{plan.md,report.md}`；`design.md` 的测试策略
+- 验证：三张截图已生成（浅色 152 kB、深色 163 kB、深色对话框 72 kB）；对话框截图中遮罩与背景模糊符合预期。`project-lifecycle.ps1 validate` 报 WORK-002 两条 error——`验证报告状态为 partial，不能作为完成证据` 与 `结构化测试证据不完整`（四条检查未运行、无法计入通过）。二者是"工作项未完成"的正确表达，已写入报告说明，待 TASK-006..011 完成后改为 `passed` 即消失。WORK-001 归因表已随未提交路径重新登记（0 error）。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 16:06:15 +0800 · WORK-002 · 视觉方向修订：令牌整组换成 Vercel Geist 实测值
+
+- 类型：decision
+- 变更：用户看过第一版展览页后反馈"不太好看"。核查后确认原因不在组件库，而在两处：① shadcn 注册表默认密度偏紧（控件 32px、正文 14px）；② 我定的令牌把页面做成浅灰底（`oklch(0.97)`）+ 半透明卡面，既不是高对比的黑白，也没有内容可让玻璃成立，两头不占。用户随后要求按 Vercel 观感调整，并在选项中选定"换成 Vercel 实测值"。据此改：令牌整组替换为 Geist 的公开实测值（浅色底纯白、正文 hsl(0 0% 9%)、边框 hsl(0 0% 92%)、组件底 hsl(0 0% 95%)；深色 4%/93%/18%/10%）；圆角由 12px 收到 6px（`--radius-sm/md/lg/xl` 映射为 4/6/6/12px，对齐 Geist 的 materials 规范）；卡面改为不透明 + 1px 细线 + 多层低透明阴影；`.glass` 降为可选工具类、页面径向高光删除；新增标题阶梯（带随字号收紧的负字距）与 `PageHeader`；`Card` 的 `ring-1` 换成 `border border-border shadow-card`、`rounded-xl` 收到 `rounded-lg`；`AppShell` 顶栏由玻璃浮层改为实底 + 细分隔线。同步：`contrast.test.ts` 改为同时解析 oklch 与 hsl、玻璃层改算 `--glass` 叠页面底色、新增危险色与次级面文字两条断言；展览页的"令牌与玻璃层"节拆成"字号阶梯"与"层次与描边"；截图重拍。
+- 决策：**"Vercel 那种观感"与"玻璃拟态"是相冲突的两个方向**——Vercel 官方对外设计规范 `vercel.com/design.md` 把 "glass effects" 列入 Hard reject 清单；他们的营销站虽编译出了 backdrop-blur 工具类，但那不是观感骨架。原设计把两者混在一起是错的，这次按用户选择取前者。**协议处理**：REQ-001（令牌层覆盖含玻璃层级）与 AC-008（玻璃层有降级形态）仍然成立，改动只涉及样式取值与默认层次手法，不涉及目标、范围、接口、数据、安全或架构，因此按"合并或豁免门槛的决定必须写入受影响工件"，把修订与批准过程记进 `design.md` 的「实施期修订」一节，不重开批准轮次。另一条事实修正：早先说"Vercel 没有设计系统"不准确——它有公开的 Geist Design System，只是组件包 `@vercel/geistcn` 在公开 npm 上查为 404。
+- 依据：`.agent/changes/WORK-002-前端组件化与管理端拆分/design.md`（实施期修订）、`testing/report.md`（偏差 5 与 9）；`.agent/rules/always.md`
+- 验证：`pnpm -r typecheck` 全绿（9 个工程）；`pnpm -r test` 通过（core 8 条 + ui 16 条，其中对比度断言 10 条）；`apps/app`、`apps/public`、`apps/ui-kit` 三个构建通过；ui-kit 的 5 条 e2e 通过。两条静态检查的"故意违反必须失败"复核已按新令牌重做并复原自检（浅色 muted-foreground 提到 hsl(0 0% 55%) 时实测 **3.35:1** 失败；`#ff00ff` 探针失败）。截图重拍后目视确认纯白底、近黑正文、细线层次与大标题负字距都成立。
+  - **检查拦住了我自己**：展览页说明文案里写了 `hsl(0 0% 9%)` 之类的字面量，被令牌单一来源检查判为违规 5 处。处理是改文案，不放宽检查。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 16:45:37 +0800 · WORK-002 · 完成 TASK-006..011，验证报告转 passed
+
+- 类型：implementation
+- 变更：① TASK-007 扩展共享包边界检查：`packages/ui` 除桌面壳 API 外新增禁止 `@paideia/core`、`platform-web/desktop`、`react-router`；**并修掉检查自身的真缺陷**（原正则只认 `from`/`require(`，`import 'electron'` 这种纯副作用导入能整个绕过，连 WORK-001 那条老规则一起漏；现已认 `from`、`import 'x'`、`import('x')` 三种写法，并在扫描前剥掉注释以免误报）。② TASK-008 新增 `packages/core/src/session.ts`（`Role`/`Session`/`createSessionReader`/`canAccessAdmin`，失败即拒绝）+ 6 条单测。③ TASK-006 把 `HomePage` 与 `PublicPage` 迁移到新组件与新令牌、删除占位 `Panel.tsx`（保留既有 `data-testid`，三条旧 e2e 断言继续有效）。④ TASK-010 修桌面端缓存同步读缺陷：主进程把 `cache.json` 经启动参数注入（`sandbox: true` 下 preload 读不了文件）、preload 暴露 `cacheSnapshot`、`platform-desktop` 拆出可测的 `createBridgeCache` 用快照初始化镜像，附 4 条单测。⑤ TASK-009 新增 `apps/admin`（端口 5174，单屏因此不引路由、不引 lucide）+ `RequireAdmin`/`AdminDenied`（显式展示当前身份与拒绝原因，**不留任何提权开关**）+ 3 条 e2e。⑥ 根 scripts 加 `dev:admin`、`test:e2e:admin`；`globals.css` 补 `@source` 管理端；`always.md` 新增「前端结构：四个面与设计系统」一节；`INDEX.md` 更新模块行。
+- 决策：**管理端不装 react-router**——本期只有一屏，装一个只服务单页的路由是没人用的脚手架，真出现第二屏再加（偏离 tasks.md 里"Hash 路由"的描述，已记录）。另一处偏差：`AdminDenied` 与 `RequireAdmin` 同放在 `guard.tsx`，未单开 `pages/AdminDenied.tsx`。
+- 依据：`.agent/changes/WORK-002-前端组件化与管理端拆分/{tasks.md,design.md,testing/plan.md,testing/report.md}`；`.agent/rules/always.md`
+- 验证：`pnpm -r typecheck` 8 个工程全过；`pnpm -r test` 34 条通过（core 14 + platform-desktop 4 + ui 16）；四个应用构建通过；**三套 e2e 共 11 条在真实后端上通过**（学习者端 3、管理端 3、展览页 5）。AC-005 证据：学习者端产物与桌面渲染产物里「admin / 管理端 / ui-kit / 组件展览」四个关键词各命中 0 个文件，对照组 `apps/admin/dist` 命中。桌面端 e2e 本机仍不可运行，由 `createBridgeCache` 单测承担并在报告中标注"非端到端"。`validate` 结果：`valid: true`、WORK-002 `phase=completed`、0 error。
+  - **一次误判要记下**：查数据库连通时我先把 `curl telnet://` 当端口探测器（它不支持该协议，谎报 000），又把 JDBC URL 覆盖成 3306（那是另一个本地 MySQL），并用 `>` 截断了一个仍被旧进程持有的日志文件——于是读到的 "Access denied" 来自旧进程，据此错误地断言"隧道没起"。实际隧道一直是好的，用未经改动的本地配置后端直接 UP。教训：端口要用 `/dev/tcp` 或 netstat 探；重定向日志前先确认没有同文件的旧写者。服务器侧只做了只读查询（`mysql.user`、`show databases`），未改动任何配置。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行

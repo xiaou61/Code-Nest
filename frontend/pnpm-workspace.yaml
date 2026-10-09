@@ -8,6 +8,7 @@ packages:
 # - esbuild：Vite 的转译器，需要它的原生二进制
 minimumReleaseAgeExclude:
   - vite@8.3.4
+  - lucide-react@1.54.0
 
 allowBuilds:
   electron-winstaller: true

@@ -1,5 +1,7 @@
 import { createWebPlatform } from '@paideia/platform-web'
 import { createDesktopPlatform } from '@paideia/platform-desktop'
+import '@paideia/ui/styles.css'
+import { ThemeProvider } from '@paideia/ui'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -34,9 +36,16 @@ if (container === null) {
 createRoot(container).render(
   <StrictMode>
     <PlatformProvider platform={platform}>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
+      {/*
+        主题的持久化走已既有的 Platform 缓存端口，不直接碰 localStorage：
+        Web 与桌面壳的缓存各自落在合适的地方，业务代码不需要知道差别。
+        ThemeProvider 只要求 get/set 两个方法，因此这里能直接传 platform.cache。
+      */}
+      <ThemeProvider storage={platform.cache}>
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </ThemeProvider>
     </PlatformProvider>
   </StrictMode>,
 )

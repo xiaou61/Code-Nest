@@ -1,0 +1,30 @@
+{
+  "name": "@paideia/ui-kit",
+  "version": "0.0.1",
+  "private": true,
+  "description": "组件展览：把 packages/ui 的全部组件与变体渲染在一页里，供开发与内审对照",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@paideia/platform-web": "workspace:*",
+    "@paideia/ui": "workspace:*",
+    "lucide-react": "1.54.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "26.6.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "vite": "8.3.4"
+  }
+}

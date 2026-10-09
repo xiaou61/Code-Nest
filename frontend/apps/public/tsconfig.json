@@ -1,4 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // vite/client 提供 *.css 副作用导入的类型声明；本应用引入了 @paideia/ui/styles.css
+    "types": ["vite/client"]
+  },
   "include": ["src", "vite.config.ts"]
 }

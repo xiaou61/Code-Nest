@@ -12,6 +12,9 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "resolveJsonModule": true,
+    // 允许在导入里写 .ts 扩展名。全仓只有 packages/ui 的配置期插件需要它：
+    // vite 配置加载器把工作区包外置后交给 Node 加载，而 Node 的 ESM 解析不做无扩展名补全。
+    "allowImportingTsExtensions": true,
     "types": []
   }
 }

@@ -33,14 +33,16 @@ status: active
 | 数据访问 `paideia-persistence` | `backend/paideia-persistence/` | `src/test/java/io/github/xiaou61/persistence/` | — | WORK-001 |
 | 认证授权 `paideia-security` | `backend/paideia-security/` | `src/test/java/io/github/xiaou61/security/` | — | WORK-001 |
 | 启动模块 `paideia-app` | `backend/paideia-app/` | `src/test/java/io/github/xiaou61/`（含授权隔离与模块边界校验） | — | WORK-001 |
-| 前端工作区 | `frontend/pnpm-workspace.yaml`、`frontend/package.json` | — | — | WORK-001 |
-| 展示组件 `@paideia/ui` | `frontend/packages/ui/` | — | — | WORK-001 |
-| 端口与 API 客户端 `@paideia/core` | `frontend/packages/core/` | `src/api.test.ts`、`src/workspace-boundaries.test.ts` | — | WORK-001 |
+| 前端工作区 | `frontend/pnpm-workspace.yaml`、`frontend/package.json` | — | — | WORK-001、WORK-002 |
+| 设计系统 `@paideia/ui` | `frontend/packages/ui/`（`styles/globals.css` 是令牌唯一来源，`components/` 是基元，`theme/` 是主题与首屏脚本，`layout/` 是外壳） | `src/tokens.test.ts`（令牌单一来源）、`src/theme/contrast.test.ts`（WCAG 对比度）、`src/theme/theme-context.test.tsx` | — | WORK-001、WORK-002 |
+| 端口与 API 客户端 `@paideia/core` | `frontend/packages/core/`（`session.ts` 是角色判断的唯一入口） | `src/api.test.ts`、`src/workspace-boundaries.test.ts`、`src/session.test.ts` | — | WORK-001、WORK-002 |
 | Web 平台适配 `@paideia/platform-web` | `frontend/packages/platform-web/` | — | — | WORK-001 |
-| 桌面平台适配 `@paideia/platform-desktop` | `frontend/packages/platform-desktop/` | — | — | WORK-001 |
-| 主体 SPA `@paideia/app` | `frontend/apps/app/` | `e2e/home.spec.ts` | — | WORK-001 |
-| 桌面壳 `@paideia/desktop` | `frontend/apps/desktop/`（Electron 主进程与 preload 在 `electron/`） | `e2e/desktop.spec.ts`（本机环境未运行） | — | WORK-001 |
-| 公开页 `@paideia/public` | `frontend/apps/public/` | — | — | WORK-001 |
+| 桌面平台适配 `@paideia/platform-desktop` | `frontend/packages/platform-desktop/`（`createBridgeCache` 由启动快照初始化同步镜像） | `src/index.test.ts` | — | WORK-001、WORK-002 |
+| 学习者端 `@paideia/app` | `frontend/apps/app/`（Web 与桌面共用产物，端口 5173） | `e2e/home.spec.ts` | — | WORK-001、WORK-002 |
+| 管理端 `@paideia/admin` | `frontend/apps/admin/`（仅 Web，端口 5174，不含路由——只有一屏） | `e2e/admin.spec.ts` | — | WORK-002 |
+| 组件展览 `@paideia/ui-kit` | `frontend/apps/ui-kit/`（仅开发与内审，端口 5175，不进任何产品产物） | `e2e/ui-kit.spec.ts` | — | WORK-002 |
+| 桌面壳 `@paideia/desktop` | `frontend/apps/desktop/`（Electron 主进程与 preload 在 `electron/`） | `e2e/desktop.spec.ts`（本机环境未运行） | — | WORK-001、WORK-002 |
+| 公开页 `@paideia/public` | `frontend/apps/public/` | — | — | WORK-001、WORK-002 |
 
 ## HTML 理解材料
 

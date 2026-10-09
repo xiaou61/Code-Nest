@@ -88,17 +88,22 @@ function createCacheStore() {
       delete data[key]
       flush()
     },
+    /**
+     * 当前缓存内容。启动时经 additionalArguments 注入渲染进程，
+     * 因为渲染进程的同步 cache.get 需要一份"启动时就存在"的镜像 ——
+     * 单靠 IPC 拿不到，IPC 是异步的，而首屏主题脚本等不了。
+     */
+    snapshot: () => ({ ...data }),
   }
 }
 
-function registerCacheIpc() {
-  const cache = createCacheStore()
+function registerCacheIpc(cache) {
   ipcMain.handle('cache:get', (_event, key) => cache.get(String(key)))
   ipcMain.handle('cache:set', (_event, key, value) => cache.set(String(key), String(value)))
   ipcMain.handle('cache:remove', (_event, key) => cache.remove(String(key)))
 }
 
-function createWindow() {
+function createWindow(cacheSnapshot) {
   const window = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -108,8 +113,11 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      // preload 在沙箱里只能 require('electron')，所以来源要这样传进去
-      additionalArguments: [`--paideia-renderer-origin=${RENDERER_ORIGIN}`],
+      // preload 在沙箱里只能 require('electron')，读不了文件，所以来源与缓存快照都要这样传进去
+      additionalArguments: [
+        `--paideia-renderer-origin=${RENDERER_ORIGIN}`,
+        `--paideia-cache-snapshot=${Buffer.from(JSON.stringify(cacheSnapshot), 'utf8').toString('base64')}`,
+      ],
     },
   })
 
@@ -126,13 +134,14 @@ app.whenReady().then(async () => {
   if (!fs.existsSync(path.join(RENDERER_DIR, 'index.html'))) {
     throw new Error(`找不到渲染产物：${RENDERER_DIR}。请先执行 pnpm --filter @paideia/desktop build`)
   }
-  registerCacheIpc()
+  const cache = createCacheStore()
+  registerCacheIpc(cache)
   await startRendererServer()
-  createWindow()
+  createWindow(cache.snapshot())
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
+      createWindow(cache.snapshot())
     }
   })
 })

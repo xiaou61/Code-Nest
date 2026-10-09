@@ -1,3 +1,4 @@
+import '@paideia/ui/styles.css'
 import { hydrateRoot } from 'react-dom/client'
 
 import { PublicPage } from './PublicPage'
