@@ -292,3 +292,13 @@ schema_version: 1
 - 验证：pnpm -r typecheck：4 个包全部通过；pnpm -r test：core 6 个用例通过；pnpm build：产出 dist/index.html 与相对路径 assets（桌面壳所需）；pnpm test:e2e：2 个用例通过（页面展示后端真实 status=UP 与原始 JSON、响应带 X-Trace-Id）。提交前敏感串扫描无命中。
 - 本地提交：待用户授权/未提交
 - 远端推送：未执行
+
+## 2026-10-09 11:06:43 +0800 · WORK-001 · 完成 TASK-004：持久层底座与真实 MySQL 集成测试
+
+- 类型：implementation
+- 变更：新增 paideia-persistence 模块：MyBatis 全局约定（列名下划线转驼峰）、包说明中的四条约定的（只面向 MySQL、不做 SQL 改写拦截器、总数用显式 count、SQL 只写在 mapper）。测试作用域示例表与迁移（版本号 900 起）、自建 SqlSessionFactory 的集成测试、测试数据库连接从环境变量读取（默认指向 127.0.0.1:3307 隧道）。app 模块加入持久层、Flyway、MySQL 驱动依赖并建立生产迁移目录说明。PageQuery 增加 limit()。
+- 决策：两处偏离设计初稿且已记入 design.md：(1) 不做 MySQLPageInterceptor，改为约定式显式分页——自动改写 SQL 是 PageHelper 类方案的故障根源，而显式写法只多两行 SQL；(2) 审计字段改用 MySQL 列默认值而非持久层填充程序，因为『不依赖数据库默认值』原本是为多库可移植服务，该约束已被撤销。集成测试在未配置 PAIDEIA_TEST_DB_PASSWORD 时跳过并在 stderr 明确提示，避免 surefire 只报 Tests run: 0 被误读成通过。
+- 依据：tasks.md 的 TASK-004；design.md 的持久化与迁移、测试策略；.agent/rules/always.md
+- 验证：带凭据运行 mvn -B clean verify：BUILD SUCCESS，五个模块全绿；PaginationIntegrationTest 4 个用例在真实 MySQL（服务器 paideia_test，经 127.0.0.1:3307 SSH 隧道）通过——分页页大小与总数正确、翻页不重不漏、越界页返回空、归属过滤只返回本用户行且不带过滤的对照查询返回全部 5 行、超限页大小收敛到上限。不带凭据运行同一模块：跳过且构建保持 SUCCESS，stderr 有明确提示。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行

@@ -126,9 +126,14 @@ deploy/                                    docker-compose.yml、.env.example
 
 - **迁移工具**：Flyway，目录 `backend/paideia-app/src/main/resources/db/migration/`（计划），命名 `V<版本>__<描述>.sql`。启动时执行；迁移失败即启动失败，不静默降级。
 - **主键**：`BIGINT AUTO_INCREMENT`，MyBatis 侧用 `useGeneratedKeys="true" keyProperty="id"` 取值。
-- **分页组件**（计划 `MySQLPageInterceptor` + `PageQuery`）：拦截 MyBatis 的语句执行，按 `PageQuery` 追加 `LIMIT`，并生成对应的 `SELECT COUNT(*)`。不使用 `RowBounds`（它在驱动取回全部结果后才跳过，且不提供总数）。实现要点：分页参数显式传递，不引入 `ThreadLocal` 状态；`COUNT` 在含 `GROUP BY`/`DISTINCT` 的语句下要有明确策略（本期骨架只需覆盖简单查询，复杂语句走手写 SQL，标注为已知边界）。
-- **审计字段**：创建时间、更新时间由持久层统一填充，不依赖数据库默认值。
-- **生产 schema 不含示例表**：授权隔离验证所需的带归属实体只存在于测试作用域（见测试策略）。
+- **分页组件（实施期修正：不做 SQL 改写拦截器）**。设计初稿写的是 `MySQLPageInterceptor` 按参数追加 `LIMIT` 并生成 `COUNT`。实施时改为**约定式显式分页**：
+  - `PageQuery` 提供 `limit()` 与 `offset()`（`offset()` 返回 `long`，避免页码接近上限时溢出 `int`）。
+  - mapper 自己写 `LIMIT #{limit} OFFSET #{offset}`，分页参数由调用方从 `PageQuery` 显式传入，不引入 `ThreadLocal`。
+  - 总数由**独立的 count 语句**提供，不由框架改写生成。含 `GROUP BY`/`DISTINCT` 的语句尤其不能靠自动改写得到正确总数。
+  - 不使用 `RowBounds`（它在驱动取回全部结果后才跳过，且不提供总数）。
+  - 取舍理由：自动改写 SQL 是 PageHelper 那类方案出问题的根源（线程本地状态污染、COUNT 改写错误），而显式写法只多两行 SQL。节省的机械量不抵排查成本。
+- **审计字段（实施期修正）**：创建/更新时间交给 MySQL 列默认值（`DEFAULT CURRENT_TIMESTAMP`，必要时 `ON UPDATE CURRENT_TIMESTAMP`），不在持久层做统一填充程序。初稿的"不依赖数据库默认值"是为多库可移植服务的，该约束已由用户撤销；在只面向 MySQL 的前提下，列默认值是最少代码且最可靠的做法。
+- **测试用示例表**：位于 `backend/paideia-persistence/src/test/resources/db/testdata/`（版本号从 900 起，避开生产迁移），**不进入生产 schema**。授权隔离验证依赖它。
 
 ## 失败处理与恢复
 

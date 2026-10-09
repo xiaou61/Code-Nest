@@ -23,6 +23,27 @@
       <groupId>io.github.xiaou61</groupId>
       <artifactId>paideia-web</artifactId>
     </dependency>
+    <dependency>
+      <groupId>io.github.xiaou61</groupId>
+      <artifactId>paideia-persistence</artifactId>
+    </dependency>
+
+    <!-- schema 迁移。数据源只在 local/test profile 提供，默认 profile 下 Flyway 自动装配被跳过 -->
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-core</artifactId>
+      <version>13.10.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-mysql</artifactId>
+      <version>13.10.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.mysql</groupId>
+      <artifactId>mysql-connector-j</artifactId>
+      <scope>runtime</scope>
+    </dependency>
 
     <dependency>
       <groupId>org.springframework.boot</groupId>

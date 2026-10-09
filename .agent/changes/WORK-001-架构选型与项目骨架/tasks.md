@@ -64,18 +64,18 @@ approver_role: CTO
 - 修改（实际）：`frontend/package.json`、`frontend/pnpm-workspace.yaml`、`frontend/tsconfig.base.json`、`frontend/packages/{ui,core,platform-web}/**`、`frontend/apps/app/**`
 - 测试（实际）：`frontend/packages/core/src/api.test.ts`、`frontend/apps/app/e2e/home.spec.ts`
 
-### TASK-004 | pending | 持久层底座：Flyway、MyBatis 装配与 MySQL 分页组件
+### TASK-004 | done | 持久层底座：Flyway、MyBatis 装配与 MySQL 分页组件
 
+- 完成：2026-10-09
+- 结果：`mvn -B clean verify`（带 `PAIDEIA_TEST_DB_PASSWORD`）BUILD SUCCESS，PaginationIntegrationTest 4 个用例在**真实 MySQL** 上通过（页大小与总数正确、翻页不重不漏、越界页返回空、归属过滤只返回本用户行且对照查询证明过滤是生效的那一步、超限页大小被收敛）。未配置口令时该测试类跳过并在 stderr 明确提示，构建不因此变红
+- 实施期决定（偏离设计初稿，均为减少机械复杂度，理由记在 design.md）：
+  1. **不做 SQL 改写拦截器**。设计初稿写的是 `MySQLPageInterceptor` 按参数追加 LIMIT 并生成 COUNT；实施时改为约定式显式分页——`PageQuery` 提供 `limit()`/`offset()`，mapper 自己写 `LIMIT #{limit} OFFSET #{offset}`，总数由独立的 count 语句提供。自动改写 SQL 是 PageHelper 那类方案出问题的根源，而省下的只是每处两行 SQL
+  2. **审计字段改用 MySQL 列默认值**（`DEFAULT CURRENT_TIMESTAMP`），不在持久层做统一填充程序。原来的"不依赖数据库默认值"是为多库可移植服务的，该约束已撤销，MySQL 默认值是这里最少代码且最可靠的做法
 - 对应：`REQ-003`、`AC-005`
 - 依赖：TASK-001
-- 修改（计划）：`backend/paideia-persistence/**`、`backend/paideia-app/src/main/resources/db/migration/**`、`backend/paideia-app/src/test/resources/db/test-migration/**`
-- 测试（计划）：`backend/paideia-persistence/src/test/java/io/github/xiaou61/persistence/MySQLPageInterceptorTest.java`、`backend/paideia-persistence/src/test/java/io/github/xiaou61/persistence/RepositoryIntegrationTest.java`
-- 步骤：
-  1. 建 `paideia-persistence`：MyBatis 装配、`MapperScan` 配置点、审计字段填充、TypeHandler 注册点。
-  2. 实现 `MySQLPageInterceptor`：按显式传入的 `PageQuery` 追加 `LIMIT` 并生成 `COUNT` 查询，不使用 `RowBounds`、不引入 `ThreadLocal` 分页状态。
-  3. 接入 Flyway，建立迁移目录；写一条迁移创建测试作用域的示例表（含 `owner_id`，仅供 TASK-005 的隔离验证使用），**不进入生产 schema**。
-  4. 写一条仓储用例走分页组件。
-- 验证：`cd backend && mvn -q test`；分页组件单测与仓储集成测试通过（含总数与页大小断言）
+- 修改（实际）：`backend/pom.xml`、`backend/paideia-persistence/**`、`backend/paideia-app/pom.xml`、`backend/paideia-app/src/main/resources/db/migration/.gitkeep`、`backend/paideia-platform/src/main/java/io/github/xiaou61/platform/PageQuery.java`
+- 测试（实际）：`backend/paideia-persistence/src/test/java/io/github/xiaou61/persistence/PaginationIntegrationTest.java`
+- 运行前提：需要 `PAIDEIA_TEST_DB_PASSWORD`（及其余可选读数）与 `127.0.0.1:3307` 的 SSH 隧道
 
 ### TASK-005 | pending | 认证与授权：JWT、AuthPort、越权拒绝
 
