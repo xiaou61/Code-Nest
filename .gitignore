@@ -1,0 +1,54 @@
+# ---- 本地敏感配置：绝不提交 ----
+# 本仓库是公开仓库。凭据一旦提交即视为已泄露，删除文件无法补救（历史与 fork 仍可检索）。
+.env
+.env.*
+!.env.example
+*.local
+*.local.*
+!.env.example
+.secrets/
+secrets/
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+application-local.properties
+application-local.yml
+application-local.yaml
+application-secret.properties
+application-secret.yml
+application-secret.yaml
+
+# ---- 后端构建产物 ----
+target/
+build/
+out/
+!.mvn/wrapper/maven-wrapper.jar
+
+# ---- 前端与桌面壳构建产物 ----
+node_modules/
+dist/
+dist-ssr/
+.vite/
+.turbo/
+.cache/
+src-tauri/target/
+src-tauri/gen/
+
+# ---- 运行期数据 ----
+*.log
+logs/
+*.pid
+*.hprof
+
+# ---- IDE 与操作系统 ----
+.idea/
+.vscode/
+!.vscode/extensions.json
+*.iml
+*.ipr
+*.iws
+.DS_Store
+Thumbs.db
+desktop.ini
