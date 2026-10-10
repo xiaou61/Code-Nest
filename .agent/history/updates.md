@@ -1020,3 +1020,26 @@ schema_version: 1
 - 验证（**从本机对外网实测**，不是服务器上自测）：`GET /actuator/health` → `{"status":"UP"}`；`GET /` → **200 `text/html`**；`GET /admin/index.html` → **200**；`GET /api/v1/knowledge/categories`（无令牌）→ **401**；管理员登录 → `code = 0` 且拿到 access 令牌；带该令牌 `GET /api/v1/knowledge/admin/entries` → **200**、`GET /api/v1/knowledge/entries` → **200**。改动后全量后端 `mvn -B verify` → 退出码 0、**102 秒**（安全规则改动未破坏任何既有用例）。
 - 本地提交：待用户授权/未提交
 - 远端推送：未执行
+
+## 2026-10-10 17:28:35 +0800 · 远端推送核验
+
+- 类型：verification
+- 变更：按用户明确要求把本地 12 笔提交推到 `origin/master`（`5181245..acd47c2`）：WORK-004 的后端／共享包／学习者端／管理端／附件／自评、测试节奏与上下文合并、桌面打包验证与报告、首次部署与静态放行、精简 AGENTS.md 与发版脚本、库统一。
+- 决策：**推送前先做了一次密钥扫描**——用本地被忽略配置里的真实值（数据源口令、JWT 密钥、SMTP 授权码）加上服务器地址与初始管理员口令，去扫全部 **318 个被跟踪文件**：**0 命中**。本仓库公开，凭据一旦进历史就只能靠轮换补救，所以这一步放在推送前而不是推送后。
+- 依据：Git 远端 origin / 分支 master
+- 验证：`git push origin master` 退出码 0，输出 `5181245..acd47c2  master -> master`；`git ls-remote origin master` 与 `git rev-parse HEAD` 同为 `acd47c2cf4d3547f6527e30c6f6295c7431da8a9`。部署复验（公网）：健康检查 `UP`、`GET /` 200、`/admin/index.html` 200、管理员登录 `code = 0`、匿名读数据接口 401。
+- 本地提交：8ac11d9 之前的提交已在远端；本次推送 `acd47c2`
+- 远端推送：已验证；远端 HEAD=`acd47c2cf4d3547f6527e30c6f6295c7431da8a9`
+
+## 2026-10-10 17:45:11 +0800 · WORK-008 · 登记「对象存储接入」工作项（暂不实现）
+
+- 类型：decision
+- 变更：新建 `.agent/changes/WORK-008-对象存储接入/requirements.md`（`status: draft`，`mode: strict`）；在 `.agent/notes/deferred-scope.md` 的「云端对象存储」一行补上指向 WORK-008 的引用。**无任何源码改动。**
+- 决策：
+  1. **本期不实现，只登记**（用户原话「暂时不需要 这个先记录成一个work 我们后面再实现，你先记录上」）。
+  2. **编号取 WORK-008 而非工具给出的 `next_work_id`（WORK-005）**：`WORK-005/006/007` 已被 WORK-004 需求文末与 `deferred-scope.md` 在文字上保留给「AI 精简与悬浮助手／Agent 运行时与记忆／个人笔记与只读分享」，取 005 会与这三处引用冲突。此偏离是有意的，已写进工件「编号说明」。
+  3. 该项定性为**可扩展点**（沿用既有端口模式），**不做通用插件运行时**——后者与 D-02 Spring Modulith 的构建期边界冲突。
+- 依据：用户 2026-10-10 的连续讨论；`.agent/rules/always.md` 的 D-15（对象存储暂缓，触发=多实例共享/多副本）；`WORK-004` 需求文末与 `.agent/notes/deferred-scope.md`
+- 验证：未运行（仅新增/修改文档工件，无源码与行为变化）。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
