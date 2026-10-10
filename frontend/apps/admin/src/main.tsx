@@ -4,9 +4,10 @@ import '@paideia/ui/styles.css'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
+import { RouterProvider } from 'react-router'
 
 import { auth, platform } from './auth'
-import { AdminHomePage } from './pages/AdminHomePage'
+import { router } from './router'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,7 +38,7 @@ createRoot(container).render(
       <QueryClientProvider client={queryClient}>
         <AuthProvider tokens={auth.tokens} api={auth.authApi}>
           <RefreshBridge />
-          <AdminHomePage />
+          <RouterProvider router={router} />
         </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>
