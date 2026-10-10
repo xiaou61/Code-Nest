@@ -24,9 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * <p>测试库不需要真实账号：读取只要求"已认证"，因此令牌用 {@code AuthPort} 直接签发。
  * 这也顺带证明了一件事——**读路径不依赖账号数据**（本模块没有 account 依赖）。
  */
-@SpringBootTest(properties = {
-        "spring.flyway.locations=classpath:db/migration,classpath:db/testdata,classpath:db/devdata"
-})
+@SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "PAIDEIA_TEST_DB_PASSWORD", matches = ".+")

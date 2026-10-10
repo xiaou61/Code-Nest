@@ -5,8 +5,13 @@ spring:
     username: ${PAIDEIA_TEST_DB_USER:paideia}
     password: ${PAIDEIA_TEST_DB_PASSWORD:}
   flyway:
-    # 生产迁移 + 来自 paideia-persistence test-jar 的测试夹具表
-    locations: classpath:db/migration,classpath:db/testdata
+    # 生产迁移 + 测试夹具表 + 开发种子（seed-learner / seed-admin 与知识库种子）。
+    #
+    # **所有集成测试需要的数据源都列在这里，测试类不许用 @SpringBootTest(properties=…) 覆盖它。**
+    # 原因：Spring 的测试上下文缓存按"配置键"区分，只要有一个类多覆盖一个键，它就和其它测试
+    # **各起一个上下文**——每个上下文要起一次 Spring + 让 Flyway 连远程 MySQL，实测 15–25 秒。
+    # 宁可这里多列一行，也不要在测试类里制造第二条上下文。
+    locations: classpath:db/migration,classpath:db/testdata,classpath:db/devdata
     # 必须放开乱序，原因是两套编号规则的结构性冲突：
     # 夹具用 V900+ 编号（刻意排在所有生产迁移之后），生产迁移从 V1 开始。
     # 于是"夹具已应用、之后新增一个更低版本的生产迁移"在 Flyway 眼里就是乱序，

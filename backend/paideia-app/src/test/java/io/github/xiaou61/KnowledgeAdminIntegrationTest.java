@@ -28,9 +28,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * <p>数据自带唯一后缀（{@code System.nanoTime()}）并在末尾清理：种子用的是固定 id，
  * 而这个类会真的往题库里写东西，重跑时不能让上一次的残留把自己顶掉（slug 唯一索引）。
  */
-@SpringBootTest(properties = {
-        "spring.flyway.locations=classpath:db/migration,classpath:db/testdata,classpath:db/devdata"
-})
+@SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "PAIDEIA_TEST_DB_PASSWORD", matches = ".+")

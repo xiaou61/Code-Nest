@@ -26,9 +26,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * <p>两个用户用 101／102 两个令牌主体即可：本表刻意不对 accounts 建外键（知识模块不拥有账号），
  * 归属只由令牌决定。
  */
-@SpringBootTest(properties = {
-        "spring.flyway.locations=classpath:db/migration,classpath:db/testdata,classpath:db/devdata"
-})
+@SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "PAIDEIA_TEST_DB_PASSWORD", matches = ".+")

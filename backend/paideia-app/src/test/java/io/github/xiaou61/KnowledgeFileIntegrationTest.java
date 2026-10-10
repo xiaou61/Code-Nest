@@ -30,9 +30,7 @@ import org.springframework.test.web.servlet.MockMvc;
  *   <li><b>只收白名单类型</b>：靠**内容**判断而不是扩展名或客户端声明。</li>
  * </ol>
  */
-@SpringBootTest(properties = {
-        "spring.flyway.locations=classpath:db/migration,classpath:db/testdata,classpath:db/devdata"
-})
+@SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "PAIDEIA_TEST_DB_PASSWORD", matches = ".+")
