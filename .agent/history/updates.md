@@ -652,3 +652,89 @@ schema_version: 1
 - 验证：`project-lifecycle.ps1 validate` 为 `valid: true`；WORK-001 / WORK-002 / WORK-003 均 0 error，WORK-003 为 `completed/complete`，12 个任务全部 `done`。
 - 本地提交：待用户授权/未提交
 - 远端推送：未执行
+
+## 2026-10-10 09:21:22 +0800 · WORK-003 · 远端推送核验
+
+- 类型：verification
+- 变更：核对分支 master 的远端提交
+- 决策：以 git ls-remote 返回的远端提交为准
+- 依据：Git 远端 origin / 分支 master
+- 验证：远端 HEAD=8ac11d966af8e987df040d7f8a08a176b6c44823
+- 本地提交：8ac11d966af8e987df040d7f8a08a176b6c44823
+- 远端推送：已验证；远端 HEAD=8ac11d966af8e987df040d7f8a08a176b6c44823
+
+## 2026-10-10 · maintenance · 重做登录与注册页的观感，并修掉一个静默失效的扫描路径缺陷
+
+- 类型：implementation
+- 变更：用户反馈登录界面不好看，要求参考其他网站的登录页改。改动：① 新增 `packages/auth/src/auth-layout.tsx`——认证页的"裸页面"布局，**刻意不用 `AppShell`**（外壳的应用横条与页脚让登录页读起来像设置页，且未登录时那些导航本不可用）；通行做法是空白页 + 内容垂直居中 + 品牌在上、卡片在下；主题切换移到右上角（不再占一条横条）。② 学习者端的登录页与注册页改用它（注册页字段多，卡片宽一档），次要动作（"还没有账号？立即注册"）移到卡片下方居中。③ 管理端的未登录与加载状态也改用它，其余状态仍用 `AppShell`。④ 表单本身放大一档：输入框与主按钮 `h-10`（原 32px→40px）、字段间距 `space-y-5`、主按钮整宽。
+- 决策：① 不再在认证页顶部放"Paideia 登录"这类标题，改为品牌名（`h1`）+ 一行说明——避免"Paideia / 登录 / 账号登录"三行标题叠在一起；② 尺寸覆盖只通过 `className` 传入（`cn` 用 tailwind-merge 消解冲突），**不改设计系统的默认档位**，避免为了一个页面把全站按钮变大。
+- 依据：`.agent/rules/always.md`（Tailwind 扫描路径纪律）；`testing/evidence/auth-login-{before,after}.png`、`auth-register-after.png`、`auth-admin-login-after.png`
+- 验证：`pnpm -r typecheck` 9 个工程通过；`pnpm -r test` 42 条通过；三套 e2e 共 15 条通过（学习者端 5、管理端 5、展览页 5）；四个应用构建通过。截图前后对比见 evidence 目录。
+  - **过程中修掉一个真缺陷，而且它是 WORK-003 带进来的**：`packages/auth` **不在 `globals.css` 的 `@source` 列表里**，因此只在认证包里出现的 Tailwind 类名从未被生成。发现方式是"主题切换按钮跑到了左上角"——探针查出容器的 `justify-content` 计算值是 `normal`（`justify-end` 类在 class 列表里但没有对应 CSS 规则）；而 `dialog.tsx` 里用的是 `sm:justify-end`，生成的是 `.sm\:justify-end`，**裸的 `.justify-end` 从未存在**。也就是说 WORK-003 交付的登录/注册页有一批类名（`justify-end`、`pb-20` 等）一直没生效，只是恰好多数类名在别处也用过，所以看起来"基本正常"。修法：补 `@source '../../../../packages/auth/src'`，并新增 `packages/ui/src/styles/source-coverage.test.ts` —— 枚举所有含 `.tsx` 的 workspace 源码目录，断言每一个都被某个 `@source` 覆盖；已用"临时删掉 auth 那行"复核过它会失败。`always.md` 的对应纪律也从"新增应用"扩写为"新增应用或任何含 `.tsx` 的包"。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 · maintenance · 修正 access 存活期默认值：2 小时 → 15 分钟
+
+- 类型：implementation
+- 变更：查代码回答"鉴权策略"时发现一处**实现与已批准设计不一致**：WORK-003 的 `design.md` 定的是 access **15 分钟**，但代码用的是 `AuthProperties` 里 WORK-001 时代的默认值 **2 小时**——我实施时漏改了默认值，只有测试 profile 显式设了 30m，本地与被忽略的配置都没覆盖。已把 `AuthProperties` 的默认改为 15 分钟（提成常量 `DEFAULT_TOKEN_TTL` 并写明"改这个值等于改登出后令牌还能用多久的窗口"），同时把 `JwtAuthServiceTest.appliesDefaults` 的断言从 2 小时改为 15 分钟并注明理由（要改必须是有意识的决定）。未改测试 profile 的 30m（测试期避免过期导致用例不稳）。
+- 决策：**按已批准的设计对齐，而不是把文档改成 2 小时**。理由是 access 无状态、签出后无法撤销，它的寿命就是"登出后令牌仍可用的窗口"——2 小时与"短 access + refresh 轮换"的定位冲突，也正是这个方案想压小的暴露面。需要更长可在配置里显式设 `paideia.auth.token-ttl`（这条一直可用）。
+- 依据：`.agent/changes/WORK-003-账号与认证/design.md`（"access 15 分钟、refresh 14 天，均可配"）；`.agent/changes/WORK-003-账号与认证/testing/report.md` 与本文件引用的 `≤15 分钟` 窗口
+- 验证：`cd backend && PAIDEIA_TEST_DB_PASSWORD=<本地读入> mvn -B verify` → **BUILD SUCCESS，63 条测试全过**（含改后的默认值断言）。修完后报告与 `always.md` 里写的"登出后 access 剩余寿命 ≤15 分钟"由错变对。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 10:24:30 +0800 · WORK-004 · 建立「知识库」需求草稿并登记讨论拆分
+
+- 类型：decision
+- 变更：新建 `.agent/changes/WORK-004-知识库/`，写入 `requirements.md`（`status: draft`、`mode: strict`、`workflow: full`、`depends_on: [WORK-001, WORK-002, WORK-003]`）与 `workspace.md`。**未改动任何源码。** 讨论中的原始范围被拆成四块，本项只承载第一块（知识库本体），其余三块的范围与已裁决项记在该工件的「拆分后的后续工作项」一节，**尚未建项**。同时把新的工件目录登记进 WORK-001／002／003 的 workspace.md 归因表——归因校验要求每个工作项的表覆盖当前工作区**全部**改动路径，新目录未被任何表登记时四个工作项会一起报错。
+- 决策（本项）：知识库以「一张表、一行一个知识条目、类 md 正文」为基准（**不是考题**：无题型／选项／标准答案／判分，讨论中一度出现的题型扩展假设作废）；**分类是层级树**；**内容录入走管理端界面**；学习者侧只读，作答与掌握度全部往后放；内容组织能力（列表详情、层级分类导航、检索、图谱可视化、管理端录入）全要。Agent 在该边界内的实现选择：命名用「知识」而非「题库」；条目关系用独立边表而非往主表塞父子列。
+- 决策（拆分与后续项）：用户同意拆分。**AI 框架维持 AgentScope**——已核实 Pi（`https://pi.dev/`）是 Node/TypeScript 的终端 agent harness，Java 后端无法作为库嵌入，只能子进程旁挂或仅覆盖桌面端，改用它等于重开 D-09。后续三块的已裁决项已记入工件：AI 精简走 **BYOK 且经后端代理**、Key 不落库／不进日志／不出响应、**精简结果可缓存**；助手「自主」的依据**本期不设置**；笔记**只读分享**、**可举报下架**、**可撤回**、**有固定有效期**。**记忆的检索方式仍未裁决**，用户表示另行讨论（向量检索已被排除）。
+- 依据：`.agent/changes/WORK-004-知识库/requirements.md`；`.agent/rules/always.md`；联网核实的 Pi 事实（`https://pi.dev/`、`https://pi.dev/docs`）。
+- 验证：`project-lifecycle.ps1 validate` → `valid: true`，四个工作项均 0 error（WORK-004 为 `requirements` 阶段、`draft` 状态）。**未运行构建与测试**——本轮只新增工件文档，无源码改动。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 11:10:10 +0800 · WORK-004 · 补齐提案、设计与任务，需求定稿待批
+
+- 类型：decision
+- 变更：新建 `proposal.md`、`design.md`、`tasks.md`、`testing/plan.md`；修订 `requirements.md`——把四条开放问题收口进新增的「设计阶段由 Agent 收口的决定」第 8—11 条（条目归属单个分类；关系初始两种 `前置`/`关联`；本版不含图片与附件；管理端引入 Hash 路由），把 `REQ-003` 显式收窄为「邻域视图」（全局力导向图不做），并新增「关键缺口」一节。**未改动任何源码。**
+- 决策（架构）：新增业务模块 `paideia-knowledge`，依赖方向 `knowledge → {platform, persistence, security}`，**不依赖 `paideia-account`**（本项只取当前用户身份，`AccountApi` 因此仍无消费者）。三张表 `knowledge_categories`（自引用层级树）、`knowledge_entries`（挂单分类、`status` draft/published、`body` MD）、`knowledge_entry_relations`（有向边 + 类型、两端 `ON DELETE CASCADE`、`CHECK` 禁自指）。检索用 `FULLTEXT … WITH PARSER ngram`，不足分词长度的查询回退 `LIKE`。前端新增共享包 `packages/knowledge`（类型、客户端、`MarkdownBody`），md 渲染用 `react-markdown` + `remark-gfm`（唯一新增前端依赖，理由是它不产生 HTML 字符串、无需 `dangerouslySetInnerHTML`）。
+- 决策（**最重要的发现**）：读源码确认**后端目前没有任何按角色限制的路径规则**——`SecurityConfiguration` 只放行健康检查、`/error` 与 `/api/v1/auth/**`，其余 `anyRequest().authenticated()`，角色只被映射成权限、从未用于拒绝。因此管理端写接口若不自带限制，任何已登录学习者都能改知识库。方案是在过滤器链、`anyRequest()` **之前**插入 `.requestMatchers("/api/v1/knowledge/admin/**").hasRole("ADMIN")`；用路径规则而非 `@PreAuthorize`，因为路径规则只有一处且默认覆盖后续新增接口。顺序写反不会有任何报错，故 `AC-006` 的三态测试（匿名 401／学习者 403／管理员放行）专门覆盖它，测试计划里还要求做一次「注释掉规则确认测试变红」的反向验证。
+- 决策（测试）：后端集成测试**只能通过 HTTP 造数据**，不得引用 `knowledge.internal.*`——否则 `ModularityTest` 会因跨模块访问内部实现而失败。
+- 依据：`.agent/changes/WORK-004-知识库/{requirements.md,proposal.md,design.md,tasks.md,testing/plan.md}`；`.agent/rules/always.md`；既有代码模式取自 `paideia-account` 模块与 `SecurityConfiguration`。
+- 验证：**更正**——上一行原写作 `valid: true`，那是四件工件齐全**之前**的结果；补齐 `proposal/design/tasks` 后重跑，`validate` 因「需求尚未形成，但已经存在下游工件」报 `valid: false`。这是合并审阅期间的预期状态（需求仍是 `draft`），需求批准后消失。**未运行构建与测试**——本轮只新增工件文档，无源码改动。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 11:22:43 +0800 · WORK-004 · 按用户裁决把本地文件上传并入范围
+
+- 类型：decision
+- 变更：按用户 2026-10-10 裁决把「本地文件存储与上传」并入 WORK-004 范围，同步修改五件工件——`requirements.md`：新增用户决定第 8、9 条（本地文件存储 + 存储端口可扩展；**文件读取端点不鉴权**），新增 `REQ-007`、`AC-008` 与「上传安全」质量要求，非目标里的「不做对象存储与图片」改为「不做云端对象存储」；`proposal.md`：新增推荐方案 7、五组文件存储备选、风险表五行、交付拆分第 7 片；`design.md`：新增 `knowledge_files` 表、`FileStorage` 端口与 `LocalFileStorage`、上传与免鉴权读取端点、两条新安全规则、上传失败处理与观测；`tasks.md`：新增 TASK-007，回归任务顺延为 TASK-008；`testing/plan.md`：新增 AC-008 行、上传检查与三条已知缺口。**未改动任何源码。**
+- 决策：① 附件存服务器本地目录，业务代码只依赖一个 `FileStorage` 窄端口，将来换 S3／OSS／MinIO 只替换实现。② 文件带一条数据库记录而不是磁盘裸文件——读取时按 id 查表拼路径，**从构造上排除路径穿越**，且返回的是入库时嗅探得到的类型。③ **文件读取端点不鉴权**（用户裁决）：`<img src>` 不带 `Authorization` 头且本项目无 Cookie（D-10 已排除），鉴权就只能靠前端逐图转 blob，代价是失去浏览器缓存；因此文件名必须用 `CHAR(36)` UUID 而不是自增（否则 `/files/1`、`/files/2` 可枚举，等于把附件全列出来），且放行规则**限定 `GET`**，上传仍在 `/admin/` 之下。④ 上传只对管理员开放，白名单 `png/jpeg/webp/gif/pdf`、10 MB 上限、MIME 嗅探 + 扩展名双重校验、拒 SVG（可内嵌脚本）。⑤ 正文存稳定标识 `/api/v1/knowledge/files/<uuid>`，渲染时由前端补 baseUrl——桌面壳来源是 `127.0.0.1:5310`、与后端不同源，绝对地址存死会两端失效。⑥ 删条目不删文件（同一文件可能被多处引用），孤儿清理列为已知缺口。
+- 依据：`.agent/changes/WORK-004-知识库/{requirements.md,proposal.md,design.md,tasks.md,testing/plan.md}`；`.agent/rules/always.md`（公开仓库禁入二进制与凭据、Cookie 被 D-10 排除）
+- 验证：`project-lifecycle.ps1 validate` → `valid: false`，唯一错误为 WORK-004 的「需求尚未形成，但已经存在下游工件」（合并审阅期间的预期状态，需求批准后转绿）。**未运行构建与测试**——本轮只改工件文档，无源码改动。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 11:26:19 +0800 · WORK-004 · 用户暂不批准：可能更换整体架构，暂停在需求待批
+
+- 类型：decision
+- 变更：用户在 2026-10-10 表示**可能更换整体架构**，因此明确**暂不批准** WORK-004 的四件工件（需求／方案／设计／任务），要求先停在这里。未运行 `approve`，**未改动任何源码**。在 `requirements.md` 的「门槛说明」补了一段影响面说明，供架构变更后接着做的人判断哪些要重做。
+- 决策：按影响面分开处置，而不是整包作废——**需求（产品范围）与架构无关，大概率原样保留**（一行一个知识条目、层级分类树、条目关系、学习者侧只读浏览、中文检索、管理端录入、本地文件存储与免鉴权读取）；**方案／设计／任务／测试计划与既有架构绑定**（模块化单体、Spring Modulith、Maven 多模块、Vite + Hash 路由、`SecurityConfiguration` 的路径规则），架构一变即失效，需按新架构重做。重做前一律保持 `draft`，**不得在此基础上实施**。
+- 决策（流程）：`validate` 保持 `valid: false` 的预期报错（需求 `draft` 而下游工件已存在），不通过删下游工件来"修绿"——那些草稿正是架构变更后要复用的输入。
+- 依据：`.agent/changes/WORK-004-知识库/{requirements.md,proposal.md,design.md,tasks.md,testing/plan.md}`；用户 2026-10-10 口头决定
+- 验证：**未运行构建与测试**——本轮无源码改动，也未新增证据。`validate` 结果同上一条记录，唯一错误项不变。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 12:05:19 +0800 · maintenance · 全库代码审查（ocr 全文件扫描）并归档报告
+
+- 类型：maintenance
+- 变更：新增 `.agent/reviews/2026-10-10-scan-8ac11d9.md`——对 `backend/` 与 `frontend/` 的全部代码文件（164 个）做全文件审查，产出 **352 条发现（critical 5、high 50、medium 176、low 121）**，147 个文件至少一条。报告由**约十次 `ocr scan` 运行的并集**收敛而成：先按文件内容指纹取最新版本，再把同一文件内行号相差 ≤3 的发现并为一条（原始并集 911 条 → 352 条）。两次完整运行分别只报 251 与 252 条，并集明显提高召回。报告开头写明合并方式与三点代价（行号按各轮运行时内容记录、同一行细节可能被折叠、严重度取最高一档）。同步修订 `.agent/rules/always.md`：报告命名规则补充全库扫描口径 `scan-<head7>`。
+- 决策：用户要求"审查目前所有的代码"，故用 `ocr scan`（审整份文件）而非按 ref 区间；范围限代码文件，**测试目录按 ocr 默认 `default_path` 规则未审**（`src/test/java`、`*.test.ts(x)` 等），`.md` 与锁文件按扩展名排除。报告按既有约定进 Git。
+- 依据：用户 2026-10-10 指示；`.agent/rules/always.md` 的代码审查约定；`ocr` v1.12.13（provider tokenrhythm、模型 deepseek-flash）
+- 验证：164/164 目标文件均取得结果；工具自报可核算合计约 22,839,263 tokens（全库运行第 1 次 164 文件/9,074,369/2h18m02s；第 2 次 164 文件/8,578,422/2h24m10s；前端缺口补齐 97 文件/4,984,808/58m05s；paideia-platform 7 文件/201,664），另有若干次中断的分块运行未产出汇总，实际消耗更高。过程中确认 `ocr` 配 reasoning 模型时会因 "No tool calls parsed" 重试耗尽而中断会话，故改为分块执行、按缺口补扫；**已中断会话的部分结果可从本机用户目录的 `.opencodereview/sessions/` 恢复后合并**——本报告正是靠这一点才做到 164/164 不漏。**未运行构建与测试**：本轮无源码改动。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+- 遗留：报告文件与 `.agent/rules/always.md` 的本次改动尚未登记到任何工作项的 `workspace.md`——跨工作项的整体审查不对应单个 `WORK-*`，该归因项待用户裁决归入方式。

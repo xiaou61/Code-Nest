@@ -73,7 +73,7 @@ Paideia 是「千人千面的 AI 个性化学习平台」。目标不是把同�
 - 本地提交需用户明确授权；`git push`、远端分支、tag、部署必须单独授权。
 - **本仓库是公开仓库**：凭据、密钥、令牌、私钥、连接串、服务器地址一律不得写入任何被 Git 跟踪的文件（源码、配置、文档、`.agent/` 工件、更新历史、提交信息）。本地敏感配置放被 `.gitignore` 忽略的文件；仓库内只提交占位示例。详见根 `AGENTS.md` 的保密规则。
 - **代码审查按范围执行，不逐 commit 重跑**（2026-10-09 用户决定）：收到审查请求时审查其指定的 ref 区间（`--from <base> --to HEAD`）或指定提交，不为每个 commit 单独出报告——逐 commit 会重复计费，且拆碎的提交单独看会丢掉完整意图、产生误报。
-- **审查工具与报告归档**（2026-10-09 用户决定）：使用 `ocr`（`alibaba/open-code-review`，已全局安装于本机）。报告写入 `.agent/reviews/`，文件名 `<YYYY-MM-DD>-<base7>..<head7>.md`，随仓库提交（用户决定报告进 Git）。报告只记录范围、结论与证据，**不得回显 provider / api_key 等配置**；ocr 自身配置目录（`config.json` 含 API key）位于本机用户目录，绝不得进入仓库。
+- **审查工具与报告归档**（2026-10-09 用户决定）：使用 `ocr`（`alibaba/open-code-review`，已全局安装于本机）。报告写入 `.agent/reviews/`，文件名 `<YYYY-MM-DD>-<范围>.md`——审 ref 区间写 `<base7>..<head7>`，全库扫描写 `scan-<head7>`——随仓库提交（用户决定报告进 Git）。报告只记录范围、结论与证据，**不得回显 provider / api_key 等配置**；ocr 自身配置目录（`config.json` 含 API key）位于本机用户目录，绝不得进入仓库。
 - **审查按需触发，不装自动化**（2026-10-09 用户决定）：不设置 `post-commit` 钩子、不由 CI 触发，避免每个 commit 都消耗模型额度；由用户发起。ocr 默认只审代码文件（`.md` 等按 `unsupported_ext` 跳过），纯文档改动不产生报告。
 - 元规则：若项目代码出现与本节同等长期有效的规则变更，更新本文件而不是只写进单个工作项。
 
@@ -92,7 +92,7 @@ Paideia 是「千人千面的 AI 个性化学习平台」。目标不是把同�
 - **设计系统取 Vercel Geist 的实测令牌**：浅色底纯白、正文 `hsl(0 0% 9%)`、默认边框 `hsl(0 0% 92%)`、组件底 `hsl(0 0% 95%)`；深色对应 `4%`/`93%`/`18%`/`10%`。圆角 6px（菜单/模态 12px）。层次靠字号、留白与 1px 细线建立，**不靠色阶堆叠**。
 - **玻璃拟态默认不用**。Vercel 官方的对外设计规范把 glass effects 列入 Hard reject；`.glass` 只保留为可选工具类，用于确实有内容可透的场景（如浮在图片上的顶栏），其 `@supports` 降级形态必须保持完整。
 - **颜色只有一个来源**：`frontend/packages/ui/src/styles/globals.css`。应用与共享包不得出现硬编码颜色字面量（含文档文案里的），由 `packages/ui/src/tokens.test.ts` 强制。
-- **Tailwind v4 的扫描路径必须显式登记**：`@import "tailwindcss" source(none)` + `@source` 写物理源码路径（`packages/...`、`apps/...`），**不能写包名**——pnpm 把 workspace 包软链在 `node_modules` 下，会被 v4 的自动探测排除，跨包类名会静默丢失。新增应用时必须同步在 `globals.css` 里补一行 `@source`。
+- **Tailwind v4 的扫描路径必须显式登记**：`@import "tailwindcss" source(none)` + `@source` 写物理源码路径（`packages/...`、`apps/...`），**不能写包名**——pnpm 把 workspace 包软链在 `node_modules` 下，会被 v4 的自动探测排除，跨包类名会静默丢失。**新增应用、或新增任何含 `.tsx` 的包时，都必须同步在 `globals.css` 里补一行 `@source`**：漏了的症状是"布局类不生效但没有任何报错"（凡是别处也用过的类名仍然会生成，只有本包独有的那些消失——WORK-003 就漏了 `packages/auth`，`justify-end` 这类只在那儿出现的类名一直没生成）。这条由 `packages/ui/src/styles/source-coverage.test.ts` 强制，不靠人记住。
 - **对比度由 `packages/ui/src/theme/contrast.test.ts` 守住**：正文与次要文本在页面底、卡面与玻璃层上均须 ≥4.5:1（按合成后颜色算），焦点指示 ≥3:1。静止边框低于 3:1 是刻意的（Geist 亦然），不要再提这条为缺陷。
 - **`packages/ui` 是纯展示层**：不得引用 `@paideia/core`、`platform-web/desktop`、`react-router` 或桌面壳 API，由 `packages/core/src/workspace-boundaries.test.ts` 强制。检查同时认 `from`、纯副作用 `import 'x'` 与动态 `import('x')` 三种写法。
 - **角色逻辑只有一处**：`packages/core/src/session.ts` 的 `createSessionReader` / `canAccessAdmin`。业务组件不得自己比较角色字符串。客户端解析令牌载荷**不校验签名**，只用于界面分流，**不是授权边界**——后端必须自己拦越权；也不得加任何"以管理员身份预览"的调试开关。
