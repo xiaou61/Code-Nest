@@ -1,4 +1,4 @@
-import { LoginForm, useAuth } from '@paideia/auth'
+import { AuthLayout, LoginForm, useAuth } from '@paideia/auth'
 import { useQuery } from '@tanstack/react-query'
 import {
   AppShell,
@@ -68,11 +68,34 @@ function AccountBar() {
 /**
  * 管理端。它只有一屏，所以**不引路由**：登录视图是这一屏的一个状态。
  *
- * <p>四种状态依次是：确认登录状态 → 未登录（显示登录表单）→ 已登录但非管理员（明确告知被拒）
- * → 管理员（显示管理区）。第三种刻意不是"跳走"而是"说清楚"，授权缺失必须看得见。
+ * <p>四种状态依次是：确认登录状态 → 未登录（一个真正的登录页）→ 已登录但非管理员
+ * （明确告知被拒）→ 管理员（显示管理区）。第三种刻意不是"跳走"而是"说清楚"，
+ * 授权缺失必须看得见。
+ *
+ * <p>未登录与加载中用 `AuthLayout`（裸页面），其余状态用 `AppShell`：登录页不该带
+ * 应用横条与页脚，那些导航在未登录时也不可用。
  */
 export function AdminHomePage() {
   const { status, user } = useAuth()
+
+  if (status === 'loading') {
+    return (
+      <div className="text-muted-foreground flex min-h-screen items-center justify-center gap-2 text-sm">
+        <Spinner />
+        正在确认登录状态…
+      </div>
+    )
+  }
+
+  if (status === 'signed-out') {
+    return (
+      <div data-testid="admin-sign-in">
+        <AuthLayout description="与学习者端共用账号；登录后还需具备管理员角色。">
+          <LoginForm />
+        </AuthLayout>
+      </div>
+    )
+  }
 
   return (
     <AppShell
@@ -85,24 +108,7 @@ export function AdminHomePage() {
         </div>
       }
     >
-      {status === 'loading' ? (
-        <div className="text-muted-foreground flex items-center justify-center gap-2 py-16 text-sm">
-          <Spinner />
-          正在确认登录状态…
-        </div>
-      ) : status === 'signed-out' ? (
-        <div className="mx-auto max-w-sm py-8" data-testid="admin-sign-in">
-          <PageHeader title="管理端登录" description="管理端与学习者端共用一套账号。登录后仍需具备管理员角色。" />
-          <Card>
-            <CardHeader>
-              <CardTitle>账号登录</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <LoginForm />
-            </CardContent>
-          </Card>
-        </div>
-      ) : canEnterAdmin(user) ? (
+      {canEnterAdmin(user) ? (
         <AdminConsole />
       ) : (
         <>

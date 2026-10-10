@@ -31,7 +31,7 @@ export function LoginForm({ onSuccess }: { onSuccess?: () => void }) {
   }
 
   return (
-    <form className="space-y-4" onSubmit={submit} data-testid="login-form">
+    <form className="space-y-5" onSubmit={submit} data-testid="login-form">
       <div className="space-y-2">
         <Label htmlFor="login-identifier">用户名或邮箱</Label>
         <Input
@@ -40,6 +40,7 @@ export function LoginForm({ onSuccess }: { onSuccess?: () => void }) {
           autoComplete="username"
           value={identifier}
           onChange={(event) => setIdentifier(event.target.value)}
+          className="h-10"
           required
         />
       </div>
@@ -53,6 +54,7 @@ export function LoginForm({ onSuccess }: { onSuccess?: () => void }) {
           autoComplete="current-password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
+          className="h-10"
           required
         />
       </div>
@@ -63,7 +65,7 @@ export function LoginForm({ onSuccess }: { onSuccess?: () => void }) {
         </Alert>
       )}
 
-      <Button type="submit" disabled={busy} data-testid="login-submit" className="w-full">
+      <Button type="submit" disabled={busy} data-testid="login-submit" className="h-10 w-full">
         {busy ? <Spinner /> : null}
         登录
       </Button>

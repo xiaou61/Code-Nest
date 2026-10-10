@@ -148,11 +148,13 @@ class JwtAuthServiceTest {
     }
 
     @Test
-    @DisplayName("未指定签发者与存活期时使用默认值")
+    @DisplayName("未指定签发者与存活期时使用默认值：15 分钟")
     void appliesDefaults() {
         AuthProperties properties = new AuthProperties(SECRET, "  ", null);
 
         assertThat(properties.issuer()).isEqualTo("paideia");
-        assertThat(properties.tokenTtl()).isEqualTo(Duration.ofHours(2));
+        // 这个默认值就是"登出后 access 仍可用的窗口"，改成 2 小时会悄悄放大暴露面，
+        // 所以钉在这里：要改必须是有意识的决定，而不是顺手改默认值。
+        assertThat(properties.tokenTtl()).isEqualTo(Duration.ofMinutes(15));
     }
 }

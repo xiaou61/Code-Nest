@@ -12,6 +12,7 @@ export {
   type AuthStatus,
 } from './auth-context'
 export { createAuthorizedFetch, type AuthorizedFetchOptions } from './authorized-fetch'
+export { AuthLayout } from './auth-layout'
 export { CaptchaImage } from './captcha-image'
 export { LoginForm } from './login-form'
 export { RegisterForm } from './register-form'

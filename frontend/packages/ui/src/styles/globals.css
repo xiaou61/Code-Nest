@@ -12,12 +12,17 @@
  * 自动探测会跳过它 —— packages/ui 里的类名会静默丢失（组件在 ui 包里正常、在应用里没样式）。
  * 所以必须关掉自动探测、把每个含类名的源码目录按物理路径登记，且不能写包名。
  * 路径相对于本文件：本文件在 packages/ui/src/styles/ 下。
+ *
+ * **新增应用或新增含组件的包时，必须在这里补一行。** 漏了的症状是"布局类不生效、
+ * 但没有任何报错"——因为凡是别处也用过的类名仍然会生成，只有本包独有的那些会静默消失。
+ * 这条由 `source-coverage.test.ts` 兜住，不靠人记住。
  */
 @source '../**/*.{ts,tsx}';
 @source '../../../../apps/app/src';
 @source '../../../../apps/admin/src';
 @source '../../../../apps/public/src';
 @source '../../../../apps/ui-kit/src';
+@source '../../../../packages/auth/src';
 
 /* 主题用类名切换（首屏由 themeInitPlugin 注入的脚本在绘制前落到 <html> 上）。 */
 @custom-variant dark (&:where(.dark, .dark *));

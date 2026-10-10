@@ -81,7 +81,7 @@ export function RegisterForm({ onSuccess }: { onSuccess?: () => void }) {
   }
 
   return (
-    <form className="space-y-4" onSubmit={submit} data-testid="register-form">
+    <form className="space-y-5" onSubmit={submit} data-testid="register-form">
       <div className="space-y-2">
         <Label htmlFor="register-username">用户名</Label>
         <Input
@@ -90,6 +90,7 @@ export function RegisterForm({ onSuccess }: { onSuccess?: () => void }) {
           autoComplete="username"
           value={username}
           onChange={(event) => setUsername(event.target.value)}
+          className="h-10"
           required
         />
         <p className="text-muted-foreground text-xs">3–64 个字符，可用中文、字母、数字、下划线或连字符。</p>
@@ -104,6 +105,7 @@ export function RegisterForm({ onSuccess }: { onSuccess?: () => void }) {
           autoComplete="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
+          className="h-10"
           required
         />
       </div>
@@ -117,6 +119,7 @@ export function RegisterForm({ onSuccess }: { onSuccess?: () => void }) {
           autoComplete="new-password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
+          className="h-10"
           required
         />
         <p className="text-muted-foreground text-xs">至少 8 位。</p>
@@ -131,7 +134,7 @@ export function RegisterForm({ onSuccess }: { onSuccess?: () => void }) {
             value={captchaAnswer}
             onChange={(event) => setCaptchaAnswer(event.target.value)}
             required
-            className="flex-1"
+            className="h-10 flex-1"
           />
           <CaptchaImage challenge={captcha} onRefresh={() => void refreshCaptcha()} disabled={busy} />
         </div>
@@ -144,6 +147,7 @@ export function RegisterForm({ onSuccess }: { onSuccess?: () => void }) {
           onClick={() => void sendCode()}
           disabled={busy || cooldown > 0 || captcha === null}
           data-testid="register-send-code"
+          className="h-10"
         >
           {cooldown > 0 ? `${cooldown} 秒后可重发` : '发送邮箱验证码'}
         </Button>
@@ -158,6 +162,7 @@ export function RegisterForm({ onSuccess }: { onSuccess?: () => void }) {
             inputMode="numeric"
             value={code}
             onChange={(event) => setCode(event.target.value)}
+            className="h-10"
             required
           />
           <p className="text-muted-foreground text-xs">10 分钟内有效，最多尝试 5 次。</p>
@@ -170,7 +175,7 @@ export function RegisterForm({ onSuccess }: { onSuccess?: () => void }) {
         </Alert>
       )}
 
-      <Button type="submit" disabled={busy || !sent} data-testid="register-submit" className="w-full">
+      <Button type="submit" disabled={busy || !sent} data-testid="register-submit" className="h-10 w-full">
         {busy ? <Spinner /> : null}
         注册
       </Button>
