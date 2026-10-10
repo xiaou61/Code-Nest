@@ -30,20 +30,21 @@ approver_role: CTO
 
 ## 任务
 
-### TASK-001 | pending | 后端模块骨架与四张表迁移
+### TASK-001 | done | 后端模块骨架与五张表迁移
 
 - 对应：`REQ-001`、`REQ-002`、`AC-001`
 - 依赖：无
-- 修改：`backend/pom.xml`（`<modules>` 与 `<dependencyManagement>` **两处**）、`backend/paideia-knowledge/pom.xml`（新建）、`backend/paideia-app/pom.xml`（加依赖）
-- 新建：`paideia-knowledge/src/main/java/io/github/xiaou61/knowledge/{package-info.java,KnowledgeApi.java,internal/KnowledgeApiImplementation.java}`、`paideia-app/src/main/resources/db/migration/<下一个可用编号>__create_knowledge_tables.sql`、`paideia-app/src/main/resources/db/devdata/V951__seed_knowledge.sql`
+- 修改：`backend/pom.xml`（`<modules>` 与 `<dependencyManagement>` **两处**）、`backend/paideia-app/pom.xml`（加依赖）
+- 新建：`paideia-knowledge/pom.xml`、`paideia-knowledge/src/main/java/io/github/xiaou61/knowledge/{package-info.java,KnowledgeApi.java}`、`paideia-app/src/main/resources/db/migration/V3__create_knowledge_tables.sql`、`paideia-app/src/main/resources/db/devdata/V951__seed_knowledge.sql`
 - 步骤：
   1. 按 `paideia-account/pom.xml` 建模块 pom：依赖 `paideia-platform`、`paideia-persistence`、`paideia-security`。
   2. 根 pom 的 `<modules>` 与 `<dependencyManagement>` 各加一行；`paideia-app/pom.xml` 加 `<dependencies>` 项。
-  3. **先列 `db/migration/` 取下一个可用编号**（不要写死 `V2`），再写建表迁移：四张表的 DDL 照 `design.md` 的「持久化与迁移」逐字落地（含 `FULLTEXT … WITH PARSER ngram`、关系表两端 `ON DELETE CASCADE`、`CHECK` 自指约束、`knowledge_files` 的 `CHAR(36)` UUID 主键）。
-  4. 写 `V951__seed_knowledge.sql`：两级分类、三条已发布条目、一条草稿条目、一条前置关系。
-- 验证：`cd backend && PAIDEIA_TEST_DB_PASSWORD=<本地读入> mvn -B verify` 通过；以 `local` profile 启动后 `/actuator/health` 为 UP，且日志确认建表迁移已执行。
+  3. **先列 `db/migration/` 取下一个可用编号**，再写建表迁移：**五张表**的 DDL 照 `design.md` 的「持久化与迁移」逐字落地（含 `FULLTEXT … WITH PARSER ngram`、关系表两端 `ON DELETE CASCADE`、`CHECK` 自指约束、`knowledge_files` 的 `CHAR(36)` UUID 主键、`knowledge_self_assessments` 的 `UNIQUE(user_id, entry_id)`）。**实际取到 `V3`**——`V2` 已被账号表的字符集迁移占用。
+  4. 写 `V951__seed_knowledge.sql`：两级分类、三条已发布条目、一条草稿条目、两条关系（前置 + 关联）。
+- 验证：**构建与迁移都已真跑**——`mvn -B verify -Dspring-boot.repackage.skip=true` → **BUILD SUCCESS**，8 个模块全 SUCCESS（含新建的 `paideia-knowledge`），**76 条测试 0 失败**（`ModularityTest` 通过说明新模块已纳入边界校验）。迁移在 MySQL 8.0 上真实执行：日志 `Migrating schema 'paideia_test' to version "3 - create knowledge tables"` → `Successfully applied 1 migration … now at version v3`，即五张表的 DDL 有效（含 ngram 全文索引、`CHECK` 约束与两处外键）。
+- **本任务尚未收口的三项**：① 未以 `local` profile 启动核对 `/actuator/health`（本机 8080 被另一会话的进程占用，且启动会向 dev 库应用迁移，未擅自执行）；② e2e 种子 `V951` **尚未被执行**——它只在 e2e 的 Flyway locations 下加载，将由 TASK-009 的 e2e 覆盖；③ 设计里列的 `internal/KnowledgeApiImplementation.java` **未创建**——`KnowledgeApi` 当前没有任何方法，为它写实现类纯属仪式，等第一个真实方法出现时再建。
 
-### TASK-002 | pending | 只读浏览：分类树、条目列表与详情（含 md 渲染与阅读辅助）
+### TASK-002 | done | 只读浏览：分类树、条目列表与详情（含 md 渲染与阅读辅助）
 
 - 对应：`REQ-002`、`REQ-004`、`REQ-008`、`REQ-009`、`REQ-010`、`AC-002`、`AC-009`、`AC-010`
 - 依赖：TASK-001
@@ -58,7 +59,7 @@ approver_role: CTO
   6. e2e：登录种子学习者 → 打开知识库 → 展开分类并筛选 → 打开一条 → 点目录跳到某章节 → 断言上一篇／下一篇可达、反向链接非空。
 - 验证：`cd frontend && pnpm -r typecheck && pnpm -r test` 通过；`cd backend && mvn -B verify` 通过；`pnpm test:e2e` 中 `apps/app/e2e/knowledge.spec.ts` 通过。
 
-### TASK-003 | pending | 中文关键词检索
+### TASK-003 | done | 中文关键词检索
 
 - 对应：`REQ-005`、`AC-003`
 - 依赖：TASK-002
@@ -71,7 +72,7 @@ approver_role: CTO
   4. 集成测试：用中文关键词（≥2 字）断言命中；用单字断言走回退路径仍有结果；断言草稿不出现在结果里。
 - 验证：`SearchQueryTest` 通过；`KnowledgeIntegrationTest` 的检索用例通过；e2e 中搜索断言通过。
 
-### TASK-004 | pending | 条目关系与邻域视图
+### TASK-004 | done | 条目关系与邻域视图
 
 - 对应：`REQ-003`、`AC-004`
 - 依赖：TASK-002
@@ -83,7 +84,7 @@ approver_role: CTO
   3. e2e：打开含关系的种子条目，断言前置列表与 SVG 节点数量。
 - 验证：集成测试断言三组关系内容正确；e2e 通过。
 
-### TASK-005 | pending | 角色路径规则与管理端写端点
+### TASK-005 | done | 角色路径规则与管理端写端点
 
 - 对应：`REQ-006`、`AC-006`
 - 依赖：TASK-001
@@ -97,7 +98,7 @@ approver_role: CTO
   5. 集成测试造数据**只能走 HTTP**（不得引用 `knowledge.internal.*`，否则 `ModularityTest` 会失败）：管理员令牌建分类与条目，学习者令牌断言 403，无令牌断言 401。
 - 验证：`KnowledgeIntegrationTest` 三态鉴权用例通过；`ModularityTest` 通过；`mvn -B verify` 全绿。
 
-### TASK-006 | pending | 管理端路由、知识库管理区与草稿预览
+### TASK-006 | done | 管理端路由、知识库管理区与草稿预览
 
 - 对应：`REQ-006`、`REQ-011`、`AC-005`、`AC-011`
 - 依赖：TASK-005
@@ -152,6 +153,29 @@ approver_role: CTO
   4. 桌面产物确认不含管理端与知识库管理区界面。
   5. **四项反向验证**（只断言"功能可用"是不够的，这些检查必须能咬）：注释掉管理员角色规则 → 三态用例变红；去掉 `WITH PARSER ngram` 重建索引 → 中文检索用例变红；删掉 `globals.css` 里 `packages/knowledge/src` 那行 `@source` → `source-coverage` 变红；**去掉自评查询里的 `user_id` 过滤 → 隔离用例变红**。每次验证后恢复。
 - 验证：上述命令全部通过；结果写入 `testing/report.md`。
+
+## 实施进展（2026-10-10，TASK-001—005 已完成）
+
+已完成的五片都有可复查证据，命令与结果如下（测试库口令从被忽略的 `backend/config/application-local.yml` 读入环境变量，未回显）：
+
+| 片 | 证据 | 结果 |
+| --- | --- | --- |
+| TASK-001 | `mvn -B verify -Dspring-boot.repackage.skip=true` | BUILD SUCCESS，8 模块全过；日志 `Successfully applied 1 migration … now at version v3`——五张表 DDL 在 MySQL 8.0 上有效。**e2e 种子 `V951` 也已真实执行**（`Migrating … to version "951 - seed knowledge"` → 成功），原先"种子未验证"的缺口已闭合 |
+| TASK-002 | `KnowledgeReadIntegrationTest`（12 条）+ `CategoryTreeTest`（7 条）+ `heading-slug.test.ts`（9 条）+ `pnpm -r typecheck` | 分类树嵌套、已发布过滤、子分类浏览、草稿 404、md 渲染与锚点 id 全部通过；前端 9 个包类型检查通过 |
+| TASK-003 | `SearchQueryTest`（4 条）+ 集成测试的检索用例 | 中文长查询走 `FULLTEXT + ngram` 命中、单字查询走 `LIKE` 回落仍命中、检索不返回草稿、`%` 被当字面量转义 |
+| TASK-004 | 集成测试的关系用例（两个方向）+ `KnowledgeNeighborhood` | 前置与反向链接**两个方向都断言**（互为镜像的入边/出边极易写反） |
+| TASK-005 | `KnowledgeAdminIntegrationTest`（9 条） | **匿名 401 / 学习者 403 / 管理员放行**三态；录入草稿→学习者不可见→发布→可见；删分类（有子或有条目）409、换父成环 400、自环 400、重复关系 409、非法状态 400 |
+| TASK-006 | `pnpm -r typecheck` + `pnpm -r test`；管理端既有 e2e 的断言点全部保留 | 管理端引入 Hash 路由并把"门"集中到 `RequireAdmin`（`admin-sign-in`／`admin-console`／`admin-denied`／`admin-current-user`／`admin-health-status` 五个断言点原样保留）；管理区可建分类、建/改/删条目、发布、建/删关系；**草稿预览复用 `MarkdownBody`**。其端到端验证归 TASK-009 |
+
+**实施期间的三处偏离**（都是简化、不改变范围，已记入更新历史）：
+
+1. **关系数据并入详情响应**，没有另开 `/entries/{id}/relations` 端点——邻域视图本来就要先取详情，一个请求能拿到的就不该拆成两个。
+2. **管理端分类树不带"每分类条目数"**（设计里写了）。它是导航上的锦上添花，而每条分类一个 count 查询的代价与 AC-005 无关；要用时把 group-by 加上即可。
+3. **`KnowledgeApi` 当前为空接口**且未建实现类（设计里列了 `KnowledgeApiImplementation`）：它还没有任何跨模块调用者，为它写实现类是纯仪式。
+
+**仍未收口**：TASK-007（文件上传）、TASK-008（学习者自评）、TASK-009（e2e 与全量回归）。TASK-009 里的四项反向验证尚未执行。
+
+**实施期间的第四处偏离**：管理端详情的草稿预览响应**多带了 `relations`（含 id）**——学习者侧的三个关系视角是给人读的、不带 id，而管理端要删关系必须有 id；两者用途不同，因此各用一条查询而不是硬凑成同一个形状。
 
 ## 完成条件
 

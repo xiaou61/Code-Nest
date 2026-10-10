@@ -59,7 +59,7 @@ status: active
 | 为什么要改、验收什么 | 对应工作项的 `requirements.md` |
 | 为什么选择这种方案 | `proposal.md`、`design.md` |
 | 实际改哪些步骤 | `tasks.md` |
-| 当前未提交文件属于谁 | `workspace.md` 与 `git diff` |
+| 当前未提交文件有哪些 | `git status` 与 `git diff` |
 | 如何证明改对 | `testing/plan.md`、`testing/report.md` |
 | 交付后项目应保持什么行为 | `.agent/specs/` |
 | 这批改动审出什么问题 | `.agent/reviews/`（按 ref 区间归档） |

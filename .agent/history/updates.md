@@ -906,3 +906,71 @@ schema_version: 1
 - 验证：回读 frontmatter：approved_by / approved_at=2026-10-10 14:09:08 +0800
 - 本地提交：待用户授权/未提交
 - 远端推送：未执行
+
+## 2026-10-10 14:40:20 +0800 · WORK-004 · TASK-002—005：读取侧、检索、关系与管理端写端点
+
+- 类型：implementation
+- 变更：后端 `paideia-knowledge` 新增分类／条目／关系／检索四个内部包与两个控制器；前端新增共享包 `frontend/packages/knowledge` 与学习者端两个页面。具体：
+  - **读取侧**：`Category`／`CategoryMapper`／`CategoryTree`（装树、子树、祖先，纯函数）、`Entry`／`EntryMapper`、`CategoryService`／`EntryService`、`KnowledgeReadController`（分类树、条目分页列表、条目详情）。
+  - **检索**：`SearchQuery`（归一化、是否走全文索引、LIKE 通配符转义）。
+  - **关系**：`Relation`／`RelationMapper`，前置／反向／相关三种视角；关系并入详情响应。
+  - **管理端**：`CategoryAdminService`／`EntryAdminService`／`RelationAdminService` + `KnowledgeAdminController`（分类与条目的增改删、条目列表与详情含草稿、关系增删）。**`SecurityConfiguration` 新增两条规则**：`/api/v1/knowledge/admin/**` → `hasRole('ADMIN')`，`GET /api/v1/knowledge/files/**` → `permitAll`，两条都排在 `anyRequest()` 之前。
+  - **前端**：`packages/knowledge`（`types`／`client`／`heading-slug`／`markdown-body`／`entry-toc`／`image-lightbox`／`neighborhood`）、`apps/app` 的 `KnowledgeListPage`／`KnowledgeEntryPage`／`CategoryTree`／`AccountBar`，router 加两条 Hash 路由，`HomePage` 改用共享账号区组件，`globals.css` 补 `@source`。
+- 决策（三处简化，都不改变范围）：① **关系数据并入详情响应**，不另开 `/entries/{id}/relations`——邻域视图本就要先取详情。② **管理端分类树不带"每分类条目数"**（设计里写了）：与 AC-005 无关，需要时加 group-by 即可。③ **`KnowledgeApi` 保持空接口、不建实现类**：没有跨模块调用者，写实现类是纯仪式。
+- 决策（过程中修正的三个真问题，都由测试或实测抓到）：
+  1. **`&lt;` 在 MyBatis 注解里不做实体解码**——只有 `<script>` 块按 XML 解析。行值比较 `(published_at, id) < (...)` 写成 `&lt;` 后被原样发给 MySQL，直接语法错误（表现为条目详情 500）。已改为裸 `<` 并写明原因。
+  2. **前置与反向链接的查询互为镜像、极易写反**：边 `(1→3, prerequisite)` 意味着"1 是 3 的前置"，所以查入边还是出边决定两个方法谁是谁。第一版写反了，而**当时那条断言居然通过**——因为两个方向各自都返回"看起来合理"的结果。已修正，并让集成测试**两个方向都断言**。
+  3. **设计系统没有 `chart-*` 颜色令牌**，而写一个不存在的 Tailwind 类名不会报错、只会静默不生效（`tokens.test` 也拦不住，它不是调色板类名）。邻域视图因此改为**用线型区分三类关系**，这也更符合"靠细线与留白建立层次"的口径。
+  4. 附带发现：**Hash 路由下正文目录不能用 `href="#章节"`**——地址栏的 hash 是路由，会被当成路由跳转。`EntryToc` 改用按钮 + `scrollIntoView`，并写进 router 的注释。
+- 依据：`.agent/changes/WORK-004-知识库/{requirements.md,proposal.md,design.md,tasks.md}`
+- 验证：**后端** `mvn -B verify -Dspring-boot.repackage.skip=true` → BUILD SUCCESS；`KnowledgeReadIntegrationTest` **12/12**、`KnowledgeAdminIntegrationTest` **9/9**、`CategoryTreeTest` 7/7、`SearchQueryTest` 4/4。三态鉴权（匿名 401／学习者 403／管理员放行）、草稿不可见与可预览、发布后可见、删分类被拒（409）、换父成环（400）、自环（400）、重复关系（409）、非法状态（400）、中文全文命中、单字 LIKE 回落、`%` 字面量、关系两个方向——全部通过。**e2e 种子 `V951` 已真实执行**（`Migrating … to version "951 - seed knowledge"` → 成功），TASK-001 原先"种子未验证"的缺口闭合。**前端** `pnpm -r typecheck` 9 个包全过；`pnpm -r test` 全过（core 14、platform-desktop 4、ui 17、knowledge 9、auth 13），其中 `source-coverage` 通过说明新增包的 `@source` 登记生效。
+- 验证（未做）：**TASK-009 的四项反向验证尚未执行**（注释掉角色规则／去掉 ngram／删 `@source`／去掉自评的 user_id 过滤确认测试变红）——这四项里前三项要等本项剩余任务完成后再一起做。
+- 协作备注：四张归因表已补上本轮 11 条新路径（基准仍是 `b26b40e`）。**仍未提交**，等用户授权。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行 · WORK-004 · TASK-001：知识库模块骨架与五张表迁移
+
+## 2026-10-10 14:17:30 +0800 · WORK-004 · TASK-001：知识库模块骨架与五张表迁移
+
+- 类型：implementation
+- 变更：新建后端模块 `paideia-knowledge`（`pom.xml`、`package-info.java`、包根 `KnowledgeApi`）；在根 `backend/pom.xml` 的 `<modules>` 与 `<dependencyManagement>` **两处**、以及 `backend/paideia-app/pom.xml` 的 `<dependencies>` 注册该模块（漏第一处表现为"模块不构建"，漏第三处表现为"运行时不装配"）。新建迁移 `V3__create_knowledge_tables.sql`（五张表：`knowledge_categories` 自引用层级树、`knowledge_entries` 带 ngram 全文索引、`knowledge_entry_relations` 有向边 + 两端 `ON DELETE CASCADE` + `CHECK` 禁自指、`knowledge_files` 的 `CHAR(36)` UUID 主键、`knowledge_self_assessments` 的 `UNIQUE(user_id, entry_id)`）。新建 e2e 种子 `V951__seed_knowledge.sql`（两级分类、三条已发布、一条草稿、两条关系）。
+- 决策：① **迁移编号实际取到 `V3`**——工作区里的 `V2` 已被账号表的字符集迁移占用，这验证了 13:42 那条"不要写死编号"的订正是必要的，若照原设计写 `V2` 会直接启动失败。② 设计里列的 `internal/KnowledgeApiImplementation.java` **未创建**：`KnowledgeApi` 当前没有任何方法，为它写实现类是纯仪式；接口本身保留，并在 javadoc 里写明"当前为空是刻意的"。③ 本模块**不依赖 `paideia-account`**——只需要令牌里的当前用户，不需要账号数据。
+- 依据：`.agent/changes/WORK-004-知识库/{requirements.md,proposal.md,design.md,tasks.md}`（均已于 14:09 签署）
+- 验证：`mvn -B verify -Dspring-boot.repackage.skip=true` → **BUILD SUCCESS**，8 个模块全 SUCCESS（含新建模块），**76 条测试 0 失败**（`ModularityTest` 通过、`AccountAuthIntegrationTest` 13/13、`AuthorizationIsolationTest` 9/9）。**迁移在 MySQL 8.0 上真实执行**：`Migrating schema 'paideia_test' to version "3 - create knowledge tables"` → `Successfully applied 1 migration … now at version v3`，证明五张表 DDL（含 ngram 全文索引、`CHECK` 约束、两处外键）有效。测试库口令从被忽略的 `backend/config/application-local.yml` 读入环境变量，**未回显**。
+  - **未验证三项**（已如实写进 `tasks.md` 的 TASK-001 条目）：未以 `local` profile 启动核对 `/actuator/health`（本机 8080 被另一会话进程占用，且启动会向 dev 库应用迁移，未擅自执行）；e2e 种子 `V951` **尚未被执行**（只在 e2e 的 Flyway locations 下加载，将由 TASK-009 覆盖）；`-Dspring-boot.repackage.skip=true` 是必需的——不加则 `repackage` 因 jar 被占用而失败，与本轮改动无关。
+- 协作备注：同一轮按用户明确要求提交两笔——`9c1c401`（WORK-003 在途的登录/注册页观感、`@source` 覆盖检查、access 默认值订正）与 `b26b40e`（WORK-004 工件与范围登记），提交后工作区清空。提交前跑过 `pnpm -r typecheck`（9 个包全过）与后端编译；**未重跑单测与 e2e**，`updates.md` 里记的是那些改动当时的结果。四张归因表已随本轮实现重锚到 `b26b40e` 并补上 5 条新路径。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 14:41:26 +0800 · 更正 · 上两条 WORK-004 记录的顺序颠倒
+
+- 类型：maintenance
+- 变更：无新改动，仅说明口径。追加 `14:40:20 · TASK-002—005` 一条时锚点选错，它被插到了 `14:17:30 · TASK-001` 一条**之前**，并且连带删掉了后者的标题行（已补回）。两条内容都完整、时间戳都正确，只是**正文顺序与时间相反**。
+- 决策：不重排——重排要再动一次刚出错的位置，风险大于收益。这条也提醒一件事：追加记录时锚点不要带上"下一条记录的标题"，取文件末尾独有的片段才安全。
+- 依据：`.agent/history/updates.md` 第 910 行（TASK-002—005）与第 932 行（TASK-001）
+- 验证：`grep -n '^## ' .agent/history/updates.md | tail` 确认两条各有标题；`validate` → `valid: true`，四个工作项 0 error。**未运行构建与测试**（无源码改动）。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 14:47:17 +0800 · 工作流 · 按用户要求停用「工作区归因表（workspace.md）」机制
+
+- 类型：decision
+- 变更：用户判断这个机制对本项目没有价值，要求停用。改动分两处：
+  - **`project-lifecycle` 技能（全局，位于 `C:\Users\Lenovo\.agents\skills\project-lifecycle`）**：`scripts/project_status.py` 的 `workspace_attribution_status` 改为无条件返回 `not_required`（原实现整段删除，函数与返回结构保留以免动调用点）；`scripts/project_validate.py` 删掉归因错误项、并从 `SEVERE_WARNING_MARKERS` 移除 `workspace.md`／`归因`；`scripts/project_status.py` 的 resume 阻塞分支与 `scripts/update_history.py`、`scripts/init_project.py` 的相关文案同步；`references/workflow.md` 的「工作区归因与多仓库边界」一节重写为「工作区与多仓库边界」，`references/{update-history,requirements-interview}.md` 的措辞同步。
+  - **本项目**：删除四个 `workspace.md`（WORK-001／002／003／004）；`.agent/INDEX.md` 与 `.agent/README.md` 里指向它的两处说明改为 `git status`／`git diff`。
+- 决策：**停用而不是改写**。该机制要求每个工作项的 `workspace.md` 登记工作区里的**全部**未提交路径，成本是"工作项数 × 改动路径数"份重复登记；而它只是一张快照，HEAD 一动或文件一加就过期。本项实施期间它造成的实际摩擦是可数的：两次因 `approve` 写入 `updates.md` 导致四张表集体失效、三次误报红色校验、一次手工补 11 行×4 份。**"只提交当前工作项归属的文件、不碰用户已有与未知归属的改动"这条纪律保留**——它才是真正防数据丢失的那一条，与是否有登记表无关。
+- 依据：用户 2026-10-10 指示「给他删掉吧…就把这个机制删掉就可以了」；`references/workflow.md`
+- 验证：`python -m py_compile` 四个被改脚本 → 语法 OK；`project-lifecycle.ps1 validate` → **`valid: true`**（删除四个 workspace.md 之后仍然全绿，这正是停用生效的证明）；`resume` 正常返回（`state: multiple` 是因三个已完成工作项处于"需注意"，与本次改动无关）。
+- **注意（重要）**：技能是**全局**的，本次改动会影响所有使用它的项目；且技能升级时可能被覆盖。若日后要恢复该机制，实现见本仓库 Git 历史之外无副本——这是停用它的已知代价。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 14:52:22 +0800 · WORK-004 · TASK-006：管理端路由、知识库管理区与草稿预览
+
+- 类型：implementation
+- 变更：管理端从"单屏状态机"改为"路由 + 集中的门"。① 新增 `apps/admin/src/require-admin.tsx`——把原来 `AdminHomePage` 里的四态状态机（加载／未登录／非管理员被拒／管理员）与 `AppShell`、后端状态徽标、账号区一起收进来，**每个页面都包在它里面，门只有一处**；其中 `admin-sign-in`、`admin-console`、`admin-denied`、`admin-current-user`、`admin-health-status` 五个既有 e2e 断言点原样保留。② 新增 `apps/admin/src/router.tsx`（Hash 路由，与学习者端同一套约定），`/` 与 `/knowledge` 两条；`main.tsx` 改用 `RouterProvider`；`AdminHomePage` 收窄为管理区首页（入口列表 + 诚实的空态）。③ 新增 `apps/admin/src/pages/KnowledgeAdminPage.tsx`：分类（建／列／删）、条目（按状态筛选的列表、建／改／删、发布）、关系（在条目编辑器里列出带 id 的关系、可增可删），以及**草稿预览**——预览与学习者端共用 `MarkdownBody`，不另做一套渲染。④ 共享包新增 `packages/knowledge/src/admin-client.ts`（`createKnowledgeAdminApi`），与学习者侧的 `createKnowledgeApi` 分开导出，学习者端不 import 它。⑤ 后端 `RelationMapper.findTouching` + 管理端详情响应带上 `relations`（含 id），因为删关系必须有 id。
+- 决策：① **门集中在路由外层一处**，而不是每个页面自己记得包一层——漏包一页就等于那一页脱离守卫，而这种漏包不会报错。② 关系编辑放在条目编辑器里而不是独立页面：关系总是相对于某一条条目而言的。③ 目标条目用 **id** 指定而不是下拉选择：本期管理端条目量很小，先要能改；下拉需要额外的"可关联条目检索"，不是本片的内容。④ 管理端列表 `size=200` 不分页：管理端要一眼看全，分页留给条目量真的变大时。
+- 依据：`.agent/changes/WORK-004-知识库/{design.md,tasks.md}`
+- 验证：`pnpm -r typecheck` 9 个包全过；`pnpm -r test` 全过（core 14、platform-desktop 4、ui 17、knowledge 9、auth 13）；后端 `mvn -B verify -Dspring-boot.repackage.skip=true -Dtest='Knowledge*IntegrationTest'` → BUILD SUCCESS，`KnowledgeReadIntegrationTest` 12/12、`KnowledgeAdminIntegrationTest` 9/9。**未跑 e2e**——管理端的端到端验证（含既有 `admin.spec.ts` 是否仍通过）归 TASK-009。
+- 未收口：TASK-007（本地文件存储与上传）、TASK-008（学习者自评）、TASK-009（e2e 与全量回归，含四项反向验证）。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行

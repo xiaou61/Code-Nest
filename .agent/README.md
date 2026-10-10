@@ -17,6 +17,4 @@
 
 `specs/` 保存当前共享事实，`changes/` 保存一次变更的依据、任务和验证；`history/updates.md` 追加每轮变更、决策、依据、验证和本地提交边界，`history/core-components.md` 是 Git 历史的生成视图；源代码与可执行测试仍在项目原有目录。`always.md` 只保存经用户确认且适用于多个任务的长期规则，单次约束写在对应 `requirements.md`。`html/` 只在用户明确同意后写入理解材料，空目录本身不表示已批准。
 
-Git 工作区有未提交改动时，可在对应工作项下增加 `workspace.md`，记录基准 commit、每条改动路径的归属和说明，供恢复探针核对。
-
 直接用自然语言开始、确认、继续或查询状态即可。`WORK-*` 只用于跨对话定位，不代表阶段批准；恢复顺序、门槛、澄清、验证和完成语义统一见已安装 Skill 的 `references/workflow.md`。
