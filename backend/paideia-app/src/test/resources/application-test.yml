@@ -32,6 +32,10 @@ paideia:
     secret: test-only-secret-do-not-reuse-in-any-real-environment-0123456789
     issuer: paideia-test
     token-ttl: 30m
+  mail:
+    # 测试环境没有真实 SMTP：**显式**开启日志降级，否则装配层会让上下文起不来。
+    # 测试取验证码靠 @Primary 的 InMemoryMailPort（见 AccountAuthTestSupport），这一项只为让装配通过。
+    allow-log-fallback: true
   web:
     cors:
       # 测试里显式列出一个来源，用来验证白名单确实生效（桌面壳的固定渲染来源）

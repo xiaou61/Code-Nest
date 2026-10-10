@@ -5,8 +5,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * 邮件配置。
  *
- * <p>字段全部可为空：未配置 {@code host} 时装配层改用日志实现（本地开发不必先有邮箱账号）。
- * **凭据只从环境变量或被忽略的本地配置文件来**，仓库里只有占位说明。
+ * <p>{@code host} 为空时**不会自动**降级成"把验证码写进日志"：必须显式设置
+ * {@code paideia.mail.allow-log-fallback=true}，否则装配层直接让应用启动失败。
+ * 凭据只从环境变量或被忽略的本地配置文件来，仓库里只有占位说明。
  *
  * <p><b>两种加密方式都支持，因为各家服务商默认端口不同</b>：
  * <ul>
@@ -27,7 +28,8 @@ public record MailProperties(
         String fromAddress,
         String fromName,
         boolean startTls,
-        boolean ssl) {
+        boolean ssl,
+        boolean allowLogFallback) {
 
     public MailProperties {
         port = port <= 0 ? 587 : port;
@@ -46,5 +48,14 @@ public record MailProperties(
     /** 既没开 SSL 也没开 STARTTLS，等于明文发信。 */
     public boolean isPlaintext() {
         return !ssl && !startTls;
+    }
+
+    /** record 自动生成的 toString 会带出 password；配置排障时整个对象被打印很常见，所以必须自己写。 */
+    @Override
+    public String toString() {
+        return ("MailProperties[host=%s, port=%d, username=%s, password=%s, fromAddress=%s, fromName=%s,"
+                + " startTls=%s, ssl=%s, allowLogFallback=%s]")
+                .formatted(host, port, username, password == null || password.isEmpty() ? null : "***",
+                        fromAddress, fromName, startTls, ssl, allowLogFallback);
     }
 }

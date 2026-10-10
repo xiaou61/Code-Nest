@@ -15,6 +15,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>容量有上限，且只做惰性清理（读取时顺带删过期项）+ 由定时任务周期性清理，
  * 因此不会无界增长。
+ *
+ * <p><b>线程安全</b>：容量判断与插入必须成对，否则并发写入会各自通过检查、突破上限。
+ * 因此"新键"这一慢路径在 map 的监视器内完成；命中已有键的读路径不加锁。
  */
 public final class ExpiringStore<V> {
 
@@ -35,16 +38,31 @@ public final class ExpiringStore<V> {
      *
      * @return 容量已满且 key 是新的时候返回 false（调用方应把这种情况当作暂时不可用，
      *         而不是悄悄覆盖掉别人的记录）
+     * @throws IllegalArgumentException 存活期不是正数；这种值写进去等于"写入即过期"，
+     *                                  属调用方错误，不该静默生效
+     * @throws ArithmeticException      存活期大到时间戳溢出；宁可当场失败，也不要
+     *                                  变成一个已被减成负数的过期时间
      */
     public boolean put(String key, V value, Duration ttl) {
-        if (!entries.containsKey(key) && entries.size() >= maxEntries) {
-            purgeExpired();
-            if (entries.size() >= maxEntries) {
-                return false;
-            }
+        long ttlMillis = ttl.toMillis();
+        if (ttlMillis <= 0) {
+            throw new IllegalArgumentException("存活期必须为正数，实际为 " + ttl);
         }
-        entries.put(key, new Entry<>(value, clock.millis() + ttl.toMillis()));
-        return true;
+        long expiresAtMillis = Math.addExact(clock.millis(), ttlMillis);
+        if (entries.containsKey(key)) {
+            entries.put(key, new Entry<>(value, expiresAtMillis));
+            return true;
+        }
+        synchronized (entries) {
+            if (!entries.containsKey(key) && entries.size() >= maxEntries) {
+                purgeExpired();
+                if (entries.size() >= maxEntries) {
+                    return false;
+                }
+            }
+            entries.put(key, new Entry<>(value, expiresAtMillis));
+            return true;
+        }
     }
 
     /** 读取一项；已过期视为不存在并顺手删除。 */
@@ -73,12 +91,19 @@ public final class ExpiringStore<V> {
         entries.remove(key);
     }
 
+    /**
+     * 清理过期项。
+     *
+     * <p>必须用**按值条件删除** {@code remove(key, entry)}，不能用迭代器的
+     * {@code iterator.remove()}：后者在 ConcurrentHashMap 上是"按 key 无条件删除"，
+     * 不校验值——迭代期间若有线程刚为该 key 写入一份新记录，这份新记录会被当成过期项删掉。
+     */
     public int purgeExpired() {
         long now = clock.millis();
         int removed = 0;
-        for (var iterator = entries.entrySet().iterator(); iterator.hasNext(); ) {
-            if (iterator.next().getValue().expiresAtMillis <= now) {
-                iterator.remove();
+        for (var entry : entries.entrySet()) {
+            Entry<V> value = entry.getValue();
+            if (value.expiresAtMillis <= now && entries.remove(entry.getKey(), value)) {
                 removed += 1;
             }
         }

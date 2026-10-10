@@ -6,7 +6,7 @@ import { defineConfig } from '@playwright/test'
  * 这里只负责拉起后端；桌面应用由测试自己用 Playwright 的 Electron 支持启动
  * （从源码启动，不依赖安装包，因此即使打包环节被网络卡住也能验证运行时行为）。
  */
-const BACKEND_DIR = '../../backend'
+const BACKEND_DIR = '../../../backend'
 
 export default defineConfig({
   testDir: './e2e',

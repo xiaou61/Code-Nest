@@ -16,9 +16,19 @@ public class MailConfiguration {
     @Bean
     MailPort mailPort(MailProperties properties) {
         if (!properties.hasHost()) {
+            if (!properties.allowLogFallback()) {
+                // 失败而不是静默降级：日志里的验证码等于注册后门，误配到他人可访问的环境
+                // 不该表现为"一切正常"。见 LoggingMailPort 的说明。
+                throw new IllegalStateException("""
+                        未配置 SMTP（paideia.mail.host 为空），且未显式开启日志降级。
+                        日志降级会把验证码写进日志，任何能看到日志的人都能注册他人邮箱，因此不再自动启用。二选一：
+                          · 配置真实 SMTP：设置 paideia.mail.host / username / password（多为授权码）
+                          · 仅本地开发：显式设置 paideia.mail.allow-log-fallback=true
+                        """);
+            }
             log.warn("""
-                    未配置 SMTP（paideia.mail.host 为空），验证码将写进日志而不是真的发出去。
-                    这只适用于本地开发；任何他人可访问的环境都必须配置真实 SMTP。""");
+                    paideia.mail.allow-log-fallback=true 已显式开启，验证码将写进日志而不是真的发出。
+                    这只适用于本地开发；部署到任何他人可访问的环境前必须关闭它并配置真实 SMTP。""");
             return new LoggingMailPort();
         }
         if (!properties.hasCredentials()) {

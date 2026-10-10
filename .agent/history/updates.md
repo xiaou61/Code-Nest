@@ -738,3 +738,23 @@ schema_version: 1
 - 本地提交：待用户授权/未提交
 - 远端推送：未执行
 - 遗留：报告文件与 `.agent/rules/always.md` 的本次改动尚未登记到任何工作项的 `workspace.md`——跨工作项的整体审查不对应单个 `WORK-*`，该归因项待用户裁决归入方式。
+
+## 2026-10-10 13:01:00 +0800 · WORK-003 · 修复全库审查认定的必修缺陷（并发状态、邮件降级、桌面壳）
+
+- 类型：implementation
+- 变更：按 2026-10-10 全库审查认定的"必须先修"三簇改动 13 个文件。① 并发状态：`RateLimiter` 每个桶的状态变更放进该桶的监视器、桶的 `expiresAtMillis` 初值由 0 改为 `Long.MAX_VALUE`（0 会被清理线程当成已过期而删掉，导致限流计数静默归零）、新键的容量判断与插入原子化；`ExpiringStore` 的 `purgeExpired` 由 `iterator.remove()`（按 key 无条件删，会误删迭代期间刚写入的新记录）改为按值条件删除，`put` 增加 TTL 正数与溢出校验；`VerificationCode` 把"计数 + 比对 + 消费"合并为一个同步的 `attempt()`，`EmailCodeService` 改用它。② 邮件降级：`MailConfiguration` 在缺 host 且未显式开启时抛异常让启动失败；`MailProperties` 新增 `allow-log-fallback` 并对 `toString()` 里的 password 脱敏；`LoggingMailPort` 的文案与告警改为"显式开启"口径。`application.yml` 默认不开启并附注释说明本地怎么开，`application-test.yml` 显式开启。③ 桌面壳：`main.cjs` 的畸形 URL 解析包 try/catch 返回 400、`openExternal` 加 http(s) 协议白名单并接住 rejection、缓存改为临时文件加原子替换并对写入/解析失败告警、启动流程包 try/catch 用错误框提示后退出；`playwright.config.ts` 后端目录少一级改为 `../../../backend`。④ 新增测试：`VerificationCodeTest`（2 条并发用例）、`RateLimiterTest` 增 2 条并发用例。
+- 决策：只修审查中判定为"必须先修"的三簇，其余（前端会话链、契约层、UI 组件 nits、SNAPSHOT 版本等）不改，清单见报告与该轮对话。邮件开关选择"代码默认失败、测试配置显式开启"而非"在 `application.yml` 里默认开启"：本地 profile（`backend/config/application-local.yml`，已配 `smtp.qq.com`）照常工作，而不带该开关的环境会在启动期就失败，不再静默降级。
+- 依据：`.agent/reviews/2026-10-10-scan-8ac11d9.md`（critical/high 段）；用户 2026-10-10 指示"只修复你认为必须修的"
+- 验证：`mvn -B verify` 全绿，76 个测试、0 失败，含 `AccountAuthIntegrationTest` 13/13（其中有验证码尝试上限的端到端用例）、`AuthorizationIsolationTest` 9/9、`PaginationIntegrationTest` 4/4，以及新增的 4 条并发用例。集成测试受 `PAIDEIA_TEST_DB_PASSWORD` 门控，本轮从本地 profile 取值（未回显）。**反向验证**：把 `RateLimiter` 退回旧版后 `concurrentWindowLimitNeverExceedsLimit` 失败（expected 5），证明该用例确实会咬；另一条间隔用例在旧版该次未触发竞态，属弱守卫，如实记下。`node --check main.cjs` 通过。打包步骤 `repackage` 因本机 java 进程占用 `target/paideia-app-*.jar` 而失败，与改动无关，故验证时加 `-Dspring-boot.repackage.skip=true`。
+- 本地提交：本轮第二次提交（本工作项改动）
+- 远端推送：未执行
+
+## 2026-10-10 13:02:00 +0800 · maintenance · 说明：本次提交夹带了其他会话已在工作区的改动
+
+- 类型：maintenance
+- 变更：无新改动，仅更正记录口径。第一笔提交（归档审查报告）在 `git add` 指定路径时，`.agent/history/updates.md` 与 `.agent/rules/always.md` 这两个共享文件里已包含其他会话尚未提交的内容（`updates.md` 的 WORK-004 两条记录、`always.md` 的 Tailwind `@source` 约定），因此这两处随本笔提交一起入库。
+- 决策：不做拆分重写历史——那些内容本身合法且迟早要提交，重写提交历史的风险大于收益。这里据实说明，避免后来者误以为这些条目出自本会话。
+- 依据：`git show --stat 3607d5f`
+- 验证：`git show 3607d5f --stat` 显示 `updates.md +86`、`always.md 4 +-`，均大于本会话自身改动量。**未运行构建与测试**：本轮无源码改动。
+- 本地提交：3607d5f（归档审查报告）
+- 远端推送：未执行

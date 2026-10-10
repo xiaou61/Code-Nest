@@ -10,6 +10,14 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -112,5 +120,54 @@ class RateLimiterTest {
             limiter.recordFailure("login", window);
         }
         assertThatThrownBy(() -> limiter.checkUnderLimit("login", 3, window)).isInstanceOf(BizException.class);
+    }
+
+    @Test
+    @DisplayName("并发下最小间隔只放行一次：读—判断—写必须是原子的")
+    void concurrentIntervalAllowsExactlyOne() throws Exception {
+        RateLimiter limiter = new RateLimiter(1_000, Clock.systemUTC());
+
+        AtomicInteger passed = runConcurrently(16, () -> limiter.requireInterval("email", Duration.ofSeconds(60)));
+
+        assertThat(passed.get()).as("同一 key 的间隔内只允许一次通过").isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("并发下窗口计数不丢更新：通过次数正好等于上限")
+    void concurrentWindowLimitNeverExceedsLimit() throws Exception {
+        RateLimiter limiter = new RateLimiter(1_000, Clock.systemUTC());
+
+        AtomicInteger passed = runConcurrently(32, () -> limiter.requireUnderLimit("k", 5, Duration.ofHours(1)));
+
+        assertThat(passed.get()).as("并发也不能让通过次数超过 limit").isEqualTo(5);
+    }
+
+    /** 让 n 个线程同时起跑各执行一次 action，返回未被限流（抛 BizException）的次数。 */
+    private static AtomicInteger runConcurrently(int threads, Runnable action) throws Exception {
+        AtomicInteger passed = new AtomicInteger();
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        try {
+            List<Future<?>> futures = new ArrayList<>();
+            for (int i = 0; i < threads; i += 1) {
+                futures.add(pool.submit(() -> {
+                    start.await();
+                    try {
+                        action.run();
+                        passed.incrementAndGet();
+                    } catch (BizException expected) {
+                        // 被限流是预期结果
+                    }
+                    return null;
+                }));
+            }
+            start.countDown();
+            for (Future<?> future : futures) {
+                future.get(30, TimeUnit.SECONDS);
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+        return passed;
     }
 }

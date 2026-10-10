@@ -74,7 +74,10 @@ public class EmailCodeService {
     }
 
     /**
-     * 校验并作废。一次性：无论对错，成功校验后该验证码立即不可再用。
+     * 校验并作废。一次性：成功后该验证码立即不可再用。
+     *
+     * <p>计数、比对与消费都由 {@link VerificationCode#attempt} 在一次原子操作里完成，
+     * 这里只负责按判定结果决定是否把记录从存储里摘掉。
      *
      * @throws BizException 验证码不存在、已过期、错误次数超限、或不正确
      */
@@ -84,16 +87,16 @@ public class EmailCodeService {
         if (stored.isEmpty()) {
             throw invalid("验证码不存在或已过期，请重新获取");
         }
-        VerificationCode verification = stored.get();
-        if (verification.incrementAttempts() > MAX_ATTEMPTS) {
-            // 6 位数字只有 100 万种，不限次就是可爆破；超限即作废并要求重新获取
-            codes.remove(emailKey);
-            throw invalid("验证码错误次数过多，请重新获取");
+        switch (stored.get().attempt(code, MAX_ATTEMPTS)) {
+            case MATCHED -> codes.remove(emailKey);
+            case EXHAUSTED -> {
+                // 6 位数字只有 100 万种，不限次就是可爆破；超限即作废并要求重新获取
+                codes.remove(emailKey);
+                throw invalid("验证码错误次数过多，请重新获取");
+            }
+            // 并发重放与普通的码不对对外给同一句话，避免成为探测手段
+            case REPLAYED, MISMATCH -> throw invalid("验证码不正确");
         }
-        if (!verification.matches(code)) {
-            throw invalid("验证码不正确");
-        }
-        codes.remove(emailKey);
     }
 
     static String hashOf(String value) {

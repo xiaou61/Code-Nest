@@ -21,6 +21,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>超限时抛 {@code BizException(TOO_MANY_REQUESTS)}，消息里带上还要等多少秒，
  * 前端可以直接倒计时而不是干等。
  *
+ * <p><b>线程安全</b>：本类是容器级单例，Web 请求线程与定时清理线程都会碰它，
+ * 而"读—判断—写"必须是原子的，否则并发请求会各自读到同一个旧值而同时通过。
+ * 因此每个 bucket 的状态变更都在该 bucket 的监视器内完成（按 key 分段，互不阻塞）；
+ * 只有"新键"这一慢路径才去抢 map 上的锁。
+ *
  * <p><b>天花板</b>：进程内、单实例有效、重启即清零。多实例部署时必须换共享存储，
  * 否则每个实例各算一份，实际阈值变成 limit × 实例数。
  */
@@ -39,25 +44,29 @@ public final class RateLimiter {
     public void requireInterval(String key, Duration interval) {
         long now = clock.millis();
         Bucket bucket = bucketFor("interval:" + key);
-        Long last = bucket.lastPassMillis;
-        if (last != null) {
-            long elapsed = now - last;
-            if (elapsed < interval.toMillis()) {
-                throw tooMany((interval.toMillis() - elapsed) / 1000);
+        synchronized (bucket) {
+            Long last = bucket.lastPassMillis;
+            if (last != null) {
+                long elapsed = now - last;
+                if (elapsed < interval.toMillis()) {
+                    throw tooMany((interval.toMillis() - elapsed) / 1000);
+                }
             }
+            bucket.lastPassMillis = now;
+            bucket.expiresAtMillis = now + interval.toMillis();
         }
-        bucket.lastPassMillis = now;
-        bucket.expiresAtMillis = now + interval.toMillis();
     }
 
     /** 窗口内的调用次数不得超过 limit；**调用即计数**。 */
     public void requireUnderLimit(String key, int limit, Duration window) {
         long now = clock.millis();
         Bucket bucket = bucketFor("limit:" + key);
-        ensureWindow(bucket, now, window);
-        bucket.count += 1;
-        if (bucket.count > limit) {
-            throw tooMany((window.toMillis() - (now - bucket.windowStartMillis)) / 1000);
+        synchronized (bucket) {
+            ensureWindow(bucket, now, window);
+            bucket.count += 1;
+            if (bucket.count > limit) {
+                throw tooMany((window.toMillis() - (now - bucket.windowStartMillis)) / 1000);
+            }
         }
     }
 
@@ -65,9 +74,11 @@ public final class RateLimiter {
     public void checkUnderLimit(String key, int limit, Duration window) {
         long now = clock.millis();
         Bucket bucket = bucketFor("limit:" + key);
-        ensureWindow(bucket, now, window);
-        if (bucket.count >= limit) {
-            throw tooMany((window.toMillis() - (now - bucket.windowStartMillis)) / 1000);
+        synchronized (bucket) {
+            ensureWindow(bucket, now, window);
+            if (bucket.count >= limit) {
+                throw tooMany((window.toMillis() - (now - bucket.windowStartMillis)) / 1000);
+            }
         }
     }
 
@@ -75,8 +86,10 @@ public final class RateLimiter {
     public void recordFailure(String key, Duration window) {
         long now = clock.millis();
         Bucket bucket = bucketFor("limit:" + key);
-        ensureWindow(bucket, now, window);
-        bucket.count += 1;
+        synchronized (bucket) {
+            ensureWindow(bucket, now, window);
+            bucket.count += 1;
+        }
     }
 
     /** 成功之后清掉计数（登录成功后不应再受此前失败次数影响）。 */
@@ -110,14 +123,23 @@ public final class RateLimiter {
         if (existing != null) {
             return existing;
         }
-        if (buckets.size() >= maxKeys) {
-            purgeExpired();
-            if (buckets.size() >= maxKeys) {
-                // 键太多说明正在被刷；此时拒绝比继续吃内存更安全
-                throw tooMany(60);
+        // 慢路径（新键）才上锁：容量判断与插入必须成对，否则并发插入会突破上限
+        synchronized (buckets) {
+            existing = buckets.get(key);
+            if (existing != null) {
+                return existing;
             }
+            if (buckets.size() >= maxKeys) {
+                purgeExpired();
+                if (buckets.size() >= maxKeys) {
+                    // 键太多说明正在被刷；此时拒绝比继续吃内存更安全
+                    throw tooMany(60);
+                }
+            }
+            Bucket fresh = new Bucket();
+            buckets.put(key, fresh);
+            return fresh;
         }
-        return buckets.computeIfAbsent(key, ignored -> new Bucket());
     }
 
     private static BizException tooMany(long secondsToWait) {
@@ -125,11 +147,19 @@ public final class RateLimiter {
         return new BizException(ErrorCode.TOO_MANY_REQUESTS, "操作过于频繁，请在 " + seconds + " 秒后重试");
     }
 
-    /** 一个键的几种口径共用一条记录，各自只用自己的字段。 */
+    /**
+     * 一个键的几种口径共用一条记录，各自只用自己的字段。
+     *
+     * <p>{@code expiresAtMillis} 初值必须是"很远的将来"而不是 0：清理任务按
+     * {@code expiresAtMillis <= now} 判定过期，0 恒成立，于是刚建好、状态还没写进去的桶
+     * 会被清理线程当成过期项删掉，调用方随后把计数写进一个已脱离 map 的对象上，
+     * 下一次同 key 调用会重新建空桶——限流计数就这么被静默清零。状态变更都在本对象的
+     * 监视器内进行（见调用方），所以字段本身不需要 volatile。
+     */
     private static final class Bucket {
         private Long lastPassMillis;
         private Long windowStartMillis;
         private int count;
-        private long expiresAtMillis;
+        private long expiresAtMillis = Long.MAX_VALUE;
     }
 }
