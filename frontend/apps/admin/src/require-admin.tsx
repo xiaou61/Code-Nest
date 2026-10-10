@@ -1,9 +1,10 @@
 import { AuthLayout, LoginForm, useAuth } from '@paideia/auth'
-import { AppShell, Badge, Button, PageHeader, Spinner } from '@paideia/ui'
+import { Badge, Button, PageHeader, Spinner } from '@paideia/ui'
 import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 
 import { api } from './api'
+import { AdminShell } from './components/AdminShell'
 import { AdminDenied, canEnterAdmin } from './guard'
 
 interface HealthResponse {
@@ -59,8 +60,8 @@ function AccountBar() {
  * （明确告知被拒）→ 管理员（显示管理区）。第三种刻意不是"跳走"而是"说清楚"，
  * 授权缺失必须看得见。
  *
- * <p>未登录与加载中用 `AuthLayout`（裸页面），其余状态用 `AppShell`：登录页不该带
- * 应用横条与页脚，那些导航在未登录时也不可用。
+ * <p>未登录与加载中用 `AuthLayout`（裸页面），其余状态用 `AdminShell`：登录页不该带
+ * 侧栏与面包屑，那些导航在未登录时也不可用。
  *
  * <p>**它只做界面分流，不是授权边界**——真正的拦截在后端 `/api/v1/knowledge/admin/**`
  * 的 `hasRole('ADMIN')` 规则上。这里集中在路由外层一处，是为了让"每个管理页面都必须
@@ -89,14 +90,12 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AppShell
-      title="Paideia 管理端"
-      subtitle="仅 Web"
+    <AdminShell
       actions={
-        <div className="flex items-center gap-2">
+        <>
           <BackendStatus />
           <AccountBar />
-        </div>
+        </>
       }
     >
       {canEnterAdmin(user) ? (
@@ -107,6 +106,6 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
           <AdminDenied user={user} />
         </>
       )}
-    </AppShell>
+    </AdminShell>
   )
 }

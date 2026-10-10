@@ -1041,5 +1041,29 @@ schema_version: 1
   3. 该项定性为**可扩展点**（沿用既有端口模式），**不做通用插件运行时**——后者与 D-02 Spring Modulith 的构建期边界冲突。
 - 依据：用户 2026-10-10 的连续讨论；`.agent/rules/always.md` 的 D-15（对象存储暂缓，触发=多实例共享/多副本）；`WORK-004` 需求文末与 `.agent/notes/deferred-scope.md`
 - 验证：未运行（仅新增/修改文档工件，无源码与行为变化）。
-- 本地提交：待用户授权/未提交
+- 本地提交：592a54c
 - 远端推送：未执行
+
+## 2026-10-10 17:52:12 +0800 · 管理端改为后台式布局（用户验收项）
+
+- 类型：change
+- 变更：用户否掉了第一版管理端观感（原话「这个管理端做的太丑了吧。我要类似于若依那种的」）。**路线 A：用现有组件重建，不引入新依赖**（没有装 antd 之类）。改的是 `frontend/apps/admin`：
+  - 新增 `src/components/AdminShell.tsx`：左侧分组菜单（可收起为图标档）+ 顶栏面包屑 + 操作区，页面底色与卡片分层；替换掉原来那个"顶部横条 + 单列窄内容"的 `AppShell`。`RequireAdmin` 仍是一处门，四种状态与五个断言点（`admin-sign-in`／`admin-console`／`admin-denied`／`admin-current-user`／`admin-health-status`）原样保留。
+  - `pages/AdminHomePage.tsx`：改成总览看板（分类／条目／草稿三张统计卡 + 内容管理入口）。统计值取自本来就为管理页加载的两个查询，不新增计数端点；加载中显示 `…` 而不是 0。
+  - `pages/KnowledgeAdminPage.tsx` 重写：卡片堆列表 → `<Table>`（ID／标题／分类／状态／更新时间／操作）；工具栏（状态筛选 + 关键词 + 重置）；卡片脚分页（共 N 条 / 上一页 / 下一页）；新建分类与删除都改成**弹窗**（删除带二次确认——不可撤销的操作不该一键生效）；**5 个原生 `<select>` 全部换成设计系统的 `Select`**；关系目标从"手填条目 id"改成条目下拉。
+  - 新增依赖：`lucide-react`（在 apps/admin 声明；本就在 workspace 里，ui 与 ui-kit 已在用，安装走本地 store，无下载）。
+- 决策：
+  1. **若依照搬不了**：它是 Vue + Element UI，本项目是 React 19 + 自建设计系统。能复制的是**布局与交互约定**（侧栏／面包屑／工具栏／表格／分页／弹窗表单／二次确认），不是它的样式。
+  2. **不引 antd**：现有 `Table`／`Select`／`Dialog` 就够；装一个组件库等于在一个后台里混两套观感，也违背"设计系统是唯一色彩源"的纪律。
+  3. 列表用**前端分页**（接口一次给一页 size=200），并在代码注释里标了上限：条目量到千级再换服务端分页。
+  4. `flatten()` 顺带带上 `parentName`，分类表显式列出「上级」——只靠缩进说不清"缩进到哪一层算谁的孩子"。
+- 依据：用户 2026-10-10 指示「A 开始吧 修改完成后部署完再让我看效果」
+- 验证：
+  - `pnpm --filter @paideia/admin typecheck` → 退出码 0（中途报过一处 `string | null` 不能赋给 `string`，是 Base UI `onValueChange` 的形参类型，已修）。
+  - `pnpm --filter @paideia/admin test:e2e` → **7 passed（27.3 秒）**，含"录入→预览→发布→删除"全链路。**选择器跟着界面一起改了**：行从 `<li>` 变 `<tr>`、下拉不再是原生 `<select>`（`selectOption()` 用不了，改成点开再选）、删除多一步确认弹窗——不改这三处，测试会假绿。
+  - 部署 `powershell -File scripts/release.ps1` → **35.2 秒**。公网复验：`/actuator/health` = UP、`GET /` 200、`/admin/index.html` 200、匿名管理接口 401、管理员登录拿到令牌、`GET /api/v1/knowledge/admin/entries` 200；管理端产物里能搜到 `admin-menu-toggle`／`总览`，证明确实换成了新界面。
+  - 用 Playwright 打开**线上**页面逐张看图复核（截图落在被忽略的 `test-results/`）：侧栏／面包屑／两张表格／状态徽章／分页／三个弹窗都正常；据此又改了三处——分类表补「上级」列、原生英文文件框（`Choose File No file chosen`）换成「上传附件」按钮、关系行收紧。
+  - 线上灌了一批演示数据（走真实管理接口，不是直接写库）：5 个分类、8 条条目（含 1 条草稿）、2 条关系。**这是演示数据、不属于交付内容**，目的是让"后台长什么样"能被看见。
+- 发现（**跨模块缺陷，待用户裁决，本轮未修**）：**所有时间戳都比真实时刻快 8 小时**。证据链：线上 JDBC URL 写了 `connectionTimeZone=UTC`，但**没有** `forceConnectionTimeZoneToSession`（`grep -c` = 0）；服务器 MySQL 会话时区是 `SYSTEM`——实测 `now(3) = 2026-10-10 17:48:51`、`utc_timestamp(3) = 2026-10-10 09:48:51`。于是 5 张表的 `DEFAULT CURRENT_TIMESTAMP(3)` 写进去的是**本地钟点**，驱动又按 UTC 口径把它转成 `Instant`，接口就返回 `2026-10-10T17:44:11.546Z`（那一刻真实是 09:44Z）。**这违反「时间存 UTC」那条规则**，不只影响管理端刚加的「更新时间」列。两条修法：①（推荐）各连接串补 `forceConnectionTimeZoneToSession=true`，一处配置让会话与驱动口径一致；② DDL 默认值改用 `UTC_TIMESTAMP(3)`，要改 5 张表连同 `ON UPDATE`。两种做法下**已存在的行**仍是 +8，需要一次性回拨或接受（现存数据基本都是演示与测试数据）。修法牵动所有表的时间语义与部署配置，按"重大数据/部署变化回到受影响工件"的规则交由用户裁决，**本轮不动**。
+- 本地提交：见下一轮次记录
+- 远端推送：未执行（需用户明确授权）
