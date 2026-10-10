@@ -113,7 +113,7 @@ approver_role: CTO
   6. e2e：用种子管理员登录 → 新建分类与条目 → **先预览草稿确认渲染结果** → 发布 → 断言列表中状态变为已发布。
 - 验证：`pnpm -r typecheck` 通过；`pnpm test:e2e` 中 `apps/admin/e2e/admin.spec.ts` 与 `knowledge.spec.ts` 均通过；`KnowledgeIntegrationTest` 中断言 `/admin/entries/{id}` 对学习者 403、匿名 401。
 
-### TASK-007 | pending | 本地文件存储、上传与正文引用（含图注与放大）
+### TASK-007 | done | 本地文件存储、上传与正文引用（含图注与放大）
 
 - 对应：`REQ-007`、`REQ-009`、`AC-008`
 - 依赖：TASK-005（需要管理员路径规则）、TASK-006（管理端界面挂上传入口）
@@ -127,7 +127,7 @@ approver_role: CTO
   5. 集成测试：管理员上传成功并匿名 GET 到字节；非法类型、SVG、超限分别被拒；id 为 UUID 形状；只读目录下上传返回 500 且日志含路径。
 - 验证：`mvn -B verify` 通过（含上传用例）；`pnpm -r test` 通过；e2e 中"管理员插入图片 → 学习者端可见"通过。
 
-### TASK-008 | pending | 学习者自评掌握度
+### TASK-008 | done | 学习者自评掌握度
 
 - 对应：`REQ-012`、`AC-012`、`AC-013`
 - 依赖：TASK-005
@@ -141,7 +141,7 @@ approver_role: CTO
   5. 隔离测试：用户 A 标记后，用户 B 的列表与**详情响应**都读不到；对未发布条目标记返回 404；同一用户重复标记是 upsert 而不是插两行。
 - 验证：`mvn -B verify` 通过（含隔离用例）；`pnpm -r test` 通过；e2e 中标记后刷新仍在。
 
-### TASK-009 | pending | 学习者端可见性打通与全量回归
+### TASK-009 | done | 学习者端可见性打通与全量回归
 
 - 对应：`AC-002`、`AC-005`、`AC-007`、`AC-008`、`AC-009`、`AC-012`
 - 依赖：TASK-003、TASK-004、TASK-006、TASK-007、TASK-008
@@ -154,28 +154,30 @@ approver_role: CTO
   5. **四项反向验证**（只断言"功能可用"是不够的，这些检查必须能咬）：注释掉管理员角色规则 → 三态用例变红；去掉 `WITH PARSER ngram` 重建索引 → 中文检索用例变红；删掉 `globals.css` 里 `packages/knowledge/src` 那行 `@source` → `source-coverage` 变红；**去掉自评查询里的 `user_id` 过滤 → 隔离用例变红**。每次验证后恢复。
 - 验证：上述命令全部通过；结果写入 `testing/report.md`。
 
-## 实施进展（2026-10-10，TASK-001—005 已完成）
+## 实施进展（2026-10-10，TASK-001—009 全部完成）
 
-已完成的五片都有可复查证据，命令与结果如下（测试库口令从被忽略的 `backend/config/application-local.yml` 读入环境变量，未回显）：
+九片都有可复查证据。命令与结果如下（测试库口令从被忽略的 `backend/config/application-local.yml` 读入环境变量，未回显）：
 
 | 片 | 证据 | 结果 |
 | --- | --- | --- |
-| TASK-001 | `mvn -B verify -Dspring-boot.repackage.skip=true` | BUILD SUCCESS，8 模块全过；日志 `Successfully applied 1 migration … now at version v3`——五张表 DDL 在 MySQL 8.0 上有效。**e2e 种子 `V951` 也已真实执行**（`Migrating … to version "951 - seed knowledge"` → 成功），原先"种子未验证"的缺口已闭合 |
-| TASK-002 | `KnowledgeReadIntegrationTest`（12 条）+ `CategoryTreeTest`（7 条）+ `heading-slug.test.ts`（9 条）+ `pnpm -r typecheck` | 分类树嵌套、已发布过滤、子分类浏览、草稿 404、md 渲染与锚点 id 全部通过；前端 9 个包类型检查通过 |
-| TASK-003 | `SearchQueryTest`（4 条）+ 集成测试的检索用例 | 中文长查询走 `FULLTEXT + ngram` 命中、单字查询走 `LIKE` 回落仍命中、检索不返回草稿、`%` 被当字面量转义 |
+| TASK-001 | `mvn -B verify` | BUILD SUCCESS，8 模块全过；日志 `Successfully applied 1 migration … now at version v3`——五张表 DDL 在 MySQL 8.0 上有效。**e2e 种子 `V951` 也真实执行过**，原先"种子未验证"的缺口已闭合 |
+| TASK-002 | `KnowledgeReadIntegrationTest`（12 条）+ `CategoryTreeTest`（7）+ `heading-slug.test.ts`（9）+ `pnpm -r typecheck` | 分类树嵌套、已发布过滤、子分类浏览、草稿 404、md 渲染与锚点 id 全部通过；前端 9 个包类型检查通过 |
+| TASK-003 | `SearchQueryTest`（4 条）+ 集成测试检索用例 | 中文长查询走 `FULLTEXT + ngram` 命中、单字查询走 `LIKE` 回落仍命中、检索不返回草稿、`%` 被当字面量转义 |
 | TASK-004 | 集成测试的关系用例（两个方向）+ `KnowledgeNeighborhood` | 前置与反向链接**两个方向都断言**（互为镜像的入边/出边极易写反） |
 | TASK-005 | `KnowledgeAdminIntegrationTest`（9 条） | **匿名 401 / 学习者 403 / 管理员放行**三态；录入草稿→学习者不可见→发布→可见；删分类（有子或有条目）409、换父成环 400、自环 400、重复关系 409、非法状态 400 |
-| TASK-006 | `pnpm -r typecheck` + `pnpm -r test`；管理端既有 e2e 的断言点全部保留 | 管理端引入 Hash 路由并把"门"集中到 `RequireAdmin`（`admin-sign-in`／`admin-console`／`admin-denied`／`admin-current-user`／`admin-health-status` 五个断言点原样保留）；管理区可建分类、建/改/删条目、发布、建/删关系；**草稿预览复用 `MarkdownBody`**。其端到端验证归 TASK-009 |
+| TASK-006 | 管理端 e2e（7 条，含既有 `admin.spec.ts` 的 5 条） | 管理端引入 Hash 路由并把"门"集中到 `RequireAdmin`（五个既有断言点原样保留）；管理区可建分类、建/改/删条目、发布、建/删关系；**草稿预览复用 `MarkdownBody`** |
+| TASK-007 | `KnowledgeFileIntegrationTest`（7 条）+ `LocalFileStorageTest`（6）+ `MediaTypeSnifferTest`（5）+ `resolveMediaUrl` 单测（6） | 匿名读成功且返回嗅探类型与 `nosniff`、学习者上传 403、SVG 拒绝、内容与扩展名不符拒绝、超限拒绝、`..` 路径被 4xx 拦住 |
+| TASK-008 | `KnowledgeSelfAssessmentIntegrationTest`（7 条） | 标记只对自己可见（**列表与详情两条读路径都断言**）、草稿不可标记 404、非法值 400、取消幂等、重复标记是 upsert |
+| TASK-009 | 全量回归 + 两端 e2e + 反向验证 | 后端 **124 条 0 失败**（91 秒）、前端单测 63 条、e2e **23 条**（学习者端 11／管理端 7／展览页 5）。三项反向验证**咬住**，`ngram` 那项**未咬住**——见 `testing/report.md` 的「反向验证的逐条结论」与「剩余风险」 |
 
-**实施期间的三处偏离**（都是简化、不改变范围，已记入更新历史）：
+**实施期间的四处偏离**（都是简化、不改变范围，已记入更新历史）：
 
 1. **关系数据并入详情响应**，没有另开 `/entries/{id}/relations` 端点——邻域视图本来就要先取详情，一个请求能拿到的就不该拆成两个。
-2. **管理端分类树不带"每分类条目数"**（设计里写了）。它是导航上的锦上添花，而每条分类一个 count 查询的代价与 AC-005 无关；要用时把 group-by 加上即可。
-3. **`KnowledgeApi` 当前为空接口**且未建实现类（设计里列了 `KnowledgeApiImplementation`）：它还没有任何跨模块调用者，为它写实现类是纯仪式。
+2. **管理端分类树不带"每分类条目数"**（设计里写了）。与 AC-005 无关；要用时把 group-by 加上即可。
+3. **`KnowledgeApi` 当前为空接口**且未建实现类（设计里列了 `KnowledgeApiImplementation`）：没有跨模块调用者，为它写实现类是纯仪式。
+4. **管理端详情的草稿预览响应多带 `relations`（含 id）**：学习者侧那三个关系视角是给人读的、不带 id，而管理端要删关系必须有 id；两者用途不同，各用一条查询而不是硬凑成同一个形状。
 
-**仍未收口**：TASK-007（文件上传）、TASK-008（学习者自评）、TASK-009（e2e 与全量回归）。TASK-009 里的四项反向验证尚未执行。
-
-**实施期间的第四处偏离**：管理端详情的草稿预览响应**多带了 `relations`（含 id）**——学习者侧的三个关系视角是给人读的、不带 id，而管理端要删关系必须有 id；两者用途不同，因此各用一条查询而不是硬凑成同一个形状。
+**报告状态**：`testing/report.md` 为 **`partial`**，唯一原因是**桌面安装包（electron-builder）未构建**——它的目标性质已用产物文案检索构造性证明（见报告），但打包本身按新定的「测试节奏」归入发布前的最外环。除此之外 13 条 AC 都有命令 + 退出码 + 证据。
 
 ## 完成条件
 

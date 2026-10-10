@@ -974,3 +974,18 @@ schema_version: 1
 - 未收口：TASK-007（本地文件存储与上传）、TASK-008（学习者自评）、TASK-009（e2e 与全量回归，含四项反向验证）。
 - 本地提交：待用户授权/未提交
 - 远端推送：未执行
+
+## 2026-10-10 16:15:52 +0800 · WORK-004 · TASK-007—009：附件、自评、e2e 与全量回归
+
+- 类型：implementation
+- 变更：补齐本项最后三片。
+  - **TASK-007 附件**：`FileStorage` 端口 + `LocalFileStorage`（UUID 文件名、先写临时文件再原子改名、目录不可写则构造即失败）；`MediaTypeSniffer` 自写魔数白名单（png/jpeg/gif/webp/pdf，**SVG 刻意不收**——它是 XML，能内嵌脚本）；`FileService` 先校验后落盘、插表失败回滚文件；`POST /admin/files`（管理员）与 **免鉴权** `GET /files/{id}`（`nosniff` + 长缓存）。multipart 上限 12MB、业务上限 10MB，并给 `GlobalExceptionHandler` 补 `MaxUploadSizeExceededException → 400`。前端 `resolveMediaUrl` 在渲染时补 baseUrl，管理端编辑器加上传并把引用插到正文末尾。
+  - **TASK-008 自评**：`SelfAssessment` 实体/映射/服务/控制器，`PUT`／`DELETE /entries/{id}/self-assessment`、`GET /self-assessments`；条目详情带 `selfAssessment`（只可能是自己的）。每条查询都带 `user_id`，草稿不可标记（404），取消幂等。前端自评按钮（再点一次取消）+「我标记过的内容」页。
+  - **TASK-009**：两个 e2e spec（学习者端 6 条、管理端 2 条）＋ `testing/report.md`。新增 `V952` 种子：补一条与条目 1 **同分类**的已发布条目——原种子里三条已发布条目各占一个分类，导致"同分类上下篇"这条查询路径没有数据可验证。
+- 决策：① 上传目录**默认落系统临时目录并告警**，与设计里"未配置即启动失败"不同——本地与测试环境都没有这个变量，缺省即失败会让每台机器一上来就起不来，而告警让问题可见。② 附件读取免鉴权是用户裁决，配套必须用 UUID 且不列目录。③ 自评的两个状态刻意不做等级/权重/推断。④ 前面已记的四处简化照旧（关系并入详情、管理端分类树不带条目数、`KnowledgeApi` 空接口、草稿详情多带 relations）。
+- **新增一条项目级规则**（用户 2026-10-10 要求）：`AGENTS.md` 加「测试节奏」——内环只跑受影响用例、外环跑改动端 e2e、最外环才打桌面产物；新增逻辑优先写成不依赖 Spring 的纯函数；**不要用 `pnpm -r build`**（`apps/desktop` 的 build 会跑 electron-builder，实测一轮近 20 分钟）；测试类不许用 `@SpringBootTest(properties=…)` 覆盖配置（配置键不同 = 又一个 Spring 上下文）。同时把 `db/devdata` 并入 `application-test.yml` 的 flyway locations，四个 Knowledge 集成测试类不再各自覆盖 properties——**Spring 上下文从 3 个降到 2 个**。
+- 依据：`.agent/changes/WORK-004-知识库/{requirements,proposal,design,tasks}.md`、`testing/{plan,report}.md`；用户 2026-10-10 指示
+- 验证：**后端 124 条测试 0 失败 0 错误 0 跳过，91 秒**（knowledge 22、app 58、account 13、security 11、persistence 4、platform 7、web 9）；**内环纯函数 16 条 7 秒**；前端 `pnpm -r typecheck` 9 包全过、单测 63 条；**e2e 23 条全过**（学习者端 11／管理端 7／展览页 5，共用一个手工启动的后端，三套合计 44 秒）。**反向验证四项**：角色路径规则、自评隔离、Tailwind `@source` **咬住**（前两项一次运行同时报出，证据里直接打出"用户 B 读到用户 A 的标记"）；**`WITH PARSER ngram` 那项没有咬住**——摘掉解析器后中文检索用例仍然通过，说明设计里"不加 ngram 中文基本不召回"缺乏证据支持（索引已还原、探针迁移已删）。**未验证**：桌面安装包（electron-builder）未构建，目标性质改用产物文案检索构造性证明（管理端独有文案在学习者端产物里 0 次、在管理端产物里 1 次）。因此 `testing/report.md` 记为 **`partial`**。
+- 协作备注：为跑 e2e **按用户明确授权强行终止了占用 8080 的另一个会话的后端进程**（PID 62940，java.exe）；随后所有 e2e 共用一个自己启动的后端并在结束时收掉。证据日志写入 `testing/logs/`，但该目录被 `.gitignore` 忽略（与 WORK-001/002/003 一致），**证据只在本机**。
+- 本地提交：TASK-007 为 `f432391`、TASK-008 为 `f31657b`、测试节奏为 `f0edc79`；本轮新增的 `V952` 与两个 e2e spec **待提交**
+- 远端推送：未执行
