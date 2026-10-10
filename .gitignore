@@ -63,3 +63,8 @@ coverage/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# ---- 代码索引（CodeGraph 生成，可重建，约 5MB） ----
+# 不进仓库：它是按本机生成的索引，`codegraph index --force` 可重建。
+# 没有这条规则时，一次 `git add -A` 就会把它提交进公开仓库。
+.codegraph/

@@ -1,59 +1,63 @@
 ---
-base_commit: 9430cab
+base_commit: 976cd48
 ---
 
 # WORK-002 工作区归因
 
-基准提交为 `9430cab`。本表登记该提交之后、本工作项第一个本地提交之前的工作区改动。
+基准提交为 `976cd48`。本工作项已完成，本表登记其提交之后产生的工作区改动。
 
 ## 工作区归因
 
 | 路径 | 归属 | 说明 |
 | --- | --- | --- |
-| .agent/INDEX.md | current_work | 工作区与依赖变更 |
-| .agent/changes/WORK-001-架构选型与项目骨架/workspace.md | current_work | WORK-001 的归因锚点随 HEAD 前移重写；非本工作项产物 |
-| .agent/history/updates.md | current_work | 项目时间线，追加本工作项记录 |
-| .agent/rules/always.md | current_work | 工作区与依赖变更 |
-| frontend/apps/app/package.json | current_work | 学习者端：样式接入、主题接线、首页迁移（TASK-001、002、006） |
-| frontend/apps/app/src/main.tsx | current_work | 学习者端：样式接入、主题接线、首页迁移（TASK-001、002、006） |
-| frontend/apps/app/src/pages/HomePage.tsx | current_work | 学习者端：样式接入、主题接线、首页迁移（TASK-001、002、006） |
-| frontend/apps/app/vite.config.ts | current_work | 学习者端：样式接入、主题接线、首页迁移（TASK-001、002、006） |
-| frontend/apps/desktop/electron/main.cjs | current_work | 桌面壳：注入并暴露缓存快照（TASK-010） |
-| frontend/apps/desktop/electron/preload.cjs | current_work | 桌面壳：注入并暴露缓存快照（TASK-010） |
-| frontend/apps/public/package.json | current_work | 公开页：样式接入、迁移到 Card（TASK-001、006） |
-| frontend/apps/public/src/PublicPage.tsx | current_work | 公开页：样式接入、迁移到 Card（TASK-001、006） |
-| frontend/apps/public/src/entry-client.tsx | current_work | 公开页：样式接入、迁移到 Card（TASK-001、006） |
-| frontend/apps/public/tsconfig.json | current_work | 公开页：样式接入、迁移到 Card（TASK-001、006） |
-| frontend/apps/public/vite.config.ts | current_work | 公开页：样式接入、迁移到 Card（TASK-001、006） |
-| frontend/package.json | current_work | 工作区与依赖变更 |
-| frontend/packages/core/src/index.ts | current_work | core：会话端口与边界检查扩展（TASK-007、008） |
-| frontend/packages/core/src/workspace-boundaries.test.ts | current_work | core：会话端口与边界检查扩展（TASK-007、008） |
-| frontend/packages/platform-desktop/package.json | current_work | 桌面端缓存同步读修正（TASK-010） |
-| frontend/packages/platform-desktop/src/index.ts | current_work | 桌面端缓存同步读修正（TASK-010） |
-| frontend/packages/ui/package.json | current_work | 设计系统包：令牌、主题、组件基元、静态检查（TASK-001..005） |
-| frontend/packages/ui/src/Panel.tsx | current_work | 设计系统包：令牌、主题、组件基元、静态检查（TASK-001..005） |
-| frontend/packages/ui/src/index.ts | current_work | 设计系统包：令牌、主题、组件基元、静态检查（TASK-001..005） |
-| frontend/packages/ui/tsconfig.json | current_work | 设计系统包：令牌、主题、组件基元、静态检查（TASK-001..005） |
-| frontend/pnpm-lock.yaml | current_work | 工作区与依赖变更 |
-| frontend/pnpm-workspace.yaml | current_work | 工作区与依赖变更 |
-| frontend/tsconfig.base.json | current_work | 工作区与依赖变更 |
-| .agent/changes/WORK-002-前端组件化与管理端拆分/ | current_work | 本工作项工件：requirements / proposal / design / tasks / workspace / testing |
-| frontend/apps/admin/ | current_work | 新增管理端应用（TASK-009） |
-| frontend/apps/ui-kit/ | current_work | 新增组件展览应用（TASK-005） |
-| frontend/packages/core/src/session.test.ts | current_work | 会话与角色端口（TASK-008） |
-| frontend/packages/core/src/session.ts | current_work | 会话与角色端口（TASK-008） |
-| frontend/packages/platform-desktop/src/index.test.ts | current_work | 桌面端缓存同步读修正（TASK-010） |
-| frontend/packages/ui/components.json | current_work | 设计系统包：令牌、主题、组件基元、静态检查（TASK-001..005） |
-| frontend/packages/ui/src/components/ | current_work | 设计系统包：令牌、主题、组件基元、静态检查（TASK-001..005） |
-| frontend/packages/ui/src/layout/ | current_work | 设计系统包：令牌、主题、组件基元、静态检查（TASK-001..005） |
-| frontend/packages/ui/src/styles/ | current_work | 设计系统包：令牌、主题、组件基元、静态检查（TASK-001..005） |
-| frontend/packages/ui/src/theme/ | current_work | 设计系统包：令牌、主题、组件基元、静态检查（TASK-001..005） |
-| frontend/packages/ui/src/tokens.test.ts | current_work | 设计系统包：令牌、主题、组件基元、静态检查（TASK-001..005） |
-| frontend/packages/ui/vitest.config.ts | current_work | 设计系统包：令牌、主题、组件基元、静态检查（TASK-001..005） |
+| .agent/INDEX.md | current_work | 长期约定与索引更新 |
+| .agent/changes/WORK-001-架构选型与项目骨架/workspace.md | current_work | 属 WORK-001 的归因表，随 HEAD 前移重写 |
+| .agent/history/updates.md | current_work | 项目时间线 |
+| .agent/rules/always.md | current_work | 长期约定与索引更新 |
+| backend/paideia-app/pom.xml | current_work | 账号表迁移、种子迁移、Flyway 自动装配依赖与测试 |
+| backend/paideia-app/src/test/java/io/github/xiaou61/AuthorizationIsolationTest.java | current_work | 账号表迁移、种子迁移、Flyway 自动装配依赖与测试 |
+| backend/paideia-app/src/test/resources/application-test.yml | current_work | 账号表迁移、种子迁移、Flyway 自动装配依赖与测试 |
+| backend/paideia-persistence/src/test/java/io/github/xiaou61/persistence/TestDatabase.java | current_work | 夹具迁移助手不再对共享库的完整历史做校验 |
+| backend/paideia-platform/src/main/java/io/github/xiaou61/platform/ErrorCode.java | current_work | 追加限流错误码 |
+| backend/paideia-security/src/main/java/io/github/xiaou61/security/AuthController.java | current_work | AuthPort 带角色、角色映射，并删除无凭据签发端点 |
+| backend/paideia-security/src/main/java/io/github/xiaou61/security/AuthPort.java | current_work | AuthPort 带角色、角色映射，并删除无凭据签发端点 |
+| backend/paideia-security/src/main/java/io/github/xiaou61/security/CurrentUser.java | current_work | AuthPort 带角色、角色映射，并删除无凭据签发端点 |
+| backend/paideia-security/src/main/java/io/github/xiaou61/security/JwtAuthService.java | current_work | AuthPort 带角色、角色映射，并删除无凭据签发端点 |
+| backend/paideia-security/src/main/java/io/github/xiaou61/security/MeController.java | current_work | AuthPort 带角色、角色映射，并删除无凭据签发端点 |
+| backend/paideia-security/src/main/java/io/github/xiaou61/security/SecurityConfiguration.java | current_work | AuthPort 带角色、角色映射，并删除无凭据签发端点 |
+| backend/paideia-security/src/test/java/io/github/xiaou61/security/JwtAuthServiceTest.java | current_work | AuthPort 带角色、角色映射，并删除无凭据签发端点 |
+| backend/paideia-web/src/main/java/io/github/xiaou61/web/GlobalExceptionHandler.java | current_work | 未知路由改为 404、新增 429 错误码映射 |
+| backend/pom.xml | current_work | 后端改动 |
+| frontend/apps/admin/e2e/admin.spec.ts | current_work | 管理端：认证接线、登录视图、按角色的管理区放行与拒绝 |
+| frontend/apps/admin/package.json | current_work | 管理端：认证接线、登录视图、按角色的管理区放行与拒绝 |
+| frontend/apps/admin/playwright.config.ts | current_work | 管理端：认证接线、登录视图、按角色的管理区放行与拒绝 |
+| frontend/apps/admin/src/api.ts | current_work | 管理端：认证接线、登录视图、按角色的管理区放行与拒绝 |
+| frontend/apps/admin/src/guard.tsx | current_work | 管理端：认证接线、登录视图、按角色的管理区放行与拒绝 |
+| frontend/apps/admin/src/main.tsx | current_work | 管理端：认证接线、登录视图、按角色的管理区放行与拒绝 |
+| frontend/apps/admin/src/pages/AdminHomePage.tsx | current_work | 管理端：认证接线、登录视图、按角色的管理区放行与拒绝 |
+| frontend/apps/admin/src/session.ts | current_work | 管理端：认证接线、登录视图、按角色的管理区放行与拒绝 |
+| frontend/apps/app/e2e/home.spec.ts | current_work | 学习者端：认证接线、登录页与注册页、整体登录门、e2e 改造 |
+| frontend/apps/app/package.json | current_work | 学习者端：认证接线、登录页与注册页、整体登录门、e2e 改造 |
+| frontend/apps/app/playwright.config.ts | current_work | 学习者端：认证接线、登录页与注册页、整体登录门、e2e 改造 |
+| frontend/apps/app/src/api.ts | current_work | 学习者端：认证接线、登录页与注册页、整体登录门、e2e 改造 |
+| frontend/apps/app/src/main.tsx | current_work | 学习者端：认证接线、登录页与注册页、整体登录门、e2e 改造 |
+| frontend/apps/app/src/pages/HomePage.tsx | current_work | 学习者端：认证接线、登录页与注册页、整体登录门、e2e 改造 |
+| frontend/apps/app/src/router.tsx | current_work | 学习者端：认证接线、登录页与注册页、整体登录门、e2e 改造 |
+| frontend/pnpm-lock.yaml | current_work | 前端改动 |
+| .agent/changes/WORK-003-账号与认证/ | current_work | 属本工作项的工件与证据 |
+| .codegraph/ | current_work | 项目工件改动 |
+| backend/paideia-account/ | current_work | 新增账号模块：账号表访问、注册登录、验证码；对外契约在包根 |
+| backend/paideia-app/src/main/resources/db/devdata/ | current_work | 账号表迁移、种子迁移、Flyway 自动装配依赖与测试 |
+| backend/paideia-app/src/main/resources/db/migration/V1__create_account_tables.sql | current_work | 账号表迁移、种子迁移、Flyway 自动装配依赖与测试 |
+| backend/paideia-app/src/test/java/io/github/xiaou61/AccountAuthIntegrationTest.java | current_work | 账号表迁移、种子迁移、Flyway 自动装配依赖与测试 |
+| frontend/apps/admin/src/auth.ts | current_work | 管理端：认证接线、登录视图、按角色的管理区放行与拒绝 |
+| frontend/apps/app/src/auth.ts | current_work | 学习者端：认证接线、登录页与注册页、整体登录门、e2e 改造 |
+| frontend/apps/app/src/host.ts | current_work | 学习者端：认证接线、登录页与注册页、整体登录门、e2e 改造 |
+| frontend/apps/app/src/pages/LoginPage.tsx | current_work | 学习者端：认证接线、登录页与注册页、整体登录门、e2e 改造 |
+| frontend/apps/app/src/pages/RegisterPage.tsx | current_work | 学习者端：认证接线、登录页与注册页、整体登录门、e2e 改造 |
+| frontend/packages/auth/ | current_work | 新增共享认证包：令牌存储、401 刷新重放、登录注册表单与登录门 |
 
 ## 说明
 
-- TASK-001..TASK-011 全部完成；验证报告为 `passed`（一项桌面端 e2e 因本机限制未运行，报告中已标注）。
-- 本轮全部改动属本工作项，`frontend/` 下的源码改动包括：设计系统包（令牌、主题、组件基元、三条静态检查）、四个应用面（学习者端、管理端、公开页、组件展览）、core 的会话端口、platform-desktop 与桌面壳的缓存快照修正。
-- `.agent/changes/WORK-001-架构选型与项目骨架/workspace.md` 与 `.agent/history/updates.md` 也在清单里：前者是 WORK-001 的归因锚点随 HEAD 前移重写，后者是项目时间线。**它们不属于本工作项的源码改动，提交时应分开归属。**
+- 提交时按说明列分开归属：`.agent/changes/WORK-001` 与 `WORK-002` 下的文件不属于本工作项。
 - 并发写入提醒：`.agent/` 下另有会话在写入；修改共享工件前先重新读取。
