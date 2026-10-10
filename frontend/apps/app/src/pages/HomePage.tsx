@@ -1,4 +1,3 @@
-import { useAuth } from '@paideia/auth'
 import {
   Alert,
   AlertDescription,
@@ -17,27 +16,9 @@ import {
 import { useQuery } from '@tanstack/react-query'
 
 import { api } from '../api'
+import { AccountBar } from '../components/AccountBar'
 import { API_BASE_URL } from '../env'
 import { usePlatform } from '../platform'
-
-/** 页头的账号区：显示当前用户与登出入口。 */
-function AccountBar() {
-  const { user, logout } = useAuth()
-  if (user === null) {
-    return null
-  }
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-muted-foreground text-xs" data-testid="current-user">
-        {user.username}
-      </span>
-      <Badge variant="outline">{user.role === 'admin' ? '管理员' : '学习者'}</Badge>
-      <Button variant="ghost" size="sm" data-testid="logout" onClick={() => void logout()}>
-        登出
-      </Button>
-    </div>
-  )
-}
 
 interface HealthResponse {
   status: string

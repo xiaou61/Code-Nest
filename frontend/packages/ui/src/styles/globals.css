@@ -23,6 +23,7 @@
 @source '../../../../apps/public/src';
 @source '../../../../apps/ui-kit/src';
 @source '../../../../packages/auth/src';
+@source '../../../../packages/knowledge/src';
 
 /* 主题用类名切换（首屏由 themeInitPlugin 注入的脚本在绘制前落到 <html> 上）。 */
 @custom-variant dark (&:where(.dark, .dark *));

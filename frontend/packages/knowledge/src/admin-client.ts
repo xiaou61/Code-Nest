@@ -1,0 +1,121 @@
+import type { ApiClient } from '@paideia/core'
+
+import type { CategoryNode, PageResult } from './types'
+
+/**
+ * 管理端接口的客户端。
+ *
+ * <p>与学习者侧的 `createKnowledgeApi` 分开导出，而不是并进同一个对象：学习者端**不**
+ * import 这个文件，于是管理端路径不会出现在学习者端产物里，两边的权限面在代码层面也就分开了。
+ * 后端的隔离仍然靠 `/api/v1/knowledge/admin/**` 的 `hasRole('ADMIN')` 规则——这里只是少带一点死代码。
+ */
+
+export interface AdminEntrySummary {
+  id: number
+  title: string
+  status: string
+  categoryId: number | null
+  categoryName: string | null
+  updatedAt: string
+}
+
+/** 管理端看到的关系：带 id，学习者侧那三个视角不带。 */
+export interface AdminRelation {
+  id: number
+  fromEntryId: number
+  toEntryId: number
+  relationType: string
+}
+
+export interface AdminEntryDetail {
+  id: number
+  title: string
+  body: string
+  categoryId: number | null
+  categoryName: string | null
+  status: string
+  publishedAt: string | null
+  relations: AdminRelation[]
+}
+
+export interface CategoryInput {
+  parentId: number | null
+  name: string
+  slug: string
+  sortOrder?: number
+}
+
+export interface EntryInput {
+  title: string
+  body: string
+  categoryId: number | null
+  status: 'draft' | 'published'
+}
+
+export interface KnowledgeAdminApi {
+  categories(): Promise<CategoryNode[]>
+  createCategory(input: CategoryInput): Promise<number>
+  updateCategory(id: number, input: CategoryInput): Promise<null>
+  deleteCategory(id: number): Promise<null>
+
+  entries(status?: 'draft' | 'published'): Promise<PageResult<AdminEntrySummary>>
+  entry(id: number): Promise<AdminEntryDetail>
+  createEntry(input: EntryInput): Promise<number>
+  updateEntry(id: number, input: EntryInput): Promise<null>
+  deleteEntry(id: number): Promise<null>
+
+  createRelation(fromEntryId: number, toEntryId: number, relationType: string): Promise<number>
+  deleteRelation(id: number): Promise<null>
+}
+
+const JSON_HEADERS = { 'Content-Type': 'application/json' }
+
+export function createKnowledgeAdminApi(client: ApiClient): KnowledgeAdminApi {
+  const base = '/api/v1/knowledge/admin'
+
+  return {
+    categories: () => client.requestEnvelope<CategoryNode[]>(`${base}/categories`),
+    createCategory: (input) =>
+      client.requestEnvelope<number>(`${base}/categories`, {
+        method: 'POST',
+        headers: JSON_HEADERS,
+        body: JSON.stringify(input),
+      }),
+    updateCategory: (id, input) =>
+      client.requestEnvelope<null>(`${base}/categories/${id}`, {
+        method: 'PUT',
+        headers: JSON_HEADERS,
+        body: JSON.stringify(input),
+      }),
+    deleteCategory: (id) =>
+      client.requestEnvelope<null>(`${base}/categories/${id}`, { method: 'DELETE' }),
+
+    entries: (status) =>
+      client.requestEnvelope<PageResult<AdminEntrySummary>>(
+        // size 取较大值：管理端要一眼看全，分页留给条目量真的变大时再做
+        `${base}/entries?size=200${status === undefined ? '' : `&status=${status}`}`,
+      ),
+    entry: (id) => client.requestEnvelope<AdminEntryDetail>(`${base}/entries/${id}`),
+    createEntry: (input) =>
+      client.requestEnvelope<number>(`${base}/entries`, {
+        method: 'POST',
+        headers: JSON_HEADERS,
+        body: JSON.stringify(input),
+      }),
+    updateEntry: (id, input) =>
+      client.requestEnvelope<null>(`${base}/entries/${id}`, {
+        method: 'PUT',
+        headers: JSON_HEADERS,
+        body: JSON.stringify(input),
+      }),
+    deleteEntry: (id) => client.requestEnvelope<null>(`${base}/entries/${id}`, { method: 'DELETE' }),
+
+    createRelation: (fromEntryId, toEntryId, relationType) =>
+      client.requestEnvelope<number>(`${base}/relations`, {
+        method: 'POST',
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ fromEntryId, toEntryId, relationType }),
+      }),
+    deleteRelation: (id) => client.requestEnvelope<null>(`${base}/relations/${id}`, { method: 'DELETE' }),
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "@paideia/knowledge",
+  "version": "0.0.1",
+  "private": true,
+  "description": "知识库共享包：DTO 类型、API 客户端、markdown 渲染与阅读辅助组件",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "react": "^19.3.0"
+  },
+  "dependencies": {
+    "@paideia/core": "workspace:*",
+    "@paideia/ui": "workspace:*",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@testing-library/react": "16.3.3",
+    "@types/react": "19.3.0",
+    "jsdom": "30.1.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "vitest": "5.0.3"
+  }
+}
