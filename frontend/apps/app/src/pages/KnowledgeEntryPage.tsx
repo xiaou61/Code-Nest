@@ -1,5 +1,11 @@
-import { EntryToc, KnowledgeNeighborhood, MarkdownBody, createKnowledgeApi } from '@paideia/knowledge'
-import type { EntryRef } from '@paideia/knowledge'
+import {
+  EntryToc,
+  KnowledgeNeighborhood,
+  MarkdownBody,
+  SelfAssessmentButtons,
+  createKnowledgeApi,
+} from '@paideia/knowledge'
+import type { EntryRef, SelfAssessmentLevel } from '@paideia/knowledge'
 import {
   Alert,
   AlertDescription,
@@ -9,7 +15,7 @@ import {
   PageHeader,
   Spinner,
 } from '@paideia/ui'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
 
 import { api } from '../api'
@@ -28,11 +34,22 @@ export function KnowledgeEntryPage() {
   const params = useParams()
   const entryId = Number(params['id'])
   const valid = Number.isFinite(entryId)
+  const queryClient = useQueryClient()
 
   const entry = useQuery({
     queryKey: ['knowledge-entry', entryId],
     queryFn: () => knowledge.entry(entryId),
     enabled: valid,
+  })
+
+  // 标记与取消共用一次 mutation：对用户来说是"改我的标记"，不是两个动作
+  const assess = useMutation({
+    mutationFn: (next: SelfAssessmentLevel | null) =>
+      next === null ? knowledge.clearSelfAssessment(entryId) : knowledge.markSelfAssessment(entryId, next),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['knowledge-entry', entryId] })
+      await queryClient.invalidateQueries({ queryKey: ['my-assessments'] })
+    },
   })
 
   return (
@@ -76,6 +93,14 @@ export function KnowledgeEntryPage() {
 
           <EntryToc markdown={entry.data.body} />
           <MarkdownBody markdown={entry.data.body} mediaBaseUrl={API_BASE_URL} />
+
+          <div className="mt-8">
+            <SelfAssessmentButtons
+              current={entry.data.selfAssessment}
+              disabled={assess.isPending}
+              onChange={(next) => assess.mutate(next)}
+            />
+          </div>
 
           <nav className="border-border mt-12 grid gap-4 border-t pt-6 sm:grid-cols-2">
             <div data-testid="entry-previous">

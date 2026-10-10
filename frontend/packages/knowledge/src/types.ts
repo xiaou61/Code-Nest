@@ -30,6 +30,17 @@ export interface EntryRef {
   title: string
 }
 
+/** 学习者自评的两个状态。刻意只有两个：不做等级、不做权重、不做基于作答的推断。 */
+export type SelfAssessmentLevel = 'understood' | 'unsure'
+
+/** 「我标记过的条目」列表行。 */
+export interface AssessedItem {
+  entryId: number
+  title: string
+  level: SelfAssessmentLevel
+  updatedAt: string
+}
+
 export interface EntryDetail {
   id: number
   title: string
@@ -45,4 +56,6 @@ export interface EntryDetail {
   related: EntryRef[]
   /** 反向链接：把本条目当作前置的条目。 */
   dependents: EntryRef[]
+  /** **当前请求者自己**的标记；没有标记时为 null。别人的标记永不返回。 */
+  selfAssessment: SelfAssessmentLevel | null
 }

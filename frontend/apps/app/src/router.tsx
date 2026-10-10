@@ -5,6 +5,7 @@ import { HomePage } from './pages/HomePage'
 import { KnowledgeEntryPage } from './pages/KnowledgeEntryPage'
 import { KnowledgeListPage } from './pages/KnowledgeListPage'
 import { LoginPage } from './pages/LoginPage'
+import { MyAssessmentsPage } from './pages/MyAssessmentsPage'
 import { RegisterPage } from './pages/RegisterPage'
 
 /**
@@ -44,6 +45,14 @@ export const router = createHashRouter([
     element: (
       <RequireAuth>
         <KnowledgeEntryPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/my-assessments',
+    element: (
+      <RequireAuth>
+        <MyAssessmentsPage />
       </RequireAuth>
     ),
   },

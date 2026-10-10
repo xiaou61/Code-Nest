@@ -1,5 +1,6 @@
 package io.github.xiaou61.knowledge.internal.entry;
 
+import io.github.xiaou61.knowledge.internal.assessment.SelfAssessmentService;
 import io.github.xiaou61.knowledge.internal.category.Category;
 import io.github.xiaou61.knowledge.internal.category.CategoryMapper;
 import io.github.xiaou61.knowledge.internal.category.CategoryTree;
@@ -33,11 +34,16 @@ public class EntryService {
     private final EntryMapper entryMapper;
     private final CategoryMapper categoryMapper;
     private final RelationMapper relationMapper;
+    private final SelfAssessmentService selfAssessmentService;
 
-    EntryService(EntryMapper entryMapper, CategoryMapper categoryMapper, RelationMapper relationMapper) {
+    EntryService(EntryMapper entryMapper,
+                 CategoryMapper categoryMapper,
+                 RelationMapper relationMapper,
+                 SelfAssessmentService selfAssessmentService) {
         this.entryMapper = entryMapper;
         this.categoryMapper = categoryMapper;
         this.relationMapper = relationMapper;
+        this.selfAssessmentService = selfAssessmentService;
     }
 
     /** 列表项：**不含正文**。正文可能有几十 KB，列表里取回来纯属浪费。 */
@@ -63,7 +69,12 @@ public class EntryService {
             /** 与本条目相关的内容（无向关系，两端的边都算）。 */
             List<EntryRef> related,
             /** 反向链接：把本条目当作**前置**的条目。 */
-            List<EntryRef> dependents) {
+            List<EntryRef> dependents,
+            /**
+             * **当前请求者自己**的标记；没有标记或读不出身份时为 null。
+             * 只可能是自己的——别人的标记永不返回。
+             */
+            String selfAssessment) {
     }
 
     public PageResult<EntrySummary> listPublished(Long categoryId, String rawQuery, PageQuery page) {
@@ -100,7 +111,12 @@ public class EntryService {
         return PageResult.of(total, page, items);
     }
 
-    public EntryDetail detail(long id) {
+    /**
+     * 条目详情。
+     *
+     * @param userId 当前请求者，**只用于读他自己的标记**；为 null 时该字段返回空
+     */
+    public EntryDetail detail(long id, Long userId) {
         Entry entry = entryMapper.findPublishedById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "条目不存在"));
 
@@ -140,7 +156,8 @@ public class EntryService {
                 next,
                 prerequisites,
                 related,
-                dependents);
+                dependents,
+                selfAssessmentService.levelOf(userId, id).orElse(null));
     }
 
     private Map<Long, Category> categoriesById() {

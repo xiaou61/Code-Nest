@@ -1,6 +1,13 @@
 import type { ApiClient } from '@paideia/core'
 
-import type { CategoryNode, EntryDetail, EntrySummary, PageResult } from './types'
+import type {
+  AssessedItem,
+  CategoryNode,
+  EntryDetail,
+  EntrySummary,
+  PageResult,
+  SelfAssessmentLevel,
+} from './types'
 
 export interface ListEntriesOptions {
   /** 传父分类时后端会**包含其后代分类**的条目。 */
@@ -15,6 +22,12 @@ export interface KnowledgeApi {
   categories(): Promise<CategoryNode[]>
   entries(options?: ListEntriesOptions): Promise<PageResult<EntrySummary>>
   entry(id: number): Promise<EntryDetail>
+  /** 标记「懂了／还不懂」。同一用户重复标记是更新，不会产生第二条。 */
+  markSelfAssessment(entryId: number, level: SelfAssessmentLevel): Promise<null>
+  /** 取消标记。幂等：本来就没有也返回成功。 */
+  clearSelfAssessment(entryId: number): Promise<null>
+  /** 我标记过的条目。**只可能是自己的**。 */
+  myAssessments(level?: SelfAssessmentLevel): Promise<AssessedItem[]>
 }
 
 /**
@@ -49,5 +62,22 @@ export function createKnowledgeApi(client: ApiClient): KnowledgeApi {
     },
 
     entry: (id) => client.requestEnvelope<EntryDetail>(`/api/v1/knowledge/entries/${id}`),
+
+    markSelfAssessment: (entryId, level) =>
+      client.requestEnvelope<null>(`/api/v1/knowledge/entries/${entryId}/self-assessment`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level }),
+      }),
+
+    clearSelfAssessment: (entryId) =>
+      client.requestEnvelope<null>(`/api/v1/knowledge/entries/${entryId}/self-assessment`, {
+        method: 'DELETE',
+      }),
+
+    myAssessments: (level) =>
+      client.requestEnvelope<AssessedItem[]>(
+        `/api/v1/knowledge/self-assessments${level === undefined ? '' : `?level=${level}`}`,
+      ),
   }
 }

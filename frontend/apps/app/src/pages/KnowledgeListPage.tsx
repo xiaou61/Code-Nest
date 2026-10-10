@@ -79,6 +79,13 @@ export function KnowledgeListPage() {
             清除
           </Button>
         )}
+        <Link
+          to="/my-assessments"
+          className="text-muted-foreground ml-auto text-sm underline-offset-4 hover:underline"
+          data-testid="knowledge-my-assessments-link"
+        >
+          我标记过的内容
+        </Link>
       </form>
 
       <div className="grid gap-8 md:grid-cols-[16rem_1fr]">

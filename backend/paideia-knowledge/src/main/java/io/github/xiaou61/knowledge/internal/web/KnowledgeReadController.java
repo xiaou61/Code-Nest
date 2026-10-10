@@ -62,9 +62,11 @@ class KnowledgeReadController {
         return ApiResponse.ok(entryService.listPublished(categoryId, q, PageQuery.of(page, size, null)));
     }
 
-    /** 条目详情：正文、分类、同分类内的上一篇／下一篇、反向链接。 */
+    /** 条目详情：正文、分类、同分类内的上一篇／下一篇、反向链接、以及**自己的**自评标记。 */
     @GetMapping("/entries/{id}")
     ApiResponse<EntryService.EntryDetail> entry(@PathVariable("id") long id) {
-        return ApiResponse.ok(entryService.detail(id));
+        // 读路径用 orNull 而不是 require：读不出身份只说明拿不到"我的标记"，
+        // 不该让整页详情失败
+        return ApiResponse.ok(entryService.detail(id, CurrentUserId.orNull()));
     }
 }
