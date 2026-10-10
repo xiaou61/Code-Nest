@@ -120,6 +120,12 @@ public class SecurityConfiguration {
                         // 而本项目无 Cookie，要求登录就等于图片显示不出来。限定 GET：
                         // 上传挂在 /api/v1/knowledge/admin/files，不能因为放行读取把写入也放开。
                         .requestMatchers(HttpMethod.GET, "/api/v1/knowledge/files/**").permitAll()
+                        // 前端静态资源：同源部署时前端由本进程一并提供，入口页与资源目录必须放行，
+                        // 否则连登录页都加载不出来（实测：未放行时 GET / 与 GET /admin/index.html 都是 401）。
+                        // SPA 用 Hash 路由，所以**不必**为每个前端路由放行；**放行静态文件不等于放行数据**——
+                        // 授权仍然只由 /api/** 上的规则决定，前端守卫从来不是授权边界。
+                        .requestMatchers(HttpMethod.GET, "/", "/index.html", "/assets/**", "/admin/**", "/favicon.ico")
+                        .permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(resourceServer -> resourceServer
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)));

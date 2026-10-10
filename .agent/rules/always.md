@@ -153,9 +153,24 @@ Paideia 是「千人千面的 AI 个性化学习平台」。目标不是把同�
 | 缺失 | 没有 Docker / Docker Compose，没有 RabbitMQ，没有 Nginx；80/443 未监听 |
 | 运行方式 | 目前没有 systemd 单元可用；Paideia 的服务应建立自己的 systemd 单元 |
 
-**项目隔离要求（用户 2026-10-09 决定）**：Paideia 与 Code-Nest 彻底分离。Paideia 使用独立目录（`/opt/paideia-app`）、独立数据库（`paideia`、`paideia_test`）与独立数据库账号；不复用、不修改其他项目的服务与数据。Code-Nest 的应用与 SQL 转储已按用户指示从该服务器删除。
+**项目隔离要求（用户 2026-10-09 决定）**：Paideia 与 Code-Nest 彻底分离。Paideia 使用独立目录（`/opt/paideia-app`）、独立数据库（开发 `paideia`、测试 `paideia_test`、**部署 `paideia_prod`**）与独立数据库账号；不复用、不修改其他项目的服务与数据。Code-Nest 的应用与 SQL 转储已按用户指示从该服务器删除。
 
 **传输层：不要求 HTTPS（用户 2026-10-09 决定）**：自托管环境用明文 HTTP 即可，不配 TLS。已知并接受的后果：密码与令牌在网络上明文传输，链路上任何一环都能读到。两条要记住的推论：① 浏览器会对登录页显示"不安全"，这不是 bug；② 将来若只把前端或后端一端换成 HTTPS，浏览器会因混合内容直接拦掉请求，**要上就两端一起上**。触发重评：一旦对外网开放或出现不只有自己使用的真实凭据。
+
+## 部署（2026-10-10 首次部署，供验收）
+
+- **形态：一个 jar 同时提供 API 与前端静态**（服务器上没有 Nginx、没有 Docker）。前端产物放 `/opt/paideia-app/web/`（学习者端在根，管理端在 `web/admin/`），由 `spring.web.resources.static-locations=file:/opt/paideia-app/web/` 提供。**管理端地址是 `/admin/index.html`**——Spring 不会给子目录自动补 index，要更干净的 `/admin/` 需要一条转发规则（本版没加）。
+- **进程**：systemd 单元 **`paideia`**（`systemctl status/restart/stop paideia`），`ExecStart` 为 `/opt/jdk25/bin/java -jar /opt/paideia-app/app.jar --spring.config.additional-location=file:/opt/paideia-app/`，日志走 journald（`journalctl -u paideia`）。
+- **配置**：`/opt/paideia-app/application.yml` **只存在于服务器上**（含数据源口令、JWT 密钥、SMTP 授权码），由本地被忽略的配置生成，**绝不进仓库**。关键项：`server.port=8081`、`paideia.knowledge.upload-dir=/opt/paideia-app/uploads`。
+- **端口 8081**：服务器安全组只放开少数端口——实测 **8080 与 80 从公网不可达**（HTTP 000）、**8081 可达**。换端口只需改配置里的 `server.port` 再 `systemctl restart paideia`。
+- **数据库用独立库 `paideia_prod`**，不是开发用的 `paideia`。原因：`paideia` 的迁移历史里带着 `V950`（种子账号）——**当初有运行时误连了 dev 库**，正是 `playwright.config.ts` 里警告过的那个坑；它与现在 jar 里的迁移对不上，直接启动就会 Flyway 校验失败。部署库由 Flyway 从 V1 干净迁移到 V3。
+- **部署实例不加载种子**：`db/devdata` 不在默认迁移目录，因此部署库里没有 `seed-admin`／`seed-learner`（那两个口令公开写在仓库里，放到公网可达的实例上等于开放管理权限）。管理员账号用**一次性 SQL** 单独建，口令不落任何被跟踪文件。
+- **同源部署必须放行静态资源**：`SecurityConfiguration` 里加了 `GET /`、`/index.html`、`/assets/**`、`/admin/**`、`/favicon.ico` 的放行——不放行时连登录页都返回 401（实测）。**放行静态文件不等于放行数据**：授权仍只由 `/api/**` 上的规则决定。
+
+**两个操作陷阱（都实测踩过，别再踩）**：
+
+1. **删掉一个资源文件（如迁移 SQL）后必须 `mvn clean`**。Maven 不会从 `target/classes` 删掉已移除的资源，它会继续被打进 jar——本次真的把两个临时探针迁移带上了部署（它们会改全文索引）。
+2. **用 Git Bash 调 remote 脚本时，`/opt/...` 这类参数会被 MSYS 转成 Windows 路径**，要加 `MSYS_NO_PATHCONV=1`。另外 `pkill -f '<模式>'` 会连**执行它的那条会话**一起匹配杀掉（命令串里含同样的模式），要按 PID 杀，或把模式写成 `http[.]server` 这种不匹配自身的正则。
 
 ## 待用户裁决清单
 

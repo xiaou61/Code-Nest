@@ -999,3 +999,24 @@ schema_version: 1
 - 验证：`project-lifecycle.ps1 validate` → **`valid: true`**；WORK-004 为 `phase: completed`、`state: complete`，0 error（此前两条 error 的唯一根因就是报告为 `partial`，随报告转 `passed` 一并消失）。
 - 本地提交：待用户授权/未提交
 - 远端推送：未执行
+
+## 2026-10-10 17:16:14 +0800 · 部署 · WORK-004 首次部署到线上，供用户验收
+
+- 类型：implementation
+- 变更：按用户指示把本项部署到 `codenest-online` 那台服务器（地址见 `quick-server` 技能配置，**不写进仓库**）。形态与落地：
+  - **一个 jar 同时提供 API 与前端静态**（服务器没有 Nginx/Docker）：前端产物放 `/opt/paideia-app/web/`（学习者端在根、管理端在 `web/admin/`），由 `spring.web.resources.static-locations=file:/opt/paideia-app/web/` 提供；管理端地址是 `/admin/index.html`。
+  - **systemd 单元 `paideia`**：`/opt/jdk25/bin/java -jar /opt/paideia-app/app.jar --spring.config.additional-location=file:/opt/paideia-app/`，日志走 journald。
+  - **配置 `/opt/paideia-app/application.yml` 只存在于服务器上**（数据源口令、JWT 密钥、SMTP 授权码），由本地被忽略的配置生成，绝不进仓库。`server.port=8081`、上传目录 `/opt/paideia-app/uploads`。
+  - **代码改动一处**：`SecurityConfiguration` 新增 `GET /`、`/index.html`、`/assets/**`、`/admin/**`、`/favicon.ico` 的放行。实测不放行时 `GET /` 与 `GET /admin/index.html` 都是 **401**——同源部署下前端由本进程提供，不放行连登录页都加载不出来。**放行静态文件不等于放行数据**：授权仍只由 `/api/**` 上的规则决定。
+- 决策（几处都是被迫但正确的选择）：
+  1. **端口用 8081**：实测 **8080 与 80 从公网不可达**（HTTP 000）、8081 与 81 可达——安全组只放开少数端口。
+  2. **部署用独立库 `paideia_prod`**，不动开发库 `paideia`：后者迁移历史里带着 `V950`（种子账号），**说明当初有运行时误连过 dev 库**（正是 `playwright.config.ts` 里警告过的那个坑），它与现在 jar 里的迁移对不上，直接启动必然 Flyway 校验失败。
+  3. **部署实例不加载种子**：`seed-admin`／`seed-learner` 的口令公开写在仓库里，放到公网可达的实例上等于开放管理权限。管理员账号改用**一次性 SQL + 随机口令的 BCrypt 哈希**单独建，口令不落任何被跟踪文件。
+- 决策（过程中修正的三个真问题）：
+  1. **jar 里带着两个已删除的探针迁移**（`V9000/V9001`，会真改全文索引）。原因：**Maven 不会从 `target/classes` 删掉已移除的资源**，删了源文件也照样被打进包。改用 `mvn clean package` 重建，并把 Flyway 迁过的部署库重建为干净状态。
+  2. 第一版管理员插入用命令行传 SQL，`$` 被多层转义吃掉（存进去的哈希只有 44 字符、登录必失败）。改用 **SQL 文件**传入。
+  3. `pkill -f 'http.server 808'` 把**执行它的那条 SSH 会话**一起匹配杀掉（命令串里含同样的模式），导致那次改动没执行。改按 PID 杀。
+- 依据：用户 2026-10-10 指示「你把这个部署到线上我来验收」；`.agent/rules/always.md` 新增「部署」一节
+- 验证（**从本机对外网实测**，不是服务器上自测）：`GET /actuator/health` → `{"status":"UP"}`；`GET /` → **200 `text/html`**；`GET /admin/index.html` → **200**；`GET /api/v1/knowledge/categories`（无令牌）→ **401**；管理员登录 → `code = 0` 且拿到 access 令牌；带该令牌 `GET /api/v1/knowledge/admin/entries` → **200**、`GET /api/v1/knowledge/entries` → **200**。改动后全量后端 `mvn -B verify` → 退出码 0、**102 秒**（安全规则改动未破坏任何既有用例）。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
