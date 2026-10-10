@@ -14,6 +14,7 @@ import { Link, useParams } from 'react-router'
 
 import { api } from '../api'
 import { AccountBar } from '../components/AccountBar'
+import { API_BASE_URL } from '../env'
 
 const knowledge = createKnowledgeApi(api)
 
@@ -74,7 +75,7 @@ export function KnowledgeEntryPage() {
           />
 
           <EntryToc markdown={entry.data.body} />
-          <MarkdownBody markdown={entry.data.body} />
+          <MarkdownBody markdown={entry.data.body} mediaBaseUrl={API_BASE_URL} />
 
           <nav className="border-border mt-12 grid gap-4 border-t pt-6 sm:grid-cols-2">
             <div data-testid="entry-previous">

@@ -52,6 +52,15 @@ export interface EntryInput {
   status: 'draft' | 'published'
 }
 
+/** 上传成功后的附件信息。`url` 是**稳定标识**，渲染时再由前端补 baseUrl。 */
+export interface UploadedFile {
+  id: string
+  url: string
+  contentType: string
+  size: number
+  originalName: string
+}
+
 export interface KnowledgeAdminApi {
   categories(): Promise<CategoryNode[]>
   createCategory(input: CategoryInput): Promise<number>
@@ -66,6 +75,8 @@ export interface KnowledgeAdminApi {
 
   createRelation(fromEntryId: number, toEntryId: number, relationType: string): Promise<number>
   deleteRelation(id: number): Promise<null>
+
+  uploadFile(file: File): Promise<UploadedFile>
 }
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
@@ -117,5 +128,12 @@ export function createKnowledgeAdminApi(client: ApiClient): KnowledgeAdminApi {
         body: JSON.stringify({ fromEntryId, toEntryId, relationType }),
       }),
     deleteRelation: (id) => client.requestEnvelope<null>(`${base}/relations/${id}`, { method: 'DELETE' }),
+
+    uploadFile: (file) => {
+      const form = new FormData()
+      form.append('file', file)
+      // **不要手动设 Content-Type**：multipart 的分隔符由浏览器生成，自己设会把 boundary 写错
+      return client.requestEnvelope<UploadedFile>(`${base}/files`, { method: 'POST', body: form })
+    },
   }
 }

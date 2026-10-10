@@ -23,6 +23,7 @@ export { EntryToc } from './entry-toc'
 export { MAX_HEADING_LEVEL, createSlugger, extractHeadings, slugify } from './heading-slug'
 export type { Heading } from './heading-slug'
 export { FigureWithLightbox } from './image-lightbox'
+export { resolveMediaUrl } from './media'
 export { MarkdownBody } from './markdown-body'
 export { KnowledgeNeighborhood } from './neighborhood'
 export type {

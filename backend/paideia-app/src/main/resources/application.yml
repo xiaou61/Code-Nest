@@ -1,6 +1,12 @@
 spring:
   application:
     name: paideia
+  servlet:
+    multipart:
+      # 上限刻意比业务上限（10 MB）大一点：让"超过 10 MB"由业务校验给出可读的 400，
+      # 而不是让容器在解析阶段就拒掉。真正超过 12 MB 才由 MaxUploadSizeExceededException 兜住。
+      max-file-size: 12MB
+      max-request-size: 12MB
 
 paideia:
   web:

@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm'
 
 import { extractHeadings } from './heading-slug'
 import { FigureWithLightbox } from './image-lightbox'
+import { resolveMediaUrl } from './media'
 
 /**
  * markdown 正文渲染。
@@ -20,7 +21,19 @@ import { FigureWithLightbox } from './image-lightbox'
  * <p>与本包 {@link import('./entry-toc').EntryToc} 共用 `extractHeadings`，
  * 因此目录与正文按**同一顺序**编号，重复标题也不会串。
  */
-export function MarkdownBody({ markdown, className }: { markdown: string; className?: string }) {
+export function MarkdownBody({
+  markdown,
+  className,
+  mediaBaseUrl,
+}: {
+  markdown: string
+  className?: string
+  /**
+   * 正文里相对附件地址（`/api/v1/knowledge/files/...`）要拼上的后端基址。
+   * 由调用方从自己的 `API_BASE_URL` 传进来——本包不认识部署形态，也不该认识。
+   */
+  mediaBaseUrl?: string
+}) {
   const container = useRef<HTMLDivElement>(null)
   // 只依赖 markdown：同一份正文的标题序列是确定的
   const headings = useMemo(() => extractHeadings(markdown), [markdown])
@@ -82,7 +95,7 @@ export function MarkdownBody({ markdown, className }: { markdown: string; classN
           td: (props) => <td className="border-border border-b px-2 py-1" {...props} />,
           img: (props) => (
             <FigureWithLightbox
-              src={typeof props.src === 'string' ? props.src : ''}
+              src={resolveMediaUrl(typeof props.src === 'string' ? props.src : '', mediaBaseUrl)}
               alt={typeof props.alt === 'string' ? props.alt : ''}
             />
           ),

@@ -31,6 +31,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 
 import { api } from '../api'
+import { API_BASE_URL } from '../env'
 
 const admin = createKnowledgeAdminApi(api)
 
@@ -470,6 +471,19 @@ function EntryForm({
     onError,
   })
 
+  const upload = useMutation({
+    mutationFn: (file: File) => admin.uploadFile(file),
+    onSuccess: (uploaded) => {
+      // 上传与保存是两件事：附件本身不依赖条目存在，所以先把引用插进正文，再随保存一起提交。
+      // 图注取原文件名——正文里的 alt 直接决定图注与可访问名称，留空等于浪费一次表达机会。
+      setBody((current) => {
+        const separator = current === '' || current.endsWith('\n') ? '' : '\n'
+        return `${current}${separator}\n![${uploaded.originalName}](${uploaded.url})\n`
+      })
+    },
+    onError,
+  })
+
   const onSubmit = (event: FormEvent) => {
     event.preventDefault()
     save.mutate()
@@ -544,7 +558,7 @@ function EntryForm({
             {preview ? (
               // 预览与学习者端用同一个渲染组件：这样"预览"才等于"学习者看到的"
               <div className="border-border mt-1 rounded-md border p-4" data-testid="admin-entry-preview">
-                <MarkdownBody markdown={body} />
+                <MarkdownBody markdown={body} mediaBaseUrl={API_BASE_URL} />
               </div>
             ) : (
               <textarea
@@ -555,6 +569,28 @@ function EntryForm({
                 data-testid="admin-entry-body"
               />
             )}
+
+            <div className="mt-2">
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp,application/pdf"
+                aria-label="上传附件"
+                data-testid="admin-entry-upload"
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  // 清空 input 的值，否则连续选同一个文件不会触发 change
+                  event.target.value = ''
+                  if (file !== undefined) {
+                    upload.mutate(file)
+                  }
+                }}
+              />
+              <p className="text-muted-foreground mt-1 text-xs">
+                {upload.isPending
+                  ? '上传中…'
+                  : '允许 png / jpeg / gif / webp / pdf，单个不超过 10 MB；上传后会把引用插到正文末尾。'}
+              </p>
+            </div>
           </div>
 
           <DialogFooter>

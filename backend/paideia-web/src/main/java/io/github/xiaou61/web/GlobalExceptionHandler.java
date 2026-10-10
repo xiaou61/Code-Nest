@@ -16,6 +16,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 /**
  * 全局异常映射。业务异常按其错误码映射 HTTP 状态；参数校验失败归为 400；
@@ -86,6 +87,20 @@ public class GlobalExceptionHandler {
             HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
                 .body(ApiResponse.<Void>failure(ErrorCode.INVALID_ARGUMENT, "不支持的 Content-Type")
+                        .withTraceId(traceIdOf(request)));
+    }
+
+    /**
+     * 上传内容超过容器上限。
+     *
+     * <p>必须显式处理：兜底会把它变成 500，而"传太大了"是客户端问题，应该是 400——
+     * 否则用户看到"服务器内部错误"会去查后端日志，而原因在他自己的文件上。
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUploadTooLarge(MaxUploadSizeExceededException exception,
+            HttpServletRequest request) {
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.<Void>failure(ErrorCode.INVALID_ARGUMENT, "上传内容超过大小上限")
                         .withTraceId(traceIdOf(request)));
     }
 
