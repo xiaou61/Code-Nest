@@ -2,7 +2,7 @@
 artifact: test-report
 work_id: WORK-004
 work: 知识库
-status: partial
+status: passed
 evidence: required
 created: 2026-10-10
 updated: 2026-10-10
@@ -27,21 +27,21 @@ updated: 2026-10-10
 | AC-004 关系与邻域 | `mvn -B verify` 的关系用例 + 学习者端 e2e | 0 | passed | `testing/logs/backend-verify.txt`、`e2e-app.txt` |
 | AC-005 管理端录入并发布 | `pnpm --filter @paideia/admin exec playwright test` | 0 | passed | `testing/logs/e2e-admin.txt`（7 passed） |
 | AC-006 三态鉴权 | `mvn -B verify` 的 `KnowledgeAdminIntegrationTest` | 0 | passed | `testing/logs/backend-verify.txt` |
-| AC-007 构建、边界检查、桌面产物不含管理端 | `pnpm -r typecheck`、`pnpm -r test`、`pnpm -r --filter '!@paideia/desktop' build`、产物文案检索 | 0 | passed | `testing/logs/build-apps.txt`、`testing/logs/artifact-exclusion.txt` |
+| AC-007 构建、边界检查、桌面产物不含管理端 | `pnpm -r typecheck`、`pnpm -r test`、`pnpm -r --filter '!@paideia/desktop' build`、`pnpm -w build:desktop`、安装包内文案检索 | 0 | passed | `testing/logs/build-apps.txt`、`testing/logs/build-desktop.txt`、`testing/logs/artifact-exclusion.txt` |
 | AC-008 上传与免鉴权读取 | `mvn -B verify` 的 `KnowledgeFileIntegrationTest` | 0 | passed | `testing/logs/backend-verify.txt` |
 | AC-009 正文导航（目录／上下篇／反向链接） | 学习者端 e2e | 0 | passed | `testing/logs/e2e-app.txt` |
 | AC-010 分类树展开与筛选 | 学习者端 e2e | 0 | passed | `testing/logs/e2e-app.txt` |
 | AC-011 草稿预览 | 管理端 e2e + `mvn -B verify`（对学习者 403） | 0 | passed | `testing/logs/e2e-admin.txt`、`backend-verify.txt` |
 | AC-012 自评可用 | 学习者端 e2e（刷新后仍在）+ `mvn -B verify` | 0 | passed | `testing/logs/e2e-app.txt`、`backend-verify.txt` |
 | AC-013 自评隔离 | `mvn -B verify` 的 `KnowledgeSelfAssessmentIntegrationTest` | 0 | passed | `testing/logs/backend-verify.txt` |
-| 反向验证：角色规则 + 自评过滤 | 临时改坏两处后 `mvn -B verify -Dtest='Knowledge*IntegrationTest'` | **1（预期）** | **咬住** | `testing/logs/reverse-verification-backend.txt`（一次运行报出 3 条失败，逐条可归因） |
-| 反向验证：Tailwind `@source` 覆盖 | 删掉 `packages/knowledge/src` 那行后 `pnpm --filter @paideia/ui test` | **1（预期）** | **咬住** | `testing/logs/reverse-verification-source.txt`（直接点名 `packages\knowledge\src`） |
+
+（反向验证不列进这张矩阵：矩阵的语义是"每条 AC 对应一条通过的检查"，而反向验证刻意的期望结果是**失败**。它们逐条记在下一节，证据路径同在那里给出。）
 
 数量：**后端 124 条测试 0 失败、0 错误、0 跳过**（knowledge 22、app 58、account 13、security 11、persistence 4、platform 7、web 9），实测 91 秒；**前端单测 63 条**（core 14、ui 17、knowledge 15、auth 13、platform-desktop 4），`pnpm -r typecheck` 9 个包全过；**e2e 23 条**（学习者端 11、管理端 7、展览页 5）。
 
 ## 反向验证的逐条结论
 
-三项咬住，一项**没有咬住**——后者比咬住更重要，照实记：
+三项咬住，一项**没有咬住**——后者比咬住更重要，照实记。证据：`testing/logs/reverse-verification-backend.txt`（角色规则 + 自评过滤，一次运行同时报出，退出码 1）与 `testing/logs/reverse-verification-source.txt`（`@source`，退出码 1）；临时改动均已用 `git checkout --` 精确还原，工作区无残留。
 
 1. **角色路径规则**：注释掉 `hasRole('ADMIN')` 后，`learnerIsForbiddenOnAdminEndpoints` 与 `uploadRequiresAdmin` 都由"期望 403"变成"实际 200"。顺序或存在性写错都会被这条抓住。
 2. **自评隔离**：去掉查询里的 `user_id` 条件后，`markingIsVisibleOnlyToTheMarkerOnBothReadPaths` 失败，证据里直接打出**用户 B 读到了用户 A 的标记**（`[{"entryId":1,"title":"什么是依赖注入","level":"understood",…}]`）。这正是"能标记、能看到自己的"这类断言在串号时照样通过的反面。
@@ -50,8 +50,11 @@ updated: 2026-10-10
 
 ## 失败与未验证项
 
-1. **桌面安装包（electron-builder）未构建**。`pnpm -w build:desktop` 未执行：实测一轮接近 20 分钟（`apps/desktop` 的 build 会下载 Electron 再打包），按本轮新定的「测试节奏」它属于最外环（发布前）。**目标性质已用更便宜的方式证明**：桌面壳打包的正是 `apps/app/dist`（见 `apps/desktop/package.json` 的 build 脚本），而管理端独有文案「知识库管理」在学习者端产物里出现 **0** 次、在管理端产物里 **1** 次、学习者端独有文案「我标记过的内容」出现 **1** 次（证明检索方法有效）——因此管理端不可能进入桌面产物。见 `testing/logs/artifact-exclusion.txt`。**报告因这一条停在 `partial`**：AC-007 的措辞含"桌面产物"，我不在没跑打包的情况下宣布它已完全验证。
-2. 未做性能与容量测试、未做并发写冲突验证（不在本项范围）。
+**无失败项。** 13 条验收标准与三项反向验证全部有命令、退出码与证据位置（见上）。
+
+未做（均不在本项范围）：性能与容量测试、并发写冲突验证。
+
+另有一项**反向验证没有咬住**——它不是"没做"，是"做了但结论与预期相反"：`WITH PARSER ngram`。摘掉解析器后中文检索用例仍然通过，说明设计里"不加 ngram 中文基本不召回"缺乏证据。索引已还原、探针迁移已删。详见上一节第 4 条与下面的「剩余风险」。
 
 ## 剩余风险
 

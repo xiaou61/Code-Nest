@@ -989,3 +989,13 @@ schema_version: 1
 - 协作备注：为跑 e2e **按用户明确授权强行终止了占用 8080 的另一个会话的后端进程**（PID 62940，java.exe）；随后所有 e2e 共用一个自己启动的后端并在结束时收掉。证据日志写入 `testing/logs/`，但该目录被 `.gitignore` 忽略（与 WORK-001/002/003 一致），**证据只在本机**。
 - 本地提交：TASK-007 为 `f432391`、TASK-008 为 `f31657b`、测试节奏为 `f0edc79`；本轮新增的 `V952` 与两个 e2e spec **待提交**
 - 远端推送：未执行
+
+## 2026-10-10 16:24:07 +0800 · 更正 · 上一条里"桌面安装包未构建、报告 partial"已不成立
+
+- 类型：verification
+- 变更：无新代码，只更正上一条记录的两处结论。上一条写"**未验证**：桌面安装包（electron-builder）未构建…因此 `testing/report.md` 记为 `partial`"。**现已真实构建并核对**：`pnpm -w build:desktop`（配 `ELECTRON_MIRROR` 与 `ELECTRON_BUILDER_BINARIES_MIRROR`）→ 退出码 0、**59 秒**，产物 `apps/desktop/release/Paideia Setup 0.0.1.exe`（111,601,601 字节）。安装包内 `app.asar` 文案计数：「知识库管理」（管理端独有）**0** 次、「我标记过的内容」（学习者端独有）**2** 次（反向对照，证明检索方法有效）——**管理端确实不在桌面产物里**。证据追加在 `testing/logs/artifact-exclusion.txt` 与 `testing/logs/build-desktop.txt`。据此 `testing/report.md` 由 `partial` 改为 **`passed`**，`tasks.md` 的「报告状态」同步。
+- 决策：**先确认 Electron 缓存再决定跑不跑**（缓存 419MB、`electron@44.7.0` 已装），因此实际只花 59 秒——上一条里"接近 20 分钟"是**首次下载**的代价，不是打包本身的代价。这条也修正了「测试节奏」里那条"不要用 `pnpm -r build`"的表述边界：要避免的是**把桌面打包混进日常全量构建**，而不是"永远不打桌面包"。
+- 依据：`.agent/changes/WORK-004-知识库/testing/{report.md,logs/build-desktop.txt,logs/artifact-exclusion.txt}`
+- 验证：`project-lifecycle.ps1 validate` → **`valid: true`**；WORK-004 为 `phase: completed`、`state: complete`，0 error（此前两条 error 的唯一根因就是报告为 `partial`，随报告转 `passed` 一并消失）。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
