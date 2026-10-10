@@ -55,8 +55,8 @@ class AuthController {
 
     /** 下发一张图形验证码。它是"发邮箱验证码"的前置，不保护登录。 */
     @PostMapping("/captcha")
-    ApiResponse<CaptchaResponse> captcha() {
-        CaptchaService.Challenge challenge = captchaService.issue();
+    ApiResponse<CaptchaResponse> captcha(HttpServletRequest request) {
+        CaptchaService.Challenge challenge = captchaService.issue(request.getRemoteAddr());
         return ApiResponse.ok(new CaptchaResponse(
                 challenge.captchaId(), challenge.imageBase64(), challenge.expiresAt().toString()));
     }

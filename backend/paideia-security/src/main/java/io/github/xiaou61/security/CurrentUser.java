@@ -2,6 +2,7 @@ package io.github.xiaou61.security;
 
 import io.github.xiaou61.platform.BizException;
 import io.github.xiaou61.platform.ErrorCode;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -41,7 +42,11 @@ public final class CurrentUser {
 
     private static Authentication authentication() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
+        // AnonymousAuthenticationToken 的 isAuthenticated() 同样是 true（匿名过滤器默认开启），
+        // 不单独排除的话，permitAll 路径上取到的身份会是字符串 "anonymousUser" 而不是"未认证"。
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken) {
             throw new BizException(ErrorCode.UNAUTHENTICATED);
         }
         return authentication;

@@ -9,6 +9,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -52,6 +55,38 @@ public class GlobalExceptionHandler {
             HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.<Void>failure(ErrorCode.NOT_FOUND).withTraceId(traceIdOf(request)));
+    }
+
+    /**
+     * 请求体读不出来（不是合法 JSON、类型对不上）。
+     *
+     * <p>必须显式处理：下面的兜底会把它兜成 500，而 500 意味着"服务端的问题"——
+     * 一个客户端拼错的请求体会被记成我们的故障，排查方向从一开始就偏了。
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnreadableBody(HttpMessageNotReadableException exception,
+            HttpServletRequest request) {
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.<Void>failure(ErrorCode.INVALID_ARGUMENT, "请求体无法解析")
+                        .withTraceId(traceIdOf(request)));
+    }
+
+    /** 路径存在但方法不对（例如用 GET 打只接受 POST 的端点）：405 而不是 500。 */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodNotSupported(HttpRequestMethodNotSupportedException exception,
+            HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(ApiResponse.<Void>failure(ErrorCode.INVALID_ARGUMENT, "该路径不支持此请求方法")
+                        .withTraceId(traceIdOf(request)));
+    }
+
+    /** Content-Type 不受支持：415 而不是 500。 */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException exception,
+            HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                .body(ApiResponse.<Void>failure(ErrorCode.INVALID_ARGUMENT, "不支持的 Content-Type")
+                        .withTraceId(traceIdOf(request)));
     }
 
     @ExceptionHandler(Exception.class)

@@ -8,7 +8,8 @@ import java.util.List;
 public record PageResult<T>(long total, int page, int size, List<T> items) {
 
     public PageResult {
-        items = List.copyOf(items);
+        // 空结果是最常见的返回路径之一，不能因为 items 为 null 就把整条查询打成 500
+        items = items == null ? List.of() : List.copyOf(items);
     }
 
     public static <T> PageResult<T> of(long total, PageQuery query, List<T> items) {

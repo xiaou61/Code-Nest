@@ -25,18 +25,18 @@ public interface UserMapper {
     int insert(User user);
 
     /**
-     * 按用户名或邮箱查。两者都唯一，所以一条语句能覆盖"用哪个标识登录"。
+     * 按用户名或邮箱查。两者都唯一，所以"用哪个标识登录"都能落到唯一索引上。
+     *
+     * <p>用两次单列查询，而不是 {@code username = #{identifier} OR email = #{identifier}}：
+     * 跨两列的 OR 用不上任何一个唯一索引（随用户数退化成全表扫），而且当 A 的用户名恰好等于
+     * B 的邮箱时，一条语句返回哪一行并不确定。分开查则顺序明确：先用户名，再邮箱。
      *
      * <p>库的排序规则是大小写不敏感的（{@code utf8mb4_0900_ai_ci}），因此
      * {@code Alice} 与 {@code alice} 会命中同一条记录。
      */
-    @Select("""
-            SELECT id, username, email, password_hash, role, email_verified_at
-            FROM users
-            WHERE username = #{identifier} OR email = #{identifier}
-            LIMIT 1
-            """)
-    Optional<User> findByIdentifier(@Param("identifier") String identifier);
+    default Optional<User> findByIdentifier(String identifier) {
+        return findByUsername(identifier).or(() -> findByEmail(identifier));
+    }
 
     @Select("""
             SELECT id, username, email, password_hash, role, email_verified_at

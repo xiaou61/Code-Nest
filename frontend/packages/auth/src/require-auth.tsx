@@ -32,6 +32,21 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
+/**
+ * 只接受站内相对路径，其余一律当作没有。
+ *
+ * <p>三个条件缺一不可：必须 `/` 开头；不能是 `//` 或 `/\` 开头（那是协议相对地址，
+ * 会被浏览器当成外站跳转，等于开放重定向）；不能含反斜杠或空白字符——浏览器解析 URL 时
+ * 会把反斜杠归一化成 `/`、把制表符与换行直接剥掉，于是 `/\evil.com`、`/\t//evil.com`
+ * 都能绕过只查前缀的写法。
+ */
+function safeRedirect(value: string | null): string | null {
+  if (value === null || !value.startsWith('/') || value.startsWith('//') || /[\\\s]/.test(value)) {
+    return null
+  }
+  return value
+}
+
 /** 已登录时的反向门：登录页在已登录状态下不应再展示。 */
 export function RequireGuest({ children }: { children: ReactNode }) {
   const { status } = useAuth()
@@ -42,16 +57,12 @@ export function RequireGuest({ children }: { children: ReactNode }) {
   }
   if (status === 'signed-in') {
     const params = new URLSearchParams(location.search)
-    const redirect = params.get('redirect')
-    // 只接受站内相对路径：绝对地址会被浏览器当成外站跳转，等于开了个开放重定向
-    const safe = redirect !== null && redirect.startsWith('/') && !redirect.startsWith('//')
-    return <Navigate to={safe ? redirect : '/'} replace />
+    return <Navigate to={safeRedirect(params.get('redirect')) ?? '/'} replace />
   }
   return <>{children}</>
 }
 
 /** 从地址里取登录后要回的目标地址（默认首页）。 */
 export function redirectTarget(search: string): string {
-  const redirect = new URLSearchParams(search).get('redirect')
-  return redirect !== null && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/'
+  return safeRedirect(new URLSearchParams(search).get('redirect')) ?? '/'
 }

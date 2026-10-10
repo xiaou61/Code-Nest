@@ -48,6 +48,8 @@ export function AuthProvider({
   const [user, setUser] = useState<AuthUser | null>(null)
   // 首次挂载时尝试用已保存的 refresh 恢复会话
   const started = useRef(false)
+  // 进行中的刷新：挂载恢复与 fetch 层的 401 回调必须共用同一次（见 refreshSession）
+  const inFlightRefresh = useRef<Promise<boolean> | null>(null)
 
   const apply = useCallback(
     (issued: AuthTokens) => {
@@ -65,17 +67,34 @@ export function AuthProvider({
   }, [tokens])
 
   const refreshSession = useCallback(async () => {
-    const refreshToken = tokens.refresh()
-    if (refreshToken === null) {
-      return false
+    // 单飞：刚进页面时挂载恢复与首个 401 回调会各自调一次，而 refresh 是一次性的——
+    // 两次并发必然一胜一败，败的那次会被后端判为"令牌重用"并吊销整条链，
+    // 表现就是"刷新页面后随机被踢下线"。让它们共用同一个 Promise 即可。
+    if (inFlightRefresh.current !== null) {
+      return inFlightRefresh.current
     }
+    const run = (async () => {
+      const refreshToken = tokens.refresh()
+      if (refreshToken === null) {
+        return false
+      }
+      try {
+        apply(await api.refresh(refreshToken))
+        return true
+      } catch (error) {
+        // 只有服务端明确拒绝（ApiError）才算会话失效。网络抖动、超时抛的是别的错误，
+        // 此时 refresh 仍然有效，清令牌等于因为断网把用户登出。
+        if (error instanceof ApiError) {
+          clear()
+        }
+        return false
+      }
+    })()
+    inFlightRefresh.current = run
     try {
-      apply(await api.refresh(refreshToken))
-      return true
-    } catch {
-      // refresh 过期、被吊销、或检测到重用：会话结束，不再重试
-      clear()
-      return false
+      return await run
+    } finally {
+      inFlightRefresh.current = null
     }
   }, [api, apply, clear, tokens])
 

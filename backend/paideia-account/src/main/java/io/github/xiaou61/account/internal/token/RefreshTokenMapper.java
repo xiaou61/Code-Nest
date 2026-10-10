@@ -2,6 +2,7 @@ package io.github.xiaou61.account.internal.token;
 
 import java.time.Instant;
 import java.util.Optional;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -40,4 +41,15 @@ public interface RefreshTokenMapper {
 
     @Select("SELECT COUNT(*) FROM refresh_tokens WHERE family_id = #{familyId} AND revoked_at IS NULL")
     int countAliveInFamily(@Param("familyId") String familyId);
+
+    /**
+     * 清理已过期的记录。
+     *
+     * <p>只删 {@code expires_at} 已过的：过期的 refresh 无论是否被吊销都不可能再用，
+     * 留着只会让这张表无界增长（{@code idx_refresh_expires} 就是为此准备的）。
+     * <b>不删"已吊销但未过期"的行</b>——那些行必须留着，重用检测靠它们才能认出
+     * "这枚令牌已经被换过了"并吊销整条链。
+     */
+    @Delete("DELETE FROM refresh_tokens WHERE expires_at < #{before}")
+    int deleteExpiredBefore(@Param("before") Instant before);
 }

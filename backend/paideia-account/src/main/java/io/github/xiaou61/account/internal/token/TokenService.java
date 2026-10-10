@@ -3,6 +3,7 @@ package io.github.xiaou61.account.internal.token;
 import io.github.xiaou61.account.internal.support.Digest;
 import io.github.xiaou61.account.internal.user.User;
 import io.github.xiaou61.account.internal.user.UserMapper;
+import io.github.xiaou61.platform.BizException;
 import io.github.xiaou61.security.AuthPort;
 import java.security.SecureRandom;
 import java.time.Duration;
@@ -10,6 +11,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 令牌的签发、轮换与吊销。
@@ -52,8 +54,14 @@ public class TokenService {
     /**
      * 用 refresh 换一组新令牌：旧的一次性作废，新的留在同一条链上。
      *
+     * <p>{@code noRollbackFor = BizException.class} 是有意的：本方法在"检测到重用"时先写吊销
+     * 再抛异常，用默认的"运行时异常即回滚"会把这次吊销一起回滚掉，重用检测就失效了。
+     * 反过来，基础设施异常（非 BizException）仍会回滚，于是一次失败的轮换不会把用户的
+     * 旧 refresh 白白消耗掉，客户端可以重试。
+     *
      * @throws io.github.xiaou61.platform.BizException 令牌不存在、已过期、或**检测到重用**
      */
+    @Transactional(noRollbackFor = BizException.class)
     public AuthTokens rotate(String presentedRefresh) {
         if (presentedRefresh == null || presentedRefresh.isBlank()) {
             throw AuthPort.unauthenticated("缺少刷新令牌");
@@ -72,12 +80,17 @@ public class TokenService {
             throw AuthPort.unauthenticated("登录已过期，请重新登录");
         }
 
-        refreshTokenMapper.revokeById(stored.getId(), now);
+        // 这条 UPDATE 带 `AND revoked_at IS NULL`，返回值就是"谁抢到了这次轮换"的唯一信号。
+        // 返回 0 说明另一个并发请求已经换过了；它与盗用在这里没有区别，按同一套处理：
+        // 吊销整条链、要求重新登录。
+        if (refreshTokenMapper.revokeById(stored.getId(), now) == 0) {
+            refreshTokenMapper.revokeFamily(stored.getFamilyId(), now);
+            throw AuthPort.unauthenticated("检测到登录令牌被重复使用，已终止该会话，请重新登录");
+        }
         User user = userMapper.findById(stored.getUserId())
                 .orElseThrow(() -> AuthPort.unauthenticated("登录已失效，请重新登录"));
         return issueWithin(user, stored.getFamilyId());
     }
-
     /** 登出：吊销整条链。已签发的 access 按上文说明仍有剩余寿命。 */
     public void revoke(String presentedRefresh) {
         if (presentedRefresh == null || presentedRefresh.isBlank()) {

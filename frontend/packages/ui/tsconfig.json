@@ -1,6 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    // 根配置设了 "types": []，不会自动引入任何 @types/*。本包有一个用 node: 模块与 process
+    // 的测试文件（src/styles/source-coverage.test.ts），必须在这里显式引入 node，否则类型检查必挂。
+    "types": ["node"],
     // 只给 shadcn CLI 用：它按 components.json 的 aliases 决定文件落点，
     // 没有这层映射就会把 "@/components" 当成一个字面目录名建出来。
     // 生成后本包内部一律改用相对导入 —— 应用构建时由 Vite 编译本包源码，

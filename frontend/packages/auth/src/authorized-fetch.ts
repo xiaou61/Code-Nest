@@ -57,10 +57,15 @@ export function createAuthorizedFetch(options: AuthorizedFetchOptions): typeof f
       return response
     }
 
-    // 共享同一次刷新：所有并发到达的 401 等的是同一个 Promise
-    inFlightRefresh ??= options.refresh().finally(() => {
-      inFlightRefresh = null
-    })
+    // 共享同一次刷新：所有并发到达的 401 等的是同一个 Promise。
+    // 必须接住 rejection——刷新本身抛错时若不转成 false，await 会把异常继续往上冒，
+    // 于是 onSessionLost() 不会被调用，调用方拿到的是未处理的拒绝而不是那次 401 响应。
+    inFlightRefresh ??= options
+      .refresh()
+      .catch(() => false)
+      .finally(() => {
+        inFlightRefresh = null
+      })
     const refreshed = await inFlightRefresh
     if (!refreshed) {
       options.onSessionLost()

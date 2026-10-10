@@ -46,9 +46,18 @@ export function createTokenStore(storage: TokenStorage): TokenStore {
       storage.set(REFRESH_TOKEN_KEY, tokens.refreshToken)
     },
     clear() {
-      accessToken = null
-      refreshToken = null
-      storage.remove(REFRESH_TOKEN_KEY)
+      // 先删存储再清内存：反过来的话，remove 抛异常（隐私模式、缓存接口异常）时
+      // 内存已空、磁盘上却留着可用的 refresh，而调用方已经认为登出完成、不会重试。
+      // 存储清理失败也要把内存清掉，否则界面会停在"已登录"；服务端那条 refresh
+      // 已由 logout() 吊销，残留的串本身也用不了。
+      try {
+        storage.remove(REFRESH_TOKEN_KEY)
+      } catch (error) {
+        console.warn('清除本地刷新令牌失败：', error)
+      } finally {
+        accessToken = null
+        refreshToken = null
+      }
     },
   }
 }

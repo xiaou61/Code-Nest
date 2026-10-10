@@ -12,6 +12,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
@@ -31,7 +32,10 @@ public class JwtAuthService implements AuthPort {
         this.properties = properties;
         SecretKey key = secretKey(properties.secret());
         this.encoder = new NimbusJwtEncoder(new ImmutableSecret<>(key));
-        this.decoder = NimbusJwtDecoder.withSecretKey(key).macAlgorithm(MacAlgorithm.HS256).build();
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(key).macAlgorithm(MacAlgorithm.HS256).build();
+        // 显式校验签发者：decode 的默认校验器只看时间戳，签发时写了 iss 却不校验，等于没写。
+        decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(properties.issuer()));
+        this.decoder = decoder;
     }
 
     /** 供资源服务器的过滤器使用同一个解码器：令牌的校验规则只有一份。 */

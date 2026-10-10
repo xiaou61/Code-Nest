@@ -11,4 +11,8 @@ minimumReleaseAgeExclude:
   - lucide-react@1.54.0
 
 allowBuilds:
+  # 上面注释点名的三个都必须在这里：清单漏了 electron 或 esbuild 时，pnpm 不装它们的原生二进制，
+  # 而这一步是静默跳过的——只有到 `pnpm build:desktop` 或 Vite 构建时才炸。
+  electron: true
   electron-winstaller: true
+  esbuild: true

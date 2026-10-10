@@ -62,6 +62,11 @@ export function ThemeProvider({
       return
     }
     const onChange = (event: MediaQueryListEvent): void => {
+      // 挂载之后用户可能已经显式选过主题。这个 effect 的依赖是 [storage]，setTheme 不会让它
+      // 重跑，监听器会一直留着——不加这层判断，用户挑好的主题会被随后的系统换色覆盖。
+      if (isTheme(storage?.get(THEME_KEY))) {
+        return
+      }
       const next: Theme = event.matches ? 'dark' : 'light'
       applyTheme(next)
       setThemeState(next)

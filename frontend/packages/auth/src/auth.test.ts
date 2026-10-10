@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { createAuthorizedFetch } from './authorized-fetch'
+import { redirectTarget } from './require-auth'
 import { createTokenStore } from './token-store'
 
 function memoryStorage() {
@@ -58,6 +59,26 @@ describe('令牌存储', () => {
     expect(tokens.access()).toBeNull()
     expect(tokens.refresh()).toBeNull()
     expect(store.has('refresh-token')).toBe(false)
+  })
+
+  it('存储清理失败时内存照样清掉，且不把异常抛给调用方', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const storage = {
+      get: () => 'refresh-1',
+      set: () => {},
+      // 隐私模式/缓存接口异常：remove 会抛
+      remove: () => {
+        throw new Error('storage disabled')
+      },
+    }
+    const tokens = createTokenStore(storage)
+
+    expect(() => tokens.clear()).not.toThrow()
+    // 内存必须清掉，否则界面会停在"已登录"
+    expect(tokens.access()).toBeNull()
+    expect(tokens.refresh()).toBeNull()
+    expect(warn).toHaveBeenCalled()
+    warn.mockRestore()
   })
 })
 
@@ -152,5 +173,46 @@ describe('带令牌的 fetch', () => {
 
     expect(response.status).toBe(401)
     expect(refresh).not.toHaveBeenCalled()
+  })
+
+  it('刷新本身抛错时也按会话结束处理，不把 rejection 漏给调用方', async () => {
+    const { storage } = memoryStorage()
+    const tokens = createTokenStore(storage)
+    tokens.set({ accessToken: 'stale', refreshToken: 'refresh-1' })
+    const baseFetch = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => jsonResponse(401))
+    const onSessionLost = vi.fn()
+    const fetchWithAuth = createAuthorizedFetch({
+      tokens,
+      // 网络断了：刷新是 reject 而不是 resolve(false)
+      refresh: async () => {
+        throw new Error('network down')
+      },
+      onSessionLost,
+      baseFetch: baseFetch as unknown as typeof fetch,
+    })
+
+    const response = await fetchWithAuth('/api/v1/me')
+
+    expect(response.status).toBe(401)
+    expect(onSessionLost).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('登录后回跳地址', () => {
+  it('只接受站内相对路径', () => {
+    expect(redirectTarget('?redirect=%2Fcourses%2F1')).toBe('/courses/1')
+  })
+
+  it('挡掉协议相对、反斜杠与空白字符这些绕过写法', () => {
+    // //evil.com —— 协议相对地址，浏览器会跳到外站
+    expect(redirectTarget('?redirect=%2F%2Fevil.com')).toBe('/')
+    // /\evil.com —— 反斜杠会被浏览器归一化成 `/`
+    expect(redirectTarget('?redirect=%2F%5Cevil.com')).toBe('/')
+    // "/\t//evil.com" —— 制表符会被浏览器直接剥掉
+    expect(redirectTarget('?redirect=%2F%09%2F%2Fevil.com')).toBe('/')
+    // 绝对地址
+    expect(redirectTarget('?redirect=https%3A%2F%2Fevil.com')).toBe('/')
+    // 没有该参数
+    expect(redirectTarget('')).toBe('/')
   })
 })

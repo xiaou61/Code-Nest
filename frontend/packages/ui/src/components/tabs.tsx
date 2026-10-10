@@ -13,6 +13,9 @@ function Tabs({
     <TabsPrimitive.Root
       data-slot="tabs"
       data-orientation={orientation}
+      // orientation 必须同时透传给原语：键盘方向键导航与 aria-orientation 都由它决定，
+      // 只写 data-orientation 会出现"看着是竖排、键盘却按横排走"的不一致。
+      orientation={orientation}
       className={cn(
         "group/tabs flex gap-2 data-horizontal:flex-col",
         className

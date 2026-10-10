@@ -758,3 +758,90 @@ schema_version: 1
 - 验证：`git show 3607d5f --stat` 显示 `updates.md +86`、`always.md 4 +-`，均大于本会话自身改动量。**未运行构建与测试**：本轮无源码改动。
 - 本地提交：3607d5f（归档审查报告）
 - 远端推送：未执行
+
+## 2026-10-10 13:38:11 +0800 · WORK-004 · 修正两处失效的条款交叉引用
+
+- 类型：maintenance
+- 变更：需求里「设计阶段由 Agent 收口的决定」的编号由第 8—11 条顺延为第 10—12 条（用户裁决的「本地文件存储」「文件端点不鉴权」占用了第 8、9 条）之后，`proposal.md` 与 `design.md` 的「待决定事项」仍指向旧编号、且仍列着已被文件上传取代的"不含图片"。两处交叉引用一并更正。
+- 决策：只改交叉引用与措辞，**不动任何决定、范围或数据结构**；四件工件仍为 `draft`，不重开门槛。
+- 依据：`.agent/changes/WORK-004-知识库/{requirements.md,proposal.md,design.md}`
+- 验证：人工比对三件的条款编号一致；**未运行构建与测试**（无源码改动）。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 13:40:55 +0800 · WORK-004 · 签署 .agent/changes/WORK-004-知识库/requirements.md
+
+- 类型：decision
+- 变更：.agent/changes/WORK-004-知识库/requirements.md 由 xiaou61 签署为 approved
+- 决策：审批人 xiaou61（CTO）；approved_by / approved_at 由命令入口盖章，不由模型写入
+- 依据：.agent/changes/WORK-004-知识库/requirements.md
+- 验证：回读 frontmatter：approved_by / approved_at=2026-10-10 13:40:54 +0800
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 13:40:58 +0800 · WORK-004 · 签署 .agent/changes/WORK-004-知识库/proposal.md
+
+- 类型：decision
+- 变更：.agent/changes/WORK-004-知识库/proposal.md 由 xiaou61 签署为 approved
+- 决策：审批人 xiaou61（CTO）；approved_by / approved_at 由命令入口盖章，不由模型写入
+- 依据：.agent/changes/WORK-004-知识库/proposal.md
+- 验证：回读 frontmatter：approved_by / approved_at=2026-10-10 13:40:58 +0800
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 13:41:01 +0800 · WORK-004 · 签署 .agent/changes/WORK-004-知识库/design.md
+
+- 类型：decision
+- 变更：.agent/changes/WORK-004-知识库/design.md 由 xiaou61 签署为 approved
+- 决策：审批人 xiaou61（CTO）；approved_by / approved_at 由命令入口盖章，不由模型写入
+- 依据：.agent/changes/WORK-004-知识库/design.md
+- 验证：回读 frontmatter：approved_by / approved_at=2026-10-10 13:41:01 +0800
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 13:41:05 +0800 · WORK-004 · 签署 .agent/changes/WORK-004-知识库/tasks.md
+
+- 类型：decision
+- 变更：.agent/changes/WORK-004-知识库/tasks.md 由 xiaou61 签署为 approved
+- 决策：审批人 xiaou61（CTO）；approved_by / approved_at 由命令入口盖章，不由模型写入
+- 依据：.agent/changes/WORK-004-知识库/tasks.md
+- 验证：回读 frontmatter：approved_by / approved_at=2026-10-10 13:41:04 +0800
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 13:42:28 +0800 · WORK-004 · 已批准工件的一处本地订正：迁移编号不得写死 V2
+
+- 类型：maintenance
+- 变更：批准后立即发现一处**会导致运行期失败的事实错误**并就地订正。`design.md` 与 `tasks.md` 原本把建表迁移写成 `V2__create_knowledge_tables.sql`；但工作区里另有会话未提交的 `backend/paideia-app/src/main/resources/db/migration/V2__pin_account_table_collation.sql`，**两个同号迁移会让 Flyway 直接失败**。改动三处：`design.md` 的「系统上下文」与「持久化与迁移」、`tasks.md` 的「全局约束」与 TASK-001（标题由"三张表"改为"四张表"、把 `V2__…` 换成 `<下一个可用编号>__…`、验证项不再断言"迁移 V2 已执行"）。**未改动任何源码。**
+- 决策：按 `design.md` 自身的原则（编号不写死）订正，而不是等实施时踩坑。因为这是**不改变范围、接口、数据与架构的纯事实订正**（迁移文件名与一个被遗漏的"四张表"措辞），按流程作为**局部事实修正**记录，不把已批准的 `design.md` / `tasks.md` 退回 `draft` 重签。
+- 依据：`.agent/changes/WORK-004-知识库/{design.md,tasks.md}`；`git status` 中未跟踪的 `V2__pin_account_table_collation.sql`
+- 验证：人工比对四件的迁移编号口径一致（需求 AC-001 只说"迁移执行通过"，不含编号，无需改）；`git status` 确认该 V2 文件仍属其他会话、未被本会话触碰。**未运行构建与测试**（无源码改动）。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 13:47:14 +0800 · 项目 · 新建范围外能力登记（`.agent/notes/deferred-scope.md`）
+
+- 类型：decision
+- 变更：新建 `.agent/notes/deferred-scope.md`。起因是用户 2026-10-10 问「不做这些都留到哪里了」，核查后发现被划到范围外的能力分成三种处境：3 项有计划中的工作项（WORK-005／006／007）、8 项在项目级暂缓清单里、**12 项只活在某份需求的「非目标」一句里、没有任何承接**——其中包括**掌握度与学习路径**这一产品定位命门。登记内容：范围清单四节（已计划未建项／推迟无归属／暂缓或已否决但有归处／未裁决无归属）、每项的状态与触发条件、以及一份「已被后续工作答掉但清单未回填」的过期旧条目对照表。**未改动任何源码。**
+- 决策：放在 `.agent/notes/` 写成**单篇决策说明**，而不是建空壳工作项、也不是写进 `.agent/INDEX.md` 或 `.agent/memory.md`。理由：`references/notes.md` 明确把「一个能力被明确划到范围外，需要留下理由，避免反复被提起」列为该写决策说明的情形；建空壳工作项会污染"当前活动工作项"查询，且工作项开启权在用户手里；INDEX 自己写明不复制阶段与任务状态，而这份清单的核心信息正是状态。
+- 决策（边界）：本篇**不复制** WORK-005／006／007 的范围描述，只登记其存在、依赖与启动条件，避免两处记录同一件事；同时在本篇内明写"掌握度与学习路径是产品命门却无人承接"这一缺口，把问题放在能被读到的地方。
+- 依据：`.agent/notes/deferred-scope.md`；`C:\Users\Lenovo\.agents\skills\project-lifecycle\references\notes.md`；`.agent/changes/WORK-004-知识库/requirements.md`；`.agent/rules/always.md`
+- 验证：核查范围为对 `.agent/` 逐关键词检索（掌握度／学习路径／作答／判分／向量／富文本／版本历史／孤儿／多语言／SEO／全局关系图／音视频／对象存储），确认各项的现存记录位置与承接情况，再据此填表。**未运行构建与测试**（无源码改动）。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 13:55:00 +0800 · WORK-003 · 修复审查的"该修"四批（前端会话链、后端错误处理、账号安全剩余、前端构建）
+
+- 类型：implementation
+- 变更：按全库审查的分批清单改动 20 余个文件。
+  - 批 1 前端会话链：`auth-context.refreshSession` 加单飞（挂载恢复与 fetch 层 401 回调此前会各发一次 refresh，而 refresh 是一次性的 → 撞后端重用检测 → 随机被踢下线），并只在 `ApiError` 时清会话（此前网络故障也把用户登出）；`authorized-fetch` 把刷新的 rejection 收敛成 `false`（此前异常上抛，`onSessionLost()` 不执行、调用方收到未处理的拒绝）；`token-store.clear` 改为先删存储再清内存且不向调用方抛异常；`require-auth` 的站内跳转校验抽成 `safeRedirect`，补上 `/\evil.com`、`/\t//evil.com` 这类绕过（浏览器会把反斜杠归一化成 `/`、把制表符直接剥掉）。
+  - 批 2 后端错误处理与契约：`GlobalExceptionHandler` 补 `HttpMessageNotReadableException`(400)、`HttpRequestMethodNotSupportedException`(405)、`HttpMediaTypeNotSupportedException`(415)——此前它们全被兜底成 500，把客户端错误记成服务端故障；`PageResult` 的 `items` 为 null 时按空列表处理（此前"无结果"这条常见路径直接 NPE）；`PageQuery` 把归一化移进紧凑构造器（此前 public 标准构造器可绕过 `of()`），并为 `sort` 加语法约束且注明"这不是注入防线"；`CurrentUser` 排除匿名令牌（`isAuthenticated()` 对匿名令牌同样为 true，permitAll 路径上会拿到 `"anonymousUser"`）；`ApiResponseBodyAdvice` 只包装 JSON 响应（此前非 JSON 如文件下载也会被套进 ApiResponse）。
+  - 批 3 账号安全剩余：`UserMapper.findByIdentifier` 改用已有的 `findByUsername`/`findByEmail` 两次单列查询（`OR` 跨两列用不上任何唯一索引，且当 A 的用户名等于 B 的邮箱时命中不确定）；`TokenService.rotate` 判断 `revokeById` 的返回值（SQL 里的并发保护此前写了却被丢弃），并加 `@Transactional(noRollbackFor = BizException.class)`；`RefreshTokenMapper` 新增 `deleteExpiredBefore` 并由 `ExpiredStatePurger` 调用（此前 `refresh_tokens` 只进不出）；`CaptchaService.issue` 改为按来源限流，并把"答案库满"从 `IllegalStateException`(500) 改成 429，`AuthController` 传入来源地址；`JwtAuthService` 显式校验 issuer（decode 默认校验器只看时间戳）；新增 `V2__pin_account_table_collation.sql` 把两张账号表的字符集与排序规则钉死（V1 的注释依赖大小写不敏感却没声明，换实例即静默失效）。
+  - 批 4 前端构建与行为：`pnpm-workspace.yaml` 的 `allowBuilds` 补上 `electron` 与 `esbuild`；`packages/ui` 补 `@types/node`（`tsconfig` 按 `packages/core` 的写法声明 `types: ["node"]`，否则用 `node:` 的测试文件过不了类型检查）与 `react-dom`/`@types/react-dom`；`spinner.tsx` 补 `React` 导入（此前用了 `React.ComponentProps` 却没导入）；`tabs.tsx` 把 `orientation` 透传给底层原语（此前只写 `data-` 属性，键盘导航与 ARIA 与视觉不一致）；`theme-context` 的系统偏好监听在应用前先查存储（此前用户已显式选过的主题会被随后的系统换色覆盖）。
+  - 新增测试：`packages/auth` 的 `auth.test.ts` 增 4 条（存储清理失败、刷新 reject 时也走会话结束、跳转地址的两种绕过写法），新增 `auth-context.test.tsx` 2 条（单飞只发一次刷新、网络故障不结束会话）。
+- 决策：不动审查清单里剩余的部分——UI 组件的 nits 与无障碍、SNAPSHOT 版本策略，以及三条"先核实再动"的项（`Digest` 无盐哈希我判断被高估，摘要只在内存且 TTL 5~10 分钟；`PasswordHasher` 时序已被 `LoginRequest` 的 `@Valid @NotBlank` 挡住；`AccountApiImplementation` 的 NPE 经查 `findRoleById` 目前无任何调用方，属潜在路径，1 行守卫留到它出现调用方时）。`allowBuilds` 的键名经实测确认有效：pnpm 12.10.1 对不认识的键直接报 `ERR_PNPM_UNRECOGNIZED_WORKSPACE_SETTINGS`，而 `allowBuilds` 不报，因此清单缺失是真问题。`packages/auth` 的 `react-dom` 未补：加测试前后渲染测试都能解析到它（属"可解析但未声明"），不为未复现的问题新增依赖。
+- 依据：`.agent/reviews/2026-10-10-scan-8ac11d9.md`（"该修"清单）；用户 2026-10-10 指示"这几处一起处理了"
+- 验证：后端 `mvn -B verify -Dspring-boot.repackage.skip=true`（跳过打包：本机 java 进程占用 target jar）**BUILD SUCCESS**，76 个测试 0 失败，含 `AccountAuthIntegrationTest` 13/13（覆盖验证码尝试上限、验证码与发信流程、refresh 轮换）、`AuthorizationIsolationTest` 9/9、`JwtAuthServiceTest` 11/11、`PlatformContractTest` 7/7（正好校验被改的 `PageQuery` 归一化）、`PaginationIntegrationTest` 4/4；`V2__pin_account_table_collation.sql` 在上下文启动时正常应用。前端 `pnpm -r typecheck` 9 个包全过，`pnpm -r test` 全过（core 14、platform-desktop 4、ui 17、auth 13）；依赖增补触发的 `pnpm install` 只需从 store 复用（8 秒），lockfile 已同步。**未跑 e2e**：`test:e2e` 需要先构建前端产物与后端 jar，本轮未做。
+- 协作备注：本轮的 `V2__pin_account_table_collation.sql` 曾与 WORK-004 计划中的建表迁移同号；该工作项已于 13:42 把自身工件里的编号改为"下一个可用编号"避让（见该条记录），因此本文件保持 V2、不需改名。两条迁移的编号在提交后由后者取其时的下一个空号即可。
+- 本地提交：见本轮提交
+- 远端推送：未执行
