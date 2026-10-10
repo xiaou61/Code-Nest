@@ -1,9 +1,23 @@
+import { LoginForm, useAuth } from '@paideia/auth'
 import { useQuery } from '@tanstack/react-query'
-import { AppShell, Badge, Card, CardContent, CardHeader, CardTitle, Empty, EmptyDescription, EmptyHeader, EmptyTitle, PageHeader } from '@paideia/ui'
+import {
+  AppShell,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+  PageHeader,
+  Spinner,
+} from '@paideia/ui'
 
 import { api } from '../api'
-import { RequireAdmin } from '../guard'
-import { sessionReader } from '../session'
+import { AdminDenied, canEnterAdmin } from '../guard'
 
 interface HealthResponse {
   status: string
@@ -11,8 +25,8 @@ interface HealthResponse {
 }
 
 /**
- * 后端状态徽标。放在应用外壳里，因此**在有守卫的情况下也会渲染** ——
- * 被拒的页面上因此同样能证明接口链路是通的，而不是"因为没权限所以什么都看不到"。
+ * 后端状态徽标。放在应用外壳里，因此**在所有状态下都会渲染** ——
+ * 未登录或权限不足时同样能证明接口链路是通的，而不是"什么都连不上"。
  */
 function BackendStatus() {
   const health = useQuery({
@@ -33,19 +47,69 @@ function BackendStatus() {
   )
 }
 
+/** 页头的账号区。 */
+function AccountBar() {
+  const { user, logout } = useAuth()
+  if (user === null) {
+    return null
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-muted-foreground text-xs" data-testid="admin-current-user">
+        {user.username}
+      </span>
+      <Button variant="ghost" size="sm" data-testid="admin-logout" onClick={() => void logout()}>
+        登出
+      </Button>
+    </div>
+  )
+}
+
+/**
+ * 管理端。它只有一屏，所以**不引路由**：登录视图是这一屏的一个状态。
+ *
+ * <p>四种状态依次是：确认登录状态 → 未登录（显示登录表单）→ 已登录但非管理员（明确告知被拒）
+ * → 管理员（显示管理区）。第三种刻意不是"跳走"而是"说清楚"，授权缺失必须看得见。
+ */
 export function AdminHomePage() {
-  const session = sessionReader.current()
+  const { status, user } = useAuth()
 
   return (
-    <AppShell title="Paideia 管理端" subtitle="仅 Web" actions={<BackendStatus />}>
-      <PageHeader
-        title="管理端"
-        description="这个应用与学习者端同仓共享组件，但不进入桌面安装包。"
-      />
-
-      <RequireAdmin session={session}>
+    <AppShell
+      title="Paideia 管理端"
+      subtitle="仅 Web"
+      actions={
+        <div className="flex items-center gap-2">
+          <BackendStatus />
+          <AccountBar />
+        </div>
+      }
+    >
+      {status === 'loading' ? (
+        <div className="text-muted-foreground flex items-center justify-center gap-2 py-16 text-sm">
+          <Spinner />
+          正在确认登录状态…
+        </div>
+      ) : status === 'signed-out' ? (
+        <div className="mx-auto max-w-sm py-8" data-testid="admin-sign-in">
+          <PageHeader title="管理端登录" description="管理端与学习者端共用一套账号。登录后仍需具备管理员角色。" />
+          <Card>
+            <CardHeader>
+              <CardTitle>账号登录</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <LoginForm />
+            </CardContent>
+          </Card>
+        </div>
+      ) : canEnterAdmin(user) ? (
         <AdminConsole />
-      </RequireAdmin>
+      ) : (
+        <>
+          <PageHeader title="管理端" description="当前账号没有管理权限。" />
+          <AdminDenied user={user} />
+        </>
+      )}
     </AppShell>
   )
 }
@@ -57,6 +121,7 @@ export function AdminHomePage() {
 function AdminConsole() {
   return (
     <div data-testid="admin-console">
+      <PageHeader title="管理端" description="已确认管理员身份。" />
       <Card>
         <CardHeader>
           <CardTitle>管理区</CardTitle>

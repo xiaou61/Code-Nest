@@ -1,12 +1,9 @@
-import { createApiClient } from '@paideia/core'
-
-import { API_BASE_URL } from './env'
+import { auth } from './auth'
 
 /**
- * 全局 API 客户端。令牌读取暂时返回 null（认证在 TASK-005 接入）；
- * 调用点已经收在这里，接入认证时只改这一处，业务代码不动。
+ * 页面使用的数据客户端。
+ *
+ * <p>由认证接线装配：带 `Authorization` 头，遇到 401 会刷新一次并重放原请求；
+ * 令牌读取与刷新的实现都在 `./auth`，页面**不直接碰令牌**。
  */
-export const api = createApiClient({
-  baseUrl: API_BASE_URL,
-  getToken: () => null,
-})
+export const api = auth.api

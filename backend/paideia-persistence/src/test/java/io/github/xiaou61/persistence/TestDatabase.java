@@ -44,6 +44,12 @@ final class TestDatabase {
         Flyway.configure()
                 .dataSource(dataSource)
                 .locations("classpath:db/testdata")
+                // 关掉校验是必要的：本模块的测试与 paideia-app 的测试共用同一个 paideia_test 库，
+                // 而应用那边会按 classpath:db/migration,classpath:db/testdata 迁移。
+                // 那个库的历史里因此会有本模块解析不到的 V1 —— Flyway 会判为
+                // "已应用但本地找不到" 并让本模块的测试整片失败。
+                // 本助手的职责只是"保证夹具表在"，生产 schema 的归属与校验属于应用侧。
+                .validateOnMigrate(false)
                 .load()
                 .migrate();
     }

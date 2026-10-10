@@ -7,6 +7,24 @@ spring:
   flyway:
     # 生产迁移 + 来自 paideia-persistence test-jar 的测试夹具表
     locations: classpath:db/migration,classpath:db/testdata
+    # 必须放开乱序，原因是两套编号规则的结构性冲突：
+    # 夹具用 V900+ 编号（刻意排在所有生产迁移之后），生产迁移从 V1 开始。
+    # 于是"夹具已应用、之后新增一个更低版本的生产迁移"在 Flyway 眼里就是乱序，
+    # validateOnMigrate 会直接拒绝并让整个测试上下文起不来——**每加一个生产迁移都会复发**。
+    # 只在测试 profile 放开；生产迁移自身仍按版本顺序演进，不因此变得随意。
+    out-of-order: true
+    # paideia_test 这个库被**三种迁移配置**共用：
+    #   ① 本 profile：db/migration + db/testdata
+    #   ② 端到端测试的后端：db/migration + db/devdata
+    #   ③ paideia-persistence 的集成测试：只有 db/testdata
+    # 于是历史表里会出现"本方 locations 解析不到的已应用版本"，按方向分成两种：
+    #   *:future  —— 已应用版本高于本方解析出的最高版本（例：e2e 的 V950 之于本 profile 的 V900）
+    #   *:missing —— 已应用版本在本方解析不到且不高于最高版本（例：夹具 V900 之于 e2e 的 V950）
+    # 两个方向都要忽略；不忽略的话，任何一方跑过之后另一方都起不来。
+    # 生产不受影响：那边的 locations 只有 db/migration，不存在别人的版本。
+    ignore-migration-patterns:
+      - '*:future'
+      - '*:missing'
 
 paideia:
   auth:

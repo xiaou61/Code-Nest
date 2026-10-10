@@ -2,17 +2,24 @@ package io.github.xiaou61.security;
 
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.List;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
@@ -21,8 +28,13 @@ import org.springframework.security.web.SecurityFilterChain;
  * <p>不建会话、不用 Cookie，因此关闭 CSRF——浏览器会话认证在桌面壳里本就不可靠
  * （页面来源于自定义协议，{@code SameSite}/{@code Secure} 语义失效），统一走 Authorization 头。
  *
- * <p>放行规则：健康检查、错误页、以及仅开发 profile 打开的签发端点；
+ * <p>放行规则：健康检查、错误页、以及 <b>{@code /api/v1/auth/**}</b> 下的凭据交换端点；
  * 其余（含 Actuator 的其他端点）一律要求已认证。
+ *
+ * <p><b>前缀纪律</b>：{@code /api/v1/auth/**} 整体放行 —— 该前缀下只允许放"用凭据换令牌"
+ * 或"令牌自身操作"的端点（验证码、发信、注册、登录、刷新、登出）。**不得**把任何读取
+ * 业务数据的端点挂到这个前缀下，否则它会默默变成公开接口。这条靠约定而不是靠配置拦住，
+ * 所以写在这里显式提醒。
  */
 @Configuration(proxyBeanMethods = false)
 @EnableWebSecurity
@@ -30,6 +42,9 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(SecurityConfiguration.class);
+
+    /** 角色 claim 对应的权限前缀，与 Spring Security 的 {@code hasRole} 约定一致。 */
+    private static final String ROLE_AUTHORITY_PREFIX = "ROLE_";
 
     @Bean
     JwtAuthService authPort(AuthProperties properties) {
@@ -59,8 +74,32 @@ public class SecurityConfiguration {
         return authPort.decoder();
     }
 
+    /**
+     * 把角色 claim 映射为权限。
+     *
+     * <p>必须显式提供：Spring 默认只从 {@code scope}/{@code scp} 读权限，而我们的角色在
+     * {@code role} claim 里 —— 不映射的话令牌通过校验却没有任何权限，表现为"已登录但什么都不能做"。
+     *
+     * <p>角色值是小写的（与数据库和前端一致），权限名统一大写为 {@code ROLE_ADMIN} /
+     * {@code ROLE_LEARNER}，与 {@code hasRole('ADMIN')} 的约定对齐。**认不出的角色映射为
+     * 空权限**（认证通过但无权），不做任何降级猜测。
+     */
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    Converter<Jwt, AbstractAuthenticationToken> jwtAuthenticationConverter() {
+        return jwt -> {
+            String role = jwt.getClaimAsString(JwtAuthService.ROLE_CLAIM);
+            List<GrantedAuthority> authorities = role == null || role.isBlank()
+                    ? List.of()
+                    : List.of(new SimpleGrantedAuthority(
+                            ROLE_AUTHORITY_PREFIX + role.toUpperCase(Locale.ROOT)));
+            return new JwtAuthenticationToken(jwt, authorities, jwt.getSubject());
+        };
+    }
+
+    @Bean
+    SecurityFilterChain securityFilterChain(
+            HttpSecurity http, Converter<Jwt, AbstractAuthenticationToken> jwtAuthenticationConverter)
+            throws Exception {
         http
                 // 必须显式接管 CORS：否则预检 OPTIONS 会先被下面的 anyRequest().authenticated() 挡成 401，
                 // 表现为"浏览器直接调通、跨域调用全挂"。规则本身来自 paideia-web 的 WebMvcConfigurer。
@@ -70,9 +109,11 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(requests -> requests
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers("/error").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/token").permitAll()
+                        // 见类注释的前缀纪律：这个前缀下只放凭据交换类端点
+                        .requestMatchers("/api/v1/auth/**").permitAll()
                         .anyRequest().authenticated())
-                .oauth2ResourceServer(resourceServer -> resourceServer.jwt(Customizer.withDefaults()));
+                .oauth2ResourceServer(resourceServer -> resourceServer
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)));
         return http.build();
     }
 }

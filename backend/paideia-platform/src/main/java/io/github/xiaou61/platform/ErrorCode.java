@@ -11,6 +11,8 @@ public enum ErrorCode {
     FORBIDDEN(40300, "无权访问"),
     NOT_FOUND(40400, "资源不存在"),
     CONFLICT(40900, "状态冲突"),
+    /** 触发限流。与 CONFLICT 分开是因为语义不同：前者是状态冲突，后者是"等一会儿再来"。 */
+    TOO_MANY_REQUESTS(42900, "请求过于频繁"),
     INTERNAL(50000, "服务器内部错误");
 
     private final int code;

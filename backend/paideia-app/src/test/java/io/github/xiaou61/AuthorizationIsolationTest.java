@@ -53,7 +53,7 @@ class AuthorizationIsolationTest {
     }
 
     private String tokenFor(String subject) {
-        return "Bearer " + authPort.issue(subject).value();
+        return "Bearer " + authPort.issue(new AuthPort.Subject(subject, AuthPort.ROLE_LEARNER)).value();
     }
 
     @Test

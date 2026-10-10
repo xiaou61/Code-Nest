@@ -31,8 +31,23 @@
       <groupId>io.github.xiaou61</groupId>
       <artifactId>paideia-security</artifactId>
     </dependency>
+    <dependency>
+      <groupId>io.github.xiaou61</groupId>
+      <artifactId>paideia-account</artifactId>
+    </dependency>
 
-    <!-- schema 迁移。数据源只在 local/test profile 提供，默认 profile 下 Flyway 自动装配被跳过 -->
+    <!--
+      schema 迁移。数据源只在 local/test profile 提供，默认 profile 下不存在数据源，Flyway 自然不执行。
+
+      注意 spring-boot-flyway 这一项**不能省**：Boot 4 把各自动装配拆成了独立模块
+      （spring-boot-jackson、spring-boot-webmvc 同理），只引 flyway-core 的话
+      FlywayAutoConfiguration 根本不在类路径上——表现为"迁移从不执行"，
+      既不报错也不打日志，表和约束静默不存在。这一条是实测出来的。
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-flyway</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.flywaydb</groupId>
       <artifactId>flyway-core</artifactId>
@@ -73,6 +88,14 @@
     <dependency>
       <groupId>io.github.xiaou61</groupId>
       <artifactId>paideia-persistence</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <!-- 复用账号模块的测试装配（内存信箱），使注册链路的验证不依赖真实 SMTP -->
+    <dependency>
+      <groupId>io.github.xiaou61</groupId>
+      <artifactId>paideia-account</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

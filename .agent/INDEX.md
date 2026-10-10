@@ -31,11 +31,13 @@ status: active
 | 通用契约 `paideia-platform` | `backend/paideia-platform/` | `src/test/java/io/github/xiaou61/platform/PlatformContractTest.java` | — | WORK-001 |
 | Web 基础设施 `paideia-web` | `backend/paideia-web/` | `src/test/java/io/github/xiaou61/web/` | — | WORK-001 |
 | 数据访问 `paideia-persistence` | `backend/paideia-persistence/` | `src/test/java/io/github/xiaou61/persistence/` | — | WORK-001 |
-| 认证授权 `paideia-security` | `backend/paideia-security/` | `src/test/java/io/github/xiaou61/security/` | — | WORK-001 |
-| 启动模块 `paideia-app` | `backend/paideia-app/` | `src/test/java/io/github/xiaou61/`（含授权隔离与模块边界校验） | — | WORK-001 |
+| 认证授权 `paideia-security` | `backend/paideia-security/` | `src/test/java/io/github/xiaou61/security/` | — | WORK-001、WORK-003 |
+| 账号与认证 `paideia-account` | `backend/paideia-account/`（账号表与注册登录、图形与邮箱验证码、refresh 轮换；对外契约在包根 `AccountApi`） | `src/test/java/io/github/xiaou61/account/`；集成测试在 `paideia-app`（`AccountAuthIntegrationTest`） | — | WORK-003 |
+| 启动模块 `paideia-app` | `backend/paideia-app/` | `src/test/java/io/github/xiaou61/`（含授权隔离、认证集成与模块边界校验） | — | WORK-001、WORK-003 |
 | 前端工作区 | `frontend/pnpm-workspace.yaml`、`frontend/package.json` | — | — | WORK-001、WORK-002 |
 | 设计系统 `@paideia/ui` | `frontend/packages/ui/`（`styles/globals.css` 是令牌唯一来源，`components/` 是基元，`theme/` 是主题与首屏脚本，`layout/` 是外壳） | `src/tokens.test.ts`（令牌单一来源）、`src/theme/contrast.test.ts`（WCAG 对比度）、`src/theme/theme-context.test.tsx` | — | WORK-001、WORK-002 |
 | 端口与 API 客户端 `@paideia/core` | `frontend/packages/core/`（`session.ts` 是角色判断的唯一入口） | `src/api.test.ts`、`src/workspace-boundaries.test.ts`、`src/session.test.ts` | — | WORK-001、WORK-002 |
+| 共享认证 `@paideia/auth` | `frontend/packages/auth/`（令牌存储、401 刷新重放、登录/注册表单、登录门） | `src/auth.test.ts` | — | WORK-003 |
 | Web 平台适配 `@paideia/platform-web` | `frontend/packages/platform-web/` | — | — | WORK-001 |
 | 桌面平台适配 `@paideia/platform-desktop` | `frontend/packages/platform-desktop/`（`createBridgeCache` 由启动快照初始化同步镜像） | `src/index.test.ts` | — | WORK-001、WORK-002 |
 | 学习者端 `@paideia/app` | `frontend/apps/app/`（Web 与桌面共用产物，端口 5173） | `e2e/home.spec.ts` | — | WORK-001、WORK-002 |

@@ -1,3 +1,4 @@
+import { useAuth } from '@paideia/auth'
 import {
   Alert,
   AlertDescription,
@@ -19,6 +20,25 @@ import { api } from '../api'
 import { API_BASE_URL } from '../env'
 import { usePlatform } from '../platform'
 
+/** 页头的账号区：显示当前用户与登出入口。 */
+function AccountBar() {
+  const { user, logout } = useAuth()
+  if (user === null) {
+    return null
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-muted-foreground text-xs" data-testid="current-user">
+        {user.username}
+      </span>
+      <Badge variant="outline">{user.role === 'admin' ? '管理员' : '学习者'}</Badge>
+      <Button variant="ghost" size="sm" data-testid="logout" onClick={() => void logout()}>
+        登出
+      </Button>
+    </div>
+  )
+}
+
 interface HealthResponse {
   status: string
   groups?: string[]
@@ -34,15 +54,15 @@ export function HomePage() {
     queryKey: ['backend-health'],
     queryFn: () => api.request<HealthResponse>('/actuator/health'),
   })
-  // 受保护接口：当前还没有登录流程，因此正常情况下这里会拿到 401。
-  // 这正是要展示的事实——该接口确实受保护，不是浏览器拿到就能读。
+  // 受保护接口：身份只从令牌解析。登录之后这里会返回当前主体的标识，
+  // 而在没有令牌时后端会拒为 401（e2e 用不带令牌的直连请求断言这一点）。
   const identity = useQuery({
     queryKey: ['backend-identity'],
     queryFn: () => api.requestEnvelope<SubjectResponse>('/api/v1/me').then((data) => data.subject),
   })
 
   return (
-    <AppShell title="Paideia" subtitle="骨架">
+    <AppShell title="Paideia" subtitle="骨架" actions={<AccountBar />}>
       <PageHeader
         title="Paideia 骨架"
         description="本页展示的是后端接口的真实返回，不是硬编码数据。"

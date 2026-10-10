@@ -23,6 +23,7 @@
     <module>paideia-web</module>
     <module>paideia-persistence</module>
     <module>paideia-security</module>
+    <module>paideia-account</module>
     <module>paideia-app</module>
   </modules>
 
@@ -58,6 +59,11 @@
       <dependency>
         <groupId>io.github.xiaou61</groupId>
         <artifactId>paideia-security</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.github.xiaou61</groupId>
+        <artifactId>paideia-account</artifactId>
         <version>${project.version}</version>
       </dependency>
     </dependencies>

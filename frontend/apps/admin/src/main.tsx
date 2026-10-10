@@ -1,18 +1,12 @@
-import '@paideia/ui/styles.css'
-
-import { createWebPlatform } from '@paideia/platform-web'
+import { AuthProvider, useAuth } from '@paideia/auth'
 import { ThemeProvider } from '@paideia/ui'
+import '@paideia/ui/styles.css'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { StrictMode } from 'react'
+import { StrictMode, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 
+import { auth, platform } from './auth'
 import { AdminHomePage } from './pages/AdminHomePage'
-
-/**
- * 组合根。管理端只有一屏，因此不引路由——真出现第二屏时再加，
- * 现在装一个只服务单页的路由是没人用的脚手架。
- */
-const platform = createWebPlatform()
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,6 +17,15 @@ const queryClient = new QueryClient({
   },
 })
 
+/** 把认证上下文的刷新实现注册给带令牌的 fetch（原因见 apps/app/src/auth.ts 的说明）。 */
+function RefreshBridge() {
+  const { refreshSession } = useAuth()
+  useEffect(() => {
+    auth.registerRefresh(refreshSession)
+  }, [refreshSession])
+  return null
+}
+
 const container = document.getElementById('root')
 if (container === null) {
   throw new Error('找不到挂载节点 #root')
@@ -32,7 +35,10 @@ createRoot(container).render(
   <StrictMode>
     <ThemeProvider storage={platform.cache}>
       <QueryClientProvider client={queryClient}>
-        <AdminHomePage />
+        <AuthProvider tokens={auth.tokens} api={auth.authApi}>
+          <RefreshBridge />
+          <AdminHomePage />
+        </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>
   </StrictMode>,

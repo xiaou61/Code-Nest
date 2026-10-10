@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * 全局异常映射。业务异常按其错误码映射 HTTP 状态；参数校验失败归为 400；
@@ -39,6 +40,20 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.<Void>failure(ErrorCode.INVALID_ARGUMENT, detail).withTraceId(traceIdOf(request)));
     }
 
+    /**
+     * 未知路由。
+     *
+     * <p>必须显式处理：下面的 {@code @ExceptionHandler(Exception.class)} 会把它兜成 500，
+     * 于是"路径写错了"看起来像"服务端崩了"，而且掩盖了一个事实——本该存在的端点不存在。
+     * 这条对"已删除的端点确实不存在"这类验收尤其重要。
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResourceFound(NoResourceFoundException exception,
+            HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.<Void>failure(ErrorCode.NOT_FOUND).withTraceId(traceIdOf(request)));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnexpected(Exception exception, HttpServletRequest request) {
         String traceId = traceIdOf(request);
@@ -54,6 +69,7 @@ public class GlobalExceptionHandler {
             case FORBIDDEN -> HttpStatus.FORBIDDEN;
             case NOT_FOUND -> HttpStatus.NOT_FOUND;
             case CONFLICT -> HttpStatus.CONFLICT;
+            case TOO_MANY_REQUESTS -> HttpStatus.TOO_MANY_REQUESTS;
             default -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
     }

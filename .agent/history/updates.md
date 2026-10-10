@@ -526,3 +526,129 @@ schema_version: 1
   - **一次误判要记下**：查数据库连通时我先把 `curl telnet://` 当端口探测器（它不支持该协议，谎报 000），又把 JDBC URL 覆盖成 3306（那是另一个本地 MySQL），并用 `>` 截断了一个仍被旧进程持有的日志文件——于是读到的 "Access denied" 来自旧进程，据此错误地断言"隧道没起"。实际隧道一直是好的，用未经改动的本地配置后端直接 UP。教训：端口要用 `/dev/tcp` 或 netstat 探；重定向日志前先确认没有同文件的旧写者。服务器侧只做了只读查询（`mysql.user`、`show databases`），未改动任何配置。
 - 本地提交：待用户授权/未提交
 - 远端推送：未执行
+
+## 2026-10-09 16:57:24 +0800 · WORK-002 · 远端推送核验
+
+- 类型：verification
+- 变更：核对分支 master 的远端提交
+- 决策：以 git ls-remote 返回的远端提交为准
+- 依据：Git 远端 origin / 分支 master
+- 验证：远端 HEAD=976cd48ddeeaf407d503ac7c2b90fa1ad1e51aec
+- 本地提交：976cd48ddeeaf407d503ac7c2b90fa1ad1e51aec
+- 远端推送：已验证；远端 HEAD=976cd48ddeeaf407d503ac7c2b90fa1ad1e51aec
+
+## 2026-10-09 17:12:36 +0800 · WORK-003 · 讨论账号与认证的技术细节并起草需求
+
+- 类型：decision
+- 变更：新建工作项 WORK-003「账号与认证」，起草 `requirements.md`（`mode: strict`、`workflow: full`、`depends_on: [WORK-001, WORK-002]`）与 `workspace.md`。**未改动任何源码。** 为把讨论建立在事实上，先读了后端认证骨架（`AuthPort`/`AuthController`/`MeController`/`JwtAuthService`/`SecurityConfiguration`/`AuthProperties`）、Flyway 迁移目录、测试夹具目录与前端 `session.ts`/`api.ts`，确认三条关键现状：① `AuthPort.Subject` **没有角色**，JWT claims 只有 iss/sub/iat/exp；② `POST /api/v1/auth/token` 是**无凭据签发**、仅 dev/local，而 Flyway 目录只有一个 `.gitkeep`（项目至今零业务表）；③ 后端**零邮件依赖、零邮件配置**。
+- 决策：用户 2026-10-09 逐项裁决——① **有密码**（登录用密码，不是无密码）；② 注册需**邮箱验证码**，且**发邮箱验证码前必须先过图形验证码**（图形验证码保护的是发信接口，不是登录）；③ 注册资料为用户名 + 邮箱 + 密码；④ **用户名与邮箱都能登录**，两者各自唯一；⑤ **面向所有人开放**，不做年龄门与监护人同意；⑥ 令牌用**短 access + refresh 轮换**；⑦ 前端抽**共享认证包**放表单/会话状态/401 处理，两个 app **各自持有登录页**；⑧ **整个学习者端都要登录**；⑨ 图形验证码**自建**（后端出图 + `captchaId` 关联答案），不接第三方；⑩ 邮件**本期就接真实 SMTP**；⑪ **找回密码本期不做**。Agent 在边界内的实现选择（已写入需求「实现选择」）：access 只放内存、refresh 落盘走 Platform 端口；BCrypt；图形验证码与邮箱验证码的短期状态、限流计数放进程内并标注多实例时必须换共享存储；注册请求直接带验证码由注册接口一次性校验；登录失败信息不区分账号存在性、但注册时明确告知占用；管理员只能由种子或运维产生。
+- 依据：`.agent/changes/WORK-003-账号与认证/requirements.md`；`.agent/rules/always.md`（D-10 自签 JWT、会话 Cookie 被排除、编码约定）；WORK-001 的 `design.md`（`AuthPort` 与安全装配）；WORK-002 的 `design.md` 与 always.md 的前端结构节
+- 验证：本轮只写 Markdown 工件并读源码，**未运行任何构建或测试**。讨论中发现一处与既有决定的冲突并已给出解法：**图形验证码天生依赖"服务端记得答案"，而传统做法靠 session + Cookie 关联**，但本项目 `STATELESS`、禁用 Cookie、桌面壳来源非 http(s) 域——因此 `captchaId` 方案不是"备选之一"，而是与既定决议自洽的唯一选择。`project-lifecycle.ps1 validate` 为 `valid: true`（WORK-003 处于 requirements/draft，0 error）；三张工作区归因表已对齐到同一锚点 976cd48。
+- 待办（阻断实现）：**需要用户提供 SMTP 发信账号（地址/端口/账号/授权码）与发信人显示名**，否则需求 REQ-010 与验收 AC-002 的"真实发信"无法验证；凭据只写入被忽略的本地配置，不进仓库。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 17:17:41 +0800 · WORK-003 · 用户豁免 HTTPS 要求
+
+- 类型：decision
+- 变更：把「传输层不要求 HTTPS」写入 `requirements.md` 的「用户决定」第 12 条，并从「待确认问题」中移除原第 2 项；同一条约束写入 `.agent/rules/always.md` 的服务器环境段（长期有效）。
+- 决策：用户 2026-10-09 明确决定本期不需要 HTTPS，明文 HTTP 即可，豁免此前列为风险的传输层要求。**后果按原样记录而不是抹掉**：密码与令牌在网络上明文传输，链路上任何一环都能读到；浏览器会对登录页显示"不安全"。两条推论一并写入：将来只把前端或后端一端换成 HTTPS 会被混合内容拦掉，要上就两端一起上；触发重评的条件是对外网开放或出现不只有自己使用的真实凭据。
+- 依据：`.agent/changes/WORK-003-账号与认证/requirements.md`；`.agent/rules/always.md`
+- 验证：本轮只改 Markdown 工件，未运行构建或测试。`project-lifecycle.ps1 validate` 待复跑。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 17:24:49 +0800 · WORK-003 · 起草方案、设计与任务计划
+
+- 类型：decision
+- 变更：新建 `proposal.md`、`design.md`、`tasks.md`（三件均为 `draft`）。**仍未改动任何源码。** 设计要点：新增业务模块 `paideia-account`（依赖方向 account → security，security 不认识账号表）；refresh 用**不透明随机串 + `refresh_tokens` 状态表**（只存 SHA-256，`family_id` 支持整条链吊销与重用检测），access 仍是 15 分钟 JWT 且**登出后在剩余寿命内有效这一点明确写明**；图形验证码用 `captchaId` 关联（`STATELESS` + 禁用 Cookie 使 session 方案不可行，这不是备选之一而是唯一自洽解）；发信隔离在 `MailPort` 之后并给三个实现（日志 / SMTP / 测试内存信箱），因此 **SMTP 凭据最后再给不阻断任何一步验证**；限流与验证码状态放进程内 TTL 存储并标注多实例升级路径；**删除**无凭据的裸签发端点而不是只在生产禁用；前端新增 `packages/auth`，401 自动刷新**共享同一个 in-flight 刷新 Promise**（refresh 一次性，并发刷新必然互相打死）。任务拆为 TASK-001..TASK-012。
+- 决策：① 账号不塞进 `paideia-security`，趁需求明确时一次把模块边界做对，代价是多一个 pom（WORK-001 已记录"模块边界比包边界难改"）；② 注册的占用提示只在**验证码校验通过之后**给出，把账号枚举成本抬到"先过图形验证码 + 收到信"；③ 登录失败路径对不存在的账号也执行一次 BCrypt 校验以对齐耗时，防时序侧信道；④ 种子账号只进 `db/devdata` 并由 e2e 用 `SPRING_FLYWAY_LOCATIONS` 显式开启，e2e 数据源指向 `paideia_test` 库，不往 `paideia` 库写测试账号；⑤ 两处缺口（后端本期没有按角色拒绝的接口、access 登出后仍有剩余寿命）主动写进设计与报告，不当作已完成。
+- 依据：`.agent/changes/WORK-003-账号与认证/{requirements.md,proposal.md,design.md,tasks.md}`；`.agent/rules/always.md`；WORK-001 的 `design.md`（模块与 `AuthPort`）；WORK-002 的 `always.md` 前端结构节
+- 验证：本轮只写 Markdown 工件，**未运行任何构建或测试**。讨论与设计所依据的仓库事实均为读源码所得（`AuthPort`/`AuthController`/`JwtAuthService`/`SecurityConfiguration`/`AuthProperties`/`ErrorCode`/`BizException`/`ApiResponse`、Flyway 目录只有 `.gitkeep`、后端零邮件依赖）。`project-lifecycle.ps1 validate` 对 WORK-003 报一条结构性 error「需求尚未确认，但已经存在下游工件」——这是"需求与三件一次审阅"这个节奏的必然中间态（与 WORK-002 同一情形），按 requirements → proposal → design → tasks 顺序签署后消失。
+- 待办：SMTP 凭据由用户决定**最后提供**（端口隔离使其不阻断实现与验证）；四件工件待用户一次审阅后按序签署。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 17:27:26 +0800 · WORK-003 · 签署 .agent/changes/WORK-003-账号与认证/requirements.md
+
+- 类型：decision
+- 变更：.agent/changes/WORK-003-账号与认证/requirements.md 由 xiaou61 签署为 approved
+- 决策：审批人 xiaou61（CTO）；approved_by / approved_at 由命令入口盖章，不由模型写入
+- 依据：.agent/changes/WORK-003-账号与认证/requirements.md
+- 验证：回读 frontmatter：approved_by / approved_at=2026-10-09 17:27:26 +0800
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 17:27:28 +0800 · WORK-003 · 签署 .agent/changes/WORK-003-账号与认证/proposal.md
+
+- 类型：decision
+- 变更：.agent/changes/WORK-003-账号与认证/proposal.md 由 xiaou61 签署为 approved
+- 决策：审批人 xiaou61（CTO）；approved_by / approved_at 由命令入口盖章，不由模型写入
+- 依据：.agent/changes/WORK-003-账号与认证/proposal.md
+- 验证：回读 frontmatter：approved_by / approved_at=2026-10-09 17:27:28 +0800
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 17:27:29 +0800 · WORK-003 · 签署 .agent/changes/WORK-003-账号与认证/design.md
+
+- 类型：decision
+- 变更：.agent/changes/WORK-003-账号与认证/design.md 由 xiaou61 签署为 approved
+- 决策：审批人 xiaou61（CTO）；approved_by / approved_at 由命令入口盖章，不由模型写入
+- 依据：.agent/changes/WORK-003-账号与认证/design.md
+- 验证：回读 frontmatter：approved_by / approved_at=2026-10-09 17:27:29 +0800
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 17:27:30 +0800 · WORK-003 · 签署 .agent/changes/WORK-003-账号与认证/tasks.md
+
+- 类型：decision
+- 变更：.agent/changes/WORK-003-账号与认证/tasks.md 由 xiaou61 签署为 approved
+- 决策：审批人 xiaou61（CTO）；approved_by / approved_at 由命令入口盖章，不由模型写入
+- 依据：.agent/changes/WORK-003-账号与认证/tasks.md
+- 验证：回读 frontmatter：approved_by / approved_at=2026-10-09 17:27:30 +0800
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 18:45:30 +0800 · WORK-003 · 实施 TASK-001..012：账号与认证落地
+
+- 类型：implementation
+- 变更：**首次改动后端源码。** ① 新增业务模块 `paideia-account`（账号表访问、注册、登录、图形验证码、邮箱验证码、refresh 令牌轮换；对外契约 `AccountApi` 在包根）；② `paideia-security` 的 `AuthPort` 带上角色（`Subject(id, role)`、`role` claim、缺角色即拒绝），新增 `JwtAuthenticationConverter`（默认只读 scope/scp，不映射就是"已登录但没有任何权限"），**删除**不校验凭据的 `POST /api/v1/auth/token`；③ 迁移 `V1__create_account_tables.sql`（`users` + `refresh_tokens`，唯一索引、只存哈希、外键级联）与仅 dev 的 `db/devdata/V950__seed_accounts.sql`；④ 进程内 TTL 存储 `ExpiringStore`、限流器 `RateLimiter`（三种口径：最小间隔、每次计数、失败才计数）、图形验证码（Java2D 出图 + `captchaId` 关联、启动自检）、邮件 `MailPort` 三实现（SMTP / 日志 / 测试内存信箱）；⑤ 前端新增 `packages/auth`（access 只在内存、refresh 走 Platform 端口、`createAuthorizedFetch` 401 刷新重放且并发只刷一次、登录与注册表单、`RequireAuth`/`RequireGuest`）；⑥ 两个应用接认证：学习者端整体登录门 + 登录/注册页 + 登出入口，管理端把登录做成单屏的一个状态（**不为它引入路由**）。
+- 决策：① 账号不塞进 `security`，依赖方向 account → security；② refresh 用不透明随机串 + 状态表（JWT 无状态无法撤销），`family_id` 支持"重用即吊销整条链"；③ 图形验证码用 `captchaId`（`STATELESS` + 禁 Cookie 使 session 方案不可行）；④ 注册顺序为"先验邮箱验证码 → 再查占用"，把账号枚举成本抬到"先过图形验证码 + 收到邮件"；⑤ 登录失败路径对不存在的账号也跑一次 BCrypt 对齐耗时，且**限流只统计失败**（"每次调用都计数"会让正常登录几次就被封）；⑥ 管理端不引路由；⑦ 展览页**未加**登录/注册表单展示节——那需要引入认证上下文与一个假 API，而表单已在两个应用里真实可见，记为本轮的一处偏离。
+- 依据：`.agent/changes/WORK-003-账号与认证/{requirements.md,proposal.md,design.md,tasks.md,testing/plan.md,testing/report.md}`；`.agent/rules/always.md`
+- 验证：后端 `cd backend && mvn -B verify` **BUILD SUCCESS，63 条测试全过**（platform 7 / web 9 / persistence 4 / security 11 / account 9 / app 23，其中 `AccountAuthIntegrationTest` 13 条覆盖 AC-001..AC-005 与 AC-008、AC-009）；local profile 下迁移应用到 `paideia` 库且 `/actuator/health` 为 UP（AC-001）。前端 9 个工程 typecheck 通过、41 条单测通过（core 14 / platform-desktop 4 / ui 16 / **auth 7**）、四个应用构建通过、**三套 e2e 共 15 条通过**（学习者端 5、管理端 5、展览页 5）。证据见 `testing/logs/`。
+  - **本轮修掉四个真缺陷**：① **Flyway 从来没执行过**——Boot 4 把自动装配拆成独立模块，只引 `flyway-core` 时 `FlywayAutoConfiguration` 不在类路径上，迁移静默不执行、不报错也不打日志（此前被另一条测试路径建好的夹具表盖住了），补 `spring-boot-flyway` 依赖；② 未知路由被 `@ExceptionHandler(Exception.class)` 兜成 500，加 `NoResourceFoundException` 处理器返回 404；③ 夹具 V900+ 与生产 V1+ 两套编号在 Flyway 眼里互为乱序/未来版本，测试与 e2e 配置里同时放开 `out-of-order` 与 `ignore-migration-patterns: ['*:future','*:missing']`（生产配置不动）；④ **CORS 白名单**：管理端 5174 登录拿到 403，因为浏览器对同源的非简单请求也会发 `Origin`，即使走 Vite 代理也一样——开发端口必须进白名单，且 `paideia.web.cors` 与 `management.endpoints.web.cors` 两处都要配。
+  - **未验证项（如实记录）**：**真实 SMTP 发信**未验证（用户决定最后提供发信凭据；当前未配 `paideia.mail.host` 时走日志实现，注册链路正确性由内存信箱集成测试证明）；桌面端认证未做端到端验证（本机限制）；后端仍无"按角色拒绝"的接口（本期没有管理员接口）；登出后 access 在剩余寿命内仍有效；无 HTTPS（用户豁免）。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-09 19:32:08 +0800 · maintenance · 初始化 CodeGraph 代码索引
+
+- 类型：maintenance
+- 变更：在仓库根执行 `codegraph init -y`，新增本地索引目录 `.codegraph/`（`codegraph.db` + 自带 `.gitignore`，该子 `.gitignore` 只放行自身、忽略库文件与日志）；此前仓库无 `.codegraph/`，根 `AGENTS.md` 里的 CodeGraph 使用守则此前处于"无索引可用"状态。
+- 决策：索引建在仓库根而非子工程，一次覆盖 `backend`（Java）与 `frontend`（TS/TSX）两个语言栈；`.codegraph/` 由目录内 `.gitignore` 自我忽略，不改根 `.gitignore`——索引是每台机器的本地数据，不入公开仓库。
+- 依据：`codegraph --version` = 1.6.0；根 `AGENTS.md` 的 CodeGraph 段（安装器写入）与《Local CodeGraph Guardrails》。
+- 验证：`codegraph status` 报 165 files / 1,642 nodes / 3,137 edges（import 615、method 261、function 202、class 52、interface 33、route 15），DB 4.79 MB；`codegraph_explore`（MCP）对 `JwtAuthService` 返回带行号源码与 blast radius（5 处调用方 + 对应测试），确认 MCP 通路可用。`errors.log` 中 2 条 `ENOENT` 为工作区已删除的 `AuthController.java` 与 `frontend/apps/admin/src/session.ts` 残留于扫描清单，非索引缺陷。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 · WORK-003 · 真实 SMTP 发信实测通过，报告转 passed
+
+- 类型：verification
+- 变更：用户提供 QQ 邮箱发信凭据（授权码与账号），凭据**只写入被忽略的** `backend/config/application-local.yml`（`git check-ignore` 与 `git ls-files` 双重确认未被跟踪），并在该文件的既有 `paideia:` 段下新增 `paideia.mail.*`。为支持 QQ 常用的 465 端口，代码侧补了隐式 TLS：`MailProperties` 新增 `ssl`、`SmtpMailPort` 相应设置 `mail.smtp.ssl.enable`、`MailConfiguration` 打印实际使用的加密方式并在既没开 ssl 也没开 start-tls 时告警。证据写入 `testing/logs/smtp-real-send.txt`，`testing/report.md` 中"真实 SMTP 发信"一条从 `not-run` 改为 `passed`，报告状态由 `partial` 改为 `passed`。
+- 决策：① 两种加密方式都支持（465 隐式 TLS / 587 STARTTLS），因为各家服务商默认端口不同，只支持一种就会在换服务商时踩坑；② 发信失败的异常消息里带上主机与端口（不含凭据），便于区分配置问题与网络问题；③ 证据文件里对邮箱地址做掩码——本仓库是公开仓库，真实地址属于个人信息，不应写入被跟踪文件。
+- 依据：`.agent/changes/WORK-003-账号与认证/testing/{report.md,logs/smtp-real-send.txt}`；`.agent/rules/always.md`
+- 验证：启动日志出现 `邮件发送使用 SMTP：smtp.qq.com:465（隐式 TLS）`（对照：未配置时会打印"未配置 SMTP…验证码将写进日志"）。随后走完整链路：`POST /api/v1/auth/captcha` 取图（PNG 3009 字节）→ 解码为人眼可识别的图片并读出 4 位字符 → `POST /api/v1/auth/email-code` 返回 `{"code":0,"message":"ok"}`，后端日志无 `发送验证码邮件失败` 或 `MessagingException`。顺带用同一个 `captchaId` 再提交一次得到 `40000 图形验证码已过期`，证明图形验证码确实是一次性的。
+  - **边界如实记录**：本机证明的是"SMTP 认证成功、邮件被服务器接受"，**收件箱实际收到需收件人确认**，报告里明确不把它写成本机验证过的结论。
+  - `project-lifecycle.ps1 validate` 结果：`valid: true`；WORK-001 / WORK-002 / WORK-003 均 0 error，WORK-003 为 `completed/complete`。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 · WORK-003 · 收件人确认收到验证码邮件，验证无未验证项
+
+- 类型：verification
+- 变更：用户 2026-10-10 确认已在收件箱收到那封「Paideia 注册验证码」邮件。`testing/report.md` 据此更新："真实 SMTP"一条从"服务器接受（待收件人确认）"改为"达成（含收件人确认收到）"，「失败与未验证项」一节改为**无未验证项**，只保留一条"未做计时断言"的方法学说明。
+- 决策：把两类证据分开记录——"SMTP 认证成功、邮件被服务器接受"是本机可验证的；"投递到收件箱"只能由收件人确认。两者都留在证据表里，不合并成一句"发信已验证"，这样后来的人能看出这条结论由谁、凭什么得出。
+- 依据：`.agent/changes/WORK-003-账号与认证/testing/{report.md,logs/smtp-real-send.txt}`
+- 验证：`project-lifecycle.ps1 validate` 为 `valid: true`；WORK-001 / WORK-002 / WORK-003 均 0 error，WORK-003 为 `completed/complete`，12 个任务全部 `done`。
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
