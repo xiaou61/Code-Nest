@@ -153,7 +153,7 @@ Paideia 是「千人千面的 AI 个性化学习平台」。目标不是把同�
 | 缺失 | 没有 Docker / Docker Compose，没有 RabbitMQ，没有 Nginx；80/443 未监听 |
 | 运行方式 | 目前没有 systemd 单元可用；Paideia 的服务应建立自己的 systemd 单元 |
 
-**项目隔离要求（用户 2026-10-09 决定）**：Paideia 与 Code-Nest 彻底分离。Paideia 使用独立目录（`/opt/paideia-app`）、独立数据库（开发 `paideia`、测试 `paideia_test`、**部署 `paideia_prod`**）与独立数据库账号；不复用、不修改其他项目的服务与数据。Code-Nest 的应用与 SQL 转储已按用户指示从该服务器删除。
+**项目隔离要求（用户 2026-10-09 决定）**：Paideia 与 Code-Nest 彻底分离。Paideia 使用独立目录（`/opt/paideia-app`）、独立数据库与独立数据库账号；不复用、不修改其他项目的服务与数据。Code-Nest 的应用与 SQL 转储已按用户指示从该服务器删除。**库里只有两个（2026-10-10 用户要求统一，不再增加）**：`paideia`（开发与部署共用）与 `paideia_test`（测试沙箱）。
 
 **传输层：不要求 HTTPS（用户 2026-10-09 决定）**：自托管环境用明文 HTTP 即可，不配 TLS。已知并接受的后果：密码与令牌在网络上明文传输，链路上任何一环都能读到。两条要记住的推论：① 浏览器会对登录页显示"不安全"，这不是 bug；② 将来若只把前端或后端一端换成 HTTPS，浏览器会因混合内容直接拦掉请求，**要上就两端一起上**。触发重评：一旦对外网开放或出现不只有自己使用的真实凭据。
 
@@ -163,7 +163,8 @@ Paideia 是「千人千面的 AI 个性化学习平台」。目标不是把同�
 - **进程**：systemd 单元 **`paideia`**（`systemctl status/restart/stop paideia`），`ExecStart` 为 `/opt/jdk25/bin/java -jar /opt/paideia-app/app.jar --spring.config.additional-location=file:/opt/paideia-app/`，日志走 journald（`journalctl -u paideia`）。
 - **配置**：`/opt/paideia-app/application.yml` **只存在于服务器上**（含数据源口令、JWT 密钥、SMTP 授权码），由本地被忽略的配置生成，**绝不进仓库**。关键项：`server.port=8081`、`paideia.knowledge.upload-dir=/opt/paideia-app/uploads`。
 - **端口 8081**：服务器安全组只放开少数端口——实测 **8080 与 80 从公网不可达**（HTTP 000）、**8081 可达**。换端口只需改配置里的 `server.port` 再 `systemctl restart paideia`。
-- **数据库用独立库 `paideia_prod`**，不是开发用的 `paideia`。原因：`paideia` 的迁移历史里带着 `V950`（种子账号）——**当初有运行时误连了 dev 库**，正是 `playwright.config.ts` 里警告过的那个坑；它与现在 jar 里的迁移对不上，直接启动就会 Flyway 校验失败。部署库由 Flyway 从 V1 干净迁移到 V3。
+- **数据库**：开发与部署共用 **`paideia`**（2026-10-10 用户要求统一，`paideia_prod` 已删除）。**测试仍用 `paideia_test`**，原因是硬的：测试要加载 `db/devdata` 的种子账号（`seed-admin` 的口令公开写在仓库里），而部署端口 8081 公网可达——两者共用一个库就等于在线上开一个口令人人皆知的管理员。**要真正把测试并进来，必须先让测试不依赖种子账号**（集成测试改为自建数据、e2e 改用运行时生成的账号），这是一次约 1.5 小时的改写，尚未做。
+- 曾经的坑要记住：`paideia` 的历史里一度带着 `V950`，说明**有运行时误连过 dev 库**（正是 `playwright.config.ts` 警告过的那个）；已修（删掉那条历史记录与两个种子账号），现在历史是干净的 V1→V3。
 - **部署实例不加载种子**：`db/devdata` 不在默认迁移目录，因此部署库里没有 `seed-admin`／`seed-learner`（那两个口令公开写在仓库里，放到公网可达的实例上等于开放管理权限）。管理员账号用**一次性 SQL** 单独建，口令不落任何被跟踪文件。
 - **同源部署必须放行静态资源**：`SecurityConfiguration` 里加了 `GET /`、`/index.html`、`/assets/**`、`/admin/**`、`/favicon.ico` 的放行——不放行时连登录页都返回 401（实测）。**放行静态文件不等于放行数据**：授权仍只由 `/api/**` 上的规则决定。
 
