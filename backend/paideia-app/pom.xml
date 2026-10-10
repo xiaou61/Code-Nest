@@ -35,6 +35,10 @@
       <groupId>io.github.xiaou61</groupId>
       <artifactId>paideia-account</artifactId>
     </dependency>
+    <dependency>
+      <groupId>io.github.xiaou61</groupId>
+      <artifactId>paideia-knowledge</artifactId>
+    </dependency>
 
     <!--
       schema 迁移。数据源只在 local/test profile 提供，默认 profile 下不存在数据源，Flyway 自然不执行。

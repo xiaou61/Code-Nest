@@ -10,6 +10,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -111,6 +112,14 @@ public class SecurityConfiguration {
                         .requestMatchers("/error").permitAll()
                         // 见类注释的前缀纪律：这个前缀下只放凭据交换类端点
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        // 知识库的管理端写接口。**必须排在下面的 anyRequest() 之前**：
+                        // Spring Security 按声明顺序取第一个匹配的规则，顺序写反这条永不生效，
+                        // 且不会有任何报错——只会在某天表现为"任何已登录的学习者都能改知识库"。
+                        .requestMatchers("/api/v1/knowledge/admin/**").hasRole("ADMIN")
+                        // 附件读取**免鉴权**（用户裁决）：<img> 不携带 Authorization 头，
+                        // 而本项目无 Cookie，要求登录就等于图片显示不出来。限定 GET：
+                        // 上传挂在 /api/v1/knowledge/admin/files，不能因为放行读取把写入也放开。
+                        .requestMatchers(HttpMethod.GET, "/api/v1/knowledge/files/**").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(resourceServer -> resourceServer
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)));
