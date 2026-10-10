@@ -1,7 +1,14 @@
 spring:
   datasource:
     # 默认指向本机 3307 的 SSH 隧道（服务器上的 paideia_test）。凭据只从环境变量读取。
-    url: ${PAIDEIA_TEST_DB_URL:jdbc:mysql://127.0.0.1:3307/paideia_test?useSSL=false&allowPublicKeyRetrieval=true&connectionTimeZone=UTC&characterEncoding=utf8}
+    #
+    # **`forceConnectionTimeZoneToSession=true` 不能删**（2026-10-10 实测补上）：服务器 MySQL 的
+    # 会话时区是 `SYSTEM`（+08:00）且没有装载时区表（`SET time_zone='UTC'` 直接报 1298），
+    # 只写 `connectionTimeZone=UTC` 是"驱动以为会话是 UTC、会话其实是 +08:00"——
+    # 于是建表默认值 `CURRENT_TIMESTAMP(3)` 写进去的是**本地钟点**，驱动又按 UTC 转成 `Instant`，
+    # 接口返回的时间就比真实时刻快 8 小时。加上它之后驱动会把会话也设成 UTC（它会自己折算成
+    # `+00:00` 的偏移形式，所以没有时区表也能用）。
+    url: ${PAIDEIA_TEST_DB_URL:jdbc:mysql://127.0.0.1:3307/paideia_test?useSSL=false&allowPublicKeyRetrieval=true&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&characterEncoding=utf8}
     username: ${PAIDEIA_TEST_DB_USER:paideia}
     password: ${PAIDEIA_TEST_DB_PASSWORD:}
   flyway:

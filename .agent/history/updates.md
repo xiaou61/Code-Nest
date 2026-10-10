@@ -1065,5 +1065,25 @@ schema_version: 1
   - 用 Playwright 打开**线上**页面逐张看图复核（截图落在被忽略的 `test-results/`）：侧栏／面包屑／两张表格／状态徽章／分页／三个弹窗都正常；据此又改了三处——分类表补「上级」列、原生英文文件框（`Choose File No file chosen`）换成「上传附件」按钮、关系行收紧。
   - 线上灌了一批演示数据（走真实管理接口，不是直接写库）：5 个分类、8 条条目（含 1 条草稿）、2 条关系。**这是演示数据、不属于交付内容**，目的是让"后台长什么样"能被看见。
 - 发现（**跨模块缺陷，待用户裁决，本轮未修**）：**所有时间戳都比真实时刻快 8 小时**。证据链：线上 JDBC URL 写了 `connectionTimeZone=UTC`，但**没有** `forceConnectionTimeZoneToSession`（`grep -c` = 0）；服务器 MySQL 会话时区是 `SYSTEM`——实测 `now(3) = 2026-10-10 17:48:51`、`utc_timestamp(3) = 2026-10-10 09:48:51`。于是 5 张表的 `DEFAULT CURRENT_TIMESTAMP(3)` 写进去的是**本地钟点**，驱动又按 UTC 口径把它转成 `Instant`，接口就返回 `2026-10-10T17:44:11.546Z`（那一刻真实是 09:44Z）。**这违反「时间存 UTC」那条规则**，不只影响管理端刚加的「更新时间」列。两条修法：①（推荐）各连接串补 `forceConnectionTimeZoneToSession=true`，一处配置让会话与驱动口径一致；② DDL 默认值改用 `UTC_TIMESTAMP(3)`，要改 5 张表连同 `ON UPDATE`。两种做法下**已存在的行**仍是 +8，需要一次性回拨或接受（现存数据基本都是演示与测试数据）。修法牵动所有表的时间语义与部署配置，按"重大数据/部署变化回到受影响工件"的规则交由用户裁决，**本轮不动**。
-- 本地提交：见下一轮次记录
+- 本地提交：e5a9299
 - 远端推送：未执行（需用户明确授权）
+
+## 2026-10-10 18:08:33 +0800 · 修复时间戳快 8 小时（用户裁决走路线 1）
+
+- 类型：change
+- 变更：把上一轮发现的时区缺陷修掉。**用户原话「1 修复一下吧，然后推送一下吧」**，即走"补连接串参数"这条路。
+  - **四处仓库内连接串**补 `forceConnectionTimeZoneToSession=true`：`paideia-app/src/test/resources/application-test.yml`、`paideia-persistence` 的 `TestDatabase.java`、`frontend/apps/admin/playwright.config.ts`、`frontend/apps/app/playwright.config.ts`；另加被忽略的 `backend/config/application-local.yml` 与服务器上的 `/opt/paideia-app/application.yml`。每处都写了注释说明"为什么两个参数缺一不可"。
+  - **存量数据回拨 8 小时**（仅 `paideia` 与 `paideia_test`）：先 `systemctl stop paideia` 避免回拨期间有新写入漏掉，再用 `SET time_zone='+00:00'` 的会话执行 UPDATE，每条 UPDATE **显式赋值所有要改的列**（否则 `ON UPDATE CURRENT_TIMESTAMP` 会把 `updated_at` 刷成本地 `NOW()`）。线上配置用 `cp` + `sed` 改，改完 `grep -c` 校验为 1，再 `systemctl start`。
+- 决策：
+  1. **只回拨"数据库默认值写入"的列，应用绑定 Instant 的列一律不动**。依据是 `information_schema.COLUMNS` 的 `COLUMN_DEFAULT`/`EXTRA`，不靠猜：要回拨的是 `created_at`／`updated_at`／`refresh_tokens.created_at`（以及 `paideia_test` 的 `t_example_item.created_at`）；**`published_at`／`expires_at`／`revoked_at`／`email_verified_at` 保持原样**——它们是应用绑定的 `Instant`，驱动本来就按 UTC 写，一起回拨会把这些列**从正确改成错误**。
+  2. **参数写作 `connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true` 而不是偏移形式**：虽然服务器**没有装载时区表**（实测 `SET time_zone='UTC'` 直接报 `ERROR 1298`，命名时区只有偏移形式 `'+00:00'` 可用），但 Connector/J 在强制会话时区时会自行折算成 `+00:00`——先用系统属性覆盖 URL 跑单条集成测试验证过才写进配置，不是照着文档猜的。
+  3. 回拨用"整体减 8 小时"而非重建数据：Asia/Shanghai 无夏令时，偏移恒定，且该操作可逆（同样的语句写 `+ INTERVAL 8 HOUR` 即可回滚）。
+- 依据：用户 2026-10-10 裁决「1 修复一下吧」；`.agent/rules/always.md` 的编码约定（时间统一存 UTC）本轮补上了"怎么才算真做到"
+- 验证：
+  - **回拨正确性的交叉验证**：回拨后条目 8 的 `created_at = 09:44:11.546`，而**本来就正确的应用绑定列** `published_at = 09:44:11.545`——两条独立写入路径只差 1 毫秒，说明减 8 小时正好减到 UTC。
+  - **新写入的端到端验证**：修复后经接口新建两条（发布态与草稿态各一条）并删除：列表返回的 `updatedAt = 2026-10-10T10:04:21.270Z`、详情返回的 `publishedAt = 2026-10-10T10:03:38.759Z`，而那一刻真实 UTC 是 `10:03~10:04`、本机本地时间是 `18:03~18:04`——**不再快 8 小时**（修复前同样的操作会返回 18:04）。
+  - 回归：后端 `mvn -B verify` → **124 条 0 失败**（BUILD SUCCESS）；管理端 e2e **7 passed（23.3 秒）**；学习者端 e2e **11 passed（32.2 秒）**。
+  - 服务状态：改配置后 `systemctl is-active paideia` = `active`、`/actuator/health` = `UP`（驱动接受该参数，没有因缺时区表而启动失败）。
+- 规则更新：`.agent/rules/always.md` 的编码约定里，给「时间统一存 UTC」补上了机制说明（建表默认值也算数据库取时间、两个参数缺一不可、服务器无时区表也不必装）。
+- 本地提交：见下一条
+- 远端推送：已获授权，同轮执行

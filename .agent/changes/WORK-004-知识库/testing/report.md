@@ -71,4 +71,11 @@ updated: 2026-10-10
 
 **对本报告结论的影响：无。** TASK-006 的五个断言点（`admin-sign-in`／`admin-console`／`admin-denied`／`admin-current-user`／`admin-health-status`）与 AC-005／AC-011 的 e2e 断言**原样保留并通过**；`testing/logs/e2e-admin.txt` 已追加重建后的复跑结果（**7 passed，26.2 秒**，退出码 0）。e2e 自身改了三处选择器（`<li>` → `<tr>`、原生下拉 → 点开再选、删除多一步确认）——那是跟随界面形态，不是放宽断言。
 
-另**发现一处与本项无关的跨模块缺陷**：所有时间戳比真实时刻快 8 小时（线上 JDBC 缺 `forceConnectionTimeZoneToSession`，而 MySQL 会话时区是 `SYSTEM`，实测 `now()` 与 `utc_timestamp()` 差 8 小时），与「时间存 UTC」的规则冲突。只影响显示与将来的时间比较，不影响本项任何 AC。待用户裁决，证据与两条修法见 `.agent/history/updates.md` 同日记录。
+另**发现一处与本项无关的跨模块缺陷**：所有时间戳比真实时刻快 8 小时（线上 JDBC 缺 `forceConnectionTimeZoneToSession`，而 MySQL 会话时区是 `SYSTEM`，实测 `now()` 与 `utc_timestamp()` 差 8 小时），与「时间存 UTC」的规则冲突。
+
+**该缺陷当日已修（用户裁决走"补连接串参数"这条路）**，修复与验证如下，**对本项结论仍无影响**：
+
+- 改动：四处 JDBC 连接串补上 `forceConnectionTimeZoneToSession=true`（测试 `application-test.yml`、`paideia-persistence` 的 `TestDatabase`、管理端与学习者端两个 `playwright.config.ts`；另有被忽略的本地配置与服务器上的 `application.yml`）。
+- 存量数据：只回拨**由数据库默认值写入**的列（`created_at`／`updated_at`／`refresh_tokens.created_at` 等），**应用绑定 Instant 的列不动**（`published_at`／`expires_at`／`revoked_at`／`email_verified_at`）——后者本来就是 UTC，一起回拨反而会错。列清单取自 `information_schema`，不靠猜。
+- 验证：回拨后条目 8 的 `created_at` = `09:44:11.546`，与本来就正确的 `published_at` = `09:44:11.545` **只差 1 毫秒**，两条独立写入路径对上了；新写入一条后接口返回 `2026-10-10T10:04:21.270Z`，而那一刻真实 UTC 是 `10:04:30`（本机本地时间 18:04）——不再快 8 小时。
+- 回归：后端 `mvn -B verify` → **124 条 0 失败**；管理端 e2e **7 passed（23.3 秒）**；学习者端 e2e **11 passed（32.2 秒）**。

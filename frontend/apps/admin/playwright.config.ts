@@ -25,8 +25,10 @@ export default defineConfig({
       cwd: BACKEND_DIR,
       // 与管理端的说明一致：数据源指向 paideia_test，并额外加载 db/devdata 里的种子账号
       env: {
+        // forceConnectionTimeZoneToSession 与 connectionTimeZone 必须成对（服务器 MySQL 会话是 +08:00）：
+        // 少了它，建表默认值写进去的是本地钟点，而驱动按 UTC 解释，时间整体快 8 小时。
         SPRING_DATASOURCE_URL:
-          'jdbc:mysql://127.0.0.1:3307/paideia_test?useSSL=false&allowPublicKeyRetrieval=true&connectionTimeZone=UTC&characterEncoding=utf8',
+          'jdbc:mysql://127.0.0.1:3307/paideia_test?useSSL=false&allowPublicKeyRetrieval=true&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&characterEncoding=utf8',
         SPRING_FLYWAY_LOCATIONS: 'classpath:db/migration,classpath:db/devdata',
         // 与管理端说明一致：paideia_test 被三种迁移配置共用，夹具的 V900 需要被忽略
         SPRING_FLYWAY_IGNORE_MIGRATION_PATTERNS: '*:future,*:missing',

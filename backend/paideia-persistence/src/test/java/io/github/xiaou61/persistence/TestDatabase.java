@@ -12,6 +12,10 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
  * 默认 URL 指向本机 {@code 127.0.0.1:3307} 的 SSH 隧道（服务器上的 {@code paideia_test}）。
  *
  * <p>没有配置口令时调用方应跳过测试并如实报告为未运行，而不是让整个构建红掉。
+ *
+ * <p>{@code forceConnectionTimeZoneToSession=true} 与 {@code connectionTimeZone=UTC} 必须成对：
+ * 服务器 MySQL 的会话时区是 {@code SYSTEM}（+08:00），只声明前者是"驱动按 UTC 解释、会话却按
+ * 本地时间写"，建表默认值写进去的时间会整体快 8 小时（2026-10-10 实测）。
  */
 final class TestDatabase {
 
@@ -21,7 +25,8 @@ final class TestDatabase {
 
     private static final String DEFAULT_URL =
             "jdbc:mysql://127.0.0.1:3307/paideia_test"
-                    + "?useSSL=false&allowPublicKeyRetrieval=true&connectionTimeZone=UTC&characterEncoding=utf8";
+                    + "?useSSL=false&allowPublicKeyRetrieval=true&connectionTimeZone=UTC"
+                    + "&forceConnectionTimeZoneToSession=true&characterEncoding=utf8";
     private static final String DEFAULT_USER = "paideia";
 
     private TestDatabase() {
