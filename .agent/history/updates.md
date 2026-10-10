@@ -1085,5 +1085,15 @@ schema_version: 1
   - 回归：后端 `mvn -B verify` → **124 条 0 失败**（BUILD SUCCESS）；管理端 e2e **7 passed（23.3 秒）**；学习者端 e2e **11 passed（32.2 秒）**。
   - 服务状态：改配置后 `systemctl is-active paideia` = `active`、`/actuator/health` = `UP`（驱动接受该参数，没有因缺时区表而启动失败）。
 - 规则更新：`.agent/rules/always.md` 的编码约定里，给「时间统一存 UTC」补上了机制说明（建表默认值也算数据库取时间、两个参数缺一不可、服务器无时区表也不必装）。
-- 本地提交：见下一条
-- 远端推送：已获授权，同轮执行
+- 本地提交：00abf58
+- 远端推送：已执行，见下一条核验
+
+## 2026-10-10 18:12:40 +0800 · 远端推送核验
+
+- 类型：verification
+- 变更：按用户明确要求推送到 `origin/master`，本轮推上去的是三笔：`592a54c`（登记 WORK-008 对象存储接入）、`e5a9299`（管理端改成后台式布局）、`00abf58`（修复时间戳快 8 小时）。推送范围 `acd47c2..00abf58`。
+- 决策：**推送前又扫了一遍密钥**（本轮改动文件 + 暂存内容，用真实的数据源口令、初始管理员口令与服务器地址去匹配）：0 命中。本轮尤其要查——时区核查过程中读过服务器上的 `application.yml` 与被忽略的本地配置，这两个文件必须始终留在 `.gitignore` 之外（本次 `git status` 也确认它们没被跟踪）。
+- 依据：用户 2026-10-10 指令「1 修复一下吧，然后推送一下吧」
+- 验证：`git push origin master` 退出码 **0**，输出 `acd47c2..00abf58  master -> master`；`git ls-remote origin master` 与 `git rev-parse HEAD` 同为 `00abf58b17c29654f39e46a74adb34744abe8604`。部署复验（公网）：`/actuator/health` = `UP`、`GET /admin/index.html` = 200、匿名管理接口 = 401。
+- 本地提交：00abf58
+- 远端推送：已验证；远端 HEAD=`00abf58b17c29654f39e46a74adb34744abe8604`
