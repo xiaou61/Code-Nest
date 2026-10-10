@@ -42,11 +42,13 @@
 ## MEM-004 | active | operation
 
 - 摘要：本机到 GitHub 的连接不稳，涉及 GitHub 的构建都要走镜像。桌面端打包**必须同时设置两个变量**：`ELECTRON_MIRROR`（Electron 运行时）与 `ELECTRON_BUILDER_BINARIES_MIRROR`（NSIS/签名辅助二进制）——只设后者仍会去 GitHub 拉运行时并超时。pnpm 侧另有 `allowBuilds` 放行依赖的构建脚本（不是旧版的 `onlyBuiltDependencies`）。 另外 **git 必须显式走本机 Clash 代理**：mixed-port 为 `7897`（TUN 关闭，只有主动走代理的程序才用得上），未配置时代码直连 github.com，表现为推送**时通时不通**。已用 `git config --global http.https://github.com/.proxy` 与 `https.https://github.com/.proxy` 固化到 github.com 这一个域；代理端口若变更需同步更新。
-- 标签：`build` `electron` `pnpm` `network`
+  **诊断方法（2026-10-10 补，两次踩坑）**：判断代理是否在服务**只能用 `netstat -ano | grep :7897`**，看有没有 `LISTENING` 与对应 PID（`verge-mihomo`）——**不要用 `bash -c "</dev/tcp/127.0.0.1/7897"` 探测**，它在本机给过两次假否定（明明在监听却说不可连），据此得出"Clash 没在跑"的结论是错的。另注意 `netstat` 里出现 `FIN_WAIT_2`/`TIME_WAIT` 属正常残留，不代表没在监听。
+  **一次失败可直接重试**：2026-10-10 首次推送报 `Failed to connect to 127.0.0.1 port 7897`，而端口未变、监听正常，重试即成功——属瞬时抖动。**不要**因此改代理配置；确认端口与监听后先重试一次，再考虑其他原因。**直连不可用**：把代理覆盖为空直连 github 会得到 `Recv failure: Connection was reset`（TCP 握手过、TLS 被 reset），所以"直连也能连上"的探测会骗人。
+- 标签：`build` `electron` `pnpm` `network` `git`
 - 范围：`frontend/**`
-- 依据：`.agent/rules/always.md` 的构建命令段；`.agent/changes/WORK-001-架构选型与项目骨架/testing/logs/desktop-packaged.txt`
+- 依据：`.agent/rules/always.md` 的构建命令段；`.agent/changes/WORK-001-架构选型与项目骨架/testing/logs/desktop-packaged.txt`；2026-10-10 推送 WORK-003 时的实测
 - 记录：2026-10-09
-- 复核：2026-10-09
+- 复核：2026-10-10
 
 ## MEM-005 | active | convention
 

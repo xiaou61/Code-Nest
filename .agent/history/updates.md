@@ -866,3 +866,43 @@ schema_version: 1
 - 验证：**git 代理结论反转**——`curl -x http://127.0.0.1:7897 https://github.com/` 返回 `http=000`（0.19 秒即失败），同一条命令**不加** `-x` 直连返回 `http=200`；设好按域代理后 `git push` 仍报 `OpenSSL SSL_connect: SSL_ERROR_SYSCALL`（real-exit=128），撤掉代理后推送成功（`8ac11d9..f7b1e7a master -> master`）。**更正此前一处结论**：本会话早前报的"重锚四张表后归因错误全清"不可靠——按上一条记录（13:54:57）的发现，校验器在需求未批准时会提前返回、走不到归因检查，所以"没有报错"未必等于"归因通过"，需重新批准后复验。**另记一条自身失误**：先前用 `git push … | tail` 读到的 `exit=0` 是 `tail` 的退出码而非 git 的，判退出码不能走管道。**未运行构建与测试**（无源码改动）。
 - 本地提交：见本轮提交
 - 远端推送：见本轮
+
+## 2026-10-10 14:09:05 +0800 · WORK-004 · 签署 .agent/changes/WORK-004-知识库/requirements.md
+
+- 类型：decision
+- 变更：.agent/changes/WORK-004-知识库/requirements.md 由 xiaou61 签署为 approved
+- 决策：审批人 xiaou61（CTO）；approved_by / approved_at 由命令入口盖章，不由模型写入
+- 依据：.agent/changes/WORK-004-知识库/requirements.md
+- 验证：回读 frontmatter：approved_by / approved_at=2026-10-10 14:09:05 +0800
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 14:09:06 +0800 · WORK-004 · 签署 .agent/changes/WORK-004-知识库/proposal.md
+
+- 类型：decision
+- 变更：.agent/changes/WORK-004-知识库/proposal.md 由 xiaou61 签署为 approved
+- 决策：审批人 xiaou61（CTO）；approved_by / approved_at 由命令入口盖章，不由模型写入
+- 依据：.agent/changes/WORK-004-知识库/proposal.md
+- 验证：回读 frontmatter：approved_by / approved_at=2026-10-10 14:09:06 +0800
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 14:09:07 +0800 · WORK-004 · 签署 .agent/changes/WORK-004-知识库/design.md
+
+- 类型：decision
+- 变更：.agent/changes/WORK-004-知识库/design.md 由 xiaou61 签署为 approved
+- 决策：审批人 xiaou61（CTO）；approved_by / approved_at 由命令入口盖章，不由模型写入
+- 依据：.agent/changes/WORK-004-知识库/design.md
+- 验证：回读 frontmatter：approved_by / approved_at=2026-10-10 14:09:07 +0800
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
+
+## 2026-10-10 14:09:08 +0800 · WORK-004 · 签署 .agent/changes/WORK-004-知识库/tasks.md
+
+- 类型：decision
+- 变更：.agent/changes/WORK-004-知识库/tasks.md 由 xiaou61 签署为 approved
+- 决策：审批人 xiaou61（CTO）；approved_by / approved_at 由命令入口盖章，不由模型写入
+- 依据：.agent/changes/WORK-004-知识库/tasks.md
+- 验证：回读 frontmatter：approved_by / approved_at=2026-10-10 14:09:08 +0800
+- 本地提交：待用户授权/未提交
+- 远端推送：未执行
